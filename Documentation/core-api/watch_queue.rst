@@ -217,7 +217,7 @@ should be passed in.  The notification may be larger than this and the size in
 units of buffer slots is noted in ``n->info & WATCH_INFO_LENGTH``.
 
 The ``cred`` struct indicates the credentials of the source (subject) and is
-passed to the LSMs, such as SELinux, to allow or suppress the recording of the
+passed to the LSMs, such as SEGNU/Linux, to allow or suppress the recording of the
 note in each individual queue according to the credentials of that queue
 (object).
 

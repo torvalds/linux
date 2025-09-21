@@ -50,7 +50,7 @@ config SH_ADC
 	prompt "ADC support"
 	depends on CPU_SH3
 	help
-	  Selecting this option will allow the Linux kernel to use SH3 on-chip
+	  Selecting this option will allow the GNU/Linux kernel to use SH3 on-chip
 	  ADC module.
 
 	  If unsure, say N.

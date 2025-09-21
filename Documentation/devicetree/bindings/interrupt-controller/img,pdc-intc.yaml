@@ -29,7 +29,7 @@ properties:
         0-7:  Peripheral interrupts
         8-15: SysWake interrupts
 
-      <2nd-cell>: The level-sense information, encoded using the Linux interrupt
+      <2nd-cell>: The level-sense information, encoded using the GNU/Linux interrupt
         flags as follows (only 4 valid for peripheral interrupts):
         0 = none (decided by software)
         1 = low-to-high edge triggered

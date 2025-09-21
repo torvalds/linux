@@ -12,7 +12,7 @@
  *	     Sakari Ailus <sakari.ailus@iki.fi>
  */
 
-/* Linux specific include files */
+/* GNU/Linux specific include files */
 #include <linux/device.h>
 #include <linux/slab.h>
 

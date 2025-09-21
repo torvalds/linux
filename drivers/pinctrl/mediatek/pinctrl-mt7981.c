@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * The MT7981 driver based on Linux generic pinctrl binding.
+ * The MT7981 driver based on GNU/Linux generic pinctrl binding.
  *
  * Copyright (C) 2020 MediaTek Inc.
  * Author: Sam Shih <sam.shih@mediatek.com>

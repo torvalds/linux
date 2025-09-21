@@ -6,7 +6,7 @@
  *   the excess network bandwidth as compared to the ``fair share`` of
  *   bandwidth as targeted by TCP.
  *
- * As of 2.6.13, Linux supports pluggable congestion control algorithms.
+ * As of 2.6.13, GNU/Linux supports pluggable congestion control algorithms.
  * Due to the limitation of the API, we take the following changes from
  * the original TCP-LP implementation:
  *   o We use newReno in most core CA handling. Only add some checking

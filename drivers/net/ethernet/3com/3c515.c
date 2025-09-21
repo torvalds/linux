@@ -118,7 +118,7 @@ it's not practical to integrate this driver with the other EtherLink drivers.
 II. Board-specific settings
 
 The Corkscrew has an EEPROM for configuration, but no special settings are
-needed for Linux.
+needed for GNU/Linux.
 
 III. Driver operation
 

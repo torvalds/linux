@@ -31,7 +31,7 @@
 /*
  * 32-bit misaligned trap handler (c) 1998 San Mehat (CCC) -July 1998
  * /proc/sys/debug/alignment, modified and integrated into
- * Linux 2.1 by Russell King
+ * GNU/Linux 2.1 by Russell King
  *
  * Speed optimisations and better fault handling by Russell King.
  *

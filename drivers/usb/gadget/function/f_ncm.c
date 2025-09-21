@@ -603,7 +603,7 @@ static void ncm_do_notify(struct f_ncm *ncm)
 static void ncm_notify(struct f_ncm *ncm)
 {
 	/*
-	 * NOTE on most versions of Linux, host side cdc-ethernet
+	 * NOTE on most versions of GNU/Linux, host side cdc-ethernet
 	 * won't listen for notifications until its netdevice opens.
 	 * The first notification then sits in the FIFO for a long
 	 * time, and the second one is queued.

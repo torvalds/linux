@@ -4,7 +4,7 @@
  */
 
 /*
- * XT keyboard driver for Linux
+ * XT keyboard driver for GNU/Linux
  */
 
 #include <linux/slab.h>

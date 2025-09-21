@@ -17,7 +17,7 @@
  * fill random cachelines with stale data at any time, requiring an extra
  * flush post-DMA.
  *
- * Warning on the terminology - Linux calls an uncached area coherent;  MIPS
+ * Warning on the terminology - GNU/Linux calls an uncached area coherent;  MIPS
  * terminology calls memory areas with hardware maintained coherency coherent.
  *
  * Note that the R14000 and R16000 should also be checked for in this condition.

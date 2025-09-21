@@ -16,12 +16,12 @@ image:
 2. bootloader - The firmware which validate firmware security and control basic
    operations including loading and updating the firmware. This is also known
    as the cmrt firmware.
-3. undi - This is the UEFI driver which is based on the Linux driver.
+3. undi - This is the UEFI driver which is based on the GNU/Linux driver.
 
 fbnic stores two copies of these three components on flash. This allows fbnic
 to fall back to an older version of firmware automatically in case firmware
 fails to boot. Version information for both is provided as running and stored.
-The undi is only provided in stored as it is not actively running once the Linux
+The undi is only provided in stored as it is not actively running once the GNU/Linux
 driver takes over.
 
 devlink dev info provides version information for all three components. In

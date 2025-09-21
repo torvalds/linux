@@ -8,7 +8,7 @@ source "virt/kvm/Kconfig"
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
 	help
-	  Say Y here to get to see options for using your Linux host to run
+	  Say Y here to get to see options for using your GNU/Linux host to run
 	  other operating systems inside virtual machines (guests).
 	  This option alone does not add any kernel code.
 
@@ -162,7 +162,7 @@ config KVM_BOOK3S_HV_NESTED_PMU_WORKAROUND
 	depends on KVM_BOOK3S_HV_POSSIBLE
 	default !EXPERT
 	help
-	  Old nested HV capable Linux guests have a bug where they don't
+	  Old nested HV capable GNU/Linux guests have a bug where they don't
 	  reflect the PMU in-use status of their L2 guest to the L0 host
 	  while the L2 PMU registers are live. This can result in loss
 	  of L2 PMU register state, causing perf to not work correctly in

@@ -9,7 +9,7 @@ Takashi Iwai <tiwai@suse.de>
 General
 -------
 
-First of all, you need to enable GAMEPORT support on Linux kernel for
+First of all, you need to enable GAMEPORT support on GNU/Linux kernel for
 using a joystick with the ALSA driver.  For the details of gameport
 support, refer to Documentation/input/joydev/joystick.rst.
 

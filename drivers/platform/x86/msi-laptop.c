@@ -29,7 +29,7 @@
  *   hardware is available. (ro)
  *
  * In addition to these platform device attributes the driver
- * registers itself in the Linux backlight control subsystem and is
+ * registers itself in the GNU/Linux backlight control subsystem and is
  * available to userspace under /sys/class/backlight/msi-laptop-bl/.
  *
  * This driver might work on other laptops produced by MSI. If you
@@ -118,7 +118,7 @@ struct quirk_entry {
 	 * disable the original Wlan/Bluetooth control by BIOS when user press
 	 * fn key, then control Wlan/Bluetooth/3G by SCM (software control by
 	 * OS). Without SCM, user cann't on/off 3G module on those 3G netbook.
-	 * On Linux, msi-laptop driver will do the same thing to disable the
+	 * On GNU/Linux, msi-laptop driver will do the same thing to disable the
 	 * original BIOS control, then might need use HAL or other userland
 	 * application to do the software control that simulate with SCM.
 	 * e.g. MSI N034 netbook

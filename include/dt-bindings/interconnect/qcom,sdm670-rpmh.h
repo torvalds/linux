@@ -2,7 +2,7 @@
 /*
  * Qualcomm SDM670 interconnect IDs
  *
- * Copyright (c) 2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef __DT_BINDINGS_INTERCONNECT_QCOM_SDM670_H

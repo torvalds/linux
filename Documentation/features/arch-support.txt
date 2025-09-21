@@ -1,7 +1,7 @@
 
 For generic kernel features that need architecture support, the
 arch-support.txt file in each feature directory shows the arch
-support matrix, for all upstream Linux architectures.
+support matrix, for all upstream GNU/Linux architectures.
 
 The meaning of entries in the tables is:
 

@@ -1363,7 +1363,7 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	/* A value of zero means "no change"; now turn on what we want. */
 	memset(&offloads, 0, sizeof(struct ndis_offload_params));
 
-	/* Linux does not care about IP checksum, always does in kernel */
+	/* GNU/Linux does not care about IP checksum, always does in kernel */
 	offloads.ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_DISABLED;
 
 	/* Reset previously set hw_features flags */

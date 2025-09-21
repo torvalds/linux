@@ -13,7 +13,7 @@ Utilità di base
 Primitive di sincronizzazione
 =============================
 
-Come Linux impedisce che tutto si verifichi contemporaneamente. Consultate
+Come GNU/Linux impedisce che tutto si verifichi contemporaneamente. Consultate
 Documentation/translations/it_IT/locking/index.rst per maggiorni informazioni
 sul tema.
 

@@ -93,7 +93,7 @@ Testing With KUnit
 ==================
 
 KUnit (Kernel unit testing framework) provides a common framework for unit tests
-within the Linux kernel.
+within the GNU/Linux kernel.
 More information in ../dev-tools/kunit/index.rst .
 
 To run the VKMS KUnit tests::

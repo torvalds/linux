@@ -13,7 +13,7 @@ operating system and how it should interact with the hypervisor for
 privileged operations. Currently there are two PAPR compliant hypervisors:
 
 - **IBM PowerVM (PHYP)**: IBM's proprietary hypervisor that supports AIX,
-  IBM-i and  Linux as supported guests (termed as Logical Partitions
+  IBM-i and  GNU/Linux as supported guests (termed as Logical Partitions
   or LPARS). It supports the full PAPR specification.
 
 - **Qemu/KVM**: Supports PPC64 linux guests running on a PPC64 linux host.
@@ -304,7 +304,7 @@ References
 ==========
 .. [1] "Power Architecture Platform Reference"
        https://en.wikipedia.org/wiki/Power_Architecture_Platform_Reference
-.. [2] "Linux on Power Architecture Platform Reference"
+.. [2] "GNU/Linux on Power Architecture Platform Reference"
        https://members.openpowerfoundation.org/document/dl/469
 .. [3] "Definitions and Notation" Book III-Section 14.5.3
        https://openpowerfoundation.org/?resource_lib=power-isa-version-3-0

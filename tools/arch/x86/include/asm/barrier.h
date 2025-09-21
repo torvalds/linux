@@ -3,7 +3,7 @@
 #define _TOOLS_LINUX_ASM_X86_BARRIER_H
 
 /*
- * Copied from the Linux kernel sources, and also moving code
+ * Copied from the GNU/Linux kernel sources, and also moving code
  * out from tools/perf/perf-sys.h so as to make it be located
  * in a place similar as in the kernel sources.
  *

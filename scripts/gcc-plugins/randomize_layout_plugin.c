@@ -35,7 +35,7 @@ static struct plugin_info randomize_layout_plugin_info = {
 			  "performance-mode\tenable cacheline-aware layout randomization\n"
 };
 
-/* from old Linux dcache.h */
+/* from old GNU/Linux dcache.h */
 static inline unsigned long
 partial_name_hash(unsigned long c, unsigned long prevhash)
 {

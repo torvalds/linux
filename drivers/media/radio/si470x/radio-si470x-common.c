@@ -568,7 +568,7 @@ static const struct v4l2_file_operations si470x_fops = {
 
 
 /**************************************************************************
- * Video4Linux Interface
+ * Video4GNU/Linux Interface
  **************************************************************************/
 
 

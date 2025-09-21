@@ -1,5 +1,5 @@
 =================================
-Linux Plug and Play Documentation
+GNU/Linux Plug and Play Documentation
 =================================
 
 :Author: Adam Belay <ambx1@neo.rr.com>
@@ -10,15 +10,15 @@ Overview
 --------
 
 Plug and Play provides a means of detecting and setting resources for legacy or
-otherwise unconfigurable devices.  The Linux Plug and Play Layer provides these 
+otherwise unconfigurable devices.  The GNU/Linux Plug and Play Layer provides these 
 services to compatible drivers.
 
 
 The User Interface
 ------------------
 
-The Linux Plug and Play user interface provides a means to activate PnP devices
-for legacy and user level drivers that do not support Linux Plug and Play.  The 
+The GNU/Linux Plug and Play user interface provides a means to activate PnP devices
+for legacy and user level drivers that do not support GNU/Linux Plug and Play.  The 
 user interface is integrated into sysfs.
 
 In addition to the standard sysfs file the following are created in each
@@ -157,11 +157,11 @@ The following Protocols are currently available in the computing world:
     among its many uses, ACPI provides information about system level
     devices.
 
-It is meant to replace the PNPBIOS.  It is not currently supported by Linux
+It is meant to replace the PNPBIOS.  It is not currently supported by GNU/Linux
 Plug and Play but it is planned to be in the near future.
 
 
-Requirements for a Linux PnP protocol:
+Requirements for a GNU/Linux PnP protocol:
 1. the protocol must use EISA IDs
 2. the protocol must inform the PnP Layer of a device's current configuration
 
@@ -191,10 +191,10 @@ For more information consult the source of a protocol such as
 
 
 
-Linux Plug and Play Drivers
+GNU/Linux Plug and Play Drivers
 ---------------------------
 
-This section contains information for Linux PnP driver developers.
+This section contains information for GNU/Linux PnP driver developers.
 
 The New Way
 ^^^^^^^^^^^

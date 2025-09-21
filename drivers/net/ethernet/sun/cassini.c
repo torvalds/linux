@@ -202,7 +202,7 @@ MODULE_PARM_DESC(linkdown_timeout,
 /*
  * value in 'ticks' (units used by jiffies). Set when we init the
  * module because 'HZ' in actually a function call on some flavors of
- * Linux.  This will default to DEFAULT_LINKDOWN_TIMEOUT * HZ.
+ * GNU/Linux.  This will default to DEFAULT_LINKDOWN_TIMEOUT * HZ.
  */
 static int link_transition_timeout;
 

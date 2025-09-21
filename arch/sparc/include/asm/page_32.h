@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * page.h:  Various defines and such for MMU operations on the Sparc for
- *          the Linux kernel.
+ *          the GNU/Linux kernel.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */

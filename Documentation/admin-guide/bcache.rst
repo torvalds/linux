@@ -11,7 +11,7 @@ The bcache wiki can be found at:
 This is the git repository of bcache-tools:
   https://git.kernel.org/pub/scm/linux/kernel/git/colyli/bcache-tools.git/
 
-The latest bcache kernel code can be found from mainline Linux kernel:
+The latest bcache kernel code can be found from mainline GNU/Linux kernel:
   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/
 
 It's designed around the performance characteristics of SSDs - it only allocates

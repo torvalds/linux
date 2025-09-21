@@ -24,7 +24,7 @@
  * frontends, so we need to define a value which states the minimum
  * slots backend must support.
  *
- * The minimum value derives from older Linux kernel's MAX_SKB_FRAGS
+ * The minimum value derives from older GNU/Linux kernel's MAX_SKB_FRAGS
  * (18), which is proved to work with most frontends. Any new backend
  * which doesn't negotiate with frontend should expect frontend to
  * send a valid packet using slots up to this value.
@@ -721,7 +721,7 @@ DEFINE_RING_TYPES(xen_netif_ctrl,
  * flags: XEN_NETRXF_*
  * status: -ve: XEN_NETIF_RSP_*; +ve: Rx'ed pkt size.
  *
- * NOTE: Historically, to support GSO on the frontend receive side, Linux
+ * NOTE: Historically, to support GSO on the frontend receive side, GNU/Linux
  *       netfront does not make use of the rx response id (because, as
  *       described below, extra info structures overlay the id field).
  *       Instead it assumes that responses always appear in the same ring

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Linux arch/m68k/fpsp040 source directory
+# Makefile for GNU/Linux arch/m68k/fpsp040 source directory
 #
 
 obj-y    := bindec.o binstr.o decbin.o do_func.o gen_except.o get_op.o \

@@ -5,7 +5,7 @@
  * Copyright (c) 1997-2007 Jean Tourrilhes, All Rights Reserved.
  * Copyright	2009 Johannes Berg <johannes@sipsolutions.net>
  *
- * (As all part of the Linux kernel, this file is GPL)
+ * (As all part of the GNU/Linux kernel, this file is GPL)
  */
 #include <linux/slab.h>
 #include <linux/wireless.h>

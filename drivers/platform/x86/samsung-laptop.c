@@ -129,7 +129,7 @@ struct sabi_commands {
 	u16 kbd_backlight;
 
 	/*
-	 * Tell the BIOS that Linux is running on this machine.
+	 * Tell the BIOS that GNU/Linux is running on this machine.
 	 * 81 is on, 80 is off
 	 */
 	u16 set_linux;
@@ -1401,7 +1401,7 @@ static void samsung_sabi_exit(struct samsung_laptop *samsung)
 {
 	const struct sabi_config *config = samsung->config;
 
-	/* Turn off "Linux" mode in the BIOS */
+	/* Turn off "GNU/Linux" mode in the BIOS */
 	if (config && config->commands.set_linux != 0xff)
 		sabi_set_commandb(samsung, config->commands.set_linux, 0x80);
 
@@ -1526,12 +1526,12 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 		goto exit;
 	}
 
-	/* Turn on "Linux" mode in the BIOS */
+	/* Turn on "GNU/Linux" mode in the BIOS */
 	if (commands->set_linux != 0xff) {
 		int retval = sabi_set_commandb(samsung,
 					       commands->set_linux, 0x81);
 		if (retval) {
-			pr_warn("Linux mode was not set!\n");
+			pr_warn("GNU/Linux mode was not set!\n");
 			ret = -ENODEV;
 			goto exit;
 		}

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
- * Name: aclinuxex.h - Extra OS specific defines, etc. for Linux
+ * Name: aclinuxex.h - Extra OS specific defines, etc. for GNU/Linux
  *
  * Copyright (C) 2000 - 2025, Intel Corp.
  *
@@ -132,7 +132,7 @@ static inline void acpi_os_terminate_debugger(void)
 }
 
 /*
- * OSL interfaces added by Linux
+ * OSL interfaces added by GNU/Linux
  */
 
 #endif				/* __KERNEL__ */

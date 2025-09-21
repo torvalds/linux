@@ -48,9 +48,9 @@
 		};
 
 		partition@40000 {
-			/* 3.75 MB for Linux Kernel Image */
+			/* 3.75 MB for GNU/Linux Kernel Image */
 			reg = <0x00040000 0x003c0000>;
-			label = "NOR Linux Kernel Image";
+			label = "NOR GNU/Linux Kernel Image";
 		};
 
 		partition@400000 {

@@ -37,7 +37,7 @@ static bool tls_desc_okay(const struct user_desc *info)
 	 * of the segmentation APIs work), user programs can and do
 	 * assume that a struct user_desc that's all zeros except for
 	 * entry_number means "no segment at all".  This never actually
-	 * worked.  In fact, up to Linux 3.19, a struct user_desc like
+	 * worked.  In fact, up to GNU/Linux 3.19, a struct user_desc like
 	 * this would create a 16-bit read-write segment with base and
 	 * limit both equal to zero.
 	 *

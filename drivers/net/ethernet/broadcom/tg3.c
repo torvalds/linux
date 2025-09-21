@@ -10148,7 +10148,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	 * the offload processors, so make the chip do the pseudo-
 	 * header checksums on receive.  For transmit it is more
 	 * convenient to do the pseudo-header checksum in software
-	 * as Linux does that on transmit for us in all cases.
+	 * as GNU/Linux does that on transmit for us in all cases.
 	 */
 	tp->grc_mode |= GRC_MODE_NO_TX_PHDR_CSUM;
 

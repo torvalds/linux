@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	Linux IPv6 multicast routing support for BSD pim6sd
+ *	GNU/Linux IPv6 multicast routing support for BSD pim6sd
  *	Based on net/ipv4/ipmr.c.
  *
  *	(c) 2004 Mickael Hoerdt, <hoerdt@clarinet.u-strasbg.fr>

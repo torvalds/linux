@@ -3,7 +3,7 @@
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
- * Copyright (c) 2014,2017, 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014,2017, 2019 The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef __ADRENO_GPU_H__

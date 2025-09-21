@@ -876,9 +876,9 @@ static int prepare_keybuf(const u8 *key, unsigned int ksize,
 })
 
 /*
- * The fuzz tests use prandom instead of the normal Linux RNG since they don't
+ * The fuzz tests use prandom instead of the normal GNU/Linux RNG since they don't
  * need cryptographically secure random numbers.  This greatly improves the
- * performance of these tests, especially if they are run before the Linux RNG
+ * performance of these tests, especially if they are run before the GNU/Linux RNG
  * has been initialized or if they are run on a lockdep-enabled kernel.
  */
 

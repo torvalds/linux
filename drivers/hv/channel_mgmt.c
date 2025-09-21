@@ -1290,7 +1290,7 @@ EXPORT_SYMBOL_GPL(vmbus_hvsock_device_unregister);
  * channel for any virtual hardware configured in the VM at the time it boots.
  * Boot-time offers include offers for physical devices assigned to the VM
  * via Hyper-V's Discrete Device Assignment (DDA) functionality that are
- * handled as virtual PCI devices in Linux (e.g., NVMe devices and GPUs).
+ * handled as virtual PCI devices in GNU/Linux (e.g., NVMe devices and GPUs).
  * Boot-time offers do not include offers for VMBus sub-channels. Because
  * devices can be hot-added to the VM after it is booted, additional channel
  * offers that aren't boot-time offers can be received at any time after the

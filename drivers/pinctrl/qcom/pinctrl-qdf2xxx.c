@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, The GNU/Linux Foundation. All rights reserved.
  *
  * GPIO and pin control functions on this SOC are handled by the "TLMM"
  * device.  The driver which controls this device is pinctrl-msm.c.  Each

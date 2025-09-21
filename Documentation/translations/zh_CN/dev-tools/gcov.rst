@@ -3,10 +3,10 @@
 :Original: Documentation/dev-tools/gcov.rst
 :Translator: 赵军奎 Bernard Zhao <bernard@vivo.com>
 
-在Linux内核里使用gcov做代码覆盖率检查
+在GNU/Linux内核里使用gcov做代码覆盖率检查
 =====================================
 
-gcov分析核心支持在Linux内核中启用GCC的覆盖率测试工具 gcov_ ，Linux内核
+gcov分析核心支持在GNU/Linux内核中启用GCC的覆盖率测试工具 gcov_ ，GNU/Linux内核
 运行时的代码覆盖率数据会以gcov兼容的格式导出到“gcov”debugfs目录中，可
 以通过gcov的 ``-o`` 选项（如下示例）获得指定文件的代码运行覆盖率统计数据
 （需要跳转到内核编译路径下并且要有root权限）::
@@ -16,7 +16,7 @@ gcov分析核心支持在Linux内核中启用GCC的覆盖率测试工具 gcov_ �
 
 这将在当前目录中创建带有执行计数注释的源代码文件。
 在获得这些统计文件后，可以使用图形化的gcov前端工具（比如 lcov_ ），来实现
-自动化处理Linux内核的覆盖率运行数据，同时生成易于阅读的HTML格式文件。
+自动化处理GNU/Linux内核的覆盖率运行数据，同时生成易于阅读的HTML格式文件。
 
 可能的用途:
 

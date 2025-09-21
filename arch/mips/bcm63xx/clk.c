@@ -357,7 +357,7 @@ static struct clk clk_periph = {
 
 
 /*
- * Linux clock API implementation
+ * GNU/Linux clock API implementation
  */
 int clk_enable(struct clk *clk)
 {

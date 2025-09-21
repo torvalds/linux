@@ -36,7 +36,7 @@ Usage:
 
 Each DTx is processed by the dtc compiler to produce a sorted dts source
 file.  If DTx is a dts source file then it is pre-processed in the same
-manner as done for the compile of the dts source file in the Linux kernel
+manner as done for the compile of the dts source file in the GNU/Linux kernel
 build system ('#include' and '/include/' directives are processed).
 
 If two DTx are provided, the resulting dts source files are diffed.
@@ -298,23 +298,23 @@ if [ ! -x ${DTC} ] ; then
 
 ERROR: unable to find a 'dtc' program
 
-   Preferred 'dtc' (built from Linux kernel source tree) was not found or
+   Preferred 'dtc' (built from GNU/Linux kernel source tree) was not found or
    is not executable.
 
       'dtc' is: ${DTC}
 
-      If it does not exist, create it from the root of the Linux source tree:
+      If it does not exist, create it from the root of the GNU/Linux source tree:
 ${make_command}
 
-      If not at the root of the Linux kernel source tree -s SRCTREE or -S
+      If not at the root of the GNU/Linux kernel source tree -s SRCTREE or -S
       may need to be specified to find 'dtc'.
 
-      If 'O=\${dir}' is specified in your Linux builds, this script requires
+      If 'O=\${dir}' is specified in your GNU/Linux builds, this script requires
       'export KBUILD_OUTPUT=\${dir}' or add \${dir}/scripts/dtc to \$PATH
       before running.
 
       If \${KBUILD_OUTPUT} is a relative path, then '-s SRCDIR', -S, or run
-      this script from the root of the Linux kernel source tree is required.
+      this script from the root of the GNU/Linux kernel source tree is required.
 
    Fallback '${__DTC}' was also not in \${PATH} or is not executable.
 

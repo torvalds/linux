@@ -1186,10 +1186,10 @@ void disable_local_APIC(void)
 }
 
 /*
- * If Linux enabled the LAPIC against the BIOS default disable it down before
+ * If GNU/Linux enabled the LAPIC against the BIOS default disable it down before
  * re-entering the BIOS on shutdown.  Otherwise the BIOS may get confused and
  * not power-off.  Additionally clear all LVT entries before disable_local_APIC
- * for the case where Linux didn't enable the LAPIC.
+ * for the case where GNU/Linux didn't enable the LAPIC.
  */
 void lapic_shutdown(void)
 {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Security-Enhanced Linux (SELinux) security module
+ *  Security-Enhanced GNU/Linux (SEGNU/Linux) security module
  *
- *  This file contains the SELinux hook function implementations.
+ *  This file contains the SEGNU/Linux hook function implementations.
  *
  *  Authors:  Stephen Smalley, <stephen.smalley.work@gmail.com>
  *	      Chris Vance, <cvance@nai.com>
@@ -145,7 +145,7 @@ static int __init checkreqprot_setup(char *str)
 
 	if (!kstrtoul(str, 0, &checkreqprot)) {
 		if (checkreqprot)
-			pr_err("SELinux: checkreqprot set to 1 via kernel parameter.  This is no longer supported.\n");
+			pr_err("SEGNU/Linux: checkreqprot set to 1 via kernel parameter.  This is no longer supported.\n");
 	}
 	return 1;
 }
@@ -288,7 +288,7 @@ static int __inode_security_revalidate(struct inode *inode,
 		return -ECHILD;
 
 	/*
-	 * Check to ensure that an inode's SELinux state is valid and try
+	 * Check to ensure that an inode's SEGNU/Linux state is valid and try
 	 * reloading the inode security label if necessary.  This will fail if
 	 * @dentry is NULL and no dentry for this inode can be found; in that
 	 * case, continue using the old label.
@@ -431,7 +431,7 @@ static int match_opt_prefix(char *s, int l, char **arg)
 	return Opt_error;
 }
 
-#define SEL_MOUNT_FAIL_MSG "SELinux:  duplicate or incompatible mount options\n"
+#define SEL_MOUNT_FAIL_MSG "SEGNU/Linux:  duplicate or incompatible mount options\n"
 
 static int may_context_mount_sb_relabel(u32 sid,
 			struct superblock_security_struct *sbsec,
@@ -519,11 +519,11 @@ static int sb_check_xattr_support(struct super_block *sb)
 	 * Make sure that the xattr handler exists and that no
 	 * error other than -ENODATA is returned by getxattr on
 	 * the root directory.  -ENODATA is ok, as this may be
-	 * the first boot of the SELinux kernel before we have
+	 * the first boot of the SEGNU/Linux kernel before we have
 	 * assigned xattr values to the filesystem.
 	 */
 	if (!(root_inode->i_opflags & IOP_XATTR)) {
-		pr_warn("SELinux: (dev %s, type %s) has no xattr support\n",
+		pr_warn("SEGNU/Linux: (dev %s, type %s) has no xattr support\n",
 			sb->s_id, sb->s_type->name);
 		goto fallback;
 	}
@@ -531,11 +531,11 @@ static int sb_check_xattr_support(struct super_block *sb)
 	rc = __vfs_getxattr(root, root_inode, XATTR_NAME_SELINUX, NULL, 0);
 	if (rc < 0 && rc != -ENODATA) {
 		if (rc == -EOPNOTSUPP) {
-			pr_warn("SELinux: (dev %s, type %s) has no security xattr handler\n",
+			pr_warn("SEGNU/Linux: (dev %s, type %s) has no security xattr handler\n",
 				sb->s_id, sb->s_type->name);
 			goto fallback;
 		} else {
-			pr_warn("SELinux: (dev %s, type %s) getxattr errno %d\n",
+			pr_warn("SEGNU/Linux: (dev %s, type %s) getxattr errno %d\n",
 				sb->s_id, sb->s_type->name, -rc);
 			return rc;
 		}
@@ -549,7 +549,7 @@ fallback:
 	if (rc)
 		return -EOPNOTSUPP;
 
-	pr_warn("SELinux: (dev %s, type %s) falling back to genfs\n",
+	pr_warn("SEGNU/Linux: (dev %s, type %s) falling back to genfs\n",
 		sb->s_id, sb->s_type->name);
 	sbsec->behavior = SECURITY_FS_USE_GENFS;
 	sbsec->sid = sid;
@@ -667,7 +667,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 			goto out;
 		}
 		rc = -EINVAL;
-		pr_warn("SELinux: Unable to set superblock options "
+		pr_warn("SEGNU/Linux: Unable to set superblock options "
 			"before the security server is initialized\n");
 		goto out;
 	}
@@ -806,7 +806,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	if (sbsec->flags & SE_SBNATIVE) {
 		/*
 		 * This means we are initializing a superblock that has been
-		 * mounted before the SELinux was initialized and the
+		 * mounted before the SEGNU/Linux was initialized and the
 		 * filesystem requested native labeling. We had already
 		 * returned SECURITY_LSM_NATIVE_LABELS in *set_kern_flags
 		 * in the original mount attempt, so now we just need to set
@@ -852,7 +852,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		if (sbsec->behavior != SECURITY_FS_USE_XATTR &&
 			sbsec->behavior != SECURITY_FS_USE_NATIVE) {
 			rc = -EINVAL;
-			pr_warn("SELinux: defcontext option is "
+			pr_warn("SEGNU/Linux: defcontext option is "
 			       "invalid for this filesystem type\n");
 			goto out;
 		}
@@ -874,7 +874,7 @@ out:
 	return rc;
 out_double_mount:
 	rc = -EINVAL;
-	pr_warn("SELinux: mount invalid.  Same superblock, different "
+	pr_warn("SEGNU/Linux: mount invalid.  Same superblock, different "
 	       "security settings for (dev %s, type %s)\n", sb->s_id,
 	       sb->s_type->name);
 	goto out;
@@ -904,7 +904,7 @@ static int selinux_cmp_sb_context(const struct super_block *oldsb,
 	}
 	return 0;
 mismatch:
-	pr_warn("SELinux: mount invalid.  Same superblock, "
+	pr_warn("SEGNU/Linux: mount invalid.  Same superblock, "
 			    "different security settings for (dev %s, "
 			    "type %s)\n", newsb->s_id, newsb->s_type->name);
 	return -EBUSY;
@@ -1014,7 +1014,7 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 		return -EINVAL;
 
 	if (!selinux_initialized()) {
-		pr_warn("SELinux: Unable to set superblock options before the security server is initialized\n");
+		pr_warn("SEGNU/Linux: Unable to set superblock options before the security server is initialized\n");
 		return -EINVAL;
 	}
 
@@ -1052,7 +1052,7 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 	}
 	rc = security_context_str_to_sid(s, dst_sid, GFP_KERNEL);
 	if (rc)
-		pr_warn("SELinux: security_context_str_to_sid (%s) failed with errno=%d\n",
+		pr_warn("SEGNU/Linux: security_context_str_to_sid (%s) failed with errno=%d\n",
 			s, rc);
 	return rc;
 
@@ -1389,7 +1389,7 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 	if (rc < 0) {
 		kfree(context);
 		if (rc != -ENODATA) {
-			pr_warn("SELinux: %s:  getxattr returned %d for dev=%s ino=%ld\n",
+			pr_warn("SEGNU/Linux: %s:  getxattr returned %d for dev=%s ino=%ld\n",
 				__func__, -rc, inode->i_sb->s_id, inode->i_ino);
 			return rc;
 		}
@@ -1404,10 +1404,10 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 		unsigned long ino = inode->i_ino;
 
 		if (rc == -EINVAL) {
-			pr_notice_ratelimited("SELinux: inode=%lu on dev=%s was found to have an invalid context=%s.  This indicates you may need to relabel the inode or the filesystem in question.\n",
+			pr_notice_ratelimited("SEGNU/Linux: inode=%lu on dev=%s was found to have an invalid context=%s.  This indicates you may need to relabel the inode or the filesystem in question.\n",
 					      ino, dev, context);
 		} else {
-			pr_warn("SELinux: %s:  context_to_sid(%s) returned %d for dev=%s ino=%ld\n",
+			pr_warn("SEGNU/Linux: %s:  context_to_sid(%s) returned %d for dev=%s ino=%ld\n",
 				__func__, context, -rc, dev, ino);
 		}
 	}
@@ -1594,7 +1594,7 @@ out_invalid:
 	return 0;
 }
 
-/* Convert a Linux signal to an access vector. */
+/* Convert a GNU/Linux signal to an access vector. */
 static inline u32 signal_to_av(int sig)
 {
 	u32 perm = 0;
@@ -1622,7 +1622,7 @@ static inline u32 signal_to_av(int sig)
 }
 
 #if CAP_LAST_CAP > 63
-#error Fix SELinux to handle capabilities > 63.
+#error Fix SEGNU/Linux to handle capabilities > 63.
 #endif
 
 /* Check whether a task is allowed to use a capability. */
@@ -1647,7 +1647,7 @@ static int cred_has_capability(const struct cred *cred,
 		sclass = initns ? SECCLASS_CAPABILITY2 : SECCLASS_CAP2_USERNS;
 		break;
 	default:
-		pr_err("SELinux:  out of range capability %d\n", cap);
+		pr_err("SEGNU/Linux:  out of range capability %d\n", cap);
 		BUG();
 		return -EINVAL;
 	}
@@ -1887,7 +1887,7 @@ static int may_link(struct inode *dir,
 		av = DIR__RMDIR;
 		break;
 	default:
-		pr_warn("SELinux: %s:  unrecognized kind %d\n",
+		pr_warn("SEGNU/Linux: %s:  unrecognized kind %d\n",
 			__func__, kind);
 		return 0;
 	}
@@ -1964,7 +1964,7 @@ static int superblock_has_perm(const struct cred *cred,
 	return avc_has_perm(sid, sbsec->sid, SECCLASS_FILESYSTEM, perms, ad);
 }
 
-/* Convert a Linux mode and permission mask to an access vector. */
+/* Convert a GNU/Linux mode and permission mask to an access vector. */
 static inline u32 file_mask_to_av(int mode, int mask)
 {
 	u32 av = 0;
@@ -1992,7 +1992,7 @@ static inline u32 file_mask_to_av(int mode, int mask)
 	return av;
 }
 
-/* Convert a Linux file to an access vector. */
+/* Convert a GNU/Linux file to an access vector. */
 static inline u32 file_to_av(const struct file *file)
 {
 	u32 av = 0;
@@ -2143,9 +2143,9 @@ static int selinux_capset(struct cred *new, const struct cred *old,
  * (This comment used to live with the selinux_task_setuid hook,
  * which was removed).
  *
- * Since setuid only affects the current process, and since the SELinux
- * controls are not based on the Linux identity attributes, SELinux does not
- * need to control this operation.  However, SELinux does control the use of
+ * Since setuid only affects the current process, and since the SEGNU/Linux
+ * controls are not based on the GNU/Linux identity attributes, SEGNU/Linux does not
+ * need to control this operation.  However, SEGNU/Linux does control the use of
  * the CAP_SETUID and CAP_SETGID capabilities using the capable hook.
  */
 
@@ -2308,7 +2308,7 @@ static int selinux_bprm_creds_for_exec(struct linux_binprm *bprm)
 	struct inode *inode = file_inode(bprm->file);
 	int rc;
 
-	/* SELinux context only depends on initial program or script and not
+	/* SEGNU/Linux context only depends on initial program or script and not
 	 * the script interpreter */
 
 	old_tsec = selinux_cred(current_cred());
@@ -2737,7 +2737,7 @@ static int selinux_sb_remount(struct super_block *sb, void *mnt_opts)
 	return 0;
 
 out_bad_option:
-	pr_warn("SELinux: unable to change security options "
+	pr_warn("SEGNU/Linux: unable to change security options "
 	       "during remount (dev %s, type=%s)\n", sb->s_id,
 	       sb->s_type->name);
 	return -EINVAL;
@@ -2990,7 +2990,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 		struct inode_security_struct *context_isec =
 			selinux_inode(context_inode);
 		if (context_isec->initialized != LABEL_INITIALIZED) {
-			pr_err("SELinux:  context_inode is not initialized\n");
+			pr_err("SEGNU/Linux:  context_inode is not initialized\n");
 			return -EACCES;
 		}
 
@@ -3305,10 +3305,10 @@ static bool has_cap_mac_admin(bool audit)
  * selinux_inode_xattr_skipcap - Skip the xattr capability checks?
  * @name: name of the xattr
  *
- * Returns 1 to indicate that SELinux "owns" the access control rights to xattrs
+ * Returns 1 to indicate that SEGNU/Linux "owns" the access control rights to xattrs
  * named @name; the LSM layer should avoid enforcing any traditional
  * capability based access controls on this xattr.  Returns 0 to indicate that
- * SELinux does not "own" the access control rights to xattrs named @name and is
+ * SEGNU/Linux does not "own" the access control rights to xattrs named @name and is
  * deferring to the LSM layer for further access controls, including capability
  * based controls.
  */
@@ -3449,7 +3449,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 	rc = security_context_to_sid_force(value, size,
 					   &newsid);
 	if (rc) {
-		pr_err("SELinux:  unable to map context to SID"
+		pr_err("SEGNU/Linux:  unable to map context to SID"
 		       "for (%s, %lu), rc=%d\n",
 		       inode->i_sb->s_id, inode->i_ino, -rc);
 		return;
@@ -3487,7 +3487,7 @@ static int selinux_inode_removexattr(struct mnt_idmap *idmap,
 	if (!selinux_initialized())
 		return 0;
 
-	/* No one is allowed to remove a SELinux security label.
+	/* No one is allowed to remove a SEGNU/Linux security label.
 	   You can change the label, but all data must be labeled. */
 	return -EACCES;
 }
@@ -3676,7 +3676,7 @@ static int selinux_inode_copy_up_xattr(struct dentry *dentry, const char *name)
 {
 	/* The copy_up hook above sets the initial context on an inode, but we
 	 * don't then want to overwrite it by blindly copying all the lower
-	 * xattrs up.  Instead, filter out SELinux-related xattrs following
+	 * xattrs up.  Instead, filter out SEGNU/Linux-related xattrs following
 	 * policy load.
 	 */
 	if (selinux_initialized() && !strcmp(name, XATTR_NAME_SELINUX))
@@ -4165,7 +4165,7 @@ static int selinux_cred_prepare(struct cred *new, const struct cred *old,
 }
 
 /*
- * transfer the SELinux data to a blank set of creds
+ * transfer the SEGNU/Linux data to a blank set of creds
  */
 static void selinux_cred_transfer(struct cred *new, const struct cred *old)
 {
@@ -4272,7 +4272,7 @@ static int selinux_kernel_read_file(struct file *file,
 	int rc = 0;
 
 	BUILD_BUG_ON_MSG(READING_MAX_ID > 7,
-			 "New kernel_read_file_id introduced; update SELinux!");
+			 "New kernel_read_file_id introduced; update SEGNU/Linux!");
 
 	switch (id) {
 	case READING_FIRMWARE:
@@ -4308,7 +4308,7 @@ static int selinux_kernel_load_data(enum kernel_load_data_id id, bool contents)
 	int rc = 0;
 
 	BUILD_BUG_ON_MSG(LOADING_MAX_ID > 7,
-			 "New kernel_load_data_id introduced; update SELinux!");
+			 "New kernel_load_data_id introduced; update SEGNU/Linux!");
 
 	switch (id) {
 	case LOADING_FIRMWARE:
@@ -4662,7 +4662,7 @@ static int selinux_parse_skb(struct sk_buff *skb, struct common_audit_data *ad,
 
 parse_error:
 	pr_warn(
-	       "SELinux: failure in selinux_parse_skb(),"
+	       "SEGNU/Linux: failure in selinux_parse_skb(),"
 	       " unable to parse packet\n");
 	return ret;
 
@@ -4705,7 +4705,7 @@ static int selinux_skb_peerlbl_sid(struct sk_buff *skb, u16 family, u32 *sid)
 					   nlbl_type, xfrm_sid, sid);
 	if (unlikely(err)) {
 		pr_warn(
-		       "SELinux: failure in selinux_skb_peerlbl_sid(),"
+		       "SEGNU/Linux: failure in selinux_skb_peerlbl_sid(),"
 		       " unable to determine packet's peer label\n");
 		return -EACCES;
 	}
@@ -6137,7 +6137,7 @@ static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 				return rc;
 		} else if (rc == -EINVAL) {
 			/* -EINVAL is a missing msg/perm mapping */
-			pr_warn_ratelimited("SELinux: unrecognized netlink"
+			pr_warn_ratelimited("SEGNU/Linux: unrecognized netlink"
 				" message: protocol=%hu nlmsg_type=%hu sclass=%s"
 				" pid=%d comm=%s\n",
 				sk->sk_protocol, nlh->nlmsg_type,
@@ -6720,7 +6720,7 @@ abort_change:
 }
 
 /**
- * selinux_getselfattr - Get SELinux current task attributes
+ * selinux_getselfattr - Get SEGNU/Linux current task attributes
  * @attr: the requested attribute
  * @ctx: buffer to receive the result
  * @size: buffer size (input), buffer size used (output)
@@ -7607,7 +7607,7 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 
 static __init int selinux_init(void)
 {
-	pr_info("SELinux:  Initializing.\n");
+	pr_info("SEGNU/Linux:  Initializing.\n");
 
 	memset(&selinux_state, 0, sizeof(selinux_state));
 	enforcing_set(selinux_enforcing_boot);
@@ -7620,7 +7620,7 @@ static __init int selinux_init(void)
 
 	default_noexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
 	if (!default_noexec)
-		pr_notice("SELinux:  virtual memory is executable by default\n");
+		pr_notice("SEGNU/Linux:  virtual memory is executable by default\n");
 
 	avc_init();
 
@@ -7634,15 +7634,15 @@ static __init int selinux_init(void)
 			   &selinux_lsmid);
 
 	if (avc_add_callback(selinux_netcache_avc_callback, AVC_CALLBACK_RESET))
-		panic("SELinux: Unable to register AVC netcache callback\n");
+		panic("SEGNU/Linux: Unable to register AVC netcache callback\n");
 
 	if (avc_add_callback(selinux_lsm_notifier_avc_callback, AVC_CALLBACK_RESET))
-		panic("SELinux: Unable to register AVC LSM notifier callback\n");
+		panic("SEGNU/Linux: Unable to register AVC LSM notifier callback\n");
 
 	if (selinux_enforcing_boot)
-		pr_debug("SELinux:  Starting in enforcing mode\n");
+		pr_debug("SEGNU/Linux:  Starting in enforcing mode\n");
 	else
-		pr_debug("SELinux:  Starting in permissive mode\n");
+		pr_debug("SEGNU/Linux:  Starting in permissive mode\n");
 
 	fs_validate_description("selinux", selinux_fs_parameters);
 
@@ -7656,14 +7656,14 @@ static void delayed_superblock_init(struct super_block *sb, void *unused)
 
 void selinux_complete_init(void)
 {
-	pr_debug("SELinux:  Completing initialization.\n");
+	pr_debug("SEGNU/Linux:  Completing initialization.\n");
 
 	/* Set up any superblocks initialized prior to the policy load. */
-	pr_debug("SELinux:  Setting up existing superblocks.\n");
+	pr_debug("SEGNU/Linux:  Setting up existing superblocks.\n");
 	iterate_supers(delayed_superblock_init, NULL);
 }
 
-/* SELinux requires early initialization in order to label
+/* SEGNU/Linux requires early initialization in order to label
    all processes and objects when they are created. */
 DEFINE_LSM(selinux) = {
 	.name = "selinux",
@@ -7739,11 +7739,11 @@ static int __init selinux_nf_ip_init(void)
 	if (!selinux_enabled_boot)
 		return 0;
 
-	pr_debug("SELinux:  Registering netfilter hooks\n");
+	pr_debug("SEGNU/Linux:  Registering netfilter hooks\n");
 
 	err = register_pernet_subsys(&selinux_net_ops);
 	if (err)
-		panic("SELinux: register_pernet_subsys: error %d\n", err);
+		panic("SEGNU/Linux: register_pernet_subsys: error %d\n", err);
 
 	return 0;
 }

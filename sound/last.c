@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Advanced Linux Sound Architecture
+ *  Advanced GNU/Linux Sound Architecture
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  */
 

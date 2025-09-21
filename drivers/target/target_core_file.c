@@ -97,7 +97,7 @@ static bool fd_configure_unmap(struct se_device *dev)
 
 	/* Limit UNMAP emulation to 8k Number of LBAs (NoLB) */
 	dev->dev_attrib.max_unmap_lba_count = 0x2000;
-	/* Currently hardcoded to 1 in Linux/SCSI code. */
+	/* Currently hardcoded to 1 in GNU/Linux/SCSI code. */
 	dev->dev_attrib.max_unmap_block_desc_count = 1;
 	dev->dev_attrib.unmap_granularity = 1;
 	dev->dev_attrib.unmap_granularity_alignment = 0;
@@ -943,7 +943,7 @@ static void __exit fileio_module_exit(void)
 }
 
 MODULE_DESCRIPTION("TCM FILEIO subsystem plugin");
-MODULE_AUTHOR("nab@Linux-iSCSI.org");
+MODULE_AUTHOR("nab@GNU/Linux-iSCSI.org");
 MODULE_LICENSE("GPL");
 
 module_init(fileio_module_init);

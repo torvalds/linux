@@ -38,7 +38,7 @@ BEGIN {
 	while ("ldconfig -p 2>/dev/null" | getline > 0)
 		if ($NF ~ libc || $NF ~ libcpp)
 			if (!seen[ver = version("readlink " $NF)]++)
-				printversion("Linux C" ($NF ~ libcpp? "++" : "") " Library", ver)
+				printversion("GNU/Linux C" ($NF ~ libcpp? "++" : "") " Library", ver)
 
 	printversion("Dynamic linker (ldd)", version("ldd --version"))
 	printversion("Procps", version("ps --version"))

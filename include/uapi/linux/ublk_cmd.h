@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef USER_BLK_DRV_CMD_INC_H
 #define USER_BLK_DRV_CMD_INC_H
 

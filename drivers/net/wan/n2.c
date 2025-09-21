@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * SDL Inc. RISCom/N2 synchronous serial card driver for Linux
+ * SDL Inc. RISCom/N2 synchronous serial card driver for GNU/Linux
  *
  * Copyright (C) 1998-2003 Krzysztof Halasa <khc@pm.waw.pl>
  *

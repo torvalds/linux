@@ -1014,7 +1014,7 @@ static int ips_eh_reset(struct scsi_cmnd *SC)
 /*   Send a command to the controller                                       */
 /*                                                                          */
 /* NOTE:                                                                    */
-/*    Linux obtains io_request_lock before calling this function            */
+/*    GNU/Linux obtains io_request_lock before calling this function            */
 /*                                                                          */
 /****************************************************************************/
 static int ips_queue_lck(struct scsi_cmnd *SC)
@@ -3222,7 +3222,7 @@ ips_done(ips_ha_t * ha, ips_scb_t * scb)
 /*                                                                          */
 /* Routine Description:                                                     */
 /*                                                                          */
-/*   Map Controller Error codes to Linux Error Codes                        */
+/*   Map Controller Error codes to GNU/Linux Error Codes                        */
 /*                                                                          */
 /****************************************************************************/
 static int
@@ -5620,7 +5620,7 @@ ips_write_driver_status(ips_ha_t * ha, int intr)
 		return (0);
 	}
 
-	/* IF NVRAM Page 5 is OK, Use it for Slot Number Info Because Linux Doesn't Do Slots */
+	/* IF NVRAM Page 5 is OK, Use it for Slot Number Info Because GNU/Linux Doesn't Do Slots */
 	ha->slot_num = ha->nvram->adapter_slot;
 
 	return (1);

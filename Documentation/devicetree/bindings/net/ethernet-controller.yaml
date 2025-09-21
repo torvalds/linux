@@ -300,15 +300,15 @@ additionalProperties: true
 # such, this is software configuration, and so not described in Device
 # Tree.
 #
-# The following describes how Linux implements the configuration of
+# The following describes how GNU/Linux implements the configuration of
 # the MAC and PHY to add these delays when the PCB does not. As stated
 # above, developers often get this wrong, and the aim of this section
-# is reduce the frequency of these errors by Linux developers. Other
+# is reduce the frequency of these errors by GNU/Linux developers. Other
 # users of the Device Tree may implement it differently, and still be
 # consistent with both the normative and informative description
 # above.
 #
-# By default in Linux, when using phylib/phylink, the MAC is expected
+# By default in GNU/Linux, when using phylib/phylink, the MAC is expected
 # to read the 'phy-mode' from Device Tree, not implement any delays,
 # and pass the value to the PHY. The PHY will then implement delays as
 # specified by the 'phy-mode'. The PHY should always be reconfigured

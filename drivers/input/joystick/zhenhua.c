@@ -10,7 +10,7 @@
 
 /*
  * Driver to use 4CH RC transmitter using Zhen Hua 5-byte protocol (Walkera Lama,
- * EasyCopter etc.) as a joystick under Linux.
+ * EasyCopter etc.) as a joystick under GNU/Linux.
  *
  * RC transmitters using Zhen Hua 5-byte protocol are cheap four channels
  * transmitters for control a RC planes or RC helicopters with possibility to

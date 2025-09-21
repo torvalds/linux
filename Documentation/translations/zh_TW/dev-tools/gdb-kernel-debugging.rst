@@ -9,7 +9,7 @@
 =====================
 
 Kgdb內核調試器、QEMU等虛擬機管理程序或基於JTAG的硬件接口，支持在運行時使用gdb
-調試Linux內核及其模塊。Gdb提供了一個強大的python腳本接口，內核也提供了一套
+調試GNU/Linux內核及其模塊。Gdb提供了一個強大的python腳本接口，內核也提供了一套
 輔助腳本以簡化典型的內核調試步驟。本文檔爲如何啓用和使用這些腳本提供了一個簡要的教程。
 此教程基於QEMU/KVM虛擬機，但文中示例也適用於其他gdb stub。
 
@@ -58,7 +58,7 @@ Kgdb內核調試器、QEMU等虛擬機管理程序或基於JTAG的硬件接口�
     (gdb) target remote :1234
 
 
-使用Linux提供的gdb腳本的示例
+使用GNU/Linux提供的gdb腳本的示例
 ----------------------------
 
 - 加載模塊（以及主內核）符號::
@@ -100,7 +100,7 @@ Kgdb內核調試器、QEMU等虛擬機管理程序或基於JTAG的硬件接口�
     (gdb) lx-dmesg
     [     0.000000] Initializing cgroup subsys cpuset
     [     0.000000] Initializing cgroup subsys cpu
-    [     0.000000] Linux version 3.8.0-rc4-dbg+ (...
+    [     0.000000] GNU/Linux version 3.8.0-rc4-dbg+ (...
     [     0.000000] Command line: root=/dev/sda2 resume=/dev/sda1 vga=0x314
     [     0.000000] e820: BIOS-provided physical RAM map:
     [     0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
@@ -153,11 +153,11 @@ Kgdb內核調試器、QEMU等虛擬機管理程序或基於JTAG的硬件接口�
  function lx_current -- Return current task
  function lx_module -- Find module by name and return the module variable
  function lx_per_cpu -- Return per-cpu variable
- function lx_task_by_pid -- Find Linux task by PID and return the task_struct variable
- function lx_thread_info -- Calculate Linux thread_info from task variable
- lx-dmesg -- Print Linux kernel log buffer
+ function lx_task_by_pid -- Find GNU/Linux task by PID and return the task_struct variable
+ function lx_thread_info -- Calculate GNU/Linux thread_info from task variable
+ lx-dmesg -- Print GNU/Linux kernel log buffer
  lx-lsmod -- List currently loaded modules
- lx-symbols -- (Re-)load symbols of Linux kernel and currently loaded modules
+ lx-symbols -- (Re-)load symbols of GNU/Linux kernel and currently loaded modules
 
 可以通過“help <command-name>”或“help function <function-name>”命令
 獲取指定命令或指定調試功能的更多詳細信息。

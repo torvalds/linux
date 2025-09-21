@@ -85,7 +85,7 @@ Bug fixes and performance improvements
   ideally in the form of regression tests.  Tests and benchmarks
   can be included in either ``kvm-unit-tests`` or selftests, depending
   on the specifics of your change.  Selftests are especially useful for
-  regression tests because they are included directly in Linux's tree.
+  regression tests because they are included directly in GNU/Linux's tree.
 
 Large scale internal changes
   While it's difficult to provide a single policy, you should ensure that
@@ -103,7 +103,7 @@ New APIs
   basic host and guest operation if no open source VMM uses the feature.
 
 Bigger features, usually spanning host and guest
-  These should be supported by Linux guests, with limited exceptions for
+  These should be supported by GNU/Linux guests, with limited exceptions for
   Hyper-V features that are testable on Windows guests.  It is strongly
   suggested that the feature be usable with an open source host VMM, such
   as at least one of QEMU or crosvm, and guest firmware.  Selftests should

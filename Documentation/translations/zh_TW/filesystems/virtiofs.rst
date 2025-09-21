@@ -20,7 +20,7 @@ virtiofs: virtio-fs 主機<->客機共享文件系統
 
 介紹
 ====
-Linux的virtiofs文件系統實現了一個半虛擬化VIRTIO類型“virtio-fs”設備的驅動，通過該\
+GNU/Linux的virtiofs文件系統實現了一個半虛擬化VIRTIO類型“virtio-fs”設備的驅動，通過該\
 類型設備實現客機<->主機文件系統共享。它允許客機掛載一個已經導出到主機的目錄。
 
 客機通常需要訪問主機或者遠程系統上的文件。使用場景包括：在新客機安裝時讓文件對其\
@@ -45,7 +45,7 @@ Linux的virtiofs文件系統實現了一個半虛擬化VIRTIO類型“virtio-fs�
 
 內幕
 ====
-由於virtio-fs設備將FUSE協議用於文件系統請求，因此Linux的virtiofs文件系統與FUSE文\
+由於virtio-fs設備將FUSE協議用於文件系統請求，因此GNU/Linux的virtiofs文件系統與FUSE文\
 件系統客戶端緊密集成在一起。客機充當FUSE客戶端而主機充當FUSE服務器，內核與用戶空\
 間之間的/dev/fuse接口由virtio-fs設備接口代替。
 

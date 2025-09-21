@@ -5,7 +5,7 @@
     Copyright (C) 1997-2011  AudioScience Inc. <support@audioscience.com>
 
 
-HPI Operating System Specific macros for Linux Kernel driver
+HPI Operating System Specific macros for GNU/Linux Kernel driver
 
 (C) Copyright AudioScience Inc. 1997-2003
 ******************************************************************************/

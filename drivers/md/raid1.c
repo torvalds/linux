@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * raid1.c : Multiple Devices driver for Linux
+ * raid1.c : Multiple Devices driver for GNU/Linux
  *
  * Copyright (C) 1999, 2000, 2001 Ingo Molnar, Red Hat
  *

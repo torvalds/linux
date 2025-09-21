@@ -3,13 +3,13 @@
  * Copyright (C) 2023 Otto Pflüger
  *
  * Based on gcc-msm8953.c:
- *   Copyright 2021, The Linux Foundation. All rights reserved.
+ *   Copyright 2021, The GNU/Linux Foundation. All rights reserved.
  * with parts taken from gcc-qcs404.c:
- *   Copyright 2018, The Linux Foundation. All rights reserved.
+ *   Copyright 2018, The GNU/Linux Foundation. All rights reserved.
  * and gcc-msm8939.c:
  *   Copyright 2020 Linaro Limited
  * adapted with data from clock-gcc-8952.c in Qualcomm's msm-4.9 release:
- *   Copyright (c) 2014-2020, The Linux Foundation. All rights reserved.
+ *   Copyright (c) 2014-2020, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>

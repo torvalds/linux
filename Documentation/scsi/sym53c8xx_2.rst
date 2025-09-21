@@ -70,7 +70,7 @@ on the SYM53C8XX SCRIPTS language.
 
 It replaces the sym53c8xx+ncr53c8xx driver bundle and shares its core code
 with the FreeBSD SYM-2 driver. The 'glue' that allows this driver to work
-under Linux is contained in 2 files named sym_glue.h and sym_glue.c.
+under GNU/Linux is contained in 2 files named sym_glue.h and sym_glue.c.
 Other drivers files are intended not to depend on the Operating System
 on which the driver is used.
 
@@ -81,11 +81,11 @@ The history of this driver can be summarized as follows:
           - Wolfgang Stanglmeier        <wolf@cologne.de>
           - Stefan Esser                <se@mi.Uni-Koeln.de>
 
-1996: port of the ncr driver to Linux-1.2.13 and rename it ncr53c8xx.
+1996: port of the ncr driver to GNU/Linux-1.2.13 and rename it ncr53c8xx.
 
           - Gerard Roudier
 
-1998: new sym53c8xx driver for Linux based on LOAD/STORE instruction and that
+1998: new sym53c8xx driver for GNU/Linux based on LOAD/STORE instruction and that
       adds full support for the 896 but drops support for early NCR devices.
 
           - Gerard Roudier
@@ -98,14 +98,14 @@ The history of this driver can be summarized as follows:
 2000: Add support for early NCR devices to FreeBSD 'sym' driver.
       Break the driver into several sources and separate the OS glue
       code from the core code that can be shared among different O/Ses.
-      Write a glue code for Linux.
+      Write a glue code for GNU/Linux.
 
           - Gerard Roudier
 
 2004: Remove FreeBSD compatibility code.  Remove support for versions of
-      Linux before 2.6.  Start using Linux facilities.
+      GNU/Linux before 2.6.  Start using GNU/Linux facilities.
 
-This README file addresses the Linux version of the driver. Under FreeBSD,
+This README file addresses the GNU/Linux version of the driver. Under FreeBSD,
 the driver documentation is the sym.8 man page.
 
 Information about new chips is available at LSILOGIC web server:
@@ -116,7 +116,7 @@ SCSI standard documentations are available at T10 site:
 
           http://www.t10.org/
 
-Useful SCSI tools written by Eric Youngdale are part of most Linux
+Useful SCSI tools written by Eric Youngdale are part of most GNU/Linux
 distributions:
 
    ============ ==========================

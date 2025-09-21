@@ -3,7 +3,7 @@
 
 
 ================
-Using Linux CAIF
+Using GNU/Linux CAIF
 ================
 
 

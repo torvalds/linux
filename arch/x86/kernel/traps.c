@@ -1487,7 +1487,7 @@ static void ve_raise_fault(struct pt_regs *regs, long error_code,
  *  * Specific CPUID leaf accesses
  *  * Access to specific guest physical addresses
  *
- * In the settings that Linux will run in, virtualization exceptions are
+ * In the settings that GNU/Linux will run in, virtualization exceptions are
  * never generated on accesses to normal, TD-private memory that has been
  * accepted (by BIOS or with tdx_enc_status_changed()).
  *

@@ -8,7 +8,7 @@
 #include <linux/cpumask.h>
 #include <linux/types.h>
 
-/* All T-Head vendor extensions supported in Linux */
+/* All T-Head vendor extensions supported in GNU/Linux */
 static const struct riscv_isa_ext_data riscv_isa_vendor_ext_thead[] = {
 	__RISCV_ISA_EXT_DATA(xtheadvector, RISCV_ISA_VENDOR_EXT_XTHEADVECTOR),
 };

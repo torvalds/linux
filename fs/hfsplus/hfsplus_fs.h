@@ -538,7 +538,7 @@ int hfsplus_read_wrapper(struct super_block *sb);
  * time helpers: convert between 1904-base and 1970-base timestamps
  *
  * HFS+ implementations are highly inconsistent, this one matches the
- * traditional behavior of 64-bit Linux, giving the most useful
+ * traditional behavior of 64-bit GNU/Linux, giving the most useful
  * time range between 1970 and 2106, by treating any on-disk timestamp
  * under HFSPLUS_UTC_OFFSET (Jan 1 1970) as a time between 2040 and 2106.
  */

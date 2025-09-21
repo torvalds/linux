@@ -9,10 +9,10 @@
  *
  * net-3-driver for the NI5210 card (i82586 Ethernet chip)
  *
- * This is an extension to the Linux operating system, and is covered by the
+ * This is an extension to the GNU/Linux operating system, and is covered by the
  * same Gnu Public License that covers that work.
  *
- * Alphacode 0.82 (96/09/29) for Linux 2.0.0 (or later)
+ * Alphacode 0.82 (96/09/29) for GNU/Linux 2.0.0 (or later)
  * Copyrights (c) 1994,1995,1996 by M.Hipp (hippm@informatik.uni-tuebingen.de)
  * --------------------------
  *

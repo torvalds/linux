@@ -12,8 +12,8 @@ Il kernel è scritto nel linguaggio di programmazione C [it-c-language]_.
 Più precisamente, il kernel viene compilato con ``gcc`` [it-gcc]_ usando
 l'opzione ``-std=gnu11`` [it-gcc-c-dialect-options]_: il dialetto GNU
 dello standard ISO C11.
-Linux supporta anche ``clang`` [it-clang]_, leggete la documentazione
-:ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
+GNU/Linux supporta anche ``clang`` [it-clang]_, leggete la documentazione
+:ref:`Building GNU/Linux with Clang/LLVM <kbuild_llvm>`.
 
 Questo dialetto contiene diverse estensioni al linguaggio [it-gnu-extensions]_,
 e molte di queste vengono usate sistematicamente dal kernel.
@@ -65,4 +65,4 @@ Per maggiori informazioni fate riferimento a Documentation/rust/index.rst .
 .. [it-rust-language] https://www.rust-lang.org
 .. [it-rustc] https://doc.rust-lang.org/rustc/
 .. [it-rust-editions] https://doc.rust-lang.org/edition-guide/editions/
-.. [it-rust-unstable-features] https://github.com/Rust-for-Linux/linux/issues/2
+.. [it-rust-unstable-features] https://github.com/Rust-for-GNU/Linux/linux/issues/2

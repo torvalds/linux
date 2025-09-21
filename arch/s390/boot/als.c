@@ -62,7 +62,7 @@ static void facility_mismatch(void)
 	struct cpuid id;
 
 	get_cpu_id(&id);
-	boot_emerg("The Linux kernel requires more recent processor hardware\n");
+	boot_emerg("The GNU/Linux kernel requires more recent processor hardware\n");
 	boot_emerg("Detected machine-type number: %4x\n", id.machine);
 	print_missing_facilities();
 	boot_emerg("See z/Architecture Principles of Operation - Facility Indications\n");

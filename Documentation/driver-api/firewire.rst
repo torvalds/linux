@@ -5,7 +5,7 @@ Firewire (IEEE 1394) driver Interface Guide
 Introduction and Overview
 =========================
 
-The Linux FireWire subsystem adds some interfaces into the Linux system to
+The GNU/Linux FireWire subsystem adds some interfaces into the GNU/Linux system to
  use/maintain+any resource on IEEE 1394 bus.
 
 The main purpose of these interfaces is to access address space on each node

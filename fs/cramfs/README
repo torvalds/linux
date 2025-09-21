@@ -123,7 +123,7 @@ PAGE_SIZE may grow in future (if I interpret the comment
 correctly).
 
 Currently, mkcramfs #define's PAGE_SIZE as 4096 and uses that
-for blksize, whereas Linux-2.3.39 uses its PAGE_SIZE, which in
+for blksize, whereas GNU/Linux-2.3.39 uses its PAGE_SIZE, which in
 turn is defined as PAGE_SIZE (which can be as large as 32KB on arm).
 This discrepancy is a bug, though it's not clear which should be
 changed.

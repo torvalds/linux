@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Hitachi (now Renesas) SCA-II HD64572 driver for Linux
+ * Hitachi (now Renesas) SCA-II HD64572 driver for GNU/Linux
  *
  * Copyright (C) 1998-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *

@@ -49,7 +49,7 @@ config ARCNET_RAW
 	tristate "Enable raw mode packet interface"
 	help
 	  ARCnet "raw mode" packet encapsulation, no soft headers.  Unlikely
-	  to work unless talking to a copy of the same Linux arcnet driver,
+	  to work unless talking to a copy of the same GNU/Linux arcnet driver,
 	  but perhaps marginally faster in that case.
 
 config ARCNET_CAP

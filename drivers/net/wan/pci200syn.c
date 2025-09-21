@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Goramo PCI200SYN synchronous serial card driver for Linux
+ * Goramo PCI200SYN synchronous serial card driver for GNU/Linux
  *
  * Copyright (C) 2002-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *

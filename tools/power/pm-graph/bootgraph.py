@@ -332,7 +332,7 @@ def parseKernelLog():
 			break
 		msg = m.group('msg')
 		data.dmesgtext.append(line)
-		if(ktime == 0.0 and re.match(r'^Linux version .*', msg)):
+		if(ktime == 0.0 and re.match(r'^GNU/Linux version .*', msg)):
 			if(not sysvals.stamp['kernel']):
 				sysvals.stamp['kernel'] = sysvals.kernelVersion(msg)
 			continue

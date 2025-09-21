@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Linux FDDI network device drivers.
+# Makefile for the GNU/Linux FDDI network device drivers.
 #
 
 obj-$(CONFIG_DEFXX) += defxx.o

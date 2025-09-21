@@ -1,9 +1,9 @@
 .. _process_statement_kernel:
 
-Linux Kernel Enforcement Statement
+GNU/Linux Kernel Enforcement Statement
 ----------------------------------
 
-As developers of the Linux kernel, we have a keen interest in how our software
+As developers of the GNU/Linux kernel, we have a keen interest in how our software
 is used and how the license for our software is enforced.  Compliance with the
 reciprocal sharing obligations of GPL-2.0 is critical to the long-term
 sustainability of our software and community.
@@ -14,7 +14,7 @@ individual enforcement actions are conducted in a manner that benefits our
 community and do not have an unintended negative impact on the health and
 growth of our software ecosystem.  In order to deter unhelpful enforcement
 actions, we agree that it is in the best interests of our development
-community to undertake the following commitment to users of the Linux kernel
+community to undertake the following commitment to users of the GNU/Linux kernel
 on behalf of ourselves and any successors to our copyright interests:
 
     Notwithstanding the termination provisions of the GPL-2.0, we agree that
@@ -73,7 +73,7 @@ we might work for today, have in the past, or will in the future.
   - Kees Cook (Google)
   - Jonathan Corbet
   - Dennis Dalessandro
-  - Vivien Didelot (Savoir-faire Linux)
+  - Vivien Didelot (Savoir-faire GNU/Linux)
   - Hans de Goede
   - Mel Gorman (SUSE)
   - Sven Eckelmann
@@ -104,7 +104,7 @@ we might work for today, have in the past, or will in the future.
   - Namhyung Kim
   - Colin Ian King
   - Jeff Kirsher
-  - Greg Kroah-Hartman (Linux Foundation)
+  - Greg Kroah-Hartman (GNU/Linux Foundation)
   - Christian König
   - Vinod Koul
   - Krzysztof Kozlowski

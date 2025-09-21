@@ -1,5 +1,5 @@
 /*
- * arch/m68k/atari/ataints.c -- Atari Linux interrupt handling code
+ * arch/m68k/atari/ataints.c -- Atari GNU/Linux interrupt handling code
  *
  * 5/2/94 Roman Hodek:
  *  Added support for TT interrupts; setup for TT SCU (may someone has

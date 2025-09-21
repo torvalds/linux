@@ -103,7 +103,7 @@ inutilizzate; anche se, in generale, non avrebbero dovuto essere aggiunti.
 I livelli di astrazione che nascondono l'accesso all'hardware -
 spesso per poter usare dei driver su diversi sistemi operativi - vengono
 particolarmente disapprovati.  Tali livelli oscurano il codice e possono
-peggiorare le prestazioni; essi non appartengono al kernel Linux.
+peggiorare le prestazioni; essi non appartengono al kernel GNU/Linux.
 
 D'altro canto, se vi ritrovate a dover copiare una quantità significativa di
 codice proveniente da un altro sottosistema del kernel, è tempo di chiedersi
@@ -185,7 +185,7 @@ progettato per girare in un sistema multiprocessore.  Prima che questo
 sistema di rete (ora chiamato mac80211) potesse essere inserito, fu necessario
 un lavoro sugli schemi di sincronizzazione.
 
-Una volta, il codice del kernel Linux poteva essere sviluppato senza pensare
+Una volta, il codice del kernel GNU/Linux poteva essere sviluppato senza pensare
 ai problemi di concorrenza presenti nei sistemi multiprocessore.  Ora,
 comunque, questo documento è stato scritto su di un portatile dual-core.
 Persino su sistemi a singolo processore, il lavoro svolto per incrementare

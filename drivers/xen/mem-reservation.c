@@ -40,7 +40,7 @@ void __xenmem_reservation_va_mapping_update(unsigned long count,
 		BUG_ON(!page);
 
 		/*
-		 * We don't support PV MMU when Linux and Xen is using
+		 * We don't support PV MMU when GNU/Linux and Xen is using
 		 * different page granularity.
 		 */
 		BUILD_BUG_ON(XEN_PAGE_SIZE != PAGE_SIZE);
@@ -66,7 +66,7 @@ void __xenmem_reservation_va_mapping_reset(unsigned long count,
 		int ret;
 
 		/*
-		 * We don't support PV MMU when Linux and Xen are using
+		 * We don't support PV MMU when GNU/Linux and Xen are using
 		 * different page granularity.
 		 */
 		BUILD_BUG_ON(XEN_PAGE_SIZE != PAGE_SIZE);

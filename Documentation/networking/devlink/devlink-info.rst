@@ -16,7 +16,7 @@ The original motivation for the ``devlink-info`` API was twofold:
    version string).
 
 ``devlink-info`` supports reporting multiple types of objects. Reporting driver
-versions is generally discouraged - here, and via any other Linux API.
+versions is generally discouraged - here, and via any other GNU/Linux API.
 
 .. list-table:: List of top level info objects
    :widths: 5 95

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for building the SELinux module as part of the kernel tree.
+# Makefile for building the SEGNU/Linux module as part of the kernel tree.
 #
 
 # NOTE: There are a number of improvements that can be made to this Makefile

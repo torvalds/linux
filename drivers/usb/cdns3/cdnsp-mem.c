@@ -6,7 +6,7 @@
  *
  * Author: Pawel Laszczak <pawell@cadence.com>
  *
- * Code based on Linux XHCI driver.
+ * Code based on GNU/Linux XHCI driver.
  * Origin: Copyright (C) 2008 Intel Corp.
  */
 

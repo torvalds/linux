@@ -57,7 +57,7 @@ static void dml20_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
  * NOTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
  *
- * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * It doesn't adhere to GNU/Linux kernel style and sometimes will do things in odd
  * ways. Unless there is something clearly wrong with it the code should
  * remain as-is as it provides us with a guarantee from HW that it is correct.
  */

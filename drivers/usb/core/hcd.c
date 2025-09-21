@@ -72,7 +72,7 @@
  * HISTORY:
  * 2002-02-21	Pull in most of the usb_bus support from usb.c; some
  *		associated cleanup.  "usb_hcd" still != "usb_bus".
- * 2001-12-12	Initial patch version for Linux 2.5.1 kernel.
+ * 2001-12-12	Initial patch version for GNU/Linux 2.5.1 kernel.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -125,7 +125,7 @@ static const u8 usb31_rh_dev_descriptor[18] = {
 	0x03,       /*  __u8  bDeviceProtocol; USB 3 hub */
 	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
 
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
+	0x6b, 0x1d, /*  __le16 idVendor; GNU/Linux Foundation 0x1d6b */
 	0x03, 0x00, /*  __le16 idProduct; device 0x0003 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
@@ -146,7 +146,7 @@ static const u8 usb3_rh_dev_descriptor[18] = {
 	0x03,       /*  __u8  bDeviceProtocol; USB 3.0 hub */
 	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
 
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
+	0x6b, 0x1d, /*  __le16 idVendor; GNU/Linux Foundation 0x1d6b */
 	0x03, 0x00, /*  __le16 idProduct; device 0x0003 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
@@ -167,7 +167,7 @@ static const u8 usb2_rh_dev_descriptor[18] = {
 	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
+	0x6b, 0x1d, /*  __le16 idVendor; GNU/Linux Foundation 0x1d6b */
 	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
@@ -190,7 +190,7 @@ static const u8 usb11_rh_dev_descriptor[18] = {
 	0x00,       /*  __u8  bDeviceProtocol; [ low/full speeds only ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
-	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
+	0x6b, 0x1d, /*  __le16 idVendor; GNU/Linux Foundation 0x1d6b */
 	0x01, 0x00, /*  __le16 idProduct; device 0x0001 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 

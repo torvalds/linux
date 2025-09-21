@@ -91,7 +91,7 @@
 #define GB (1024L*MB)
 
 /*
- * Note:  pte   --> Linux PTE
+ * Note:  pte   --> GNU/Linux PTE
  *        HPTE  --> PowerPC Hashed Page Table Entry
  *
  * Execution context:
@@ -559,7 +559,7 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags
 		rflags |= HPTE_R_N;
 	/*
 	 * PPP bits:
-	 * Linux uses slb key 0 for kernel and 1 for user.
+	 * GNU/Linux uses slb key 0 for kernel and 1 for user.
 	 * kernel RW areas are mapped with PPP=0b000
 	 * User area is mapped with PPP=0b010 for read/write
 	 * or PPP=0b011 for read-only (including writeable but clean pages).
@@ -2027,7 +2027,7 @@ static void hash_preload(struct mm_struct *mm, pte_t *ptep, unsigned long ea,
 	DBG_LOW("hash_preload(mm=%p, mm->pgdir=%p, ea=%016lx, access=%lx,"
 		" trap=%lx\n", mm, mm->pgd, ea, access, trap);
 
-	/* Get Linux PTE if available */
+	/* Get GNU/Linux PTE if available */
 	pgdir = mm->pgd;
 	if (pgdir == NULL)
 		return;

@@ -4,7 +4,7 @@
  */
 
 /*
- * Sun keyboard driver for Linux
+ * Sun keyboard driver for GNU/Linux
  */
 
 #include <linux/delay.h>

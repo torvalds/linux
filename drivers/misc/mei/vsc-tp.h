@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2023, Intel Corporation.
- * Intel Visual Sensing Controller Transport Layer Linux driver
+ * Intel Visual Sensing Controller Transport Layer GNU/Linux driver
  */
 
 #ifndef _VSC_TP_H_

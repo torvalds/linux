@@ -5,7 +5,7 @@ Adding a New System Call
 ========================
 
 This document describes what's involved in adding a new system call to the
-Linux kernel, over and above the normal submission advice in
+GNU/Linux kernel, over and above the normal submission advice in
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`.
 
 
@@ -152,7 +152,7 @@ offset within a file, make its type ``loff_t`` so that 64-bit offsets can be
 supported even on 32-bit architectures.
 
 If your new :manpage:`xyzzy(2)` system call involves privileged functionality,
-it needs to be governed by the appropriate Linux capability bit (checked with
+it needs to be governed by the appropriate GNU/Linux capability bit (checked with
 a call to ``capable()``), as described in the :manpage:`capabilities(7)` man
 page.  Choose an existing capability bit that governs related functionality,
 but try to avoid combining lots of only vaguely related functions together
@@ -509,7 +509,7 @@ implementation is not common with the x86_64 version, then its syscall
 table will also need to invoke a stub that calls on to the ``compat_sys_``
 version.
 
-For completeness, it's also nice to set up a mapping so that user-mode Linux
+For completeness, it's also nice to set up a mapping so that user-mode GNU/Linux
 still works -- its syscall table will reference stub_xyzzy, but the UML build
 doesn't include ``arch/x86/entry/entry_64.S`` implementation (because UML
 simulates registers etc).  Fixing this is as simple as adding a #define to
@@ -553,7 +553,7 @@ example, check that it works when compiled as an x86_64 (-m64), x86_32 (-m32)
 and x32 (-mx32) ABI program.
 
 For more extensive and thorough testing of new functionality, you should also
-consider adding tests to the Linux Test Project, or to the xfstests project
+consider adding tests to the GNU/Linux Test Project, or to the xfstests project
 for filesystem-related changes.
 
  - https://linux-test-project.github.io/

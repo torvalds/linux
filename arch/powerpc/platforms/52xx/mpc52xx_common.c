@@ -49,7 +49,7 @@ static struct mpc52xx_gpt __iomem *mpc52xx_wdt;
 static struct mpc52xx_cdm __iomem *mpc52xx_cdm;
 
 /*
- * Configure the XLB arbiter settings to match what Linux expects.
+ * Configure the XLB arbiter settings to match what GNU/Linux expects.
  */
 void __init
 mpc5200_setup_xlb_arbiter(void)

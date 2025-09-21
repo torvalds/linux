@@ -12,7 +12,7 @@ behavior obviously speeds up various workloads, but it means the operating
 system needs to force data out to the non-volatile storage when it performs
 a data integrity operation like fsync, sync or an unmount.
 
-The Linux block layer provides two simple mechanisms that let filesystems
+The GNU/Linux block layer provides two simple mechanisms that let filesystems
 control the caching behavior of the storage device.  These mechanisms are
 a forced cache flush, and the Force Unit Access (FUA) flag for requests.
 

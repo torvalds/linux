@@ -11,14 +11,14 @@ are mainly two options available for upper layers:
 - ZigBee - proprietary protocol from the ZigBee Alliance
 - 6LoWPAN - IPv6 networking over low rate personal area networks
 
-The goal of the Linux-wpan is to provide a complete implementation
+The goal of the GNU/Linux-wpan is to provide a complete implementation
 of the IEEE 802.15.4 and 6LoWPAN protocols. IEEE 802.15.4 is a stack
 of protocols for organizing Low-Rate Wireless Personal Area Networks.
 
 The stack is composed of three main parts:
 
 - IEEE 802.15.4 layer;  We have chosen to use plain Berkeley socket API,
-  the generic Linux networking stack to transfer IEEE 802.15.4 data
+  the generic GNU/Linux networking stack to transfer IEEE 802.15.4 data
   messages and a special protocol over netlink for configuration/management
 - MAC - provides access to shared channel and reliable data delivery
 - PHY - represents device drivers
@@ -35,7 +35,7 @@ include/net/af_ieee802154.h header or in the special header
 in the userspace package (see either https://linux-wpan.org/wpan-tools.html
 or the git tree at https://github.com/linux-wpan/wpan-tools).
 
-6LoWPAN Linux implementation
+6LoWPAN GNU/Linux implementation
 ============================
 
 The IEEE 802.15.4 standard specifies an MTU of 127 bytes, yielding about 80
@@ -51,7 +51,7 @@ relatively large IPv6 and UDP headers down to (in the best case) several bytes.
 
 In September 2011 the standard update was published - [RFC6282].
 It deprecates HC1 and HC2 compression and defines IPHC encoding format which is
-used in this Linux implementation.
+used in this GNU/Linux implementation.
 
 All the code related to 6lowpan you may find in files: net/6lowpan/*
 and net/ieee802154/6lowpan/*
@@ -72,13 +72,13 @@ exports a management (e.g. MLME) and data API.
 possibly with some kinds of acceleration like automatic CRC computation and
 comparison, automagic ACK handling, address matching, etc.
 
-Each type of device requires a different approach to be hooked into the Linux
+Each type of device requires a different approach to be hooked into the GNU/Linux
 kernel.
 
 HardMAC
 -------
 
-See the header include/net/ieee802154_netdev.h. You have to implement Linux
+See the header include/net/ieee802154_netdev.h. You have to implement GNU/Linux
 net_device, with .type = ARPHRD_IEEE802154. Data is exchanged with socket family
 code via plain sk_buffs. On skb reception skb->cb must contain additional
 info as described in the struct ieee802154_mac_cb. During packet transmission
@@ -95,7 +95,7 @@ All other fields are required.
 SoftMAC
 -------
 
-The MAC is the middle layer in the IEEE 802.15.4 Linux stack. At the moment, it
+The MAC is the middle layer in the IEEE 802.15.4 GNU/Linux stack. At the moment, it
 provides an interface for driver registration and management of slave
 interfaces.
 

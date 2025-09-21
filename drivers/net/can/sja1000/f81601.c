@@ -2,7 +2,7 @@
 /* Fintek F81601 PCIE to 2 CAN controller driver
  *
  * Copyright (C) 2019 Peter Hong <peter_hong@fintek.com.tw>
- * Copyright (C) 2019 Linux Foundation
+ * Copyright (C) 2019 GNU/Linux Foundation
  */
 
 #include <linux/kernel.h>

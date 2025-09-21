@@ -6250,7 +6250,7 @@ static void gaudi2_send_hard_reset_cmd(struct hl_device *hdev)
 		cpu_initialized = true;
 
 	/*
-	 * when Linux/Bootfit exist this write to the SP can be interpreted in 2 ways:
+	 * when GNU/Linux/Bootfit exist this write to the SP can be interpreted in 2 ways:
 	 * 1. FW reset: FW initiate the reset sequence
 	 * 2. driver reset: FW will start HALT sequence (the preparations for the
 	 *                  reset but not the reset itself as it is not implemented
@@ -6265,14 +6265,14 @@ static void gaudi2_send_hard_reset_cmd(struct hl_device *hdev)
 	}
 
 	/*
-	 * When working with preboot (without Linux/Boot fit) we can
+	 * When working with preboot (without GNU/Linux/Boot fit) we can
 	 * communicate only using the COMMS commands to issue halt/reset.
 	 *
-	 * For the case in which we are working with Linux/Bootfit this is a hail-mary
+	 * For the case in which we are working with GNU/Linux/Bootfit this is a hail-mary
 	 * attempt to revive the card in the small chance that the f/w has
 	 * experienced a watchdog event, which caused it to return back to preboot.
 	 * In that case, triggering reset through GIC won't help. We need to
-	 * trigger the reset as if Linux wasn't loaded.
+	 * trigger the reset as if GNU/Linux wasn't loaded.
 	 *
 	 * We do it only if the reset cause was HB, because that would be the
 	 * indication of such an event.

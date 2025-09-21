@@ -26,9 +26,9 @@
  * They mostly relate to driver binding, since the data transfer model is
  * so simple (CDC Ethernet).  The original versions of this protocol used
  * specific product/vendor IDs:  byteswapped IDs for Digital Equipment's
- * SA-1100 "Itsy" board, which could run Linux 2.4 kernels and supported
+ * SA-1100 "Itsy" board, which could run GNU/Linux 2.4 kernels and supported
  * daughtercards with USB peripheral connectors.  (It was used more often
- * with other boards, using the Itsy identifiers.)  Linux hosts recognized
+ * with other boards, using the Itsy identifiers.)  GNU/Linux hosts recognized
  * this with CONFIG_USB_ARMLINUX; these devices have only one configuration
  * and one interface.
  *
@@ -36,7 +36,7 @@
  * "SAFE", which happens to have a mode which is identical to the "CDC
  * Subset" in terms of data transfer and lack of control model.  This was
  * adopted by later Sharp Zaurus models, and by some other software which
- * Linux hosts recognize with CONFIG_USB_NET_ZAURUS.
+ * GNU/Linux hosts recognize with CONFIG_USB_NET_ZAURUS.
  *
  * Because Microsoft's RNDIS drivers are far from robust, we added a few
  * descriptors to the CDC Subset code, making this code look like a SAFE

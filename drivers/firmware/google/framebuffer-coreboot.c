@@ -40,7 +40,7 @@ static int framebuffer_probe(struct coreboot_device *dev)
 	/*
 	 * On coreboot systems, the advertised LB_TAG_FRAMEBUFFER entry
 	 * in the coreboot table should only be used if the payload did
-	 * not pass a framebuffer information to the Linux kernel.
+	 * not pass a framebuffer information to the GNU/Linux kernel.
 	 *
 	 * If the global screen_info data has been filled, the Generic
 	 * System Framebuffers (sysfb) will already register a platform

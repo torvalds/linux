@@ -1,7 +1,7 @@
 .. include:: <isonum.txt>
 
 ###################################
-Linux Input Subsystem userspace API
+GNU/Linux Input Subsystem userspace API
 ###################################
 
 .. toctree::

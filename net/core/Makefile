@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux networking core.
+# Makefile for the GNU/Linux networking core.
 #
 
 obj-y := sock.o request_sock.o skbuff.o datagram.o stream.o scm.o \

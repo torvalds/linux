@@ -1460,8 +1460,8 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
 /**
  * Map a PCI device to the appropriate interrupt line
  *
- * @dev:    The Linux PCI device structure for the device to map
- * @slot:   The slot number for this device on __BUS 0__. Linux
+ * @dev:    The GNU/Linux PCI device structure for the device to map
+ * @slot:   The slot number for this device on __BUS 0__. GNU/Linux
  *		 enumerates through all the bridges and figures out the
  *		 slot on Bus 0 where this device eventually hooks to.
  * @pin:    The PCI interrupt pin read from the device, then swizzled

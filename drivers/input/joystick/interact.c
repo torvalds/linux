@@ -7,7 +7,7 @@
  */
 
 /*
- * InterAct digital gamepad/joystick driver for Linux
+ * InterAct digital gamepad/joystick driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

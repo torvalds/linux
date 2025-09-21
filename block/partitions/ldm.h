@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ldm - Part of the Linux-NTFS project.
+ * ldm - Part of the GNU/Linux-NTFS project.
  *
  * Copyright (C) 2001,2002 Richard Russon <ldm@flatcap.org>
  * Copyright (c) 2001-2007 Anton Altaparmakov

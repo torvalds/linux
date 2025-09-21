@@ -1,5 +1,5 @@
 /*
- *  Video for Linux Two header file
+ *  Video for GNU/Linux Two header file
  *
  *  Copyright (C) 1999-2012 the contributors
  *

@@ -6,7 +6,7 @@ SCSI mid_level - lower_level driver interface
 
 Introduction
 ============
-This document outlines the interface between the Linux SCSI mid level and
+This document outlines the interface between the GNU/Linux SCSI mid level and
 SCSI lower level drivers. Lower level drivers (LLDs) are variously called
 host bus adapter (HBA) drivers and host drivers (HD). A "host" in this
 context is a bridge between a computer IO bus (e.g. PCI or ISA) and a
@@ -17,7 +17,7 @@ system, but only one per hardware type. Most LLDs can control one or more
 SCSI HBAs. Some HBAs contain multiple hosts.
 
 In some cases the SCSI transport is an external bus that already has
-its own subsystem in Linux (e.g. USB and ieee1394). In such cases the
+its own subsystem in GNU/Linux (e.g. USB and ieee1394). In such cases the
 SCSI subsystem LLD is a software bridge to the other driver subsystem.
 Examples are the usb-storage driver (found in the drivers/usb/storage
 directory) and the ieee1394/sbp2 driver (found in the drivers/ieee1394
@@ -26,7 +26,7 @@ directory).
 For example, the aic7xxx LLD controls Adaptec SCSI parallel interface
 (SPI) controllers based on that company's 7xxx chip series. The aic7xxx
 LLD can be built into the kernel or loaded as a module. There can only be
-one aic7xxx LLD running in a Linux system but it may be controlling many
+one aic7xxx LLD running in a GNU/Linux system but it may be controlling many
 HBAs. These HBAs might be either on PCI daughter-boards or built into
 the motherboard (or both). Some aic7xxx based HBAs are dual controllers
 and thus represent two hosts. Like most modern HBAs, each aic7xxx host
@@ -37,7 +37,7 @@ ISA adapters).]
 The SCSI mid level isolates an LLD from other layers such as the SCSI
 upper layer drivers and the block layer.
 
-This version of the document roughly matches Linux kernel version 2.6.8 .
+This version of the document roughly matches GNU/Linux kernel version 2.6.8 .
 
 Documentation
 =============
@@ -48,7 +48,7 @@ found in that directory. A more recent copy of this document may be found
 at https://docs.kernel.org/scsi/scsi_mid_low_api.html. Many LLDs are
 documented in Documentation/scsi (e.g. aic7xxx.rst). The SCSI mid-level is
 briefly described in scsi.rst which contains a URL to a document describing
-the SCSI subsystem in the Linux kernel 2.4 series. Two upper level
+the SCSI subsystem in the GNU/Linux kernel 2.4 series. Two upper level
 drivers have documents in that directory: st.rst (SCSI tape driver) and
 scsi-generic.rst (for the sg driver).
 
@@ -65,17 +65,17 @@ file "xyz.h" and a source file "xyz.c". [Actually there is no good reason
 why this couldn't all be in one file; the header file is superfluous.] Some
 drivers that have been ported to several operating systems have more than
 two files. For example the aic7xxx driver has separate files for generic
-and OS-specific code (e.g. FreeBSD and Linux). Such drivers tend to have
+and OS-specific code (e.g. FreeBSD and GNU/Linux). Such drivers tend to have
 their own directory under the drivers/scsi directory.
 
-When a new LLD is being added to Linux, the following files (found in the
+When a new LLD is being added to GNU/Linux, the following files (found in the
 drivers/scsi directory) will need some attention: Makefile and Kconfig .
 It is probably best to study how existing LLDs are organized.
 
 As the 2.5 series development kernels evolve into the 2.6 series
 production series, changes are being introduced into this interface. An
 example of this is driver initialization code where there are now 2 models
-available. The older one, similar to what was found in the Linux 2.4 series,
+available. The older one, similar to what was found in the GNU/Linux 2.4 series,
 is based on hosts that are detected at HBA driver load time. This will be
 referred to the "passive" initialization model. The newer model allows HBAs
 to be hot plugged (and unplugged) during the lifetime of the LLD and will
@@ -272,11 +272,11 @@ Also, most C99 enhancements are encouraged to the extent they are supported
 by the relevant gcc compilers. So C99 style structure and array
 initializers are encouraged where appropriate. Don't go too far,
 VLAs are not properly supported yet.  An exception to this is the use of
-``//`` style comments; ``/*...*/`` comments are still preferred in Linux.
+``//`` style comments; ``/*...*/`` comments are still preferred in GNU/Linux.
 
 Well written, tested and documented code, need not be re-formatted to
 comply with the above conventions. For example, the aic7xxx driver
-comes to Linux from FreeBSD and Adaptec's own labs. No doubt FreeBSD
+comes to GNU/Linux from FreeBSD and Adaptec's own labs. No doubt FreeBSD
 and Adaptec have their own coding conventions.
 
 
@@ -1180,7 +1180,7 @@ may get out of synchronization. This is why it is best for the LLD
 to perform autosense.
 
 
-Changes since Linux kernel 2.4 series
+Changes since GNU/Linux kernel 2.4 series
 =====================================
 io_request_lock has been replaced by several finer grained locks. The lock
 relevant to LLDs is struct Scsi_Host::host_lock and there is
@@ -1191,7 +1191,7 @@ LLD interface functions abort() and reset() have been removed.
 The struct scsi_host_template::use_new_eh_code flag has been removed.
 
 In the 2.4 series the SCSI subsystem configuration descriptions were
-aggregated with the configuration descriptions from all other Linux
+aggregated with the configuration descriptions from all other GNU/Linux
 subsystems in the Documentation/Configure.help file. In the 2.6 series,
 the SCSI subsystem now has its own (much smaller) drivers/scsi/Kconfig
 file that contains both configuration and help information.

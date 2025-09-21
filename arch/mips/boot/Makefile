@@ -128,7 +128,7 @@ targets += vmlinux.lzo.its
 
 quiet_cmd_cpp_its_S = ITS     $@
       cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
-		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
+		        -DKERNEL_NAME="\"GNU/Linux $(KERNELRELEASE)\"" \
 			-DVMLINUX_BINARY="\"$(3)\"" \
 			-DVMLINUX_COMPRESSION="\"$(2)\"" \
 			-DVMLINUX_LOAD_ADDRESS=$(VMLINUX_LOAD_ADDRESS) \

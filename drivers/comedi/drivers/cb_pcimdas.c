@@ -3,7 +3,7 @@
  * comedi/drivers/cb_pcimdas.c
  * Comedi driver for Computer Boards PCIM-DAS1602/16 and PCIe-DAS1602/16
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 

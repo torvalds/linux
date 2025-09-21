@@ -204,7 +204,7 @@ config EFI_DISABLE_PCI_DMA
 	  firmware can't guarantee that the OS is IOMMU-aware, it will tear
 	  down IOMMU configuration when ExitBootServices() is called. This
 	  leaves a window between where a hostile device could still cause
-	  damage before Linux configures the IOMMU again.
+	  damage before GNU/Linux configures the IOMMU again.
 
 	  If you say Y here, the EFI stub will clear the busmaster bit on all
 	  PCI bridges before ExitBootServices() is called. This will prevent
@@ -302,7 +302,7 @@ config EFI_SBAT_FILE
 	  required generation for the specific component in the bootloader.
 
 	  Note: SBAT information is distribution specific, i.e. the owner of the
-	  signing SecureBoot certificate must define the SBAT policy. Linux
+	  signing SecureBoot certificate must define the SBAT policy. GNU/Linux
 	  kernel upstream does not define SBAT components and their generations.
 
 	  See https://github.com/rhboot/shim/blob/main/SBAT.md for the additional

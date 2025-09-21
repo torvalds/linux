@@ -3,7 +3,7 @@ Rules on how to access information in sysfs
 
 The kernel-exported sysfs exports internal kernel implementation details
 and depends on internal kernel structures and layout. It is agreed upon
-by the kernel developers that the Linux kernel does not provide a stable
+by the kernel developers that the GNU/Linux kernel does not provide a stable
 internal API. Therefore, there are aspects of the sysfs interface that
 may not be stable across kernel releases.
 

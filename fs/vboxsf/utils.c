@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 /*
  * VirtualBox Guest Shared Folders support: Utility functions.
- * Mainly conversion from/to VirtualBox/Linux data structures.
+ * Mainly conversion from/to VirtualBox/GNU/Linux data structures.
  *
  * Copyright (C) 2006-2018 Oracle Corporation
  */

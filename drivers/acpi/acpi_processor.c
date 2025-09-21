@@ -554,7 +554,7 @@ bool __init processor_physically_present(acpi_handle handle)
 
 	if (xen_initial_domain())
 		/*
-		 * When running as a Xen dom0 the number of processors Linux
+		 * When running as a Xen dom0 the number of processors GNU/Linux
 		 * sees can be different from the real number of processors on
 		 * the system, and we still need to execute _PDC or _OSC for
 		 * all of them.

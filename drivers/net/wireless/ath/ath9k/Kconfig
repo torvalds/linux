@@ -198,7 +198,7 @@ config ATH9K_HWRNG
 	default n
 	help
 	  This option incorporates the ADC register output as a source of
-	  randomness into Linux entropy pool (/dev/urandom and /dev/random)
+	  randomness into GNU/Linux entropy pool (/dev/urandom and /dev/random)
 
 	  Say Y, feeds the entropy directly from the WiFi driver to the input
 	  pool.

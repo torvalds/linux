@@ -1,7 +1,7 @@
-RTLA: Real-Time Linux Analysis tools
+RTLA: Real-Time GNU/Linux Analysis tools
 
 The rtla meta-tool includes a set of commands that aims to analyze
-the real-time properties of Linux. Instead of testing Linux as a black box,
+the real-time properties of GNU/Linux. Instead of testing GNU/Linux as a black box,
 rtla leverages kernel tracing capabilities to provide precise information
 about the properties and root causes of unexpected results.
 

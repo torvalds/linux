@@ -2,7 +2,7 @@
 /*
  * Apple SoC pinctrl+GPIO+external IRQ driver
  *
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  * Copyright (C) 2020 Corellium LLC
  *
  * Based on: pinctrl-pistachio.c

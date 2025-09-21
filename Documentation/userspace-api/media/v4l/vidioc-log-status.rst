@@ -37,7 +37,7 @@ and this ioctl will report what the device thinks what the standard is.
 Mismatches may give an indication where the problem is.
 
 This ioctl is optional and not all drivers support it. It was introduced
-in Linux 2.6.15.
+in GNU/Linux 2.6.15.
 
 Return Value
 ============

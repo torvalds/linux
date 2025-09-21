@@ -1,6 +1,6 @@
 /*
  * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
- *                VA Linux Systems Inc., Fremont, California.
+ *                VA GNU/Linux Systems Inc., Fremont, California.
  *
  * All Rights Reserved.
  *

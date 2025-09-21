@@ -74,9 +74,9 @@
 #include <asm/dec/system.h>
 
 static const char version[] =
-"declance.c: v0.011 by Linux MIPS DECstation task force\n";
+"declance.c: v0.011 by GNU/Linux MIPS DECstation task force\n";
 
-MODULE_AUTHOR("Linux MIPS DECstation task force");
+MODULE_AUTHOR("GNU/Linux MIPS DECstation task force");
 MODULE_DESCRIPTION("DEC LANCE (DECstation onboard, PMAD-xx) driver");
 MODULE_LICENSE("GPL");
 

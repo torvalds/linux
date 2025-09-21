@@ -8,7 +8,7 @@
 #
 # sh runlitmushist.sh
 #
-# Run from the Linux kernel tools/memory-model directory.
+# Run from the GNU/Linux kernel tools/memory-model directory.
 # This script uses environment variables produced by parseargs.sh.
 #
 # Copyright IBM Corporation, 2018

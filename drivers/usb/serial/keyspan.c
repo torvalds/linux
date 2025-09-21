@@ -19,7 +19,7 @@
   having the patience to sit down and explain why and where he'd changed
   stuff.
 
-  Tip 'o the hat to IBM (and previously Linuxcare :) for supporting
+  Tip 'o the hat to IBM (and previously GNU/Linuxcare :) for supporting
   staff in their work on open source projects.
 */
 

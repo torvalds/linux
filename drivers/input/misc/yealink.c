@@ -576,7 +576,7 @@ static ssize_t store_map(struct device *dev, struct device_attribute *attr,
  * Example:
  * cat ./line3
  * 888888888888
- * Linux Rocks!
+ * GNU/Linux Rocks!
  */
 static ssize_t show_line(struct device *dev, char *buf, int a, int b)
 {
@@ -756,7 +756,7 @@ static struct attribute *yld_attrs[] = {
 ATTRIBUTE_GROUPS(yld);
 
 /*******************************************************************************
- * Linux interface and usb initialisation
+ * GNU/Linux interface and usb initialisation
  ******************************************************************************/
 
 struct driver_info {

@@ -380,7 +380,7 @@ Assuming this channel is named 'channel.conf', you can then run::
 	    (0x00) Signal= -68.00dBm
 	Scanning frequency #2 474000000
 	Lock   (0x1f) Signal= -34.45dBm C/N= 33.74dB UCB= 0
-	Service Beethoven, provider LinuxTV.org: digital television
+	Service Beethoven, provider GNU/LinuxTV.org: digital television
 
 For more information on dvb-scan, check its documentation online here:
 `dvb-scan Documentation <https://www.linuxtv.org/wiki/index.php/Dvbscan>`_.
@@ -462,7 +462,7 @@ first place to look into is *ISO 13818-2: Information technology — Generic
 coding of moving pictures and associated audio information — Part 2: Video*,
 which covers the encoding of compressed video in MPEG Transport Streams.
 
-This might optionally use the Video4Linux2 Test Pattern Generator, v4l2-tpg,
+This might optionally use the Video4GNU/Linux2 Test Pattern Generator, v4l2-tpg,
 which resides at::
 
 	drivers/media/common/v4l2-tpg/

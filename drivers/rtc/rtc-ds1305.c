@@ -98,7 +98,7 @@ struct ds1305 {
 /*----------------------------------------------------------------------*/
 
 /*
- * Utilities ...  tolerate 12-hour AM/PM notation in case of non-Linux
+ * Utilities ...  tolerate 12-hour AM/PM notation in case of non-GNU/Linux
  * software (like a bootloader) which may require it.
  */
 
@@ -670,7 +670,7 @@ static int ds1305_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "write", ds1305->ctrl);
 	}
 
-	/* see if non-Linux software set up AM/PM mode */
+	/* see if non-GNU/Linux software set up AM/PM mode */
 	addr = DS1305_HOUR;
 	status = spi_write_then_read(spi, &addr, sizeof(addr),
 				&value, sizeof(value));

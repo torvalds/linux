@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
+ * GNU/Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
  * flexcop-dma.c - configuring and controlling the DMA of the FlexCop
  * see flexcop.c for copyright information
  */

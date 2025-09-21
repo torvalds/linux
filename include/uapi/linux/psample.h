@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef __UAPI_PSAMPLE_H
 #define __UAPI_PSAMPLE_H
 

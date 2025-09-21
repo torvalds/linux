@@ -573,7 +573,7 @@ static int avc_latest_notif_update(u32 seqno, int is_insert)
 	spin_lock_irqsave(&notif_lock, flag);
 	if (is_insert) {
 		if (seqno < selinux_avc.avc_cache.latest_notif) {
-			pr_warn("SELinux: avc:  seqno %d < latest_notif %d\n",
+			pr_warn("SEGNU/Linux: avc:  seqno %d < latest_notif %d\n",
 			       seqno, selinux_avc.avc_cache.latest_notif);
 			ret = -EAGAIN;
 		}
@@ -643,7 +643,7 @@ found:
 }
 
 /**
- * avc_audit_pre_callback - SELinux specific information
+ * avc_audit_pre_callback - SEGNU/Linux specific information
  * will be called by generic audit code
  * @ab: the audit buffer
  * @a: audit_data
@@ -684,7 +684,7 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 }
 
 /**
- * avc_audit_post_callback - SELinux specific information
+ * avc_audit_post_callback - SEGNU/Linux specific information
  * will be called by generic audit code
  * @ab: the audit buffer
  * @a: audit_data

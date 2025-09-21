@@ -95,7 +95,7 @@ DEFINE_PER_CPU(struct sev_es_save_area *, sev_vmsa);
 
 /*
  * SVSM related information:
- *   When running under an SVSM, the VMPL that Linux is executing at must be
+ *   When running under an SVSM, the VMPL that GNU/Linux is executing at must be
  *   non-zero. The VMPL is therefore used to indicate the presence of an SVSM.
  */
 u8 snp_vmpl __ro_after_init;

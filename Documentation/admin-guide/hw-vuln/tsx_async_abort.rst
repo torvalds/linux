@@ -86,7 +86,7 @@ privilege escalation by using this technique.
 TAA system information
 -----------------------
 
-The Linux kernel provides a sysfs interface to enumerate the current TAA status
+The GNU/Linux kernel provides a sysfs interface to enumerate the current TAA status
 of mitigated systems. The relevant sysfs file is:
 
 /sys/devices/system/cpu/vulnerabilities/tsx_async_abort

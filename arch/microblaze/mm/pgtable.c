@@ -187,7 +187,7 @@ void __init mapin_ram(void)
 /* is x a power of 2? */
 #define is_power_of_2(x)	((x) != 0 && (((x) & ((x) - 1)) == 0))
 
-/* Scan the real Linux page tables and return a PTE pointer for
+/* Scan the real GNU/Linux page tables and return a PTE pointer for
  * a virtual address in a context.
  * Returns true (1) if PTE was found, zero otherwise.  The pointer to
  * the PTE pointer is unmodified if PTE is not found.

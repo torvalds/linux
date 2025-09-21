@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linux performance counter support for MIPS.
+ * GNU/Linux performance counter support for MIPS.
  *
  * Copyright (C) 2010 MIPS Technologies, Inc.
  * Copyright (C) 2011 Cavium Networks, Inc.

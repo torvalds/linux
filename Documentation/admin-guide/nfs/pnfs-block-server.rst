@@ -2,13 +2,13 @@
 pNFS block layout server user guide
 ===================================
 
-The Linux NFS server now supports the pNFS block layout extension.  In this
+The GNU/Linux NFS server now supports the pNFS block layout extension.  In this
 case the NFS server acts as Metadata Server (MDS) for pNFS, which in addition
 to handling all the metadata access to the NFS export also hands out layouts
 to the clients to directly access the underlying block devices that are
 shared with the client.
 
-To use pNFS block layouts with the Linux NFS server the exported file
+To use pNFS block layouts with the GNU/Linux NFS server the exported file
 system needs to support the pNFS block layouts (currently just XFS), and the
 file system must sit on shared storage (typically iSCSI) that is accessible
 to the clients in addition to the MDS.  As of now the file system needs to

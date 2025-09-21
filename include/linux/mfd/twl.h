@@ -517,7 +517,7 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
 
 #define TOTAL_RESOURCES		28
 /*
- * Power Bus Message Format ... these can be sent individually by Linux,
+ * Power Bus Message Format ... these can be sent individually by GNU/Linux,
  * but are usually part of downloaded scripts that are run when various
  * power events are triggered.
  *
@@ -705,7 +705,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 
 /*----------------------------------------------------------------------*/
 
-/* Linux-specific regulator identifiers ... for now, we only support
+/* GNU/Linux-specific regulator identifiers ... for now, we only support
  * the LDOs, and leave the three buck converters alone.  VDD1 and VDD2
  * need to tie into hardware based voltage scaling (cpufreq etc), while
  * VIO is generally fixed.

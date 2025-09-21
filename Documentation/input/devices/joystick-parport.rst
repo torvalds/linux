@@ -24,7 +24,7 @@ Introduction
 ============
 
 The joystick parport drivers are used for joysticks and gamepads not
-originally designed for PCs and other computers Linux runs on. Because of
+originally designed for PCs and other computers GNU/Linux runs on. Because of
 that, PCs usually lack the right ports to connect these devices to. Parallel
 port, because of its ability to change single bits at will, and providing
 both output and input bits is the most suitable port on the PC for

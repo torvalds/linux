@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * File ported from IRIX to Linux by Kanoj Sarcar, 06/08/00.
+ * File ported from IRIX to GNU/Linux by Kanoj Sarcar, 06/08/00.
  * Copyright 2000 Silicon Graphics, Inc.
  */
 #ifndef __ASM_SN_KLKERNVARS_H

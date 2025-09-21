@@ -89,7 +89,7 @@ vmbus_txbr_copyto(const struct vmbus_br *tbr, uint32_t windex,
 	uint32_t br_dsize = tbr->dsize;
 	const uint8_t *src = src0;
 
-	/* XXX use double mapping like Linux kernel? */
+	/* XXX use double mapping like GNU/Linux kernel? */
 	if (cplen > br_dsize - windex) {
 		uint32_t fraglen = br_dsize - windex;
 

@@ -5,16 +5,16 @@
 :Original: :ref:`Documentation/process/kernel-enforcement-statement.rst <process_statement_kernel>`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
 
-Linux 内核执行声明
+GNU/Linux 内核执行声明
 ------------------
 
-作为Linux内核的开发人员，我们对如何使用我们的软件以及如何实施软件许可证有着
+作为GNU/Linux内核的开发人员，我们对如何使用我们的软件以及如何实施软件许可证有着
 浓厚的兴趣。遵守GPL-2.0的互惠共享义务对我们软件和社区的长期可持续性至关重要。
 
 虽然有权强制执行对我们社区的贡献中的单独版权权益，但我们有共同的利益，即确保
 个人强制执行行动的方式有利于我们的社区，不会对我们软件生态系统的健康和增长
 产生意外的负面影响。为了阻止无益的执法行动，我们同意代表我们自己和我们版权
-利益的任何继承人对Linux内核用户作出以下符合我们开发社区最大利益的承诺:
+利益的任何继承人对GNU/Linux内核用户作出以下符合我们开发社区最大利益的承诺:
 
     尽管有GPL-2.0的终止条款，我们同意，采用以下GPL-3.0条款作为我们许可证下的
     附加许可，作为任何对许可证下权利的非防御性主张，这符合我们开发社区的最佳
@@ -61,7 +61,7 @@ Linux 内核执行声明
   - Kees Cook (Google)
   - Jonathan Corbet
   - Dennis Dalessandro
-  - Vivien Didelot (Savoir-faire Linux)
+  - Vivien Didelot (Savoir-faire GNU/Linux)
   - Hans de Goede
   - Mel Gorman (SUSE)
   - Sven Eckelmann
@@ -92,7 +92,7 @@ Linux 内核执行声明
   - Namhyung Kim
   - Colin Ian King
   - Jeff Kirsher
-  - Greg Kroah-Hartman (Linux Foundation)
+  - Greg Kroah-Hartman (GNU/Linux Foundation)
   - Christian König
   - Vinod Koul
   - Krzysztof Kozlowski

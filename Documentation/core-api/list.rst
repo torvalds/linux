@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 =====================
-Linked Lists in Linux
+Linked Lists in GNU/Linux
 =====================
 
 :Author: Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
@@ -12,9 +12,9 @@ Introduction
 ============
 
 Linked lists are one of the most basic data structures used in many programs.
-The Linux kernel implements several different flavours of linked lists. The
+The GNU/Linux kernel implements several different flavours of linked lists. The
 purpose of this document is not to explain linked lists in general, but to show
-new kernel developers how to use the Linux kernel implementations of linked
+new kernel developers how to use the GNU/Linux kernel implementations of linked
 lists.
 
 Please note that while linked lists certainly are ubiquitous, they are rarely
@@ -24,16 +24,16 @@ choice in situations where performance may be of consideration. Familiarizing
 oneself with other in-kernel generic data structures, especially for concurrent
 accesses, is highly encouraged.
 
-Linux implementation of doubly linked lists
+GNU/Linux implementation of doubly linked lists
 ===========================================
 
-Linux's linked list implementations can be used by including the header file
+GNU/Linux's linked list implementations can be used by including the header file
 ``<linux/list.h>``.
 
 The doubly-linked list will likely be the most familiar to many readers. It's a
 list that can efficiently be traversed forwards and backwards.
 
-The Linux kernel's doubly-linked list is circular in nature. This means that to
+The GNU/Linux kernel's doubly-linked list is circular in nature. This means that to
 get from the head node to the tail, we can just travel one edge backwards.
 Similarly, to get from the tail node to the head, we can simply travel forwards
 "beyond" the tail and arrive back at the head.
@@ -54,7 +54,7 @@ member to the data structure you wish to be contained in the list:
 
 This may be an unfamiliar approach to some, as the classical explanation of a
 linked list is a list node data structure with pointers to the previous and next
-list node, as well the payload data. Linux chooses this approach because it
+list node, as well the payload data. GNU/Linux chooses this approach because it
 allows for generic list modification code regardless of what data structure is
 contained within the list. Since the struct list_head member is not a pointer
 but part of the data structure proper, the container_of() pattern can be used by
@@ -576,7 +576,7 @@ Rotating entries
 A common write operation on lists, especially when using them as queues, is
 to rotate it. A list rotation means entries at the front are sent to the back.
 
-For rotation, Linux provides us with two functions: list_rotate_left() and
+For rotation, GNU/Linux provides us with two functions: list_rotate_left() and
 list_rotate_to_front(). The former can be pictured like a bicycle chain, taking
 the entry after the supplied ``struct list_head *`` and moving it to the tail,
 which in essence means the entire list, due to its circular nature, rotates by
@@ -642,7 +642,7 @@ Swapping entries
 
 Another common operation is that two entries need to be swapped with each other.
 
-For this, Linux provides us with list_swap().
+For this, GNU/Linux provides us with list_swap().
 
 In the following example, we have a list with three entries, and swap two of
 them. This is our starting state in "State 0"::

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- * Copyright SUSE Linux Products GmbH 2009
+ * Copyright SUSE GNU/Linux Products GmbH 2009
  *
  * Authors: Alexander Graf <agraf@suse.de>
  */
@@ -48,7 +48,7 @@ kvmppc_trampoline_\intno:
 
 	/*
 	 * First thing to do is to find out if we're coming
-	 * from a KVM guest or a Linux process.
+	 * from a KVM guest or a GNU/Linux process.
 	 *
 	 * To distinguish, we check a magic byte in the PACA/current
 	 */
@@ -71,7 +71,7 @@ kvmppc_trampoline_\intno:
 	lbz	r12, HSTATE_IN_GUEST(r13)
 	cmpwi	r12, KVM_GUEST_MODE_NONE
 	bne	..kvmppc_handler_hasmagic_\intno
-	/* No KVM guest? Then jump back to the Linux handler! */
+	/* No KVM guest? Then jump back to the GNU/Linux handler! */
 	lwz	r12, HSTATE_SCRATCH1(r13)
 	b	2b
 

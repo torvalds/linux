@@ -10,7 +10,7 @@ What:		/sys/devices/cpu/events/
 
 Date:		2013/01/08
 
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 
 Description:	Generic performance monitoring events
 
@@ -29,7 +29,7 @@ Description:	Generic performance monitoring events
 
 What: /sys/bus/event_source/devices/<pmu>/events/<event>
 Date: 2014/02/24
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Per-pmu performance monitoring events specific to the running system
 
 		Each file (except for some of those with a '.' in them, '.unit'
@@ -74,7 +74,7 @@ Description:	Per-pmu performance monitoring events specific to the running syste
 
 What: /sys/bus/event_source/devices/<pmu>/events/<event>.unit
 Date: 2014/02/24
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Perf event units
 
 		A string specifying the English plural numerical unit that <event>
@@ -86,7 +86,7 @@ Description:	Perf event units
 
 What: /sys/bus/event_source/devices/<pmu>/events/<event>.scale
 Date: 2014/02/24
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Perf event scaling factors
 
 		A string representing a floating point value expressed in

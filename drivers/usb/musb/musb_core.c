@@ -8,11 +8,11 @@
  */
 
 /*
- * Inventra (Multipoint) Dual-Role Controller Driver for Linux.
+ * Inventra (Multipoint) Dual-Role Controller Driver for GNU/Linux.
  *
  * This consists of a Host Controller Driver (HCD) and a peripheral
  * controller driver implementing the "Gadget" API; OTG support is
- * in the works.  These are normal Linux-USB controller drivers which
+ * in the works.  These are normal GNU/Linux-USB controller drivers which
  * use IRQs and have no dedicated thread.
  *
  * This version of the driver has only been used with products from
@@ -23,7 +23,7 @@
  *
  * NOTE:  the original Mentor code here was pretty much a collection
  * of mechanisms that don't seem to have been fully integrated/working
- * for *any* Linux kernel version.  This version aims at Linux 2.6.now,
+ * for *any* GNU/Linux kernel version.  This version aims at GNU/Linux 2.6.now,
  * Key open issues include:
  *
  *  - Lack of host-side transaction scheduling, for all transfer types.

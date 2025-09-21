@@ -24,7 +24,7 @@ KernelVersion:	v5.12
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RO) Maximum size (in bytes) of the mailbox command payload
-		registers. Linux caps this at 1MB if the device reports a
+		registers. GNU/Linux caps this at 1MB if the device reports a
 		larger size.
 
 

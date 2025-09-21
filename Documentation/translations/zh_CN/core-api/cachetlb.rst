@@ -14,14 +14,14 @@
 .. _cn_core-api_cachetlb:
 
 ======================
-Linux下的缓存和TLB刷新
+GNU/Linux下的缓存和TLB刷新
 ======================
 
 :作者: David S. Miller <davem@redhat.com>
 
 *译注：TLB，Translation Lookaside Buffer，页表缓存/变换旁查缓冲器*
 
-本文描述了由Linux虚拟内存子系统调用的缓存/TLB刷新接口。它列举了每个接
+本文描述了由GNU/Linux虚拟内存子系统调用的缓存/TLB刷新接口。它列举了每个接
 口，描述了它的预期目的，以及接口被调用后的预期副作用。
 
 下面描述的副作用是针对单处理器的实现，以及在单个处理器上发生的情况。若
@@ -31,7 +31,7 @@ Linux下的缓存和TLB刷新
 户地址空间从未在某个cpu上执行过（见mm_cpumask()），那么就不需要在该
 cpu上对这个地址空间进行刷新。
 
-首先是TLB刷新接口，因为它们是最简单的。在Linux下，TLB被抽象为cpu
+首先是TLB刷新接口，因为它们是最简单的。在GNU/Linux下，TLB被抽象为cpu
 用来缓存从软件页表获得的虚拟->物理地址转换的东西。这意味着，如果软件页
 表发生变化，这个“TLB”缓存中就有可能出现过时（脏）的翻译。因此，当软件页表
 发生变化时，内核会在页表发生 *变化后* 调用以下一种刷新方法：
@@ -67,7 +67,7 @@ cpu上对这个地址空间进行刷新。
 
 4) ``void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)``
 
-	这一次我们需要从TLB中删除PAGE_SIZE大小的转换。‘vma’是Linux用来跟
+	这一次我们需要从TLB中删除PAGE_SIZE大小的转换。‘vma’是GNU/Linux用来跟
 	踪进程的mmap区域的支持结构体，地址空间可以通过vma->vm_mm获得。另
 	外，可以通过测试（vma->vm_flags & VM_EXEC）来查看这个区域是否是
 	可执行的（因此在split-tlb类型的设置中可能在“指令TLB”中）。
@@ -89,7 +89,7 @@ cpu上对这个地址空间进行刷新。
 	个事件来为软件管理的TLB配置预装TLB转换。目前sparc64移植就是这么干
 	的。
 
-接下来，我们有缓存刷新接口。一般来说，当Linux将现有的虚拟->物理映射
+接下来，我们有缓存刷新接口。一般来说，当GNU/Linux将现有的虚拟->物理映射
 改变为新的值时，其顺序将是以下形式之一::
 
 	1) flush_cache_mm(mm);
@@ -150,7 +150,7 @@ HyperSparc cpu就是这样一个具有这种属性的cpu。
 4) ``void flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)``
 
 	这一次我们需要从缓存中删除一个PAGE_SIZE大小的区域。“vma”是
-	Linux用来跟踪进程的mmap区域的支持结构体，地址空间可以通过
+	GNU/Linux用来跟踪进程的mmap区域的支持结构体，地址空间可以通过
 	vma->vm_mm获得。另外，我们可以通过测试（vma->vm_flags &
 	VM_EXEC）来查看这个区域是否是可执行的（因此在“Harvard”类
 	型的缓存布局中可能是在“指令缓存”中）。

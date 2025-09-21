@@ -1,7 +1,7 @@
 What:		/sys/kernel/mm/ksm
 Date:		September 2009
 KernelVersion:	2.6.32
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Interface for Kernel Samepage Merging (KSM)
 
 What:		/sys/kernel/mm/ksm/full_scans
@@ -13,7 +13,7 @@ What:		/sys/kernel/mm/ksm/pages_volatile
 What:		/sys/kernel/mm/ksm/run
 What:		/sys/kernel/mm/ksm/sleep_millisecs
 Date:		September 2009
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Kernel Samepage Merging daemon sysfs interface
 
 		full_scans: how many times all mergeable areas have been
@@ -46,7 +46,7 @@ Description:	Kernel Samepage Merging daemon sysfs interface
 What:		/sys/kernel/mm/ksm/merge_across_nodes
 Date:		January 2013
 KernelVersion:	3.9
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Control merging pages across different NUMA nodes.
 
 		When it is set to 0 only pages from the same node are merged,
@@ -55,7 +55,7 @@ Description:	Control merging pages across different NUMA nodes.
 What:		/sys/kernel/mm/ksm/general_profit
 Date:		April 2023
 KernelVersion:  6.4
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Measure how effective KSM is.
 		general_profit: how effective is KSM. The formula for the
 		calculation is in Documentation/admin-guide/mm/ksm.rst.

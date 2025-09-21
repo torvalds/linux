@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * QNX6 file system, Linux implementation.
+ * QNX6 file system, GNU/Linux implementation.
  *
  * Version : 1.0.0
  *

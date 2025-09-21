@@ -25,8 +25,8 @@ conjunction with accelerometers and appropriate software to implement
 a shock protection facility. The idea is to stop all I/O operations on
 the internal hard drive and park its heads on the ramp when critical
 situations are anticipated. The desire to have such a feature
-available on GNU/Linux systems has been the original motivation to
-implement a generic disk head parking interface in the Linux kernel.
+available on GNU/GNU/Linux systems has been the original motivation to
+implement a generic disk head parking interface in the GNU/Linux kernel.
 Please note, however, that other components have to be set up on your
 system in order to get disk shock protection working (see
 section 3. References below for pointers to more information about
@@ -107,7 +107,7 @@ until drive X is no longer in the parked state.
 
 Finally, there are some hard drives that only comply with an earlier
 version of the ATA standard than ATA-7, but do support the unload
-feature nonetheless. Unfortunately, there is no safe way Linux can
+feature nonetheless. Unfortunately, there is no safe way GNU/Linux can
 detect these devices, so you won't be able to write to the
 unload_heads attribute. If you know that your device really does
 support the unload feature (for instance, because the vendor of your
@@ -126,7 +126,7 @@ disable it again.
 
 There are several laptops from different vendors featuring shock
 protection capabilities. As manufacturers have refused to support open
-source development of the required software components so far, Linux
+source development of the required software components so far, GNU/Linux
 support for shock protection varies considerably between different
 hardware implementations. Ideally, this section should contain a list
 of pointers at different projects aiming at an implementation of shock
@@ -137,7 +137,7 @@ of my ignorance.
 
 - https://www.thinkwiki.org/wiki/HDAPS
 
-  See this page for information about Linux support of the hard disk
+  See this page for information about GNU/Linux support of the hard disk
   active protection system as implemented in IBM/Lenovo Thinkpads.
 
 

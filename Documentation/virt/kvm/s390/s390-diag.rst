@@ -123,7 +123,7 @@ DIAG 'X'9C forwarding
 +++++++++++++++++++++
 
 The guest may send a DIAGNOSE 0x9c in order to yield to a certain
-other vcpu. An example is a Linux guest that tries to yield to the vcpu
+other vcpu. An example is a GNU/Linux guest that tries to yield to the vcpu
 that is currently holding a spinlock, but not running.
 
 However, on the host the real cpu backing the vcpu may itself not be

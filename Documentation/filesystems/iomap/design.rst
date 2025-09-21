@@ -58,7 +58,7 @@ are most likely in the wrong place.
 How Is This Better?
 ===================
 
-Unlike the classic Linux I/O model which breaks file I/O into small
+Unlike the classic GNU/Linux I/O model which breaks file I/O into small
 units (generally memory pages or blocks) and looks up space mappings on
 the basis of that unit, the iomap model asks the filesystem for the
 largest space mappings that it can create for a given file operation and

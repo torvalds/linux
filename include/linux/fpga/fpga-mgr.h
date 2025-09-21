@@ -64,7 +64,7 @@ enum fpga_mgr_states {
  *
  * %FPGA_MGR_PARTIAL_RECONFIG: do partial reconfiguration if supported
  *
- * %FPGA_MGR_EXTERNAL_CONFIG: FPGA has been configured prior to Linux booting
+ * %FPGA_MGR_EXTERNAL_CONFIG: FPGA has been configured prior to GNU/Linux booting
  *
  * %FPGA_MGR_ENCRYPTED_BITSTREAM: indicates bitstream is encrypted
  *

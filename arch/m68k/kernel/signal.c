@@ -9,7 +9,7 @@
  */
 
 /*
- * Linux/m68k support by Hamish Macdonald
+ * GNU/Linux/m68k support by Hamish Macdonald
  *
  * 68060 fixes by Jesper Skov
  *

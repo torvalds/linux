@@ -22,7 +22,7 @@ menuconfig WATCHDOG
 
 	  The watchdog is usually used together with the watchdog daemon
 	  which is available from
-	  <https://ibiblio.org/pub/Linux/system/daemons/watchdog/>. This daemon
+	  <https://ibiblio.org/pub/GNU/Linux/system/daemons/watchdog/>. This daemon
 	  can also monitor NFS connections and can reboot the machine when the
 	  process table is full.
 
@@ -1144,7 +1144,7 @@ config ADVANTECH_WDT
 	tristate "Advantech SBC Watchdog Timer"
 	depends on (X86 || COMPILE_TEST) && HAS_IOPORT
 	help
-	  If you are configuring a Linux kernel for the Advantech single-board
+	  If you are configuring a GNU/Linux kernel for the Advantech single-board
 	  computer, say `Y' here to support its built-in watchdog timer
 	  feature. More information can be found at
 	  <https://www.advantech.com.tw/products/>
@@ -1272,7 +1272,7 @@ config SBC_FITPC2_WATCHDOG
 	  fit-PC2i, CM-iAM single-board computers made by Compulab.
 
 	  It's possible to enable the watchdog timer either from BIOS (F2) or
-	  from booted Linux.
+	  from booted GNU/Linux.
 	  When the "Watchdog Timer Value" is enabled one can set 31-255 seconds
 	  operational range.
 
@@ -1854,7 +1854,7 @@ config SIBYTE_WDOG
 	  Watchdog driver for the built in watchdog hardware in Sibyte
 	  SoC processors.  There are apparently two watchdog timers
 	  on such processors; this driver supports only the first one,
-	  because currently Linux only supports exporting one watchdog
+	  because currently GNU/Linux only supports exporting one watchdog
 	  to userspace.
 
 	  To compile this driver as a loadable module, choose M here.
@@ -1875,7 +1875,7 @@ config OCTEON_WDT
 	select EXPORT_UASM if OCTEON_WDT = m
 	help
 	  Hardware driver for OCTEON's on chip watchdog timer.
-	  Enables the watchdog for all cores running Linux. It
+	  Enables the watchdog for all cores running GNU/Linux. It
 	  installs a NMI handler and pokes the watchdog based on an
 	  interrupt.  On first expiration of the watchdog, the
 	  interrupt handler pokes it.  The second expiration causes an

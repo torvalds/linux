@@ -686,7 +686,7 @@ static void qcom_glink_receive_version_ack(struct qcom_glink *glink,
  * @channel:	The glink channel
  * @granted:	The request response to encode.
  *
- * Return: 0 on success or standard Linux error code.
+ * Return: 0 on success or standard GNU/Linux error code.
  */
 static int qcom_glink_send_intent_req_ack(struct qcom_glink *glink,
 					  struct glink_channel *channel,
@@ -714,7 +714,7 @@ static int qcom_glink_send_intent_req_ack(struct qcom_glink *glink,
  * @channel:	The local channel
  * @intent:	The intent to pass on to remote.
  *
- * Return: 0 on success or standard Linux error code.
+ * Return: 0 on success or standard GNU/Linux error code.
  */
 static int qcom_glink_advertise_intent(struct qcom_glink *glink,
 				       struct glink_channel *channel,
@@ -1121,7 +1121,7 @@ static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
  * @pause:	Pause transmission
  * @dst:	destination address of the endpoint
  *
- * Return: 0 on success or standard Linux error code.
+ * Return: 0 on success or standard GNU/Linux error code.
  */
 static int qcom_glink_set_flow_control(struct rpmsg_endpoint *ept, bool pause, u32 dst)
 {

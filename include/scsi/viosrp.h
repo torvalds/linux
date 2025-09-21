@@ -15,7 +15,7 @@
 /* SRP Information Units (IUs) are sent on a "Command/Response Queue" (CRQ)  */
 /* between partitions.  The definitions in this file are architected,        */
 /* and cannot be changed without breaking compatibility with other versions  */
-/* of Linux and other operating systems (AIX, OS/400) that talk this protocol*/
+/* of GNU/Linux and other operating systems (AIX, OS/400) that talk this protocol*/
 /* between logical partitions                                                */
 /*****************************************************************************/
 #ifndef VIOSRP_H

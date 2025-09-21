@@ -1297,7 +1297,7 @@ static int chv_gpio_set_intr_line(struct intel_pinctrl *pctrl, unsigned int pin)
 	/*
 	 * The interrupt line selected by the BIOS is already in use by
 	 * another pin, this is a known BIOS bug found on several models.
-	 * But this may also be caused by Linux deciding to use a pin as
+	 * But this may also be caused by GNU/Linux deciding to use a pin as
 	 * IRQ which was not expected to be used as such by the BIOS authors,
 	 * so log this at info level only.
 	 */
@@ -1427,7 +1427,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 }
 
 /*
- * Certain machines seem to hardcode Linux IRQ numbers in their ACPI
+ * Certain machines seem to hardcode GNU/Linux IRQ numbers in their ACPI
  * tables. Since we leave GPIOs that are not capable of generating
  * interrupts out of the irqdomain the numbering will be different and
  * cause devices using the hardcoded IRQ numbers fail. In order not to

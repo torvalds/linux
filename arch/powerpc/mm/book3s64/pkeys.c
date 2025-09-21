@@ -155,7 +155,7 @@ void __init pkey_early_init_devtree(void)
 #ifdef CONFIG_PPC_4K_PAGES
 	/*
 	 * The OS can manage only 8 pkeys due to its inability to represent them
-	 * in the Linux 4K PTE. Mark all other keys reserved.
+	 * in the GNU/Linux 4K PTE. Mark all other keys reserved.
 	 */
 	num_pkey = min(8, pkeys_total);
 #else

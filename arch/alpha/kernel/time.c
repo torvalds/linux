@@ -372,7 +372,7 @@ calibrate_cc_with_pit(void)
 	return ((long)cc * PIT_TICK_RATE) / (CALIBRATE_LATCH + 1);
 }
 
-/* The Linux interpretation of the CMOS clock register contents:
+/* The GNU/Linux interpretation of the CMOS clock register contents:
    When the Update-In-Progress (UIP) flag goes from 1 to 0, the
    RTC registers show the second which has precisely just started.
    Let's hope other operating systems interpret the RTC the same way.  */

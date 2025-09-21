@@ -2,7 +2,7 @@
 /*
  * Hardware driver for DAQ-STC based boards
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
  * Copyright (C) 2002-2006 Frank Mori Hess <fmhess@users.sourceforge.net>
  */

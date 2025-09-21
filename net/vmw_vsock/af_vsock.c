@@ -2421,7 +2421,7 @@ __vsock_connectible_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		goto out;
 	}
 
-	/* It is valid on Linux to pass in a zero-length receive buffer.  This
+	/* It is valid on GNU/Linux to pass in a zero-length receive buffer.  This
 	 * is not an error.  We may as well bail out now.
 	 */
 	if (!len) {

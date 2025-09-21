@@ -1,5 +1,5 @@
 /*
- * IEEE 802.2 User Interface SAPs for Linux, data structures and indicators.
+ * IEEE 802.2 User Interface SAPs for GNU/Linux, data structures and indicators.
  *
  * Copyright (c) 2001 by Jay Schulist <jschlst@samba.org>
  *

@@ -11,7 +11,7 @@ provides higher bandwidth access to the device with lower
 latency, compared with devices that are virtualized by the
 hypervisor.  The device should appear to the guest just as it
 would when running on bare metal, so no changes are required
-to the Linux device drivers for the device.
+to the GNU/Linux device drivers for the device.
 
 Hyper-V terminology for vPCI devices is "Discrete Device
 Assignment" (DDA).  Public documentation for Hyper-V DDA is
@@ -33,26 +33,26 @@ devices.
 Device Presentation
 -------------------
 Hyper-V provides full PCI functionality for a vPCI device when
-it is operating, so the Linux device driver for the device can
-be used unchanged, provided it uses the correct Linux kernel
+it is operating, so the GNU/Linux device driver for the device can
+be used unchanged, provided it uses the correct GNU/Linux kernel
 APIs for accessing PCI config space and for other integration
-with Linux.  But the initial detection of the PCI device and
-its integration with the Linux PCI subsystem must use Hyper-V
+with GNU/Linux.  But the initial detection of the PCI device and
+its integration with the GNU/Linux PCI subsystem must use Hyper-V
 specific mechanisms.  Consequently, vPCI devices on Hyper-V
-have a dual identity.  They are initially presented to Linux
+have a dual identity.  They are initially presented to GNU/Linux
 guests as VMBus devices via the standard VMBus "offer"
 mechanism, so they have a VMBus identity and appear under
-/sys/bus/vmbus/devices.  The VMBus vPCI driver in Linux at
+/sys/bus/vmbus/devices.  The VMBus vPCI driver in GNU/Linux at
 drivers/pci/controller/pci-hyperv.c handles a newly introduced
 vPCI device by fabricating a PCI bus topology and creating all
-the normal PCI device data structures in Linux that would
+the normal PCI device data structures in GNU/Linux that would
 exist if the PCI device were discovered via ACPI on a bare-
 metal system.  Once those data structures are set up, the
-device also has a normal PCI identity in Linux, and the normal
-Linux device driver for the vPCI device can function as if it
-were running in Linux on bare-metal.  Because vPCI devices are
+device also has a normal PCI identity in GNU/Linux, and the normal
+GNU/Linux device driver for the vPCI device can function as if it
+were running in GNU/Linux on bare-metal.  Because vPCI devices are
 presented dynamically through the VMBus offer mechanism, they
-do not appear in the Linux guest's ACPI tables.  vPCI devices
+do not appear in the GNU/Linux guest's ACPI tables.  vPCI devices
 may be added to a VM or removed from a VM at any time during
 the life of the VM, and not just during initial boot.
 
@@ -62,12 +62,12 @@ message, the hv_pci_probe() function runs and establishes a
 VMBus connection to the vPCI VSP on the Hyper-V host.  That
 connection has a single VMBus channel.  The channel is used to
 exchange messages with the vPCI VSP for the purpose of setting
-up and configuring the vPCI device in Linux.  Once the device
-is fully configured in Linux as a PCI device, the VMBus
-channel is used only if Linux changes the vCPU to be interrupted
+up and configuring the vPCI device in GNU/Linux.  Once the device
+is fully configured in GNU/Linux as a PCI device, the VMBus
+channel is used only if GNU/Linux changes the vCPU to be interrupted
 in the guest, or if the vPCI device is removed from
 the VM while the VM is running.  The ongoing operation of the
-device happens directly between the Linux device driver for
+device happens directly between the GNU/Linux device driver for
 the device and the hardware, with VMBus and the VMBus channel
 playing no role.
 
@@ -75,14 +75,14 @@ PCI Device Setup
 ----------------
 PCI device setup follows a sequence that Hyper-V originally
 created for Windows guests, and that can be ill-suited for
-Linux guests due to differences in the overall structure of
-the Linux PCI subsystem compared with Windows.  Nonetheless,
+GNU/Linux guests due to differences in the overall structure of
+the GNU/Linux PCI subsystem compared with Windows.  Nonetheless,
 with a bit of hackery in the Hyper-V virtual PCI driver for
-Linux, the virtual PCI device is setup in Linux so that
-generic Linux PCI subsystem code and the Linux driver for the
+GNU/Linux, the virtual PCI device is setup in GNU/Linux so that
+generic GNU/Linux PCI subsystem code and the GNU/Linux driver for the
 device "just work".
 
-Each vPCI device is set up in Linux to be in its own PCI
+Each vPCI device is set up in GNU/Linux to be in its own PCI
 domain with a host bridge.  The PCI domainID is derived from
 bytes 4 and 5 of the instance GUID assigned to the VMBus vPCI
 device.  The Hyper-V host does not guarantee that these bytes
@@ -104,11 +104,11 @@ hv_pci_probe() also gets BAR information for the device from
 the Hyper-V host, and uses this information to allocate MMIO
 space for the BARs.  That MMIO space is then setup to be
 associated with the host bridge so that it works when generic
-PCI subsystem code in Linux processes the BARs.
+PCI subsystem code in GNU/Linux processes the BARs.
 
 Finally, hv_pci_probe() creates the root PCI bus.  At this
 point the Hyper-V virtual PCI driver hackery is done, and the
-normal Linux PCI machinery for scanning the root bus works to
+normal GNU/Linux PCI machinery for scanning the root bus works to
 detect the device, to perform driver matching, and to
 initialize the driver and device.
 
@@ -122,16 +122,16 @@ is not under the control of the guest OS.
 A guest VM is notified of the removal by an unsolicited
 "Eject" message sent from the host to the guest over the VMBus
 channel associated with the vPCI device.  Upon receipt of such
-a message, the Hyper-V virtual PCI driver in Linux
-asynchronously invokes Linux kernel PCI subsystem calls to
+a message, the Hyper-V virtual PCI driver in GNU/Linux
+asynchronously invokes GNU/Linux kernel PCI subsystem calls to
 shutdown and remove the device.  When those calls are
 complete, an "Ejection Complete" message is sent back to
 Hyper-V over the VMBus channel indicating that the device has
 been removed.  At this point, Hyper-V sends a VMBus rescind
-message to the Linux guest, which the VMBus driver in Linux
+message to the GNU/Linux guest, which the VMBus driver in GNU/Linux
 processes by removing the VMBus identity for the device.  Once
 that processing is complete, all vestiges of the device having
-been present are gone from the Linux kernel.  The rescind
+been present are gone from the GNU/Linux kernel.  The rescind
 message also indicates to the guest that Hyper-V has stopped
 providing support for the vPCI device in the guest.  If the
 guest were to attempt to access that device's MMIO space, it
@@ -164,9 +164,9 @@ Interrupt Assignment
 The Hyper-V virtual PCI driver supports vPCI devices using
 MSI, multi-MSI, or MSI-X.  Assigning the guest vCPU that will
 receive the interrupt for a particular MSI or MSI-X message is
-complex because of the way the Linux setup of IRQs maps onto
+complex because of the way the GNU/Linux setup of IRQs maps onto
 the Hyper-V interfaces.  For the single-MSI and MSI-X cases,
-Linux calls hv_compse_msi_msg() twice, with the first call
+GNU/Linux calls hv_compse_msi_msg() twice, with the first call
 containing a dummy vCPU and the second call containing the
 real vCPU.  Furthermore, hv_irq_unmask() is finally called
 (on x86) or the GICD registers are set (on arm64) to specify
@@ -194,7 +194,7 @@ detected as well.  See comments in the code regarding this
 very tricky area.
 
 Most of the code in the Hyper-V virtual PCI driver (pci-
-hyperv.c) applies to Hyper-V and Linux guests running on x86
+hyperv.c) applies to Hyper-V and GNU/Linux guests running on x86
 and on arm64 architectures.  But there are differences in how
 interrupt assignments are managed.  On x86, the Hyper-V
 virtual PCI driver in the guest must make a hypercall to tell
@@ -209,8 +209,8 @@ which Hyper-V emulates, so no hypercall is necessary as with
 x86.  Hyper-V does not support using LPIs for vPCI devices in
 arm64 guest VMs because it does not emulate a GICv3 ITS.
 
-The Hyper-V virtual PCI driver in Linux supports vPCI devices
-whose drivers create managed or unmanaged Linux IRQs.  If the
+The Hyper-V virtual PCI driver in GNU/Linux supports vPCI devices
+whose drivers create managed or unmanaged GNU/Linux IRQs.  If the
 smp_affinity for an unmanaged IRQ is updated via the /proc/irq
 interface, the Hyper-V virtual PCI driver is called to tell
 the Hyper-V host to change the interrupt targeting and
@@ -232,7 +232,7 @@ it is safe to assign PCI devices to the VM, and allow the
 guest operating system to program the DMA transfers.  The
 physical IOMMU prevents a malicious guest from initiating
 DMA to memory belonging to the host or to other VMs on the
-host. From the Linux guest standpoint, such DMA transfers
+host. From the GNU/Linux guest standpoint, such DMA transfers
 are in "direct" mode since Hyper-V does not provide a virtual
 IOMMU in the guest.
 
@@ -256,7 +256,7 @@ vPCI protocol versions
 ----------------------
 As previously described, during vPCI device setup and teardown
 messages are passed over a VMBus channel between the Hyper-V
-host and the Hyper-v vPCI driver in the Linux guest.  Some
+host and the Hyper-v vPCI driver in the GNU/Linux guest.  Some
 messages have been revised in newer versions of Hyper-V, so
 the guest and host must agree on the vPCI protocol version to
 be used.  The version is negotiated when communication over
@@ -270,11 +270,11 @@ the underlying hardware.
 Guest NUMA node affinity
 ------------------------
 When the vPCI protocol version provides it, the guest NUMA
-node affinity of the vPCI device is stored as part of the Linux
-device information for subsequent use by the Linux driver. See
+node affinity of the vPCI device is stored as part of the GNU/Linux
+device information for subsequent use by the GNU/Linux driver. See
 hv_pci_assign_numa_node().  If the negotiated protocol version
 does not support the host providing NUMA affinity information,
-the Linux guest defaults the device NUMA node to 0.  But even
+the GNU/Linux guest defaults the device NUMA node to 0.  But even
 when the negotiated protocol version includes NUMA affinity
 information, the ability of the host to provide such
 information depends on certain host configuration options.  If
@@ -285,8 +285,8 @@ from the guest side.
 
 PCI config space access in a CoCo VM
 ------------------------------------
-Linux PCI device drivers access PCI config space using a
-standard set of functions provided by the Linux PCI subsystem.
+GNU/Linux PCI device drivers access PCI config space using a
+standard set of functions provided by the GNU/Linux PCI subsystem.
 In Hyper-V guests these standard functions map to functions
 hv_pcifront_read_config() and hv_pcifront_write_config()
 in the Hyper-V virtual PCI driver.  In normal VMs,
@@ -300,13 +300,13 @@ made.
 
 Config Block back-channel
 -------------------------
-The Hyper-V host and Hyper-V virtual PCI driver in Linux
+The Hyper-V host and Hyper-V virtual PCI driver in GNU/Linux
 together implement a non-standard back-channel communication
 path between the host and guest.  The back-channel path uses
 messages sent over the VMBus channel associated with the vPCI
 device.  The functions hyperv_read_cfg_blk() and
 hyperv_write_cfg_blk() are the primary interfaces provided to
-other parts of the Linux kernel.  As of this writing, these
+other parts of the GNU/Linux kernel.  As of this writing, these
 interfaces are used only by the Mellanox mlx5 driver to pass
 diagnostic data to a Hyper-V host running in the Azure public
 cloud.  The functions hyperv_read_cfg_blk() and

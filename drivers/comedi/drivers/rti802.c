@@ -3,7 +3,7 @@
  * rti802.c
  * Comedi driver for Analog Devices RTI-802 board
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
  */
 

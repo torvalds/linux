@@ -41,7 +41,7 @@ bpftool link { show | list } [*LINK*]
     Output will start with link ID followed by link type and zero or more named
     attributes, some of which depend on type of link.
 
-    Since Linux 5.8 bpftool is able to discover information about processes
+    Since GNU/Linux 5.8 bpftool is able to discover information about processes
     that hold open file descriptors (FDs) against BPF links. On such kernels
     bpftool will automatically emit this information as well.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * max1619.c - Part of lm_sensors, Linux kernel modules for hardware
+ * max1619.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *             monitoring
  * Copyright (C) 2003-2004 Oleksij Rempel <bug-track@fisher-privat.net>
  *                         Jean Delvare <jdelvare@suse.de>

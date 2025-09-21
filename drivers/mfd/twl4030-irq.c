@@ -50,7 +50,7 @@
 #define REG_PIH_ISR_P2			0x02
 #define REG_PIH_SIR			0x03	/* for testing */
 
-/* Linux could (eventually) use either IRQ line */
+/* GNU/Linux could (eventually) use either IRQ line */
 static int irq_line;
 
 struct sih {

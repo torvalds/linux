@@ -214,7 +214,7 @@ void snd_tea575x_set_freq(struct snd_tea575x *tea)
 EXPORT_SYMBOL(snd_tea575x_set_freq);
 
 /*
- * Linux Video interface
+ * GNU/Linux Video interface
  */
 
 static int vidioc_querycap(struct file *file, void  *priv,

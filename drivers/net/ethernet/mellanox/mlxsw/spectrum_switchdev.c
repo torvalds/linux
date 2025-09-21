@@ -3603,7 +3603,7 @@ mlxsw_sp_switchdev_vxlan_fdb_add(struct mlxsw_sp *mlxsw_sp,
 		return;
 	}
 
-	/* The device has a single FDB table, whereas Linux has two - one
+	/* The device has a single FDB table, whereas GNU/Linux has two - one
 	 * in the bridge driver and another in the VxLAN driver. We only
 	 * program an entry to the device if the MAC points to the VxLAN
 	 * device in the bridge's FDB table

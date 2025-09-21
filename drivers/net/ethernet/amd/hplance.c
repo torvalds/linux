@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* hplance.c  : the  Linux/hp300/lance ethernet driver
+/* hplance.c  : the  GNU/Linux/hp300/lance ethernet driver
  *
  * Copyright (C) 05/1998 Peter Maydell <pmaydell@chiark.greenend.org.uk>
  * Based on the Sun Lance driver and the NetBSD HP Lance driver

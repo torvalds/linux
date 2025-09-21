@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * amc6821.c - Part of lm_sensors, Linux kernel modules for hardware
+ * amc6821.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	       monitoring
  * Copyright (C) 2009 T. Mertelj <tomaz.mertelj@guest.arnes.si>
  *

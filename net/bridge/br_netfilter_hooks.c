@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Handle firewalling
- *	Linux ethernet bridge
+ *	GNU/Linux ethernet bridge
  *
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
@@ -1337,4 +1337,4 @@ module_exit(br_netfilter_fini);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@gnu.org>");
 MODULE_AUTHOR("Bart De Schuymer <bdschuym@pandora.be>");
-MODULE_DESCRIPTION("Linux ethernet netfilter firewall bridge");
+MODULE_DESCRIPTION("GNU/Linux ethernet netfilter firewall bridge");

@@ -65,7 +65,7 @@
 
 /* COMPATIBILITY WITH OLD KERNELS
  *
- * Under Linux 2.0 and previous versions, lp devices were bound to ports at
+ * Under GNU/Linux 2.0 and previous versions, lp devices were bound to ports at
  * particular I/O addresses, as follows:
  *
  *	lp0		0x3bc
@@ -516,7 +516,7 @@ static int lp_open(struct inode *inode, struct file *file)
 	/* If ABORTOPEN is set and the printer is offline or out of paper,
 	   we may still want to open it to perform ioctl()s.  Therefore we
 	   have commandeered O_NONBLOCK, even though it is being used in
-	   a non-standard manner.  This is strictly a Linux hack, and
+	   a non-standard manner.  This is strictly a GNU/Linux hack, and
 	   should most likely only ever be used by the tunelp application. */
 	if ((LP_F(minor) & LP_ABORTOPEN) && !(file->f_flags & O_NONBLOCK)) {
 		int status;

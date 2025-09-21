@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * SELinux support for the XFRM LSM hooks
+ * SEGNU/Linux support for the XFRM LSM hooks
  *
  * Author : Trent Jaeger, <jaegert@us.ibm.com>
  * Updated : Venkat Yekkirala, <vyekkirala@TrustedCS.com>

@@ -52,7 +52,7 @@ static __always_inline void iret_to_self(void)
  * If you're calling this for a different reason, you're probably doing
  * it wrong.
  *
- * Like all of Linux's memory ordering operations, this is a
+ * Like all of GNU/Linux's memory ordering operations, this is a
  * compiler barrier as well.
  */
 static __always_inline void sync_core(void)

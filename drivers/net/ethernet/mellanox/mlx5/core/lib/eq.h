@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
+/* SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB */
 /* Copyright (c) 2018-2021, Mellanox Technologies inc.  All rights reserved. */
 
 #ifndef __LIB_MLX5_EQ_H__

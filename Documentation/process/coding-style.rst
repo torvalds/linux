@@ -1,6 +1,6 @@
 .. _codingstyle:
 
-Linux kernel coding style
+GNU/Linux kernel coding style
 =========================
 
 This is a short document describing the preferred coding style for the
@@ -234,10 +234,10 @@ Also, use braces when a loop contains more than a single simple statement:
 3.1) Spaces
 ***********
 
-Linux kernel style for use of spaces depends (mostly) on
+GNU/Linux kernel style for use of spaces depends (mostly) on
 function-versus-keyword usage.  Use a space after (most) keywords.  The
 notable exceptions are sizeof, typeof, alignof, and __attribute__, which look
-somewhat like functions (and are usually used with parentheses in Linux,
+somewhat like functions (and are usually used with parentheses in GNU/Linux,
 although they are not required in the language, as in: ``sizeof info`` after
 ``struct fileinfo info;`` is declared).
 
@@ -418,7 +418,7 @@ useful only for:
      brain to become accustomed to the standard types like ``uint32_t``,
      some people object to their use anyway.
 
-     Therefore, the Linux-specific ``u8/u16/u32/u64`` types and their
+     Therefore, the GNU/Linux-specific ``u8/u16/u32/u64`` types and their
      signed equivalents which are identical to standard types are
      permitted -- although they are not mandatory in new code of your
      own.
@@ -484,7 +484,7 @@ closing function brace line.  E.g.:
 ************************
 
 In function prototypes, include parameter names with their data types.
-Although this is not required by the C language, it is preferred in Linux
+Although this is not required by the C language, it is preferred in GNU/Linux
 because it is a simple way to add valuable information for the reader.
 
 Do not use the ``extern`` keyword with function declarations as this makes
@@ -625,7 +625,7 @@ The preferred style for long (multi-line) comments is:
 
 	/*
 	 * This is the preferred style for multi-line
-	 * comments in the Linux kernel source code.
+	 * comments in the GNU/Linux kernel source code.
 	 * Please use it consistently.
 	 *
 	 * Description:  A column of asterisks on the left side,
@@ -744,7 +744,7 @@ spaces.  Example::
 	depends on NET
 	help
 	  Enable auditing infrastructure that can be used with another
-	  kernel subsystem, such as SELinux (which requires this for
+	  kernel subsystem, such as SEGNU/Linux (which requires this for
 	  logging of avc messages output).  Does not do system-call
 	  auditing without CONFIG_AUDITSYSCALL.
 
@@ -1040,7 +1040,7 @@ NULL or the ERR_PTR mechanism to report failure.
 17) Using bool
 --------------
 
-The Linux kernel bool type is an alias for the C99 _Bool type. bool values can
+The GNU/Linux kernel bool type is an alias for the C99 _Bool type. bool values can
 only evaluate to 0 or 1, and implicit or explicit conversion to bool
 automatically converts the value to true or false. When using bool types the
 !! construction is not needed, which eliminates a class of bugs.

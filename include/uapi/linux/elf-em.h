@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _LINUX_ELF_EM_H
 #define _LINUX_ELF_EM_H
 
@@ -14,7 +14,7 @@
 #define EM_MIPS		8	/* MIPS R3000 (officially, big-endian only) */
 				/* Next two are historical and binaries and
 				   modules of these types will be rejected by
-				   Linux.  */
+				   GNU/Linux.  */
 #define EM_MIPS_RS3_LE	10	/* MIPS R3000 little-endian */
 #define EM_MIPS_RS4_BE	10	/* MIPS R4000 big-endian */
 
@@ -49,7 +49,7 @@
 #define EM_TILEGX	191	/* Tilera TILE-Gx */
 #define EM_ARCV2	195	/* ARCv2 Cores */
 #define EM_RISCV	243	/* RISC-V */
-#define EM_BPF		247	/* Linux BPF - in-kernel virtual machine */
+#define EM_BPF		247	/* GNU/Linux BPF - in-kernel virtual machine */
 #define EM_CSKY		252	/* C-SKY */
 #define EM_LOONGARCH	258	/* LoongArch */
 #define EM_FRV		0x5441	/* Fujitsu FR-V */

@@ -4,7 +4,7 @@
 Using Sphinx for kernel documentation
 =====================================
 
-The Linux kernel uses `Sphinx`_ to generate pretty documentation from
+The GNU/Linux kernel uses `Sphinx`_ to generate pretty documentation from
 `reStructuredText`_ files under ``Documentation``. To build the documentation in
 HTML or PDF formats, use ``make htmldocs`` or ``make pdfdocs``. The generated
 documentation is placed in ``Documentation/output``.

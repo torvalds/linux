@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  tsl2550.c - Linux kernel modules for ambient light sensor
+ *  tsl2550.c - GNU/Linux kernel modules for ambient light sensor
  *
  *  Copyright (C) 2007 Rodolfo Giometti <giometti@linux.it>
  *  Copyright (C) 2007 Eurotech S.p.A. <info@eurotech.it>

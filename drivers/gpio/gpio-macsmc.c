@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Apple SMC GPIO driver
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  *
  * This driver implements basic SMC PMU GPIO support that can read inputs
  * and write outputs. Mode changes and IRQ config are not yet implemented.

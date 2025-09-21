@@ -22,7 +22,7 @@ and examples.
 
 Major versions of the sg driver
 ===============================
-There are three major versions of sg found in the Linux kernel (lk):
+There are three major versions of sg found in the GNU/Linux kernel (lk):
       - sg version 1 (original) from 1992 to early 1999 (lk 2.2.5) .
 	It is based in the sg_header interface structure.
       - sg version 2 from lk 2.2.6 in the 2.2 series. It is based on
@@ -49,7 +49,7 @@ found in the LDP archives at
 
 - https://tldp.org/HOWTO/archived/SCSI-Programming-HOWTO/index.html
 
-A more general description of the Linux SCSI subsystem of which sg is a
+A more general description of the GNU/Linux SCSI subsystem of which sg is a
 part can be found at https://www.tldp.org/HOWTO/SCSI-2.4-HOWTO .
 
 
@@ -71,9 +71,9 @@ Another approach is to look at the applications that use the sg driver.
 These include cdrecord, cdparanoia, SANE and cdrdao.
 
 
-Mapping of Linux kernel versions to sg driver versions
+Mapping of GNU/Linux kernel versions to sg driver versions
 ======================================================
-Here is a list of Linux kernels in the 2.4 series that had the new version
+Here is a list of GNU/Linux kernels in the 2.4 series that had the new version
 of the sg driver:
 
      - lk 2.4.0 : sg version 3.1.17
@@ -82,9 +82,9 @@ of the sg driver:
      - lk 2.4.17 : sg version 3.1.22
 
 .. [#] There were 3 changes to sg version 3.1.20 by third parties in the
-       next six Linux kernel versions.
+       next six GNU/Linux kernel versions.
 
-For reference here is a list of Linux kernels in the 2.2 series that had
+For reference here is a list of GNU/Linux kernels in the 2.2 series that had
 the new version of the sg driver:
 
      - lk 2.2.0 : original sg version [with no version number]

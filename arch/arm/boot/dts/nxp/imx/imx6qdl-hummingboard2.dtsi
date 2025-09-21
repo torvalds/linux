@@ -284,7 +284,7 @@
 			 * MX6QDL_PAD_EIM_DA10__GPIO3_IO10 is
 			 * GPIO(3,10) which is (3-1)*32+10 = gpio 74
 			 *
-			 * i.e. The mapping of GPIO(X,Y) to Linux gpio
+			 * i.e. The mapping of GPIO(X,Y) to GNU/Linux gpio
 			 * number is : gpio number = (X-1) * 32 + Y
 			 */
 			/* DI1_PIN15 */

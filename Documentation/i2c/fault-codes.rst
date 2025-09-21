@@ -28,7 +28,7 @@ I2C and SMBus fault codes
 These are returned as negative numbers from most calls, with zero or
 some positive number indicating a non-fault return.  The specific
 numbers associated with these symbols differ between architectures,
-though most Linux systems use <asm-generic/errno*.h> numbering.
+though most GNU/Linux systems use <asm-generic/errno*.h> numbering.
 
 Note that the descriptions here are not exhaustive.  There are other
 codes that may be returned, and other cases where these codes should

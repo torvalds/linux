@@ -10,7 +10,7 @@
  * DT support
  * Copyright (c) 2016 Petr Kulhavy <petr@barix.com>
  *
- * This file is part of the Inventra Controller Driver for Linux.
+ * This file is part of the Inventra Controller Driver for GNU/Linux.
  */
 
 #include <linux/module.h>

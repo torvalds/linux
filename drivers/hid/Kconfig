@@ -1363,7 +1363,7 @@ config HID_SENSOR_CUSTOM_SENSOR
 	help
 	  HID Sensor hub specification allows definition of some custom and
 	  generic sensors. Unlike other HID sensors, they can't be exported
-	  via Linux IIO because of custom fields. This is up to the manufacturer
+	  via GNU/Linux IIO because of custom fields. This is up to the manufacturer
 	  to decide how to interpret these special sensor ids and process in
 	  the user space. Currently some manufacturers are using these ids for
 	  sensor calibration and debugging other sensors. Manufacturers

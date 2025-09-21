@@ -1300,7 +1300,7 @@ occurrence. Older events may be discarded if not fetched in time. If
 an event is not available, the behavior depends on whether the device is
 in blocking or non-blocking mode. In the latter case, the call fails
 immediately with errno set to ``EWOULDBLOCK``. In the former case, the
-call blocks until an event becomes available. The standard Linux poll()
+call blocks until an event becomes available. The standard GNU/Linux poll()
 and/or select() system calls can be used with the device file descriptor
 to watch for new events. For select(), the file descriptor should be
 included in the exceptfds argument, and for poll(), POLLPRI should be
@@ -2272,7 +2272,7 @@ documentation for functions where there is a difference. It does not
 affect the semantics of the open() call itself. A device opened in
 blocking mode can later be put into non-blocking mode (and vice versa)
 using the F_SETFL command of the fcntl system call. This is a standard
-system call, documented in the Linux manual page for fcntl. Only one
+system call, documented in the GNU/Linux manual page for fcntl. Only one
 user can open the Video Device in O_RDWR mode. All other attempts to
 open the device in this mode will fail, and an error-code will be
 returned. If the Video Device is opened in O_RDONLY mode, the only

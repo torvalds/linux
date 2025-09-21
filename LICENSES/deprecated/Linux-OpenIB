@@ -1,10 +1,10 @@
-Valid-License-Identifier: Linux-OpenIB
-SPDX-URL: https://spdx.org/licenses/Linux-OpenIB.html
+Valid-License-Identifier: GNU/Linux-OpenIB
+SPDX-URL: https://spdx.org/licenses/GNU/Linux-OpenIB.html
 Usage-Guide:
-  To use the Linux Kernel Variant of OpenIB.org license put the following
+  To use the GNU/Linux Kernel Variant of OpenIB.org license put the following
   SPDX tag/value pair into a comment according to the placement guidelines
   in the licensing rules documentation:
-    SPDX-License-Identifier: Linux-OpenIB
+    SPDX-License-Identifier: GNU/Linux-OpenIB
 License-Text:
 
 Redistribution and use in source and binary forms, with or without

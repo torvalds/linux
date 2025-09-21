@@ -28,7 +28,7 @@
  * In order to achieve a modicum of isolation, we try to hide most of
  * the GICv4 "stuff" behind normal irqchip operations:
  *
- * - Any guest-visible VLPI is backed by a Linux interrupt (and a
+ * - Any guest-visible VLPI is backed by a GNU/Linux interrupt (and a
  *   physical LPI which gets unmapped when the guest maps the
  *   VLPI). This allows the same DevID/EventID pair to be either
  *   mapped to the LPI (host) or the VLPI (guest). Note that this is

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ====================
-Union-Find in Linux
+Union-Find in GNU/Linux
 ====================
 
 
@@ -40,16 +40,16 @@ complexity of each find and union operation to O(α(n)), where α(n) is the
 inverse Ackermann function. This can be roughly considered a constant time
 complexity for practical purposes.
 
-This document covers use of the Linux union-find implementation.  For more
+This document covers use of the GNU/Linux union-find implementation.  For more
 information on the nature and implementation of union-find,  see:
 
   Wikipedia entry on union-find
     https://en.wikipedia.org/wiki/Disjoint-set_data_structure
 
-Linux implementation of union-find
+GNU/Linux implementation of union-find
 -----------------------------------
 
-Linux's union-find implementation resides in the file "lib/union_find.c".
+GNU/Linux's union-find implementation resides in the file "lib/union_find.c".
 To use it, "#include <linux/union_find.h>".
 
 The union-find data structure is defined as follows::

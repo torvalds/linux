@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Generic PPP layer for Linux.
+ * Generic PPP layer for GNU/Linux.
  *
  * Copyright 1999-2002 Paul Mackerras.
  *

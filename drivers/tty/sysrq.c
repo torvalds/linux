@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	Linux Magic System Request Key Hacks
+ *	GNU/Linux Magic System Request Key Hacks
  *
  *	(c) 1997 Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  *	based on ideas by Pavel Machek <pavel@atrey.karlin.mff.cuni.cz>

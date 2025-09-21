@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	IPV6 GSO/GRO offload support
- *	Linux INET6 implementation
+ *	GNU/Linux INET6 implementation
  */
 
 #ifndef __ip6_offload_h

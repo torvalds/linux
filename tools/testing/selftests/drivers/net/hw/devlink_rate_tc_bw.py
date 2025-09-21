@@ -174,7 +174,7 @@ def get_vf_info(cfg):
 
 def setup_bridge(cfg):
     """
-    Creates and configures a Linux bridge, with both the uplink
+    Creates and configures a GNU/Linux bridge, with both the uplink
     and VF representor interfaces attached to it.
     """
     bridge_name = f"br_{os.getpid()}"

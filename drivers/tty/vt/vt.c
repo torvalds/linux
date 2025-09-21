@@ -3396,7 +3396,7 @@ static struct console vt_console_driver = {
 #endif
 
 /*
- *	Handling of Linux-specific VC ioctls
+ *	Handling of GNU/Linux-specific VC ioctls
  */
 
 /*

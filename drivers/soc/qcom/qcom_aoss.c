@@ -30,7 +30,7 @@
 #define QMP_DESC_UCORE_MBOX_SIZE	0x1c
 #define QMP_DESC_UCORE_MBOX_OFFSET	0x20
 
-/* Linux-side offsets */
+/* GNU/Linux-side offsets */
 #define QMP_DESC_MCORE_LINK_STATE	0x24
 #define QMP_DESC_MCORE_LINK_STATE_ACK	0x28
 #define QMP_DESC_MCORE_CH_STATE		0x2c

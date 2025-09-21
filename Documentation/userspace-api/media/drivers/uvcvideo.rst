@@ -1,12 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-The Linux USB Video Class (UVC) driver
+The GNU/Linux USB Video Class (UVC) driver
 ======================================
 
 This file documents some driver-specific aspects of the UVC driver, such as
 driver-specific ioctls and implementation notes.
 
-Questions and remarks can be sent to the Linux UVC development mailing list at
+Questions and remarks can be sent to the GNU/Linux UVC development mailing list at
 linux-media@vger.kernel.org.
 
 
@@ -17,7 +17,7 @@ Introduction
 ~~~~~~~~~~~~
 
 The UVC specification allows for vendor-specific extensions through extension
-units (XUs). The Linux UVC driver supports extension unit controls (XU controls)
+units (XUs). The GNU/Linux UVC driver supports extension unit controls (XU controls)
 through two separate mechanisms:
 
   - through mappings of XU controls to V4L2 controls

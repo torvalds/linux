@@ -191,7 +191,7 @@ stallo; questo anche se lo stallo non si verifica in pratica)
 Eccezione: dipendenze annidate sui dati portano a blocchi annidati
 ------------------------------------------------------------------
 
-Ci sono alcuni casi in cui il kernel Linux acquisisce più volte la stessa
+Ci sono alcuni casi in cui il kernel GNU/Linux acquisisce più volte la stessa
 istanza di una classe di blocco. Solitamente, questo succede quando esiste una
 gerarchia fra oggetti dello stesso tipo. In questi casi viene ereditato
 implicitamente l'ordine fra i due oggetti (definito dalle proprietà di questa

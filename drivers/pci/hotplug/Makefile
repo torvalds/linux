@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux kernel pci hotplug controller drivers.
+# Makefile for the GNU/Linux kernel pci hotplug controller drivers.
 #
 
 obj-$(CONFIG_HOTPLUG_PCI)		+= pci_hotplug.o

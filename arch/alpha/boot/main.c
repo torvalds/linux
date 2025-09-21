@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1994, 1995 Linus Torvalds
  *
- * This file is the bootloader for the Linux/AXP kernel
+ * This file is the bootloader for the GNU/Linux/AXP kernel
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -155,7 +155,7 @@ void start_kernel(void)
 	int nbytes;
 	char envval[256];
 
-	srm_printk("Linux/AXP bootloader for Linux " UTS_RELEASE "\n");
+	srm_printk("GNU/Linux/AXP bootloader for GNU/Linux " UTS_RELEASE "\n");
 	if (INIT_HWRPB->pagesize != 8192) {
 		srm_printk("Expected 8kB pages, got %ldkB\n", INIT_HWRPB->pagesize >> 10);
 		return;

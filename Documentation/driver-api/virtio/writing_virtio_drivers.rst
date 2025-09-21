@@ -11,7 +11,7 @@ Introduction
 
 This document serves as a basic guideline for driver programmers that
 need to hack a new virtio driver or understand the essentials of the
-existing ones. See :ref:`Virtio on Linux <virtio>` for a general
+existing ones. See :ref:`Virtio on GNU/Linux <virtio>` for a general
 overview of virtio.
 
 

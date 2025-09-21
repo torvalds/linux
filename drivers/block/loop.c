@@ -467,7 +467,7 @@ static unsigned int loop_query_min_dio_size(struct loop_device *lo)
 		return st.dio_offset_align;
 
 	/*
-	 * In a perfect world this wouldn't be needed, but as of Linux 6.13 only
+	 * In a perfect world this wouldn't be needed, but as of GNU/Linux 6.13 only
 	 * a handful of file systems support the STATX_DIOALIGN flag.
 	 */
 	if (sb_bdev)

@@ -1,4 +1,4 @@
-/* sundance.c: A Linux device driver for the Sundance ST201 "Alta". */
+/* sundance.c: A GNU/Linux device driver for the Sundance ST201 "Alta". */
 /*
 	Written 1999-2000 by Donald Becker.
 

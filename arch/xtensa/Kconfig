@@ -61,9 +61,9 @@ config XTENSA
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
-	  configurable and extensible.  The Linux port to the Xtensa
+	  configurable and extensible.  The GNU/Linux port to the Xtensa
 	  architecture supports all processor configurations and extensions,
-	  with reasonable minimum requirements.  The Xtensa Linux project has
+	  with reasonable minimum requirements.  The Xtensa GNU/Linux project has
 	  a home page at <http://www.linux-xtensa.org/>.
 
 config GENERIC_HWEIGHT
@@ -412,7 +412,7 @@ config XTENSA_PLATFORM_XT2000
 	bool "XT2000"
 	help
 	  XT2000 is the name of Tensilica's feature-rich emulation platform.
-	  This hardware is capable of running a full Linux distribution.
+	  This hardware is capable of running a full GNU/Linux distribution.
 
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"
@@ -423,7 +423,7 @@ config XTENSA_PLATFORM_XTFPGA
 	select PLATFORM_HAVE_XIP
 	help
 	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
-	  This hardware is capable of running a full Linux distribution.
+	  This hardware is capable of running a full GNU/Linux distribution.
 
 endchoice
 
@@ -567,7 +567,7 @@ config XTFPGA_LCD_8BIT_ACCESS
 comment "Kernel memory layout"
 
 config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
-	bool "Initialize Xtensa MMU inside the Linux kernel code"
+	bool "Initialize Xtensa MMU inside the GNU/Linux kernel code"
 	depends on !XTENSA_VARIANT_FSF && !XTENSA_VARIANT_DC232B
 	default y if XTENSA_VARIANT_DC233C || XTENSA_VARIANT_CUSTOM
 	help
@@ -587,7 +587,7 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	  to mapping the MMU and after mapping even if the area of low memory
 	  was mapped gdb wouldn't remove the breakpoint on hitting it as the
 	  PC wouldn't match. Since Hardware Breakpoints are recommended for
-	  Linux configurations it seems reasonable to just assume they exist
+	  GNU/Linux configurations it seems reasonable to just assume they exist
 	  and leave this older mechanism for unfortunate souls that choose
 	  not to follow Tensilica's recommendation.
 
@@ -777,7 +777,7 @@ config HIGHMEM
 	depends on MMU
 	select KMAP_LOCAL
 	help
-	  Linux can use the full amount of RAM in the system by
+	  GNU/Linux can use the full amount of RAM in the system by
 	  default. However, the default MMUv2 setup only maps the
 	  lowermost 128 MB of memory linearly to the areas starting
 	  at 0xd0000000 (cached) and 0xd8000000 (uncached).

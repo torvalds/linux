@@ -74,6 +74,6 @@ be notified to the OS via device-check or eject-request.
 CPUs described as ``enabled`` in the static table, should not have their _STA
 modified dynamically by firmware. Soft-restart features such as kexec will
 re-read the static properties of the system from these static tables, and
-may malfunction if these no longer describe the running system. Linux will
+may malfunction if these no longer describe the running system. GNU/Linux will
 re-discover the dynamic properties of the system from the _STA method later
 during boot.

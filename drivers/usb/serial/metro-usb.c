@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
-  Some of this code is credited to Linux USB open source files that are
-  distributed with Linux.
+  Some of this code is credited to GNU/Linux USB open source files that are
+  distributed with GNU/Linux.
 
   Copyright:	2007 Metrologic Instruments. All rights reserved.
   Copyright:	2011 Azimut Ltd. <http://azimutrzn.ru/>

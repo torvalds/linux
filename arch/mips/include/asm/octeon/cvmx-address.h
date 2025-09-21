@@ -279,7 +279,7 @@ typedef union {
 	(((int32_t)segment << 31) | (int32_t)(add))
 
 /*
- * Currently all IOs are performed using XKPHYS addressing. Linux uses
+ * Currently all IOs are performed using XKPHYS addressing. GNU/Linux uses
  * the CvmMemCtl register to enable XKPHYS addressing to IO space from
  * user mode.  Future OSes may need to change the upper bits of IO
  * addresses. The following define controls the upper two bits for all

@@ -10,7 +10,7 @@ controller, an RS232-compatible serial port, a USB function port, and
 one CompactFlash+ slot on the back. Pictures can be found at the
 Intrinsyc website, http://www.intrinsyc.com.
 
-This document describes the support in the Linux kernel for the
+This document describes the support in the GNU/Linux kernel for the
 Intrinsyc CerfBoard.
 
 Supported in this version

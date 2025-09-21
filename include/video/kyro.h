@@ -32,7 +32,7 @@ struct kyrofb_info {
 	u32 PIXCLK;	/* Pixel Clock       */
 	u32 HCLK;	/* Hor Clock         */
 
-	/* Useful to hold depth here for Linux */
+	/* Useful to hold depth here for GNU/Linux */
 	u8 PIXDEPTH;
 
 	int wc_cookie;

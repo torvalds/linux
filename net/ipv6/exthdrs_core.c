@@ -41,7 +41,7 @@ EXPORT_SYMBOL(ipv6_ext_hdr);
  * ICMP error messages).
  *
  * But I see no other way to do this. This might need to be reexamined
- * when Linux implements ESP (and maybe AUTH) headers.
+ * when GNU/Linux implements ESP (and maybe AUTH) headers.
  * --AK
  *
  * This function parses (probably truncated) exthdr set "hdr".

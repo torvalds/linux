@@ -1,8 +1,8 @@
 ===========================
-Linux Security Module Usage
+GNU/Linux Security Module Usage
 ===========================
 
-The Linux Security Module (LSM) framework provides a mechanism for
+The GNU/Linux Security Module (LSM) framework provides a mechanism for
 various security checks to be hooked by new kernel extensions. The name
 "module" is a bit of a misnomer since these extensions are not actually
 loadable kernel modules. Instead, they are selectable at build-time via
@@ -12,14 +12,14 @@ LSMs were built into a given kernel.
 
 The primary users of the LSM interface are Mandatory Access Control
 (MAC) extensions which provide a comprehensive security policy. Examples
-include SELinux, Smack, Tomoyo, and AppArmor. In addition to the larger
+include SEGNU/Linux, Smack, Tomoyo, and AppArmor. In addition to the larger
 MAC extensions, other extensions can be built using the LSM to provide
 specific changes to system operation when these tweaks are not available
-in the core functionality of Linux itself.
+in the core functionality of GNU/Linux itself.
 
-The Linux capabilities modules will always be included. This may be
+The GNU/Linux capabilities modules will always be included. This may be
 followed by any number of "minor" modules and at most one "major" module.
-For more details on capabilities, see ``capabilities(7)`` in the Linux
+For more details on capabilities, see ``capabilities(7)`` in the GNU/Linux
 man-pages project.
 
 A list of the active security modules can be found by reading
@@ -27,7 +27,7 @@ A list of the active security modules can be found by reading
 will always include the capability module. The list reflects the
 order in which checks are made. The capability module will always
 be first, followed by any "minor" modules (e.g. Yama) and then
-the one "major" module (e.g. SELinux) if there is one configured.
+the one "major" module (e.g. SEGNU/Linux) if there is one configured.
 
 Process attributes associated with "major" security modules should
 be accessed and maintained using the special files in ``/proc/.../attr``.
@@ -42,7 +42,7 @@ subdirectories.
 
    apparmor
    LoadPin
-   SELinux
+   SEGNU/Linux
    Smack
    tomoyo
    Yama

@@ -1,5 +1,5 @@
 ================================
-Register Usage for Linux/PA-RISC
+Register Usage for GNU/Linux/PA-RISC
 ================================
 
 [ an asterisk is used for planned usage which is currently unimplemented ]

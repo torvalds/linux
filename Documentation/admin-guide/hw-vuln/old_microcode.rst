@@ -14,7 +14,7 @@ usually accomplished by updating the files in
 /lib/firmware/intel-ucode/ via normal distribution updates. Intel also
 distributes these files in a github repo:
 
-	https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files.git
+	https://github.com/intel/Intel-GNU/Linux-Processor-Microcode-Data-Files.git
 
 Just like all the other hardware vulnerabilities, exposure is
 determined at boot. Runtime microcode updates do not change the status

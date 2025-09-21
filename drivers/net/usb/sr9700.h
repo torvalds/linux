@@ -8,7 +8,7 @@
 #ifndef _SR9700_H
 #define	_SR9700_H
 
-/* sr9700 spec. register table on Linux platform */
+/* sr9700 spec. register table on GNU/Linux platform */
 
 /* Network Control Reg */
 #define	SR_NCR			0x00

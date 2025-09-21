@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-2.0
  *
  * Copyright (c) 2008 Intel Corporation
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _ASCII85_H_

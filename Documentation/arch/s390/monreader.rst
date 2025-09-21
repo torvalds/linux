@@ -1,5 +1,5 @@
 =================================================
-Linux API for read access to z/VM Monitor Records
+GNU/Linux API for read access to z/VM Monitor Records
 =================================================
 
 Date  : 2004-Nov-26
@@ -11,7 +11,7 @@ Author: Gerald Schaefer (geraldsc@de.ibm.com)
 
 Description
 ===========
-This item delivers a new Linux API in the form of a misc char device that is
+This item delivers a new GNU/Linux API in the form of a misc char device that is
 usable from user space and allows read access to the z/VM Monitor Records
 collected by the `*MONITOR` System Service of z/VM.
 

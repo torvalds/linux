@@ -1,12 +1,12 @@
 ===============================================
-Release notes for Linux Kernel VFP support code
+Release notes for GNU/Linux Kernel VFP support code
 ===============================================
 
 Date: 	20 May 2004
 
 Author:	Russell King
 
-This is the first release of the Linux Kernel VFP support code.  It
+This is the first release of the GNU/Linux Kernel VFP support code.  It
 provides support for the exceptions bounced from VFP hardware found
 on ARM926EJ-S.
 

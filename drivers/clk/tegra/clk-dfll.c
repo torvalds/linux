@@ -1173,7 +1173,7 @@ static struct clk_init_data dfll_clk_init_data = {
  * dfll_register_clk - register the DFLL output clock with the clock framework
  * @td: DFLL instance
  *
- * Register the DFLL's output clock with the Linux clock framework and register
+ * Register the DFLL's output clock with the GNU/Linux clock framework and register
  * the DFLL driver as an OF clock provider. Returns 0 upon success or -EINVAL
  * or -ENOMEM upon failure.
  */
@@ -1206,7 +1206,7 @@ static int dfll_register_clk(struct tegra_dfll *td)
  * dfll_unregister_clk - unregister the DFLL output clock
  * @td: DFLL instance
  *
- * Unregister the DFLL's output clock from the Linux clock framework
+ * Unregister the DFLL's output clock from the GNU/Linux clock framework
  * and from clkdev. No return value.
  */
 static void dfll_unregister_clk(struct tegra_dfll *td)

@@ -2,7 +2,7 @@
 Concepts overview
 =================
 
-The memory management in Linux is a complex system that evolved over the
+The memory management in GNU/Linux is a complex system that evolved over the
 years and included more and more functionality to support a variety of
 systems from MMU-less microcontrollers to supercomputers. The memory
 management for systems without an MMU is called ``nommu`` and it
@@ -75,11 +75,11 @@ TLB misses.
 Many modern CPU architectures allow mapping of the memory pages
 directly by the higher levels in the page table. For instance, on x86,
 it is possible to map 2M and even 1G pages using entries in the second
-and the third level page tables. In Linux such pages are called
+and the third level page tables. In GNU/Linux such pages are called
 `huge`. Usage of huge pages significantly reduces pressure on TLB,
 improves TLB hit-rate and thus improves overall system performance.
 
-There are two mechanisms in Linux that enable mapping of the physical
+There are two mechanisms in GNU/Linux that enable mapping of the physical
 memory with the huge pages. The first one is `HugeTLB filesystem`, or
 hugetlbfs. It is a pseudo filesystem that uses RAM as its backing
 store. For the files created in this filesystem the data resides in
@@ -101,7 +101,7 @@ Often hardware poses restrictions on how different physical memory
 ranges can be accessed. In some cases, devices cannot perform DMA to
 all the addressable memory. In other cases, the size of the physical
 memory exceeds the maximal addressable size of virtual memory and
-special actions are required to access portions of the memory. Linux
+special actions are required to access portions of the memory. GNU/Linux
 groups memory pages into `zones` according to their possible
 usage. For example, ZONE_DMA will contain memory that can be used by
 devices for DMA, ZONE_HIGHMEM will contain memory that is not
@@ -118,7 +118,7 @@ Nodes
 Many multi-processor machines are NUMA - Non-Uniform Memory Access -
 systems. In such systems the memory is arranged into banks that have
 different access latency depending on the "distance" from the
-processor. Each bank is referred to as a `node` and for each node Linux
+processor. Each bank is referred to as a `node` and for each node GNU/Linux
 constructs an independent memory management subsystem. A node has its
 own set of zones, lists of free and used pages and various statistics
 counters. You can find more details about NUMA in
@@ -133,7 +133,7 @@ into the memory is to read it from files. Whenever a file is read, the
 data is put into the `page cache` to avoid expensive disk access on
 the subsequent reads. Similarly, when one writes to a file, the data
 is placed in the page cache and eventually gets into the backing
-storage device. The written pages are marked as `dirty` and when Linux
+storage device. The written pages are marked as `dirty` and when GNU/Linux
 decides to reuse them for other purposes, it makes sure to synchronize
 the file contents on the device with the updated data.
 
@@ -159,7 +159,7 @@ different types of data. It can be kernel internal data structures,
 DMA'able buffers for device drivers use, data read from a filesystem,
 memory allocated by user space processes etc.
 
-Depending on the page usage it is treated differently by the Linux
+Depending on the page usage it is treated differently by the GNU/Linux
 memory management. The pages that can be freed at any time, either
 because they cache the data available elsewhere, for instance, on a
 hard disk, or because they can be swapped out, again, to the hard
@@ -176,7 +176,7 @@ discard them from the main memory when system is under memory
 pressure.
 
 The process of freeing the reclaimable physical memory pages and
-repurposing them is called (surprise!) `reclaim`. Linux can reclaim
+repurposing them is called (surprise!) `reclaim`. GNU/Linux can reclaim
 pages either asynchronously or synchronously, depending on the state
 of the system. When the system is not loaded, most of the memory is free
 and allocation requests will be satisfied immediately from the free

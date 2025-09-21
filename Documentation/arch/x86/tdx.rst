@@ -329,7 +329,7 @@ The hypervisor is permitted to unilaterally move accepted pages to a
 #VE.  It will, instead, cause a "TD Exit" where the hypervisor is required
 to handle the exception.
 
-Linux #VE handler
+GNU/Linux #VE handler
 -----------------
 
 Just like page faults or #GP's, #VE exceptions can be either handled or be

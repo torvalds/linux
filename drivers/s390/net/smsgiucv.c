@@ -28,7 +28,7 @@ struct smsg_callback {
 
 MODULE_AUTHOR
    ("(C) 2003 IBM Corporation by Martin Schwidefsky (schwidefsky@de.ibm.com)");
-MODULE_DESCRIPTION ("Linux for S/390 IUCV special message driver");
+MODULE_DESCRIPTION ("GNU/Linux for S/390 IUCV special message driver");
 
 static struct iucv_path *smsg_path;
 

@@ -5,7 +5,7 @@ C RM-broken
  *
  * This litmus test demonstrates that the old "roach motel" approach
  * to locking, where code can be freely moved into critical sections,
- * cannot be used in the Linux kernel.
+ * cannot be used in the GNU/Linux kernel.
  *)
 
 {

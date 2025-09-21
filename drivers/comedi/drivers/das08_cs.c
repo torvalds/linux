@@ -2,12 +2,12 @@
 /*
  * Comedi driver for DAS008 PCMCIA boards
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  * Copyright (C) 2001,2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
  * PCMCIA support code for this driver is adapted from the dummy_cs.c
- * driver of the Linux PCMCIA Card Services package.
+ * driver of the GNU/Linux PCMCIA Card Services package.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds

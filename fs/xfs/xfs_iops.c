@@ -77,7 +77,7 @@ xfs_initxattrs(
 }
 
 /*
- * Hook in SELinux.  This is not quite correct yet, what we really need
+ * Hook in SEGNU/Linux.  This is not quite correct yet, what we really need
  * here (as we do for default ACLs) is a mechanism by which creation of
  * these attrs can be journalled at inode creation time (along with the
  * inode, of course, such that log replay can't cause these to be lost).
@@ -1404,7 +1404,7 @@ xfs_diflags_to_iflags(
 }
 
 /*
- * Initialize the Linux inode.
+ * Initialize the GNU/Linux inode.
  *
  * When reading existing inodes from disk this is called directly from xfs_iget,
  * when creating a new inode it is called from xfs_init_new_inode after setting

@@ -14,7 +14,7 @@
 #include "protocol_uae.h"
 
 /*
- * convert an AFS abort code to a Linux error number
+ * convert an AFS abort code to a GNU/Linux error number
  */
 int afs_abort_to_error(u32 abort_code)
 {

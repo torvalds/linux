@@ -19,7 +19,7 @@
 #include "omfs.h"
 
 MODULE_AUTHOR("Bob Copeland <me@bobcopeland.com>");
-MODULE_DESCRIPTION("OMFS (ReplayTV/Karma) Filesystem for Linux");
+MODULE_DESCRIPTION("OMFS (ReplayTV/Karma) Filesystem for GNU/Linux");
 MODULE_LICENSE("GPL");
 
 struct buffer_head *omfs_bread(struct super_block *sb, sector_t block)

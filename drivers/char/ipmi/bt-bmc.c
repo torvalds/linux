@@ -489,4 +489,4 @@ module_platform_driver(bt_bmc_driver);
 MODULE_DEVICE_TABLE(of, bt_bmc_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alistair Popple <alistair@popple.id.au>");
-MODULE_DESCRIPTION("Linux device interface to the IPMI BT interface");
+MODULE_DESCRIPTION("GNU/Linux device interface to the IPMI BT interface");

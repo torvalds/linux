@@ -9,7 +9,7 @@
 内核是用 C 编程语言编写的 [zh_cn_c-language]_。更准确地说，内核通常使用 ``gcc`` [zh_cn_gcc]_ 编译，
 并且使用 ``-std=gnu11`` [zh_cn_gcc-c-dialect-options]_：这是 ISO C11 的 GNU 方言。
 ``clang`` [zh_cn_clang]_ 也得到了支持，详见文档：
-:ref:`使用 Clang/LLVM 构建 Linux <kbuild_llvm>`。
+:ref:`使用 Clang/LLVM 构建 GNU/Linux <kbuild_llvm>`。
 
 这种方言包含对 C 语言的许多扩展 [zh_cn_gnu-extensions]_，当然，它们许多都在内核中使用。
 
@@ -50,4 +50,4 @@ Rust
 .. [zh_cn_rust-language] https://www.rust-lang.org
 .. [zh_cn_rustc] https://doc.rust-lang.org/rustc/
 .. [zh_cn_rust-editions] https://doc.rust-lang.org/edition-guide/editions/
-.. [zh_cn_rust-unstable-features] https://github.com/Rust-for-Linux/linux/issues/2
+.. [zh_cn_rust-unstable-features] https://github.com/Rust-for-GNU/Linux/linux/issues/2

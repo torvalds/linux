@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * The MT7629 driver based on Linux generic pinctrl binding.
+ * The MT7629 driver based on GNU/Linux generic pinctrl binding.
  *
  * Copyright (C) 2018 MediaTek Inc.
  * Author: Ryder Lee <ryder.lee@mediatek.com>

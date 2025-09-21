@@ -9,7 +9,7 @@ The first use of extended attributes seems to have been for storing file
 ACLs and other security data (selinux). With the ``user_xattr`` mount
 option it is possible for users to store extended attributes so long as
 all attribute names begin with “user”; this restriction seems to have
-disappeared as of Linux 3.0.
+disappeared as of GNU/Linux 3.0.
 
 There are two places where extended attributes can be found. The first
 place is between the end of each inode entry and the beginning of the
@@ -17,11 +17,11 @@ next inode entry. For example, if inode.i_extra_isize = 28 and
 sb.inode_size = 256, then there are 256 - (128 + 28) = 100 bytes
 available for in-inode extended attribute storage. The second place
 where extended attributes can be found is in the block pointed to by
-``inode.i_file_acl``. As of Linux 3.11, it is not possible for this
+``inode.i_file_acl``. As of GNU/Linux 3.11, it is not possible for this
 block to contain a pointer to a second extended attribute block (or even
 the remaining blocks of a cluster). In theory it is possible for each
 attribute's value to be stored in a separate data block, though as of
-Linux 3.11 the code does not permit this.
+GNU/Linux 3.11 the code does not permit this.
 
 Keys are generally assumed to be ASCIIZ strings, whereas values can be
 strings or binary data.
@@ -41,7 +41,7 @@ Extended attributes, when stored after the inode, have a header
      - __le32
      - h_magic
      - Magic number for identification, 0xEA020000. This value is set by the
-       Linux driver, though e2fsprogs doesn't seem to check it(?)
+       GNU/Linux driver, though e2fsprogs doesn't seem to check it(?)
 
 The beginning of an extended attribute block is in
 ``struct ext4_xattr_header``, which is 32 bytes long:
@@ -185,7 +185,7 @@ index is set to 1 and the “fubar” name is recorded on disk.
 POSIX ACLs
 ~~~~~~~~~~
 
-POSIX ACLs are stored in a reduced version of the Linux kernel (and
+POSIX ACLs are stored in a reduced version of the GNU/Linux kernel (and
 libacl's) internal ACL format. The key difference is that the version
 number is different (1) and the ``e_id`` field is only stored for named
 user and group ACLs.

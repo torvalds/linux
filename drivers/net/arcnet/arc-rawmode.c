@@ -1,5 +1,5 @@
 /*
- * Linux ARCnet driver - "raw mode" packet encapsulation (no soft headers)
+ * GNU/Linux ARCnet driver - "raw mode" packet encapsulation (no soft headers)
  *
  * Written 1994-1999 by Avery Pennarun.
  * Derived from skeleton.c by Donald Becker.

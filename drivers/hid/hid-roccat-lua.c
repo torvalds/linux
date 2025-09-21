@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Roccat Lua driver for Linux
+ * Roccat Lua driver for GNU/Linux
  *
  * Copyright (c) 2012 Stefan Achatz <erazor_de@users.sourceforge.net>
  */

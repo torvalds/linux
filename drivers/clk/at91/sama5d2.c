@@ -45,7 +45,7 @@ static const struct {
 } sama5d2_systemck[] = {
 	/*
 	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
-	 * to keep it enabled in case there is no Linux consumer for it.
+	 * to keep it enabled in case there is no GNU/Linux consumer for it.
 	 */
 	{ .n = "ddrck", .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "lcdck", .p = "masterck_div", .id = 3 },
@@ -112,7 +112,7 @@ static const struct {
 	{ .n = "sha_clk",     .id = 12, },
 	/*
 	 * mpddr_clk feeds DDR controller and is enabled by bootloader thus we
-	 * need to keep it enabled in case there is no Linux consumer for it.
+	 * need to keep it enabled in case there is no GNU/Linux consumer for it.
 	 */
 	{ .n = "mpddr_clk",   .id = 13, .flags = CLK_IS_CRITICAL },
 	{ .n = "matrix0_clk", .id = 15, },

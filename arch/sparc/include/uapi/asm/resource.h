@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * resource.h: Resource definitions.
  *
@@ -9,7 +9,7 @@
 #define _SPARC_RESOURCE_H
 
 /*
- * These two resource limit IDs have a Sparc/Linux-specific ordering,
+ * These two resource limit IDs have a Sparc/GNU/Linux-specific ordering,
  * the rest comes from the generic header:
  */
 #define RLIMIT_NOFILE		6	/* max number of open files */

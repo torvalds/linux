@@ -3,7 +3,7 @@
  * comedi/comedi_fops.c
  * comedi kernel module
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2007 David A. Schleef <ds@schleef.org>
  * compat ioctls:
  * Author: Ian Abbott, MEV Ltd. <abbotti@mev.co.uk>

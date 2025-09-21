@@ -1,6 +1,6 @@
 /*
  * edac_mc kernel module
- * (C) 2005-2007 Linux Networx (http://lnxi.com)
+ * (C) 2005-2007 GNU/Linux Networx (http://lnxi.com)
  *
  * This file may be distributed under the terms of the
  * GNU General Public License.

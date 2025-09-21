@@ -509,7 +509,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 		error("Destination virtual address changed when not relocatable");
 #endif
 
-	debug_putstr("\nDecompressing Linux... ");
+	debug_putstr("\nDecompressing GNU/Linux... ");
 
 	if (init_unaccepted_memory()) {
 		debug_putstr("Accepting memory... ");

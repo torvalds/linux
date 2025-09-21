@@ -519,7 +519,7 @@ static void get_function_name(void *pointer, char *buffer, size_t buffer_length)
 	} else {
 		/*
 		 * Use a pragma to defeat gcc's format checking, which doesn't understand that
-		 * "%ps" actually does support a precision spec in Linux kernel code.
+		 * "%ps" actually does support a precision spec in GNU/Linux kernel code.
 		 */
 		char *space;
 

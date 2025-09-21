@@ -15,7 +15,7 @@ DOCSRC		:= Documentation/
 
 rtla: $(OBJ)
 	$(CC) -o rtla $(LDFLAGS) $(OBJ) $(LIBS) $(EXTLIBS)
-	$(info This is a deprecated method to compile RTLA, please compile from Linux kernel source)
+	$(info This is a deprecated method to compile RTLA, please compile from GNU/Linux kernel source)
 
 .PHONY: clean tarball
 clean: doc_clean

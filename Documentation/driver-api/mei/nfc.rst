@@ -6,7 +6,7 @@ MEI NFC
 Some Intel 8 and 9 Series chipsets support NFC devices connected behind
 the Intel Management Engine controller.
 MEI client bus exposes the NFC chips as NFC phy devices and enables
-binding with Microread and NXP PN544 NFC device driver from the Linux NFC
+binding with Microread and NXP PN544 NFC device driver from the GNU/Linux NFC
 subsystem.
 
 .. kernel-render:: DOT

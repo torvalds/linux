@@ -9,7 +9,7 @@ Aggiungere una nuova chiamata di sistema
 ========================================
 
 Questo documento descrive quello che è necessario sapere per aggiungere
-nuove chiamate di sistema al kernel Linux; questo è da considerarsi come
+nuove chiamate di sistema al kernel GNU/Linux; questo è da considerarsi come
 un'aggiunta ai soliti consigli su come proporre nuove modifiche
 :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`.
 
@@ -481,7 +481,7 @@ voce nella tabella di syscall dovrà chiamare uno *stub* che invoca la versione
 ``compat_sys_``,
 
 Per completezza, sarebbe carino impostare una mappatura cosicché
-*user-mode* Linux (UML) continui a funzionare -- la sua tabella di syscall
+*user-mode* GNU/Linux (UML) continui a funzionare -- la sua tabella di syscall
 farà riferimento a stub_xyzzy, ma UML non include l'implementazione
 in ``arch/x86/entry/entry_64.S`` (perché UML simula i registri eccetera).
 Correggerlo è semplice, basta aggiungere una #define in
@@ -530,7 +530,7 @@ correttamente su tutte le architetture supportate.  Per esempio, verificate che
 funzioni quando viene compilato per x86_64 (-m64), x86_32 (-m32) e x32 (-mx32).
 
 Al fine di una più meticolosa ed estesa verifica della nuova funzionalità,
-dovreste considerare l'aggiunta di nuove verifica al progetto 'Linux Test',
+dovreste considerare l'aggiunta di nuove verifica al progetto 'GNU/Linux Test',
 oppure al progetto xfstests per cambiamenti relativi al filesystem.
 
  - https://linux-test-project.github.io/
@@ -603,7 +603,7 @@ Riferimenti e fonti
  - Requisiti specifici alle architetture sono discussi nella pagina man
    :manpage:`syscall(2)` :
    http://man7.org/linux/man-pages/man2/syscall.2.html#NOTES
- - Collezione di email di Linux Torvalds sui problemi relativi a ``ioctl()``:
+ - Collezione di email di GNU/Linux Torvalds sui problemi relativi a ``ioctl()``:
    http://yarchive.net/comp/linux/ioctl.html
  - "Come non inventare interfacce del kernel", Arnd Bergmann,
    http://www.ukuug.org/events/linux2007/2007/papers/Bergmann.pdf

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * NUMA memory policies for Linux.
+ * NUMA memory policies for GNU/Linux.
  * Copyright 2003,2004 Andi Kleen SuSE Labs
  */
 #ifndef _LINUX_MEMPOLICY_H

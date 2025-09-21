@@ -52,7 +52,7 @@
  * the driver will manually reprogram some registers using jam tables to reach
  * an initial state defined by the vendor driver.
  *
- * This Linux driver is written based on an OS-agnostic vendor driver from
+ * This GNU/Linux driver is written based on an OS-agnostic vendor driver from
  * Realtek. The reference GPL-licensed sources can be found in the OpenWrt
  * source tree under the name rtl8367c. The vendor driver claims to support a
  * number of similar switch controllers from Realtek, but the only hardware we

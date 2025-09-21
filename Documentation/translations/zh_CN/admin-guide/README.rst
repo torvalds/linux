@@ -6,16 +6,16 @@
 
  吴想成 Wu XiangCheng <bobwxc@email.cn>
 
-Linux内核6.x版本 <http://kernel.org/>
+GNU/Linux内核6.x版本 <http://kernel.org/>
 =========================================
 
-以下是Linux版本6的发行注记。仔细阅读它们，
+以下是GNU/Linux版本6的发行注记。仔细阅读它们，
 它们会告诉你这些都是什么，解释如何安装内核，以及遇到问题时该如何做。
 
-什么是Linux？
+什么是GNU/Linux？
 ---------------
 
-  Linux是Unix操作系统的克隆版本，由Linus Torvalds在一个松散的网络黑客
+  GNU/Linux是Unix操作系统的克隆版本，由Linus Torvalds在一个松散的网络黑客
   （Hacker，无贬义）团队的帮助下从头开始编写。它旨在实现兼容POSIX和
   单一UNIX规范。
 
@@ -23,31 +23,31 @@ Linux内核6.x版本 <http://kernel.org/>
   共享库、按需加载、共享的写时拷贝（COW）可执行文件、恰当的内存管理以及包括
   IPv4和IPv6在内的复合网络栈。
 
-  Linux在GNU通用公共许可证，版本2（GNU GPLv2）下分发，详见随附的COPYING文件。
+  GNU/Linux在GNU通用公共许可证，版本2（GNU GPLv2）下分发，详见随附的COPYING文件。
 
 它能在什么样的硬件上运行？
 -----------------------------
 
-  虽然Linux最初是为32位的x86 PC机（386或更高版本）开发的，但今天它也能运行在
+  虽然GNU/Linux最初是为32位的x86 PC机（386或更高版本）开发的，但今天它也能运行在
   （至少）Compaq Alpha AXP、Sun SPARC与UltraSPARC、Motorola 68000、PowerPC、
   PowerPC64、ARM、Hitachi SuperH、Cell、IBM S/390、MIPS、HP PA-RISC、Intel 
   IA-64、DEC VAX、AMD x86-64 Xtensa和ARC架构上。
 
-  Linux很容易移植到大多数通用的32位或64位体系架构，只要它们有一个分页内存管理
+  GNU/Linux很容易移植到大多数通用的32位或64位体系架构，只要它们有一个分页内存管理
   单元（PMMU）和一个移植的GNU C编译器（gcc；GNU Compiler Collection，GCC的一
-  部分）。Linux也被移植到许多没有PMMU的体系架构中，尽管功能显然受到了一定的
+  部分）。GNU/Linux也被移植到许多没有PMMU的体系架构中，尽管功能显然受到了一定的
   限制。
-  Linux也被移植到了其自己上。现在可以将内核作为用户空间应用程序运行——这被
-  称为用户模式Linux（UML）。
+  GNU/Linux也被移植到了其自己上。现在可以将内核作为用户空间应用程序运行——这被
+  称为用户模式GNU/Linux（UML）。
 
 文档
 -----
-因特网上和书籍上都有大量的电子文档，既有Linux专属文档，也有与一般UNIX问题相关
-的文档。我建议在任何Linux FTP站点上查找LDP（Linux文档项目）书籍的文档子目录。
+因特网上和书籍上都有大量的电子文档，既有GNU/Linux专属文档，也有与一般UNIX问题相关
+的文档。我建议在任何GNU/Linux FTP站点上查找LDP（GNU/Linux文档项目）书籍的文档子目录。
 本自述文件并不是关于系统的文档：有更好的可用资源。
 
- - 因特网上和书籍上都有大量的（电子）文档，既有Linux专属文档，也有与普通
-   UNIX问题相关的文档。我建议在任何有LDP（Linux文档项目）书籍的Linux FTP
+ - 因特网上和书籍上都有大量的（电子）文档，既有GNU/Linux专属文档，也有与普通
+   UNIX问题相关的文档。我建议在任何有LDP（GNU/Linux文档项目）书籍的GNU/Linux FTP
    站点上查找文档子目录。本自述文件并不是关于系统的文档：有更好的可用资源。
 
  - 文档/子目录中有各种自述文件：例如，这些文件通常包含一些特定驱动程序的
@@ -204,7 +204,7 @@ Linux内核6.x版本 <http://kernel.org/>
 
      "make tinyconfig"  配置尽可能小的内核。
 
-   更多关于使用Linux内核配置工具的信息，见文档
+   更多关于使用GNU/Linux内核配置工具的信息，见文档
    Documentation/kbuild/kconfig.rst。
 
  - ``make config`` 注意事项:
@@ -259,7 +259,7 @@ Linux内核6.x版本 <http://kernel.org/>
 
  - 不再支持在没有LILO等启动装载程序帮助的情况下直接从软盘引导内核。
 
-   如果从硬盘引导Linux，很可能使用LILO，它使用/etc/lilo.conf文件中
+   如果从硬盘引导GNU/Linux，很可能使用LILO，它使用/etc/lilo.conf文件中
    指定的内核映像文件。内核映像文件通常是/vmlinuz、/boot/vmlinuz、
    /bzImage或/boot/bzImage。使用新内核前，请保存旧映像的副本，并复制
    新映像覆盖旧映像。然后您【必须重新运行LILO】来更新加载映射！否则，

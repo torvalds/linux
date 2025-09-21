@@ -76,11 +76,11 @@ few:
 Enabling "nested" (x86)
 -----------------------
 
-From Linux kernel v4.20 onwards, the ``nested`` KVM parameter is enabled
-by default for Intel and AMD.  (Though your Linux distribution might
+From GNU/Linux kernel v4.20 onwards, the ``nested`` KVM parameter is enabled
+by default for Intel and AMD.  (Though your GNU/Linux distribution might
 override this default.)
 
-In case you are running a Linux kernel older than v4.19, to enable
+In case you are running a GNU/Linux kernel older than v4.19, to enable
 nesting, set the ``nested`` KVM module parameter to ``Y`` or ``1``.  To
 persist this setting across reboots, you can add it in a config file, as
 shown below:
@@ -185,7 +185,7 @@ Live migration with nested KVM
 ------------------------------
 
 Migrating an L1 guest, with a  *live* nested guest in it, to another
-bare metal host, works as of Linux kernel 5.3 and QEMU 4.2.0 for
+bare metal host, works as of GNU/Linux kernel 5.3 and QEMU 4.2.0 for
 Intel x86 systems, and even on older versions for s390x.
 
 On AMD systems, once an L1 guest has started an L2 guest, the L1 guest
@@ -259,7 +259,7 @@ x86-specific info to collect
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Both the below commands, ``x86info`` and ``dmidecode``, should be
-available on most Linux distributions with the same name:
+available on most GNU/Linux distributions with the same name:
 
   - Output of: ``x86info -a`` from L0
 

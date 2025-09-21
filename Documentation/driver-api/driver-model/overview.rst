@@ -1,5 +1,5 @@
 =============================
-The Linux Kernel Device Model
+The GNU/Linux Kernel Device Model
 =============================
 
 Patrick Mochel	<mochel@digitalimplant.org>
@@ -11,7 +11,7 @@ Updated 31 January 2006
 Overview
 ~~~~~~~~
 
-The Linux Kernel Driver Model is a unification of all the disparate driver
+The GNU/Linux Kernel Driver Model is a unification of all the disparate driver
 models that were previously used in the kernel. It is intended to augment the
 bus-specific drivers for bridges and devices by consolidating a set of data
 and operations into globally accessible data structures.
@@ -81,7 +81,7 @@ system, exporting a complete hierarchical view to userspace becomes relatively
 easy. This has been accomplished by implementing a special purpose virtual
 file system named sysfs.
 
-Almost all mainstream Linux distros mount this filesystem automatically; you
+Almost all mainstream GNU/Linux distros mount this filesystem automatically; you
 can see some variation of the following in the output of the "mount" command::
 
   $ mount

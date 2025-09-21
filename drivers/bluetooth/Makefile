@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux Bluetooth HCI device drivers.
+# Makefile for the GNU/Linux Bluetooth HCI device drivers.
 #
 
 obj-$(CONFIG_BT_HCIVHCI)	+= hci_vhci.o

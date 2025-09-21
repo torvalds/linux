@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _QCOM_BAM_DMA_H

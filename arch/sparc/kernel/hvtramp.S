@@ -21,7 +21,7 @@
 
 	/* This code executes directly out of the hypervisor
 	 * with physical addressing (va==pa).  %o0 contains
-	 * our client argument which for Linux points to
+	 * our client argument which for GNU/Linux points to
 	 * a descriptor data structure which defines the
 	 * MMU entries we need to load up.
 	 *

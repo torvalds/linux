@@ -2315,7 +2315,7 @@ void enable_percpu_nmi(unsigned int irq, unsigned int type)
 
 /**
  * irq_percpu_is_enabled - Check whether the per cpu irq is enabled
- * @irq:	Linux irq number to check for
+ * @irq:	GNU/Linux irq number to check for
  *
  * Must be called from a non migratable context. Returns the enable
  * state of a per cpu interrupt on the current cpu.

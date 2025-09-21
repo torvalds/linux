@@ -14,7 +14,7 @@ mailing lists.
 SCM Trees
 ---------
 
-There are multiple Linux trees for DAMON development.  Patches under
+There are multiple GNU/Linux trees for DAMON development.  Patches under
 development or testing are queued in `damon/next
 <https://git.kernel.org/sj/h/damon/next>`_ by the DAMON maintainer.
 Sufficiently reviewed patches will be queued in `mm-new
@@ -72,14 +72,14 @@ of sending a patch.
 Mailing tool
 ------------
 
-Like many other Linux kernel subsystems, DAMON uses the mailing lists
+Like many other GNU/Linux kernel subsystems, DAMON uses the mailing lists
 (damon@lists.linux.dev and linux-mm@kvack.org) as the major communication
 channel.  There is a simple tool called `HacKerMaiL
 <https://github.com/damonitor/hackermail>`_ (``hkml``), which is for people who
 are not very familiar with the mailing lists based communication.  The tool
 could be particularly helpful for DAMON community members since it is developed
 and maintained by DAMON maintainer.  The tool is also officially announced to
-support DAMON and general Linux kernel development workflow.
+support DAMON and general GNU/Linux kernel development workflow.
 
 In other words, `hkml <https://github.com/damonitor/hackermail>`_ is a mailing
 tool for DAMON community, which DAMON maintainer is committed to support.

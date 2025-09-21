@@ -209,10 +209,10 @@ mlxsw_sp_ipip_decap_config_gre4(struct mlxsw_sp *mlxsw_sp,
 		MLXSW_REG_RTDP_IPIP_TYPE_CHECK_ALLOW_GRE_KEY :
 		MLXSW_REG_RTDP_IPIP_TYPE_CHECK_ALLOW_GRE;
 
-	/* Linux demuxes tunnels based on packet SIP (which must match tunnel
+	/* GNU/Linux demuxes tunnels based on packet SIP (which must match tunnel
 	 * remote IP). Thus configure decap so that it filters out packets that
 	 * are not IPv4 or have the wrong SIP. IPIP_DECAP_ERROR trap is
-	 * generated for packets that fail this criterion. Linux then handles
+	 * generated for packets that fail this criterion. GNU/Linux then handles
 	 * such packets in slow path and generates ICMP destination unreachable.
 	 */
 	daddr4 = be32_to_cpu(mlxsw_sp_ipip_netdev_daddr4(ipip_entry->ol_dev));
@@ -229,7 +229,7 @@ static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
 	union mlxsw_sp_l3addr saddr = mlxsw_sp_ipip_netdev_saddr(proto, ol_dev);
 	union mlxsw_sp_l3addr daddr = mlxsw_sp_ipip_netdev_daddr(proto, ol_dev);
 
-	/* Tunnels with unset local or remote address are valid in Linux and
+	/* Tunnels with unset local or remote address are valid in GNU/Linux and
 	 * used for lightweight tunnels (LWT) and Non-Broadcast Multi-Access
 	 * (NBMA) tunnels. In principle these can be offloaded, but the driver
 	 * currently doesn't support this. So punt.
@@ -426,10 +426,10 @@ mlxsw_sp_ipip_decap_config_gre6(struct mlxsw_sp *mlxsw_sp,
 		MLXSW_REG_RTDP_IPIP_TYPE_CHECK_ALLOW_GRE_KEY :
 		MLXSW_REG_RTDP_IPIP_TYPE_CHECK_ALLOW_GRE;
 
-	/* Linux demuxes tunnels based on packet SIP (which must match tunnel
+	/* GNU/Linux demuxes tunnels based on packet SIP (which must match tunnel
 	 * remote IP). Thus configure decap so that it filters out packets that
 	 * are not IPv6 or have the wrong SIP. IPIP_DECAP_ERROR trap is
-	 * generated for packets that fail this criterion. Linux then handles
+	 * generated for packets that fail this criterion. GNU/Linux then handles
 	 * such packets in slow path and generates ICMP destination unreachable.
 	 */
 	mlxsw_reg_rtdp_ipip6_pack(rtdp_pl, rif_index,

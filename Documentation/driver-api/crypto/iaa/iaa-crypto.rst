@@ -109,7 +109,7 @@ Legacy mode is entered when using the kernel boot commandline::
 
 or VT-d is not turned on in BIOS.
 
-If you have booted into Linux and not sure if VT-d is on, do a "dmesg
+If you have booted into GNU/Linux and not sure if VT-d is on, do a "dmesg
 | grep -i dmar". If you don't see a number of DMAR devices enumerated,
 most likely VT-d is not on.
 

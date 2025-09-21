@@ -1,4 +1,4 @@
-/* via-rhine.c: A Linux Ethernet device driver for VIA Rhine family chips. */
+/* via-rhine.c: A GNU/Linux Ethernet device driver for VIA Rhine family chips. */
 /*
 	Written 1998-2001 by Donald Becker.
 

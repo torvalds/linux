@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the PCI specific kernel interface routines under Linux.
+# Makefile for the PCI specific kernel interface routines under GNU/Linux.
 #
 
 obj-y				+= pci.o

@@ -100,7 +100,7 @@
  * SoCs. It can either output true randomness (TRNG) or "deterministic"
  * randomness derived from hashing the true entropy (DRNG). This driver
  * implementation uses just the true entropy, and leaves stretching the entropy
- * up to Linux.
+ * up to GNU/Linux.
  */
 #define RKRNG_CFG				0x0000
 #define RKRNG_CTRL				0x0010

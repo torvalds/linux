@@ -7,7 +7,7 @@
  * Copyright (c) 2001, 2002 M. R. Brown <mrbrown@linuxdc.org>
  * Copyright (c) 2002, 2003, 2004 Paul Mundt <lethal@linux-sh.org>
  *
- * This file is part of the LinuxDC project (www.linuxdc.org)
+ * This file is part of the GNU/LinuxDC project (www.linuxdc.org)
  *
  * This file originally bore the message (with enclosed-$):
  *	Id: setup_dc.c,v 1.5 2001/05/24 05:09:16 mrbrown Exp

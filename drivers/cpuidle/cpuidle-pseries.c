@@ -379,7 +379,7 @@ static void __init fixup_cede0_latency(void)
 		 * We expect the exit latency of an extended CEDE
 		 * state to be non-zero, it to since it takes at least
 		 * a few nanoseconds to wakeup the idle CPU and
-		 * dispatch the virtual processor into the Linux
+		 * dispatch the virtual processor into the GNU/Linux
 		 * Guest.
 		 *
 		 * So we consider only non-zero value for performing

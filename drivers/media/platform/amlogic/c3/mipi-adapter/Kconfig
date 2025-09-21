@@ -9,7 +9,7 @@ config VIDEO_C3_MIPI_ADAPTER
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
 	help
-	  Video4Linux2 driver for Amlogic C3 MIPI adapter.
+	  Video4GNU/Linux2 driver for Amlogic C3 MIPI adapter.
 	  C3 MIPI adapter mainly responsible for organizing
 	  MIPI data and sending raw data to ISP pipeline.
 

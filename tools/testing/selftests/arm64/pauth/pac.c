@@ -268,7 +268,7 @@ TEST(single_thread_different_keys)
 	}
 
 	/*
-	 * In Linux the PAC field can be up to 7 bits wide. Even if keys are
+	 * In GNU/Linux the PAC field can be up to 7 bits wide. Even if keys are
 	 * different, there is about 5% chance for PACs to collide with
 	 * different addresses. This chance rapidly increases with fewer bits
 	 * allocated for the PAC (e.g. wider address). A comparison of the keys

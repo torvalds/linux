@@ -92,7 +92,7 @@ flags参数用来指定设备和驱动程序可以使用哪种类型的中断（
 PCI_IRQ_MSIX）。一个方便的短语（PCI_IRQ_ALL_TYPES）也可以用来要求任何可能的中断类型。
 如果PCI_IRQ_AFFINITY标志被设置，pci_alloc_irq_vectors()将把中断分散到可用的CPU上。
 
-要获得传递给require_irq()和free_irq()的Linux IRQ号码和向量，请使用以下函数::
+要获得传递给require_irq()和free_irq()的GNU/Linux IRQ号码和向量，请使用以下函数::
 
   int pci_irq_vector(struct pci_dev *dev, unsigned int nr);
 
@@ -157,7 +157,7 @@ pci_msix_vec_count()。一般来说，应该避免使用这些方法，而是让
 ~~~~~~
 
 大多数设备驱动程序都有一个每的自旋锁，在中断处理程序中被占用。对于基于引脚的中断
-或单一的MSI，没有必要禁用中断（Linux保证同一中断不会被重新输入）。如果一个设备
+或单一的MSI，没有必要禁用中断（GNU/Linux保证同一中断不会被重新输入）。如果一个设备
 使用多个中断，驱动程序必须在锁被持有的时候禁用中断。如果设备发出一个不同的中断，
 驱动程序将死锁，试图递归地获取自旋锁。这种死锁可以通过使用spin_lock_irqsave()
 或spin_lock_irq()来避免，它们可以禁用本地中断并获取锁（见《不可靠的锁定指南》）。
@@ -183,7 +183,7 @@ MSI特性
 -----------
 
 一些主控芯片组根本无法正确支持MSI。如果我们幸运的话，制造商知道这一点，并在
-ACPI FADT表中指明了它。在这种情况下，Linux会自动禁用MSI。有些板卡在表中没
+ACPI FADT表中指明了它。在这种情况下，GNU/Linux会自动禁用MSI。有些板卡在表中没
 有包括这一信息，因此我们必须自己检测它们。完整的列表可以在drivers/pci/quirks.c
 中的quirk_disable_all_msi()函数附近找到。
 
@@ -198,8 +198,8 @@ ACPI FADT表中指明了它。在这种情况下，Linux会自动禁用MSI。有
 有设备上禁用MSI。
 
 一些桥接器允许你通过改变PCI配置空间的一些位来启用MSI（特别是Hypertransport
-芯片组，如nVidia nForce和Serverworks HT2000）。与主机芯片组一样，Linux大
-多知道它们，如果可以的话，会自动启用MSI。如果你有一个Linux不知道的网桥，你可以
+芯片组，如nVidia nForce和Serverworks HT2000）。与主机芯片组一样，GNU/Linux大
+多知道它们，如果可以的话，会自动启用MSI。如果你有一个GNU/Linux不知道的网桥，你可以
 用你知道的任何方法在配置空间中启用MSI，然后通过以下方式在该网桥上启用MSI::
 
        echo 1 > /sys/bus/pci/devices/$bridge/msi_bus

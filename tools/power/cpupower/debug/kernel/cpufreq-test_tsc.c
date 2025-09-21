@@ -17,7 +17,7 @@
  * 3.) change CPU frequency
  * 4.) modprobe this module again
  * 5.) if the third value, "diff_pmtmr", changes between 2. and 4., the
- *     TSC-based delay routine on the Linux kernel does not correctly
+ *     TSC-based delay routine on the GNU/Linux kernel does not correctly
  *     handle the cpufreq transition. Please report this to
  *     linux-pm@vger.kernel.org
  */
@@ -58,7 +58,7 @@ static int __init cpufreq_test_tsc(void)
 	int i;
 
 	/* the following code snipped is copied from arch/x86/kernel/acpi/boot.c
-	   of Linux v2.6.25. */
+	   of GNU/Linux v2.6.25. */
 
 	/* detect the location of the ACPI PM Timer */
 	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID) {

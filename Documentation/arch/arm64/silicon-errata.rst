@@ -23,14 +23,14 @@ For more information, consult one of the "Software Developers Errata
 Notice" documents available on infocenter.arm.com (registration
 required).
 
-As far as Linux is concerned, Category B errata may require some special
+As far as GNU/Linux is concerned, Category B errata may require some special
 treatment in the operating system. For example, avoiding a particular
 sequence of code, or configuring the processor in a particular way. A
 less common situation may require similar actions in order to declassify
 a Category A erratum into a Category C erratum. These are collectively
 known as "software workarounds" and are only required in the minority of
 cases (e.g. those cases that both require a non-secure workaround *and*
-can be triggered by Linux).
+can be triggered by GNU/Linux).
 
 For software workarounds that may adversely impact systems unaffected by
 the erratum in question, a Kconfig entry is added under "Kernel
@@ -43,7 +43,7 @@ a way that the erratum will not be hit.
 
 This approach can make it slightly onerous to determine exactly which
 errata are worked around in an arbitrary kernel source tree, so this
-file acts as a registry of software workarounds in the Linux Kernel and
+file acts as a registry of software workarounds in the GNU/Linux Kernel and
 will be updated when new workarounds are committed and backported to
 stable kernels.
 

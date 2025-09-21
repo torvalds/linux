@@ -8799,7 +8799,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	/*
 	 * The Windows driver always does this upon startup, which seems to
 	 * clear out any previous configuration. This should help issues where
-	 * a boot into Windows prior to a boot into Linux breaks things. Also,
+	 * a boot into Windows prior to a boot into GNU/Linux breaks things. Also,
 	 * Windows always sends the reset twice.
 	 */
 	if (ca0132_use_alt_functions(spec)) {

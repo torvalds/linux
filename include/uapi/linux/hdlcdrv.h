@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * hdlcdrv.h  -- HDLC packet radio network driver.
- * The Linux soundcard driver for 1200 baud and 9600 baud packet radio
+ * The GNU/Linux soundcard driver for 1200 baud and 9600 baud packet radio
  * (C) 1996-1998 by Thomas Sailer, HB9JNX/AE4WA
  */
 

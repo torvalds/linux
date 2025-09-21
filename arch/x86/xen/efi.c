@@ -24,8 +24,8 @@ static efi_system_table_t efi_systab_xen __initdata = {
 	.hdr = {
 		.signature	= EFI_SYSTEM_TABLE_SIGNATURE,
 		.revision	= 0, /* Initialized later. */
-		.headersize	= 0, /* Ignored by Linux Kernel. */
-		.crc32		= 0, /* Ignored by Linux Kernel. */
+		.headersize	= 0, /* Ignored by GNU/Linux Kernel. */
+		.crc32		= 0, /* Ignored by GNU/Linux Kernel. */
 		.reserved	= 0
 	},
 	.fw_vendor	= EFI_INVALID_TABLE_ADDR, /* Initialized later. */

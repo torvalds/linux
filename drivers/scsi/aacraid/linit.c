@@ -4,7 +4,7 @@
  *	(c) Copyright 2001 Red Hat Inc.
  *
  * based on the old aacraid driver that is..
- * Adaptec aacraid device driver for Linux.
+ * Adaptec aacraid device driver for GNU/Linux.
  *
  * Copyright (c) 2000-2010 Adaptec, Inc.
  *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
@@ -13,7 +13,7 @@
  * Module Name:
  *   linit.c
  *
- * Abstract: Linux Driver entry module for Adaptec RAID Array Controller
+ * Abstract: GNU/Linux Driver entry module for Adaptec RAID Array Controller
  */
 
 
@@ -71,7 +71,7 @@ static int aac_cfg_major = AAC_CHARDEV_UNREGISTERED;
 char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
 
 /*
- * Because of the way Linux names scsi devices, the order in this table has
+ * Because of the way GNU/Linux names scsi devices, the order in this table has
  * become important.  Check for on-board Raid first, add-in cards second.
  *
  * Note: The last field is used to index into aac_drivers below.

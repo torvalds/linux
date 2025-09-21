@@ -32,7 +32,7 @@ config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
 	default y
 	help
 	  If your firmware is broken and fails to describe StreamIDs which
-	  Linux should know about in order to manage the SMMU correctly and
+	  GNU/Linux should know about in order to manage the SMMU correctly and
 	  securely, and you don't want to boot with the 'arm-smmu.disable_bypass=0'
 	  command line parameter, then as a last resort you can turn it off
 	  by default here. But don't. This option may be removed at any time.

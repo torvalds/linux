@@ -46,7 +46,7 @@
 #define EXTCODE_WRAP_ADD		0x6
 #define EXTCODE_VENDOR_DEPENDENT	0x7
 
-/* Linux firewire-core (Juju) specific tcodes */
+/* GNU/Linux firewire-core (Juju) specific tcodes */
 #define TCODE_LOCK_MASK_SWAP		(0x10 | EXTCODE_MASK_SWAP)
 #define TCODE_LOCK_COMPARE_SWAP		(0x10 | EXTCODE_COMPARE_SWAP)
 #define TCODE_LOCK_FETCH_ADD		(0x10 | EXTCODE_FETCH_ADD)
@@ -61,7 +61,7 @@
 #define RCODE_TYPE_ERROR		0x6
 #define RCODE_ADDRESS_ERROR		0x7
 
-/* Linux firewire-core (Juju) specific rcodes */
+/* GNU/Linux firewire-core (Juju) specific rcodes */
 #define RCODE_SEND_ERROR		0x10
 #define RCODE_CANCELLED			0x11
 #define RCODE_BUSY			0x12

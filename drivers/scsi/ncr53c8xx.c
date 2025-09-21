@@ -7,14 +7,14 @@
 **
 **-----------------------------------------------------------------------------
 **
-**  This driver has been ported to Linux from the FreeBSD NCR53C8XX driver
+**  This driver has been ported to GNU/Linux from the FreeBSD NCR53C8XX driver
 **  and is currently maintained by
 **
 **          Gerard Roudier              <groudier@free.fr>
 **
 **  Being given that this driver originates from the FreeBSD version, and
 **  in order to keep synergy on both, any suggested enhancements and corrections
-**  received on Linux are automatically a potential candidate for the FreeBSD 
+**  received on GNU/Linux are automatically a potential candidate for the FreeBSD 
 **  version.
 **
 **  The original driver has been written for 386bsd and FreeBSD by
@@ -29,7 +29,7 @@
 **                     Brief history
 **
 **  December 10 1995 by Gerard Roudier:
-**     Initial port to Linux.
+**     Initial port to GNU/Linux.
 **
 **  June 23 1996 by Gerard Roudier:
 **     Support for 64 bits architectures (Alpha).
@@ -3627,7 +3627,7 @@ ncr_script_copy_and_bind (struct ncb *np, ncrcmd *src, ncrcmd *dst, int len)
 }
 
 /*
-**	Linux host data structure
+**	GNU/Linux host data structure
 */
 
 struct host_data {
@@ -7465,7 +7465,7 @@ fail:
 **	we had to use a break point every 512 bytes.
 **	Of course the number of scatter/gather blocks is
 **	limited.
-**	Under Linux, the scatter/gatter blocks are provided by 
+**	Under GNU/Linux, the scatter/gatter blocks are provided by 
 **	the generic driver. We just have to copy addresses and 
 **	sizes to the data segment array.
 */
@@ -7827,11 +7827,11 @@ static int ncr53c8xx_sdev_configure(struct scsi_device *device,
 	scsi_change_queue_depth(device, depth_to_use);
 
 	/*
-	**	Since the queue depth is not tunable under Linux,
+	**	Since the queue depth is not tunable under GNU/Linux,
 	**	we need to know this value in order not to 
 	**	announce stupid things to user.
 	**
-	**	XXX(hch): As of Linux 2.6 it certainly _is_ tunable..
+	**	XXX(hch): As of GNU/Linux 2.6 it certainly _is_ tunable..
 	**		  In fact we just tuned it, or did I miss
 	**		  something important? :)
 	*/
@@ -7970,7 +7970,7 @@ static int ncr53c8xx_bus_reset(struct scsi_cmnd *cmd)
 **	It may happen that we cannot insert a scsi command into the start queue,
 **	in the following circumstances.
 ** 		Too few preallocated ccb(s), 
-**		maxtags < cmd_per_lun of the Linux host control block,
+**		maxtags < cmd_per_lun of the GNU/Linux host control block,
 **		etc...
 **	Such scsi commands are inserted into a waiting list.
 **	When a scsi command complete, we try to requeue the commands of the

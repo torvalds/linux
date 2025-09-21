@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ====================================================================
-Linux kernel networking driver for Marvell's Octeon PCI Endpoint NIC
+GNU/Linux kernel networking driver for Marvell's Octeon PCI Endpoint NIC
 ====================================================================
 
 Network driver for Marvell's Octeon PCI EndPoint NIC.

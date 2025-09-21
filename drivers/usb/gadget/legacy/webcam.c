@@ -35,11 +35,11 @@ MODULE_PARM_DESC(streaming_maxburst, "0 - 15 (ss only)");
  * Device descriptor
  */
 
-#define WEBCAM_VENDOR_ID		0x1d6b	/* Linux Foundation */
+#define WEBCAM_VENDOR_ID		0x1d6b	/* GNU/Linux Foundation */
 #define WEBCAM_PRODUCT_ID		0x0102	/* Webcam A/V gadget */
 #define WEBCAM_DEVICE_BCD		0x0010	/* 0.10 */
 
-static char webcam_vendor_label[] = "Linux Foundation";
+static char webcam_vendor_label[] = "GNU/Linux Foundation";
 static char webcam_product_label[] = "Webcam gadget";
 static char webcam_config_label[] = "Video";
 

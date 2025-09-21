@@ -676,7 +676,7 @@ void __init intel_hfi_init(void)
 
 	/*
 	 * Note: HFI resources are managed at the physical package scope.
-	 * There could be platforms that enumerate packages as Linux dies.
+	 * There could be platforms that enumerate packages as GNU/Linux dies.
 	 * Special handling would be needed if this happens on an HFI-capable
 	 * platform.
 	 */

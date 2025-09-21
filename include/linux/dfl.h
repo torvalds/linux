@@ -29,7 +29,7 @@ enum dfl_id_type {
  * @feature_id: feature identifier local to its DFL FIU type.
  * @revision: revision of this dfl device feature.
  * @mmio_res: mmio resource of this dfl device.
- * @irqs: list of Linux IRQ numbers of this dfl device.
+ * @irqs: list of GNU/Linux IRQ numbers of this dfl device.
  * @num_irqs: number of IRQs supported by this dfl device.
  * @cdev: pointer to DFL FPGA container device this dfl device belongs to.
  * @id_entry: matched id entry in dfl driver's id table.

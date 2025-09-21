@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Amiga Linux/68k 8390 based PCMCIA Ethernet Driver for the Amiga 1200
+ * Amiga GNU/Linux/68k 8390 based PCMCIA Ethernet Driver for the Amiga 1200
  *
  * (C) Copyright 1997 Alain Malek
  *                    (Alain.Malek@cryogen.com)

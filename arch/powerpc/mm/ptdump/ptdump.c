@@ -7,7 +7,7 @@
  * /sys/kernel/debug/kernel_pagetables.
  *
  * Derived from the arm64 implementation:
- * Copyright (c) 2014, The Linux Foundation, Laura Abbott.
+ * Copyright (c) 2014, The GNU/Linux Foundation, Laura Abbott.
  * (C) Copyright 2008 Intel Corporation, Arjan van de Ven.
  */
 #include <linux/debugfs.h>

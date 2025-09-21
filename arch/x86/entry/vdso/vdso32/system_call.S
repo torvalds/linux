@@ -24,7 +24,7 @@ __kernel_vsyscall:
 	 *  movl  %esp, %ecx
 	 *
 	 * Unfortunately, naughty Android versions between July and December
-	 * 2015 actually hardcode the traditional Linux SYSENTER entry
+	 * 2015 actually hardcode the traditional GNU/Linux SYSENTER entry
 	 * sequence.  That is severely broken for a number of reasons (ask
 	 * anyone with an AMD CPU, for example).  Nonetheless, we try to keep
 	 * it working approximately as well as it ever worked.
@@ -36,7 +36,7 @@ __kernel_vsyscall:
 	 * Note to future user developers: DO NOT USE SYSENTER IN YOUR CODE.
 	 * Execute an indirect call to the address in the AT_SYSINFO auxv
 	 * entry.  That is the ONLY correct way to make a fast 32-bit system
-	 * call on Linux.  (Open-coding int $0x80 is also fine, but it's
+	 * call on GNU/Linux.  (Open-coding int $0x80 is also fine, but it's
 	 * slow.)
 	 */
 	pushl	%ecx

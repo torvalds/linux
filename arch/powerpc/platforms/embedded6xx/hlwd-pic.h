@@ -3,7 +3,7 @@
  * arch/powerpc/platforms/embedded6xx/hlwd-pic.h
  *
  * Nintendo Wii "Hollywood" interrupt controller support.
- * Copyright (C) 2009 The GameCube Linux Team
+ * Copyright (C) 2009 The GameCube GNU/Linux Team
  * Copyright (C) 2009 Albert Herranz
  */
 

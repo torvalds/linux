@@ -1,29 +1,29 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ========================================
-Linux Kernel Contribution Maturity Model
+GNU/Linux Kernel Contribution Maturity Model
 ========================================
 
 
 Background
 ==========
 
-As a part of the 2021 Linux Kernel Maintainers’ Summit, there was a
+As a part of the 2021 GNU/Linux Kernel Maintainers’ Summit, there was a
 `discussion <https://lwn.net/Articles/870581/>`_ about the challenges in
 recruiting kernel maintainers as well as maintainer succession.  Some of
 the conclusions from that discussion included that companies which are a
-part of the Linux Kernel community need to allow engineers to be
+part of the GNU/Linux Kernel community need to allow engineers to be
 maintainers as part of their job, so they can grow into becoming
 respected leaders and eventually, kernel maintainers.  To support a
 strong talent pipeline, developers should be allowed and encouraged to
 take on upstream contributions such as reviewing other people’s patches,
 refactoring kernel infrastructure, and writing documentation.
 
-To that end, the Linux Foundation Technical Advisory Board (TAB)
-proposes this Linux Kernel Contribution Maturity Model. These common
+To that end, the GNU/Linux Foundation Technical Advisory Board (TAB)
+proposes this GNU/Linux Kernel Contribution Maturity Model. These common
 expectations for upstream community engagement aim to increase the
 influence of individual developers, increase the collaboration of
-organizations, and improve the overall health of the Linux Kernel
+organizations, and improve the overall health of the GNU/Linux Kernel
 ecosystem.
 
 The TAB urges organizations to continuously evaluate their Open Source
@@ -37,23 +37,23 @@ upstream community.
 Level 0
 =======
 
-* Software Engineers are not allowed to contribute patches to the Linux
+* Software Engineers are not allowed to contribute patches to the GNU/Linux
   kernel.
 
 
 Level 1
 =======
 
-* Software Engineers are allowed to contribute patches to the Linux
+* Software Engineers are allowed to contribute patches to the GNU/Linux
   kernel, either as part of their job responsibilities or on their own
   time.
 
 Level 2
 =======
 
-* Software Engineers are expected to contribute to the Linux Kernel as
+* Software Engineers are expected to contribute to the GNU/Linux Kernel as
   part of their job responsibilities.
-* Software Engineers will be supported to attend Linux-related
+* Software Engineers will be supported to attend GNU/Linux-related
   conferences as a part of their job.
 * A Software Engineer’s upstream code contributions will be considered
   in promotion and performance reviews.
@@ -64,8 +64,8 @@ Level 3
 * Software Engineers are expected to review patches (including patches
   authored by engineers from other companies) as part of their job
   responsibilities
-* Contributing presentations or papers to Linux-related or academic
-  conferences (such those organized by the Linux Foundation, Usenix,
+* Contributing presentations or papers to GNU/Linux-related or academic
+  conferences (such those organized by the GNU/Linux Foundation, Usenix,
   ACM, etc.), are considered part of an engineer’s work.
 * A Software Engineer’s community contributions will be considered in
   promotion and performance reviews.
@@ -93,7 +93,7 @@ Level 4
   serving on program committees, improving core project infrastructure
   such as writing or maintaining tests, upstream tech debt reduction,
   writing documentation, etc.
-* Software Engineers are supported in helping to organize Linux-related
+* Software Engineers are supported in helping to organize GNU/Linux-related
   conferences.
 * Organizations will consider community member feedback in official
   performance reviews.

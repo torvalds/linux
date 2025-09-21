@@ -2371,7 +2371,7 @@ static struct usb_driver s2255_driver = {
 
 module_usb_driver(s2255_driver);
 
-MODULE_DESCRIPTION("Sensoray 2255 Video for Linux driver");
+MODULE_DESCRIPTION("Sensoray 2255 Video for GNU/Linux driver");
 MODULE_AUTHOR("Dean Anderson (Sensoray Company Inc.)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(S2255_VERSION);

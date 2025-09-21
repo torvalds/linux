@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) */
+/* SPDX-License-Identifier: (GPL-2.0 WITH GNU/Linux-syscall-note) */
 /*
  * Copyright (c) 2022, Microsoft Corporation. All rights reserved.
  */

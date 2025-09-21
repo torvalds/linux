@@ -4,7 +4,7 @@ menuconfig RC_CORE
 	tristate "Remote Controller support"
 	depends on INPUT
 	help
-	  Enable support for Remote Controllers on Linux. This is
+	  Enable support for Remote Controllers on GNU/Linux. This is
 	  needed in order to support several video capture adapters,
 	  standalone IR receivers/transmitters, and RF receivers.
 
@@ -32,7 +32,7 @@ config BPF_LIRC_MODE2
 config LIRC
 	bool "LIRC user interface"
 	help
-	   Enable this option to enable the Linux Infrared Remote
+	   Enable this option to enable the GNU/Linux Infrared Remote
 	   Control user interface (e.g. /dev/lirc*). This interface
 	   passes raw IR to and from userspace, which is needed for
 	   IR transmitting (aka "blasting") and for the lirc daemon.

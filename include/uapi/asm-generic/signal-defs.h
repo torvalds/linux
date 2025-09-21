@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef __ASM_GENERIC_SIGNAL_DEFS_H
 #define __ASM_GENERIC_SIGNAL_DEFS_H
 
@@ -23,7 +23,7 @@
  * SA_EXPOSE_TAGBITS exposes an architecture-defined set of tag bits in
  * siginfo.si_addr.
  *
- * SA_ONESHOT and SA_NOMASK are the historical Linux names for the Single
+ * SA_ONESHOT and SA_NOMASK are the historical GNU/Linux names for the Single
  * Unix names RESETHAND and NODEFER respectively.
  */
 #ifndef SA_NOCLDSTOP

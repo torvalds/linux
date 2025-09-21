@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * w83l785ts.c - Part of lm_sensors, Linux kernel modules for hardware
+ * w83l785ts.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *               monitoring
  * Copyright (C) 2003-2009  Jean Delvare <jdelvare@suse.de>
  *
@@ -10,7 +10,7 @@
  * Winbond's website at:
  *   http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/W83L785TS-S.pdf
  *
- * Ported to Linux 2.6 by Wolfgang Ziegler <nuppla@gmx.at> and Jean Delvare
+ * Ported to GNU/Linux 2.6 by Wolfgang Ziegler <nuppla@gmx.at> and Jean Delvare
  * <jdelvare@suse.de>.
  *
  * Thanks to James Bolt <james@evilpenguin.com> for benchmarking the read

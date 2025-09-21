@@ -109,7 +109,7 @@ static inline void *kexec_nonboot_cpu_func(void)
 #endif
 
 /*
- * This function will set up the necessary IPIs for Linux to communicate
+ * This function will set up the necessary IPIs for GNU/Linux to communicate
  * with the CPUs in mask.
  * Return 0 on success.
  */

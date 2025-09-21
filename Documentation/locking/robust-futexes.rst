@@ -66,7 +66,7 @@ left:
  - they have to scan _every_ vma at sys_exit() time, per thread!
 
 The second disadvantage is a real killer: pthread_exit() takes around 1
-microsecond on Linux, but with thousands (or tens of thousands) of vmas
+microsecond on GNU/Linux, but with thousands (or tens of thousands) of vmas
 every pthread_exit() takes a millisecond or more, also totally
 destroying the CPU's L1 and L2 caches!
 
@@ -79,7 +79,7 @@ into this process's address space).
 
 This huge overhead forced the creation of CONFIG_FUTEX_ROBUST so that
 normal kernels can turn it off, but worse than that: the overhead makes
-robust futexes impractical for any type of generic Linux distribution.
+robust futexes impractical for any type of generic GNU/Linux distribution.
 
 So something had to be done.
 

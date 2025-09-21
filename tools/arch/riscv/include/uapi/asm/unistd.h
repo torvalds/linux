@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * Copyright (C) 2018 David Abdurachmanov <david.abdurachmanov@gmail.com>
  *
@@ -25,7 +25,7 @@
 /*
  * Allows the instruction cache to be flushed from userspace.  Despite RISC-V
  * having a direct 'fence.i' instruction available to userspace (which we
- * can't trap!), that's not actually viable when running on Linux because the
+ * can't trap!), that's not actually viable when running on GNU/Linux because the
  * kernel might schedule a process on another hart.  There is no way for
  * userspace to handle this without invoking the kernel (as it doesn't know the
  * thread->hart mappings), so we've defined a RISC-V specific system call to

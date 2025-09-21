@@ -11,7 +11,7 @@ Language
 ========
 
 The Nova project uses the Rust programming language. In this context, all rules
-of the Rust for Linux project as documented in
+of the Rust for GNU/Linux project as documented in
 :doc:`../../rust/general-information` apply. Additionally, the following rules
 apply.
 
@@ -25,10 +25,10 @@ apply.
 Style
 -----
 
-All rules of the Rust for Linux project as documented in
+All rules of the Rust for GNU/Linux project as documented in
 :doc:`../../rust/coding-guidelines` apply.
 
-For a submit checklist, please also see the `Rust for Linux Submit checklist
+For a submit checklist, please also see the `Rust for GNU/Linux Submit checklist
 addendum <https://rust-for-linux.com/contributing#submit-checklist-addendum>`_.
 
 Documentation

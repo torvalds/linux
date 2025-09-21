@@ -27,17 +27,17 @@ To make use of the gadget one needs to make it work on host side --
 without that there's no hope of achieving anything with the gadget.
 As one might expect, things one need to do very from system to system.
 
-Linux host drivers
+GNU/Linux host drivers
 ------------------
 
 Since the gadget uses standard composite framework and appears as such
-to Linux host it does not need any additional drivers on Linux host
+to GNU/Linux host it does not need any additional drivers on GNU/Linux host
 side.  All the functions are handled by respective drivers developed
 for them.
 
 This is also true for two configuration set-up with RNDIS
-configuration being the first one.  Linux host will use the second
-configuration with CDC ECM which should work better under Linux.
+configuration being the first one.  GNU/Linux host will use the second
+configuration with CDC ECM which should work better under GNU/Linux.
 
 Windows host drivers
 --------------------

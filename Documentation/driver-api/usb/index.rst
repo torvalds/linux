@@ -1,5 +1,5 @@
 =============
-Linux USB API
+GNU/Linux USB API
 =============
 
 .. toctree::

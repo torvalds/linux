@@ -1,7 +1,7 @@
 This document provides "recipes", that is, litmus tests for commonly
 occurring situations, as well as a few that illustrate subtly broken but
 attractive nuisances.  Many of these recipes include example code from
-v5.7 of the Linux kernel.
+v5.7 of the GNU/Linux kernel.
 
 The first section covers simple special cases, the second section
 takes off the training wheels to cover more involved examples,
@@ -500,7 +500,7 @@ values of 0, but providing both full barriers as shown above prevents
 this counter-intuitive outcome.
 
 This pattern most famously appears as part of Dekker's locking
-algorithm, but it has a much more practical use within the Linux kernel
+algorithm, but it has a much more practical use within the GNU/Linux kernel
 of ordering wakeups.  The following comment taken from waitqueue_active()
 in include/linux/wait.h shows the canonical pattern:
 

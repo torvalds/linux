@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CMOS/NV-RAM driver for Linux
+ * CMOS/NV-RAM driver for GNU/Linux
  *
  * Copyright (C) 1997 Roman Hodek <Roman.Hodek@informatik.uni-erlangen.de>
  * idea by and with help from Richard Jelinek <rj@suse.de>
@@ -540,7 +540,7 @@ static void __exit nvram_module_exit(void)
 module_init(nvram_module_init);
 module_exit(nvram_module_exit);
 
-MODULE_DESCRIPTION("CMOS/NV-RAM driver for Linux");
+MODULE_DESCRIPTION("CMOS/NV-RAM driver for GNU/Linux");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(NVRAM_MINOR);
 MODULE_ALIAS("devname:nvram");

@@ -1,5 +1,5 @@
 /*
-   3w-xxxx.c -- 3ware Storage Controller device driver for Linux.
+   3w-xxxx.c -- 3ware Storage Controller device driver for GNU/Linux.
 
    Written By: Adam Radford <aradford@gmail.com>
    Modifications By: Joel Jacobson <linux@3ware.com>
@@ -227,7 +227,7 @@ static int twe_major = -1;
 
 /* Module parameters */
 MODULE_AUTHOR("LSI");
-MODULE_DESCRIPTION("3ware Storage Controller Linux Driver");
+MODULE_DESCRIPTION("3ware Storage Controller GNU/Linux Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(TW_DRIVER_VERSION);
 
@@ -2414,7 +2414,7 @@ static struct pci_driver tw_driver = {
 /* This function is called on driver initialization */
 static int __init tw_init(void)
 {
-	printk(KERN_WARNING "3ware Storage Controller device driver for Linux v%s.\n", TW_DRIVER_VERSION);
+	printk(KERN_WARNING "3ware Storage Controller device driver for GNU/Linux v%s.\n", TW_DRIVER_VERSION);
 
 	return pci_register_driver(&tw_driver);
 } /* End tw_init() */

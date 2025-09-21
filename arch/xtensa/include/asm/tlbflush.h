@@ -166,7 +166,7 @@ static inline void invalidate_dtlb_mapping (unsigned address)
  * You may find it helpful for MMU debugging, however.
  *
  * 'at' is the unmodified input register
- * 'as' is the output register, as follows (specific to the Linux config):
+ * 'as' is the output register, as follows (specific to the GNU/Linux config):
  *
  *      as[31..12] contain the virtual address
  *      as[11..08] are meaningless

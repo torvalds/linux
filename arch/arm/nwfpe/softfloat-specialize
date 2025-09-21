@@ -47,7 +47,7 @@ should be simply `float_exception_flags |= flags;'.
 ScottB:  November 4, 1998
 Moved this function out of softfloat-specialize into fpmodule.c.
 This effectively isolates all the changes required for integrating with the
-Linux kernel into fpmodule.c.  Porting to NetBSD should only require modifying
+GNU/Linux kernel into fpmodule.c.  Porting to NetBSD should only require modifying
 fpmodule.c to integrate with the NetBSD kernel (I hope!).
 -------------------------------------------------------------------------------
 void float_raise( int8 flags )

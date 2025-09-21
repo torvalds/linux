@@ -80,7 +80,7 @@ before suspend (it is limited to around 2/5 of available RAM by default).
      that this be done prior to remounting any filesystems (even as
      read-only) otherwise data may be corrupted.
 
-Article about goals and implementation of Software Suspend for Linux
+Article about goals and implementation of Software Suspend for GNU/Linux
 ====================================================================
 
 Author: Gábor Kuti
@@ -185,7 +185,7 @@ A:
   encryption) and arbitrary backends for writing the image (eg to swap
   or an NFS share[Work In Progress]). Questions regarding suspend2
   should be sent to the mailing list available through the suspend2
-  website, and not to the Linux Kernel Mailing List. We are working
+  website, and not to the GNU/Linux Kernel Mailing List. We are working
   toward merging suspend2 into the mainline kernel.
 
 Q:

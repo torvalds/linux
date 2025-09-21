@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Linux Security Module interface to other subsystems.
- * SELinux presents a single u32 value which is known as a secid.
+ * GNU/Linux Security Module interface to other subsystems.
+ * SEGNU/Linux presents a single u32 value which is known as a secid.
  */
 #ifndef __LINUX_LSM_SELINUX_H
 #define __LINUX_LSM_SELINUX_H

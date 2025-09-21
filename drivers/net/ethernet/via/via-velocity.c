@@ -2,10 +2,10 @@
 /*
  * This code is derived from the VIA reference driver (copyright message
  * below) provided to Red Hat by VIA Networking Technologies, Inc. for
- * addition to the Linux kernel.
+ * addition to the GNU/Linux kernel.
  *
  * The code has been merged into one source file, cleaned up to follow
- * Linux coding style,  ported to the Linux 2.6 kernel tree and cleaned
+ * GNU/Linux coding style,  ported to the GNU/Linux 2.6 kernel tree and cleaned
  * for 64bit hardware platforms.
  *
  * TODO

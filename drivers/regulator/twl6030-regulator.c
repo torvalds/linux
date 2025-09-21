@@ -116,7 +116,7 @@ static int twlreg_grp(struct regulator_dev *rdev)
 /* definition for 6030 family */
 #define P3_GRP_6030	BIT(2)		/* secondary processor, modem, etc */
 #define P2_GRP_6030	BIT(1)		/* "peripherals" */
-#define P1_GRP_6030	BIT(0)		/* CPU/Linux */
+#define P1_GRP_6030	BIT(0)		/* CPU/GNU/Linux */
 
 static int twl6030reg_is_enabled(struct regulator_dev *rdev)
 {

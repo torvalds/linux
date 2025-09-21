@@ -933,7 +933,7 @@ cifs_proc_init(void)
 	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_ops);
 	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_ops);
 	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_ops);
-	proc_create("LinuxExtensionsEnabled", 0644, proc_fs_cifs,
+	proc_create("GNU/LinuxExtensionsEnabled", 0644, proc_fs_cifs,
 		    &cifs_linux_ext_proc_ops);
 	proc_create("SecurityFlags", 0644, proc_fs_cifs,
 		    &cifs_security_flags_proc_ops);
@@ -979,7 +979,7 @@ cifs_proc_clean(void)
 	remove_proc_entry("traceSMB", proc_fs_cifs);
 	remove_proc_entry("Stats", proc_fs_cifs);
 	remove_proc_entry("SecurityFlags", proc_fs_cifs);
-	remove_proc_entry("LinuxExtensionsEnabled", proc_fs_cifs);
+	remove_proc_entry("GNU/LinuxExtensionsEnabled", proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled", proc_fs_cifs);
 	remove_proc_entry("mount_params", proc_fs_cifs);
 

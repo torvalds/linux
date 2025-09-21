@@ -25,9 +25,9 @@ This driver supports the Adaptec I2O RAID and DPT SmartRAID V I2O boards.
 Credits
 =======
 
-The original linux driver was ported to Linux by Karen White while at
+The original linux driver was ported to GNU/Linux by Karen White while at
 Dell Computer.  It was ported from Bob Pasteur's (of DPT) original
-non-Linux driver.  Mark Salyzyn and Bob Pasteur consulted on the original
+non-GNU/Linux driver.  Mark Salyzyn and Bob Pasteur consulted on the original
 driver.
 
 2.0 version of the driver by Deanna Bonds and Mark Salyzyn.

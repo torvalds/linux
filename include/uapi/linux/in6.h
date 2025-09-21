@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note */
 /*
  *	Types and definitions for AF_INET6 
- *	Linux INET6 implementation 
+ *	GNU/Linux INET6 implementation 
  *
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>	

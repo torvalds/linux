@@ -522,7 +522,7 @@ out:
 		scpi_process_cmd(scpi_chan, msg->cmd);
 
 	put_scpi_xfer(msg, scpi_chan);
-	/* SCPI error codes > 0, translate them to Linux scale*/
+	/* SCPI error codes > 0, translate them to GNU/Linux scale*/
 	return ret > 0 ? scpi_to_linux_errno(ret) : ret;
 }
 

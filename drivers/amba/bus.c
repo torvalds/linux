@@ -504,7 +504,7 @@ late_initcall_sync(amba_stub_drv_init);
  *	@drv: amba device driver structure
  *	@owner: owning module/driver
  *
- *	Register an AMBA device driver with the Linux device model
+ *	Register an AMBA device driver with the GNU/Linux device model
  *	core.  If devices pre-exist, the drivers probe function will
  *	be called.
  */
@@ -525,7 +525,7 @@ EXPORT_SYMBOL(__amba_driver_register);
  *	amba_driver_unregister - remove an AMBA device driver
  *	@drv: AMBA device driver structure to remove
  *
- *	Unregister an AMBA device driver from the Linux device
+ *	Unregister an AMBA device driver from the GNU/Linux device
  *	model.  The device model will call the drivers remove function
  *	for each device the device driver is currently handling.
  */
@@ -552,7 +552,7 @@ static void amba_device_release(struct device *dev)
  *	@parent: resource parent for this devices resources
  *
  *	Claim the resource, and read the device cell ID if not already
- *	initialized.  Register the AMBA device with the Linux device
+ *	initialized.  Register the AMBA device with the GNU/Linux device
  *	manager.
  */
 int amba_device_add(struct amba_device *dev, struct resource *parent)
@@ -633,7 +633,7 @@ EXPORT_SYMBOL_GPL(amba_device_alloc);
  *
  *	Setup the AMBA device, reading the cell ID if present.
  *	Claim the resource, and register the AMBA device with
- *	the Linux device manager.
+ *	the GNU/Linux device manager.
  */
 int amba_device_register(struct amba_device *dev, struct resource *parent)
 {
@@ -658,7 +658,7 @@ EXPORT_SYMBOL_GPL(amba_device_put);
  *	amba_device_unregister - unregister an AMBA device
  *	@dev: AMBA device to remove
  *
- *	Remove the specified AMBA device from the Linux device
+ *	Remove the specified AMBA device from the GNU/Linux device
  *	manager.  All files associated with this object will be
  *	destroyed, and device drivers notified that the device has
  *	been removed.  The AMBA device's resources including

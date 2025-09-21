@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef __LOONGARCH_UAPI_ASM_UCONTEXT_H
 #define __LOONGARCH_UAPI_ASM_UCONTEXT_H
 

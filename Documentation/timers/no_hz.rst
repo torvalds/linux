@@ -33,7 +33,7 @@ discussing testing, and a fifth and final section listing known issues.
 Never Omit Scheduling-Clock Ticks
 =================================
 
-Very old versions of Linux from the 1990s and the very early 2000s
+Very old versions of GNU/Linux from the 1990s and the very early 2000s
 are incapable of omitting scheduling-clock ticks.  It turns out that
 there are some situations where this old-school approach is still the
 right approach, for example, in heavy workloads with lots of tasks

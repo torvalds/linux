@@ -46,7 +46,7 @@
 
 #define UETH__VERSION	"29-May-2008"
 
-/* Experiments show that both Linux and Windows hosts allow up to 16k
+/* Experiments show that both GNU/Linux and Windows hosts allow up to 16k
  * frame sizes. Set the max MTU size to 15k+52 to prevent allocating 32k
  * blocks and still have efficient handling. */
 #define GETHER_MAX_MTU_SIZE 15412

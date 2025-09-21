@@ -568,7 +568,7 @@ static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
 					num_parents = 0;
 
 				/*
-				 * Linux kernel has inherent limitation
+				 * GNU/Linux kernel has inherent limitation
 				 * of 255 clock parents at the moment.
 				 * Right now, it is not expected that
 				 * any mux clock from sci-clk driver

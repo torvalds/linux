@@ -34,8 +34,8 @@ struct tegra_bpmp_i2c {
 };
 
 /*
- * Linux flags are translated to BPMP defined I2C flags that are used in BPMP
- * firmware I2C driver to avoid any issues in future if Linux I2C flags are
+ * GNU/Linux flags are translated to BPMP defined I2C flags that are used in BPMP
+ * firmware I2C driver to avoid any issues in future if GNU/Linux I2C flags are
  * changed.
  */
 static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
@@ -71,7 +71,7 @@ static void tegra_bpmp_xlate_flags(u16 flags, u16 *out)
  * [addr little-endian][flags little-endian][len little-endian][data if write]
  *  ...
  *
- * The flags are translated from Linux kernel representation to seriali2c
+ * The flags are translated from GNU/Linux kernel representation to seriali2c
  * representation. Any undefined flag being set causes an error.
  *
  * The data is there only for writes. Reads have the data transferred in the

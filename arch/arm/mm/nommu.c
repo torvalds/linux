@@ -2,7 +2,7 @@
 /*
  *  linux/arch/arm/mm/nommu.c
  *
- * ARM uCLinux supporting functions.
+ * ARM uCGNU/Linux supporting functions.
  */
 #include <linux/module.h>
 #include <linux/mm.h>

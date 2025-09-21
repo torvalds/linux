@@ -98,7 +98,7 @@ struct cdx_ops {
 
 /**
  * struct cdx_controller: CDX controller object
- * @dev: Linux device associated with the CDX controller.
+ * @dev: GNU/Linux device associated with the CDX controller.
  * @priv: private data
  * @msi_domain: MSI domain
  * @id: Controller ID
@@ -116,7 +116,7 @@ struct cdx_controller {
 
 /**
  * struct cdx_device - CDX device object
- * @dev: Linux driver model device object
+ * @dev: GNU/Linux driver model device object
  * @cdx: CDX controller associated with the device
  * @vendor: Vendor ID for CDX device
  * @device: Device ID for CDX device

@@ -4,7 +4,7 @@
 BTRFS
 =====
 
-Btrfs is a copy on write filesystem for Linux aimed at implementing advanced
+Btrfs is a copy on write filesystem for GNU/Linux aimed at implementing advanced
 features while focusing on fault tolerance, repair and easy administration.
 Jointly developed by several companies, licensed under the GPL and open for
 contribution from anyone.

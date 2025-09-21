@@ -1,5 +1,5 @@
 /*
- * Linux ARCnet driver - COM90xx chipset (IO-mapped buffers)
+ * GNU/Linux ARCnet driver - COM90xx chipset (IO-mapped buffers)
  *
  * Written 1997 by David Woodhouse.
  * Written 1994-1999 by Avery Pennarun.

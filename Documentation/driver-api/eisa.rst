@@ -15,7 +15,7 @@ abstractions to manage busses, devices and drivers.
 Although the new API is quite simple to use, converting existing
 drivers to the new infrastructure is not an easy task (mostly because
 detection code is generally also used to probe ISA cards). Moreover,
-most EISA drivers are among the oldest Linux drivers so, as you can
+most EISA drivers are among the oldest GNU/Linux drivers so, as you can
 imagine, some dust has settled here over the years.
 
 The EISA infrastructure is made up of three parts:

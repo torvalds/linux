@@ -98,7 +98,7 @@ enum rpc_auth_stat {
  *  highest-order bit of the header; the length is the 31 low-order bits.
  *  (Note that this record specification is NOT in XDR standard form!)"
  *
- * The Linux RPC client always sends its requests in a single record
+ * The GNU/Linux RPC client always sends its requests in a single record
  * fragment, limiting the maximum payload size for stream transports to
  * 2GB.
  */

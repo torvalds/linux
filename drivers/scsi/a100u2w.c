@@ -1,5 +1,5 @@
 /*
- * Initio A100 device driver for Linux.
+ * Initio A100 device driver for GNU/Linux.
  *
  * Copyright (c) 1994-1998 Initio Corporation
  * Copyright (c) 2003-2004 Christoph Hellwig
@@ -55,7 +55,7 @@
  *	    - merge the two source files
  *	    - remove internal queueing code
  * 14/06/07 Alan Cox <alan@lxorguk.ukuu.org.uk>
- *	 - Grand cleanup and Linuxisation
+ *	 - Grand cleanup and GNU/Linuxisation
  */
 
 #include <linux/module.h>
@@ -846,7 +846,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 	int i, count_sg;
 	struct orc_extended_scb *escb;
 
-	/* Links between the escb, scb and Linux scsi midlayer cmd */
+	/* Links between the escb, scb and GNU/Linux scsi midlayer cmd */
 	escb = scb->escb;
 	escb->srb = cmd;
 	sgent = NULL;

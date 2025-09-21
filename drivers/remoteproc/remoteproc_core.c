@@ -2741,7 +2741,7 @@ static int rproc_panic_handler(struct notifier_block *nb, unsigned long event,
 	 * Delay for the longest requested duration before returning. This can
 	 * be used by the remoteproc drivers to give the remote processor time
 	 * to perform any requested operations (such as flush caches), when
-	 * it's not possible to signal the Linux side due to the panic.
+	 * it's not possible to signal the GNU/Linux side due to the panic.
 	 */
 	mdelay(longest);
 

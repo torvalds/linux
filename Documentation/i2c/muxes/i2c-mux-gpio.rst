@@ -16,7 +16,7 @@ E.G.::
  |          | SCL/SDA    |          |-------------- |           |
  |          |------------|          |
  |          |            |          | Bus segment 2 |           |
- |  Linux   | GPIO 1..N  |   MUX    |---------------   Devices
+ |  GNU/Linux   | GPIO 1..N  |   MUX    |---------------   Devices
  |          |------------|          |               |           |
  |          |            |          | Bus segment M
  |          |            |          |---------------|           |

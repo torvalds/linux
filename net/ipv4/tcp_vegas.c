@@ -13,7 +13,7 @@
  * The main aspects that distinguish this implementation from the
  * Arizona Vegas implementation are:
  *   o We do not change the loss detection or recovery mechanisms of
- *     Linux in any way. Linux already recovers from losses quite well,
+ *     GNU/Linux in any way. GNU/Linux already recovers from losses quite well,
  *     using fine-grained timers, NewReno, and FACK.
  *   o To avoid the performance penalty imposed by increasing cwnd
  *     only every-other RTT during slow start, we increase during

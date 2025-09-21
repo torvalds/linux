@@ -56,7 +56,7 @@ SECTIONS
 	BOOT_DATA_PRESERVED
 
 	/*
-	 * This is the BSS section of the decompressor and not of the decompressed Linux kernel.
+	 * This is the BSS section of the decompressor and not of the decompressed GNU/Linux kernel.
 	 * It will consume place in the decompressor's image.
 	 */
 	. = ALIGN(8);

@@ -15,9 +15,9 @@ config NFS_FS
 
 	  To mount file systems exported by NFS servers, you also need to
 	  install the user space mount.nfs command which can be found in
-	  the Linux nfs-utils package, available from http://linux-nfs.org/.
+	  the GNU/Linux nfs-utils package, available from http://linux-nfs.org/.
 	  Information about using the mount command is available in the
-	  mount(8) man page.  More detail about the Linux NFS client
+	  mount(8) man page.  More detail about the GNU/Linux NFS client
 	  implementation is available via the nfs(5) man page.
 
 	  Below you can choose which versions of the NFS protocol are
@@ -83,7 +83,7 @@ config NFS_V4
 	  (RFC 3530) in the kernel's NFS client.
 
 	  To mount NFS servers using NFSv4, you also need to install user
-	  space programs which can be found in the Linux nfs-utils package,
+	  space programs which can be found in the GNU/Linux nfs-utils package,
 	  available from http://linux-nfs.org/.
 
 	  If unsure, say Y.
@@ -150,7 +150,7 @@ config NFS_V4_1_MIGRATION
 	  This option makes the NFS client advertise to NFSv4.1 servers that
           it can support NFSv4 migration.
 
-          The NFSv4.1 pieces of the Linux NFSv4 migration implementation are
+          The NFSv4.1 pieces of the GNU/Linux NFSv4 migration implementation are
           still experimental.  If you are not an NFSv4 developer, say N here.
 
 config NFS_V4_SECURITY_LABEL

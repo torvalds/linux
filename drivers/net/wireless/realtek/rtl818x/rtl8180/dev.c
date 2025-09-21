@@ -1,5 +1,5 @@
 
-/* Linux device driver for RTL8180 / RTL8185 / RTL8187SE
+/* GNU/Linux device driver for RTL8180 / RTL8185 / RTL8187SE
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007,2014 Andrea Merello <andrea.merello@gmail.com>
@@ -15,9 +15,9 @@
  * Andrea Merello <andrea.merello@gmail.com>
  *
  * based also on:
- *  - portions of rtl8187se Linux staging driver, Copyright Realtek corp.
- *    (available in drivers/staging/rtl8187se directory of Linux 3.14)
- *  - other GPL, unpublished (until now), Linux driver code,
+ *  - portions of rtl8187se GNU/Linux staging driver, Copyright Realtek corp.
+ *    (available in drivers/staging/rtl8187se directory of GNU/Linux 3.14)
+ *  - other GPL, unpublished (until now), GNU/Linux driver code,
  *    Copyright Larry Finger <Larry.Finger@lwfinger.net>
  *
  * A huge thanks goes to Sara V. Nari who forgives me when I'm

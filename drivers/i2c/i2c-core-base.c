@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux I2C core
+ * GNU/Linux I2C core
  *
  * Copyright (C) 1995-99 Simon G. Vogl
  *   With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>

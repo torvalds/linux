@@ -1,11 +1,11 @@
 What:		/sys/kernel/mm/swap/
 Date:		August 2017
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Interface for swapping
 
 What:		/sys/kernel/mm/swap/vma_ra_enabled
 Date:		August 2017
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Enable/disable VMA based swap readahead.
 
 		If set to true, the VMA based swap readahead algorithm

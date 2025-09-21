@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2006 IBM Corporation
- * IUCV protocol stack for Linux on zSeries
+ * IUCV protocol stack for GNU/Linux on zSeries
  * Version 1.0
  * Author(s): Jennifer Hunt <jenhunt@us.ibm.com>
  *

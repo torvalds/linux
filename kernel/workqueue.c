@@ -12,7 +12,7 @@
  *
  * Made to use alloc_percpu by Christoph Lameter.
  *
- * Copyright (C) 2010		SUSE Linux Products GmbH
+ * Copyright (C) 2010		SUSE GNU/Linux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
  *
  * This is the generic async execution mechanism.  Work items as are

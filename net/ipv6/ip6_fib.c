@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	Linux INET6 implementation
+ *	GNU/Linux INET6 implementation
  *	Forwarding Information Database
  *
  *	Authors:

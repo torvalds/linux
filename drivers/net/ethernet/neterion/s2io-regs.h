@@ -1,5 +1,5 @@
 /************************************************************************
- * regs.h: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
+ * regs.h: A GNU/Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
  * Copyright(c) 2002-2010 Exar Corp.
 
  * This software may be used and distributed according to the terms of

@@ -306,7 +306,7 @@ struct cap_ioc_authenticate {
 Sysfs Interfaces - Firmware Download
 ------------------------------------
 
-The Firmware Download Protocol uses the existing Linux Kernel's Firmware class
+The Firmware Download Protocol uses the existing GNU/Linux Kernel's Firmware class
 and the interface provided to userspace are described in:
 Documentation/firmware_class/.
 

@@ -29,7 +29,7 @@ signals directly.
 -------------------------------
 
 Below diagram illustrates the high-level architecture of THC software/hardware stack, which is fully
-capable of supporting HIDSPI/HIDI2C protocol in Linux OS.
+capable of supporting HIDSPI/HIDI2C protocol in GNU/Linux OS.
 
 ::
 
@@ -361,7 +361,7 @@ Physical Region Descriptor (PRD) provides the memory mapping description for THC
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In order to improve physical DMA memory usage, modern drivers trend to allocate a virtually
-contiguous, but physically fragmented buffer of memory for each data buffer. Linux OS also
+contiguous, but physically fragmented buffer of memory for each data buffer. GNU/Linux OS also
 provide SGL (scatter gather list) APIs to support this usage.
 
 THC uses PRD table (physical region descriptor) to support the corresponding OS kernel

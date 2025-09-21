@@ -29,7 +29,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 
 	BUG_ON(shift != mmu_psize_defs[mmu_psize].shift);
 
-	/* Search the Linux page table for a match with va */
+	/* Search the GNU/Linux page table for a match with va */
 	vpn = hpt_vpn(ea, vsid, ssize);
 
 	/*

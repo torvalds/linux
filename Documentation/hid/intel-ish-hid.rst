@@ -9,7 +9,7 @@ battery life.
 
 There are many vendors providing external sensor hubs conforming to HID
 Sensor usage tables. These may be found in tablets, 2-in-1 convertible laptops
-and embedded products. Linux has had this support since Linux 3.9.
+and embedded products. GNU/Linux has had this support since GNU/Linux 3.9.
 
 Intel® introduced integrated sensor hubs as a part of the SoC starting from
 Cherry Trail and now supported on multiple generations of CPU packages. There
@@ -235,7 +235,7 @@ The host enumeration bus command allows discovery of clients present in the FW.
 There can be multiple sensor clients and clients for calibration function.
 
 To ease implementation and allow independent drivers to handle each client,
-this transport layer takes advantage of Linux Bus driver model. Each
+this transport layer takes advantage of GNU/Linux Bus driver model. Each
 client is registered as device on the transport bus (ishtp bus).
 
 Enumeration sequence of messages:
@@ -423,7 +423,7 @@ Vendors who wish to upstream their custom firmware should follow these guideline
 - ``${PRODUCT_NAME_CRC32}`` is the CRC32 checksum of the ``product_name`` value from the DMI field ``DMI_PRODUCT_NAME``.
 - ``${PRODUCT_SKU_CRC32}`` is the CRC32 checksum of the ``product_sku`` value from the DMI field ``DMI_PRODUCT_SKU``.
 
-During system boot, the ISH Linux driver will attempt to load the firmware in the following order, prioritizing custom firmware with more precise matching patterns:
+During system boot, the ISH GNU/Linux driver will attempt to load the firmware in the following order, prioritizing custom firmware with more precise matching patterns:
 
 1. ``intel/ish/ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_NAME_CRC32}_${PRODUCT_SKU_CRC32}.bin``
 2. ``intel/ish/ish_${intel_plat_gen}_${SYS_VENDOR_CRC32}_${PRODUCT_SKU_CRC32}.bin``

@@ -4,7 +4,7 @@
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
  *  Nov 7, 2000
- *  Modification to allow integration with Linux kernel
+ *  Modification to allow integration with GNU/Linux kernel
  *
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgard, carstenl@mips.com
  *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.

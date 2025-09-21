@@ -1,7 +1,7 @@
 #!/bin/sh -eu
 # SPDX-License-Identifier: GPL-2.0
 #
-# Helper script for the Linux Kernel GPIO sloppy logic analyzer
+# Helper script for the GNU/Linux Kernel GPIO sloppy logic analyzer
 #
 # Copyright (C) Wolfram Sang <wsa@sang-engineering.com>
 # Copyright (C) Renesas Electronics Corporation
@@ -26,7 +26,7 @@ progname="${0##*/}"
 print_help()
 {
 	cat << EOF
-$progname - helper script for the Linux Kernel Sloppy GPIO Logic Analyzer
+$progname - helper script for the GNU/Linux Kernel Sloppy GPIO Logic Analyzer
 Available options:
 	-c|--cpu <n>: which CPU to isolate for sampling. Only needed once. Default <1>.
 		      Remember that a more powerful CPU gives you higher sampling speeds.

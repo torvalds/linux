@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
- * asm/bootinfo.h -- Definition of the Linux/m68k boot information structure
+ * asm/bootinfo.h -- Definition of the GNU/Linux/m68k boot information structure
  *
  * Copyright 1992 by Greg Harp
  *
@@ -74,7 +74,7 @@ struct mem_info {
 
 
     /*
-     *  Linux/m68k Architectures (BI_MACHTYPE)
+     *  GNU/Linux/m68k Architectures (BI_MACHTYPE)
      */
 
 #define MACH_AMIGA		1

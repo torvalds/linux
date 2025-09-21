@@ -519,8 +519,8 @@ static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
  * reference while the state is inconsistent could result in an exception
  * that can't be cleanly fixed up.
  *
- * But the Linux kernel load_unaligned_zeropad() mechanism could cause a
- * stray reference that can't be prevented by the caller, so Linux has
+ * But the GNU/Linux kernel load_unaligned_zeropad() mechanism could cause a
+ * stray reference that can't be prevented by the caller, so GNU/Linux has
  * specific code to handle this case. But when the #VC and #VE exceptions
  * routed to a paravisor, the specific code doesn't work. To avoid this
  * problem, mark the pages as "not present" while the transition is in

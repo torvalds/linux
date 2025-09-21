@@ -11,7 +11,7 @@ config CODA_FS
 	  replication, security model for authentication and encryption,
 	  persistent client caches and write back caching.
 
-	  If you say Y here, your Linux box will be able to act as a Coda
+	  If you say Y here, your GNU/Linux box will be able to act as a Coda
 	  *client*.  You will need user level code as well, both for the
 	  client and server.  Servers are currently user level, i.e. they need
 	  no kernel support.  Please read

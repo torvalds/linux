@@ -9,8 +9,8 @@
  * Based on ipv4/ping.c code.
  *
  * Authors:	Lorenzo Colitti (IPv6 support)
- *		Vasiliy Kulikov / Openwall (IPv4 implementation, for Linux 2.6),
- *		Pavel Kankovsky (IPv4 implementation, for Linux 2.4.32)
+ *		Vasiliy Kulikov / Openwall (IPv4 implementation, for GNU/Linux 2.6),
+ *		Pavel Kankovsky (IPv4 implementation, for GNU/Linux 2.4.32)
  */
 
 #include <net/addrconf.h>

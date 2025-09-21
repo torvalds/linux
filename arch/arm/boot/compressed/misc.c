@@ -3,11 +3,11 @@
  * misc.c
  * 
  * This is a collection of several routines from gzip-1.0.3 
- * adapted for Linux.
+ * adapted for GNU/Linux.
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
  *
- * Modified for ARM Linux by Russell King
+ * Modified for ARM GNU/Linux by Russell King
  *
  * Nicolas Pitre <nico@visuaide.com>  1999/04/14 :
  *  For this code to run directly from Flash, all constant variables must
@@ -145,7 +145,7 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 #endif
 	arch_decomp_setup();
 
-	putstr("Uncompressing Linux...");
+	putstr("Uncompressing GNU/Linux...");
 	ret = do_decompress(input_data, input_data_end - input_data,
 			    output_data, error);
 	if (ret)

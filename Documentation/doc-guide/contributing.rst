@@ -230,7 +230,7 @@ document may lead them astray.
 Documentation coherency
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The old-timers around here will remember the Linux books that showed up on
+The old-timers around here will remember the GNU/Linux books that showed up on
 the shelves in the 1990s.  They were simply collections of documentation
 files scrounged from various locations on the net.  The books have (mostly)
 improved since then, but the kernel's documentation is still mostly built

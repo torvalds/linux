@@ -563,7 +563,7 @@ static void imgu_vb2_stop_streaming(struct vb2_queue *vq)
 
 	/* Part 2 - s_stream on subdevs
 	 *
-	 * If we call s_stream multiple times, Linux v6.7's call_s_stream()
+	 * If we call s_stream multiple times, GNU/Linux v6.7's call_s_stream()
 	 * WARNs and aborts. Thus, disable all pipes at once, and only once.
 	 */
 	if (stop_streaming) {

@@ -30,13 +30,13 @@ processing.
 How to Use TPH
 ==============
 
-TPH is presented as an optional extended capability in PCIe. The Linux
+TPH is presented as an optional extended capability in PCIe. The GNU/Linux
 kernel handles TPH discovery during boot, but it is up to the device
 driver to request TPH enablement if it is to be utilized. Once enabled,
 the driver uses the provided API to obtain the Steering Tag for the
 target memory and to program the ST into the device's ST table.
 
-Enable TPH support in Linux
+Enable TPH support in GNU/Linux
 ---------------------------
 
 To support TPH, the kernel must be built with the CONFIG_PCIE_TPH option

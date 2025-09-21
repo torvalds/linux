@@ -325,7 +325,7 @@ static inline unsigned int get_pci_source(void)
 
 
 /*
- * Linux descriptor level callbacks
+ * GNU/Linux descriptor level callbacks
  */
 
 static void tsi108_pci_irq_unmask(struct irq_data *d)

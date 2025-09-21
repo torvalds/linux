@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linux-DVB Driver for DiBcom's second generation DiB7000P (PC).
+ * GNU/Linux-DVB Driver for DiBcom's second generation DiB7000P (PC).
  *
  * Copyright (C) 2005-7 DiBcom (http://www.dibcom.fr/)
  */

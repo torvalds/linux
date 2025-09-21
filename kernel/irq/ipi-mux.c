@@ -2,7 +2,7 @@
 /*
  * Multiplex several virtual IPIs over a single HW IPI.
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  * Copyright (c) 2022 Ventana Micro Systems Inc.
  */
 

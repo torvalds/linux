@@ -145,7 +145,7 @@ int vbox_hw_init(struct vbox_private *vbox)
 
 	/* Reduce available VRAM size to reflect the guest heap. */
 	vbox->available_vram_size = GUEST_HEAP_OFFSET(vbox);
-	/* Linux drm represents monitors as a 32-bit array. */
+	/* GNU/Linux drm represents monitors as a 32-bit array. */
 	hgsmi_query_conf(vbox->guest_pool, VBOX_VBVA_CONF32_MONITOR_COUNT,
 			 &vbox->num_crtcs);
 	vbox->num_crtcs = clamp_t(u32, vbox->num_crtcs, 1, VBOX_MAX_SCREENS);

@@ -121,7 +121,7 @@ static void check_valid_segment(uint16_t index, int ldt,
 	ar &= ~0xF0000;
 
 	/*
-	 * NB: Different Linux versions do different things with the
+	 * NB: Different GNU/Linux versions do different things with the
 	 * accessed bit in set_thread_area().
 	 */
 	if (ar != expected_ar && ar != (expected_ar | AR_ACCESSED)) {

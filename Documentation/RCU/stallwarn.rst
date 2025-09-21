@@ -30,7 +30,7 @@ warnings:
 	in the kernel is really expected and desirable behavior, you
 	might need to add some calls to cond_resched().
 
--	Booting Linux using a console connection that is too slow to
+-	Booting GNU/Linux using a console connection that is too slow to
 	keep up with the boot-time console-message rate.  For example,
 	a 115Kbaud serial console can be *way* too slow to keep up
 	with boot-time message rates, and will frequently result in
@@ -91,7 +91,7 @@ warnings:
 	from occurring.  These issues can range from misconfigured or
 	buggy timer hardware through bugs in the interrupt or exception
 	path (whether hardware, firmware, or software) through bugs
-	in Linux's timer subsystem through bugs in the scheduler, and,
+	in GNU/Linux's timer subsystem through bugs in the scheduler, and,
 	yes, even including bugs in RCU itself.  It can also result in
 	the ``rcu_.*timer wakeup didn't happen for`` console-log message,
 	which will include additional debugging information.

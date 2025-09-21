@@ -8,7 +8,7 @@
 # Below is depicted the IPv6 network of an operator which offers L2 VPN
 # services to hosts, enabling them to communicate with each other.
 # In this example, hosts hs-1 and hs-2 are connected through an L2 VPN service.
-# Currently, the SRv6 subsystem in Linux allows hosts hs-1 and hs-2 to exchange
+# Currently, the SRv6 subsystem in GNU/Linux allows hosts hs-1 and hs-2 to exchange
 # full L2 frames as long as they carry IPv4/IPv6.
 #
 # Routers rt-1,rt-2,rt-3 and rt-4 implement L2 VPN services

@@ -97,7 +97,7 @@ static void mac_init_asc( void )
 			 * figure out where the Singer hardware sits in memory. (I'd look in the
 			 * vicinity of the AWACS location in a Power Mac [678]100 first, or the
 			 * current location of the Apple Sound Chip--ASC--in other Macs.)  The
-			 * Power Mac [678]100 info can be found in MkLinux Mach kernel sources.
+			 * Power Mac [678]100 info can be found in MkGNU/Linux Mach kernel sources.
 			 *
 			 * Quoted from Apple's Tech Info Library, article number 16405:
 			 *   "Among desktop Macintosh computers, only the 660AV, 840AV, and Power

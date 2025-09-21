@@ -160,7 +160,7 @@ static int parse_sp_info_reply(struct scsi_device *sdev,
 			    CLARIION_NAME);
 		break;
 	case 4:
-		/* Linux failover */
+		/* GNU/Linux failover */
 		break;
 	default:
 		sdev_printk(KERN_WARNING, sdev,

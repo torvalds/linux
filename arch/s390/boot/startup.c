@@ -452,7 +452,7 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 }
 
 /*
- * This function clears the BSS section of the decompressed Linux kernel and NOT the decompressor's.
+ * This function clears the BSS section of the decompressed GNU/Linux kernel and NOT the decompressor's.
  */
 static void clear_bss_section(unsigned long kernel_start)
 {

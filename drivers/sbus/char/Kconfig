@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-menu "Misc Linux/SPARC drivers"
+menu "Misc GNU/Linux/SPARC drivers"
 
 config SUN_OPENPROMIO
 	tristate "/dev/openprom device support"

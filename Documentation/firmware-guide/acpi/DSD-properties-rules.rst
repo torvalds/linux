@@ -12,7 +12,7 @@ allows any type of device configuration data to be provided via the ACPI
 namespace.  In principle, the format of the data may be arbitrary, but it has to
 be identified by a UUID which must be recognized by the driver processing the
 _DSD output.  However, there are generic UUIDs defined for _DSD recognized by
-the ACPI subsystem in the Linux kernel which automatically processes the data
+the ACPI subsystem in the GNU/Linux kernel which automatically processes the data
 packages associated with them and makes those data available to device drivers
 as "device properties".
 

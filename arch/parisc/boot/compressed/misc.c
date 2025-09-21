@@ -295,7 +295,7 @@ asmlinkage unsigned long __visible decompress_kernel(unsigned int started_wide,
 
 	putchar('D');	/* if you get this D and no more, string storage */
 			/* in $GLOBAL$ is wrong or %dp is wrong */
-	puts("ecompressing Linux... ");
+	puts("ecompressing GNU/Linux... ");
 
 	/* where the final bits are stored */
 	kernel_addr = KERNEL_BINARY_TEXT_START;

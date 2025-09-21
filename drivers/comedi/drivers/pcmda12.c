@@ -3,7 +3,7 @@
  * pcmda12.c
  * Driver for Winsystems PC-104 based PCM-D/A-12 8-channel AO board.
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2006 Calin A. Culianu <calin@ajvar.org>
  */
 

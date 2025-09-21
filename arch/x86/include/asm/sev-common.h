@@ -194,7 +194,7 @@ struct snp_psc_desc {
 #define GHCB_SEV_ES_PROT_UNSUPPORTED	1
 #define GHCB_SNP_UNSUPPORTED		2
 
-/* Linux-specific reason codes (used with reason set 1) */
+/* GNU/Linux-specific reason codes (used with reason set 1) */
 #define SEV_TERM_SET_LINUX		1
 #define GHCB_TERM_REGISTER		0	/* GHCB GPA registration failure */
 #define GHCB_TERM_PSC			1	/* Page State Change failure */

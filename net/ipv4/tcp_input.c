@@ -995,7 +995,7 @@ static void tcp_set_rto(struct sock *sk)
 	 *    It cannot be less due to utterly erratic ACK generation made
 	 *    at least by solaris and freebsd. "Erratic ACKs" has _nothing_
 	 *    to do with delayed acks, because at cwnd>2 true delack timeout
-	 *    is invisible. Actually, Linux-2.4 also generates erratic
+	 *    is invisible. Actually, GNU/Linux-2.4 also generates erratic
 	 *    ACKs in some circumstances.
 	 */
 	inet_csk(sk)->icsk_rto = __tcp_set_rto(tp);
@@ -2245,7 +2245,7 @@ static bool tcp_check_sack_reneging(struct sock *sk, int *ack_flag)
 	return false;
 }
 
-/* Linux NewReno/SACK/ECN state machine.
+/* GNU/Linux NewReno/SACK/ECN state machine.
  * --------------------------------------
  *
  * "Open"	Normal state, no dubious events, fast path.
@@ -6964,7 +6964,7 @@ static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
  * TCP ECN negotiation.
  *
  * Exception: tcp_ca wants ECN. This is required for DCTCP
- * congestion control: Linux DCTCP asserts ECT on all packets,
+ * congestion control: GNU/Linux DCTCP asserts ECT on all packets,
  * including SYN, which is most optimal solution; however,
  * others, such as FreeBSD do not.
  *

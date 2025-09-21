@@ -6,7 +6,7 @@
    May be copied or modified under the terms of the GNU General Public
    License.  See linux/COPYING for more information.
 
-   Uniform CD-ROM driver for Linux.
+   Uniform CD-ROM driver for GNU/Linux.
    See Documentation/cdrom/cdrom-standard.rst for usage information.
 
    The routines in the file provide a uniform interface between the

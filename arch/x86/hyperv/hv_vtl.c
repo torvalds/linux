@@ -61,7 +61,7 @@ void __init hv_vtl_init_platform(void)
 	 * If it is, this function runs if and only the kernel boots in
 	 * VTL2 which the x86 hv initialization path makes sure of.
 	 */
-	pr_info("Linux runs in Hyper-V Virtual Trust Level %d\n", ms_hyperv.vtl);
+	pr_info("GNU/Linux runs in Hyper-V Virtual Trust Level %d\n", ms_hyperv.vtl);
 
 	x86_platform.realmode_reserve = x86_init_noop;
 	x86_platform.realmode_init = x86_init_noop;
@@ -139,7 +139,7 @@ static int hv_vtl_bringup_vcpu(u32 target_vp_index, int cpu, u64 eip_ignored)
 	input->target_vtl.target_vtl = HV_VTL_MGMT;
 
 	/*
-	 * The x86_64 Linux kernel follows the 16-bit -> 32-bit -> 64-bit
+	 * The x86_64 GNU/Linux kernel follows the 16-bit -> 32-bit -> 64-bit
 	 * mode transition sequence after waking up an AP with SIPI whose
 	 * vector points to the 16-bit AP startup trampoline code. Here in
 	 * VTL2, we can't perform that sequence as the AP has to start in

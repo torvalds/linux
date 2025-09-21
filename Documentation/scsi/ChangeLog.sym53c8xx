@@ -137,7 +137,7 @@ Sat Mar 11 12:00 2000 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.6b-5
 	- Test against expected data transfer direction from SCRIPTS.
 	- Add support for the new dynamic dma mapping kernel interface.
-	  Requires Linux-2.3.47 (tested with pre-2.3.47-6).
+	  Requires GNU/Linux-2.3.47 (tested with pre-2.3.47-6).
 	  Many thanks to David S. Miller for his preliminary changes 
 	  that have been useful guidelines.
 	- Get data transfer direction from the scsi command structure 
@@ -165,7 +165,7 @@ Mon Feb 14 4:00 2000 Pam Delaney (pam.delaney@lsil.com)
 Sun Feb 20 11:00 2000 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.5j
 	- Add support for the new dynamic dma mapping kernel interface.
-	  Requires Linux-2.3.47 (tested with pre-2.3.47-6).
+	  Requires GNU/Linux-2.3.47 (tested with pre-2.3.47-6).
 	  Many thanks to David S. Miller for his preliminary changes 
 	  that have been useful guidelines, for having reviewed the 
 	  code and having tested this driver version on Ultra-Sparc.
@@ -228,7 +228,7 @@ Mon Dec 6  22:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	  (Sent by Pamela Delaney from LSILOGIC)
 	- Remove the compilation condition about having to acquire the 
 	  io_request_lock since it seems to be a definite feature now.:)
-	- Change get_pages by GetPages since Linux >= 2.3.27 now wants 
+	- Change get_pages by GetPages since GNU/Linux >= 2.3.27 now wants 
 	  get_pages to ever be used as a kernel symbol (from 2.3.27).
 	- proc_dir structure no longer needed for kernel >= 2.3.27.
 
@@ -347,7 +347,7 @@ Sun May 9  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	- Fix the misdetection of SYM53C875E (was detected as a 876).
 	- Fix the misdetection of SYM53C810 not A (was detected as a 810A).
 	- Support for up to 256 TAGS per LUN (CMD_PER_LUN).
-	  Currently limited to 255 due to Linux limitation. :)
+	  Currently limited to 255 due to GNU/Linux limitation. :)
 	- Support for up to 508 active commands (CAN_QUEUE).
 	- Support for the 53C895A by Pamela Delaney <pam.delaney@lsil.com>
 	  The 53C895A contains all of the features of the 896 but has only 
@@ -416,7 +416,7 @@ Fri Feb 12  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	  support of SCSI hot-plug.
 	- Add 'recovery' option to driver set-up.
 	- Negotiate SYNC data transfers with CCS devices.
-	- Deal correctly with 64 bit PCI address registers on Linux 2.2.
+	- Deal correctly with 64 bit PCI address registers on GNU/Linux 2.2.
 	  Pointed out by Leonard Zubkoff.
 
 Sun Jan 31  18:00 1999 Gerard Roudier (groudier@club-internet.fr)
@@ -450,7 +450,7 @@ Fri Jan  1  20:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.0a
 	- Waiting list look-up didn't work for the first command of the list.
 	  Hopefully fixed, but tested on paper only. ;)
-	- Remove the most part of PPC specific code for Linux-2.2.
+	- Remove the most part of PPC specific code for GNU/Linux-2.2.
 	  Thanks to Cort.
 	- Some other minors changes.
 

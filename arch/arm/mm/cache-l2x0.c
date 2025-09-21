@@ -1349,7 +1349,7 @@ static const struct l2c_init_data of_l2c310_coherent_data __initconst = {
 };
 
 /*
- * Note that the end addresses passed to Linux primitives are
+ * Note that the end addresses passed to GNU/Linux primitives are
  * noninclusive, while the hardware cache range operations use
  * inclusive start and end addresses.
  */

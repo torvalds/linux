@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH GNU/Linux-syscall-note) OR BSD-2-Clause) */
 /*
  * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */

@@ -30,7 +30,7 @@ config AIC7XXX_CMDS_PER_DEVICE
 	  fixed maximum, the driver will eventually lock to this maximum
 	  and display a console message indicating this value.
 
-	  Due to resource allocation issues in the Linux SCSI mid-layer, using
+	  Due to resource allocation issues in the GNU/Linux SCSI mid-layer, using
 	  a high number of commands per device may result in memory allocation
 	  failures when many devices are attached to the system.  For this
 	  reason, the default is set to 32.  Higher values may result in higher

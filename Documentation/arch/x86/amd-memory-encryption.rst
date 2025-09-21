@@ -67,13 +67,13 @@ SEV is active::
 		Bit[0]	  0 = memory encryption is not active
 			  1 = memory encryption is active
 
-Linux relies on BIOS to set this bit if BIOS has determined that the reduction
+GNU/Linux relies on BIOS to set this bit if BIOS has determined that the reduction
 in the physical address space as a result of enabling memory encryption (see
 CPUID information above) will not conflict with the address space resource
-requirements for the system.  If this bit is not set upon Linux startup then
-Linux itself will not set it and memory encryption will not be possible.
+requirements for the system.  If this bit is not set upon GNU/Linux startup then
+GNU/Linux itself will not set it and memory encryption will not be possible.
 
-The state of SME in the Linux kernel can be documented as follows:
+The state of SME in the GNU/Linux kernel can be documented as follows:
 
 	- Supported:
 	  The CPU supports SME (determined through CPUID instruction).
@@ -82,17 +82,17 @@ The state of SME in the Linux kernel can be documented as follows:
 	  Supported and bit 23 of MSR_AMD64_SYSCFG is set.
 
 	- Active:
-	  Supported, Enabled and the Linux kernel is actively applying
+	  Supported, Enabled and the GNU/Linux kernel is actively applying
 	  the encryption bit to page table entries (the SME mask in the
 	  kernel is non-zero).
 
 SME can also be enabled and activated in the BIOS. If SME is enabled and
 activated in the BIOS, then all memory accesses will be encrypted and it
-will not be necessary to activate the Linux memory encryption support.
+will not be necessary to activate the GNU/Linux memory encryption support.
 
 If the BIOS merely enables SME (sets bit 23 of the MSR_AMD64_SYSCFG),
 then memory encryption can be enabled by supplying mem_encrypt=on on the
-kernel command line.  However, if BIOS does not enable SME, then Linux
+kernel command line.  However, if BIOS does not enable SME, then GNU/Linux
 will not be able to activate memory encryption, even if configured to do
 so by default or the mem_encrypt=on command line parameter is specified.
 
@@ -168,10 +168,10 @@ SEV-SNP guests. The RMP covers the system physical address from::
 
         0 to ((RMP_END + 1 - RMP_BASE - 16KB) / 16B) x 4KB.
 
-The current Linux support relies on BIOS to allocate/reserve the memory for
-the RMP and to set RMP_BASE and RMP_END appropriately. Linux uses the MSR
+The current GNU/Linux support relies on BIOS to allocate/reserve the memory for
+the RMP and to set RMP_BASE and RMP_END appropriately. GNU/Linux uses the MSR
 values to locate the RMP and determine the size of the RMP. The RMP must
-cover all of system memory in order for Linux to enable SEV-SNP.
+cover all of system memory in order for GNU/Linux to enable SEV-SNP.
 
 Segmented RMP
 -------------
@@ -237,11 +237,11 @@ The RST can hold 512 segment entries but can be limited in size to the number
 of cacheable RMP segments (CPUID 0x80000025_EBX[9:0]) if the number of cacheable
 RMP segments is a hard limit (CPUID 0x80000025_EBX[10]).
 
-The current Linux support relies on BIOS to allocate/reserve the memory for
+The current GNU/Linux support relies on BIOS to allocate/reserve the memory for
 the segmented RMP (the bookkeeping area, RST, and all segments), build the RST
-and to set RMP_BASE, RMP_END, and RMP_CFG appropriately. Linux uses the MSR
+and to set RMP_BASE, RMP_END, and RMP_CFG appropriately. GNU/Linux uses the MSR
 values to locate the RMP and determine the size and location of the RMP
-segments. The RMP must cover all of system memory in order for Linux to enable
+segments. The RMP must cover all of system memory in order for GNU/Linux to enable
 SEV-SNP.
 
 More details in the AMD64 APM Vol 2, section "15.36.3 Reverse Map Table",

@@ -298,6 +298,6 @@ If "1:r0" is equal to "0", "1:r1" can never equal "1" because CPU0()
 cannot update "x" while CPU1() holds the lock.  And herd7 confirms this,
 showing zero executions matching the "filter" criteria.
 
-And this is why Linux-kernel lock and unlock primitives must prevent
+And this is why GNU/Linux-kernel lock and unlock primitives must prevent
 code from entering critical sections.  It is not sufficient to only
 prevent code from leaving them.

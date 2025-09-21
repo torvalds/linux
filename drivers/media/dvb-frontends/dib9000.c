@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linux-DVB Driver for DiBcom's DiB9000 and demodulator-family.
+ * GNU/Linux-DVB Driver for DiBcom's DiB9000 and demodulator-family.
  *
  * Copyright (C) 2005-10 DiBcom (http://www.dibcom.fr/)
  */

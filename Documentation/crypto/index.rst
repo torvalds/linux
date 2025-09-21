@@ -5,7 +5,7 @@ Crypto API
 :Author: Stephan Mueller
 :Author: Marek Vasut
 
-This documentation outlines the Linux kernel crypto API with its
+This documentation outlines the GNU/Linux kernel crypto API with its
 concepts, details about developing cipher implementations, employment of the API
 for cryptographic use cases, as well as programming examples.
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_ASM_GENERIC_IOCTL_H
 #define _UAPI_ASM_GENERIC_IOCTL_H
 
@@ -13,7 +13,7 @@
  */
 
 /*
- * The following is for compatibility across the various Linux
+ * The following is for compatibility across the various GNU/Linux
  * platforms.  The generic ioctl numbering scheme doesn't really enforce
  * a type field.  De facto, however, the top 8 bits of the lower 16
  * bits are indeed used as a type field, so we might just as well make

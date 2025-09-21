@@ -11,7 +11,7 @@
  * Woodruff
  *
  * This type of functionality should be implemented as a proper
- * omap_bus/omap_device in Linux.
+ * omap_bus/omap_device in GNU/Linux.
  *
  * omap_device differs from omap_hwmod in that it includes external
  * (e.g., board- and system-level) integration details.  omap_hwmod
@@ -43,7 +43,7 @@
  * @flags: device flags
  * @_driver_status: one of BUS_NOTIFY_*_DRIVER from <linux/device.h>
  *
- * Integrates omap_hwmod data into Linux platform_device.
+ * Integrates omap_hwmod data into GNU/Linux platform_device.
  *
  * Field names beginning with underscores are for the internal use of
  * the omap_device code.

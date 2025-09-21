@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * This file is part of the Linux kernel.
+ * This file is part of the GNU/Linux kernel.
  *
  * Copyright (c) 2011, Intel Corporation
  * Authors: Fenghua Yu <fenghua.yu@intel.com>,

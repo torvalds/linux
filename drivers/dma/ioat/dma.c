@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel I/OAT DMA Linux driver
+ * Intel I/OAT DMA GNU/Linux driver
  * Copyright(c) 2004 - 2015 Intel Corporation.
  */
 

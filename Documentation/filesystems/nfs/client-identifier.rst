@@ -8,7 +8,7 @@ This document explains how the NFSv4 protocol identifies client
 instances in order to maintain file open and lock state during
 system restarts. A special identifier and principal are maintained
 on each client. These can be set by administrators, scripts
-provided by site administrators, or tools provided by Linux
+provided by site administrators, or tools provided by GNU/Linux
 distributors.
 
 There are risks if a client's NFSv4 identifier and its principal
@@ -123,8 +123,8 @@ of service and in rare cases even data corruption.
 Selecting an appropriate client identifier
 ------------------------------------------
 
-By default, the Linux NFSv4 client implementation constructs its
-"co_ownerid" string starting with the words "Linux NFS" followed by
+By default, the GNU/Linux NFSv4 client implementation constructs its
+"co_ownerid" string starting with the words "GNU/Linux NFS" followed by
 the client's UTS node name (the same node name, incidentally, that
 is used as the "machine name" in an AUTH_SYS credential). In small
 deployments, this construction is usually adequate. Often, however,
@@ -134,7 +134,7 @@ unexpectedly. Problematic situations include:
   - NFS-root (diskless) clients, where the local DHCP server (or
     equivalent) does not provide a unique host name.
 
-  - "Containers" within a single Linux host.  If each container has
+  - "Containers" within a single GNU/Linux host.  If each container has
     a separate network namespace, but does not use the UTS namespace
     to provide a unique host name, then there can be multiple NFS
     client instances with the same host name.
@@ -144,7 +144,7 @@ unexpectedly. Problematic situations include:
     then uniqueness cannot be guaranteed unless a domain name is
     included in the hostname.
 
-Linux provides two mechanisms to add uniqueness to its "co_ownerid"
+GNU/Linux provides two mechanisms to add uniqueness to its "co_ownerid"
 string:
 
     nfs.nfs4_unique_id
@@ -153,7 +153,7 @@ string:
       loaded.
 
     /sys/fs/nfs/net/nfs_client/identifier
-      This virtual file, available since Linux 5.3, is local to the
+      This virtual file, available since GNU/Linux 5.3, is local to the
       network namespace in which it is accessed and so can provide
       distinction between network namespaces (containers) when the
       hostname remains uniform.
@@ -172,7 +172,7 @@ Security considerations
 The use of cryptographic security for lease management operations
 is strongly encouraged.
 
-If NFS with Kerberos is not configured, a Linux NFSv4 client uses
+If NFS with Kerberos is not configured, a GNU/Linux NFSv4 client uses
 AUTH_SYS and UID 0 as the principal part of its client identity.
 This configuration is not only insecure, it increases the risk of
 lease and lock stealing. However, it might be the only choice for
@@ -180,7 +180,7 @@ client configurations that have no local persistent storage.
 "co_ownerid" string uniqueness and persistence is critical in this
 case.
 
-When a Kerberos keytab is present on a Linux NFS client, the client
+When a Kerberos keytab is present on a GNU/Linux NFS client, the client
 attempts to use one of the principals in that keytab when
 identifying itself to servers. The "sec=" mount option does not
 control this behavior. Alternately, a single-user client with a
@@ -189,20 +189,20 @@ host principal.
 
 Using Kerberos for this purpose enables the client and server to
 use the same lease for operations covered by all "sec=" settings.
-Additionally, the Linux NFS client uses the RPCSEC_GSS security
+Additionally, the GNU/Linux NFS client uses the RPCSEC_GSS security
 flavor with Kerberos and the integrity QOS to prevent in-transit
 modification of lease modification requests.
 
 Additional notes
 ----------------
-The Linux NFSv4 client establishes a single lease on each NFSv4
-server it accesses. NFSv4 mounts from a Linux NFSv4 client of a
+The GNU/Linux NFSv4 client establishes a single lease on each NFSv4
+server it accesses. NFSv4 mounts from a GNU/Linux NFSv4 client of a
 particular server then share that lease.
 
 Once a client establishes open and lock state, the NFSv4 protocol
 enables lease state to transition to other servers, following data
 that has been migrated. This hides data migration completely from
-running applications. The Linux NFSv4 client facilitates state
+running applications. The GNU/Linux NFSv4 client facilitates state
 migration by presenting the same "client_owner4" to all servers it
 encounters.
 

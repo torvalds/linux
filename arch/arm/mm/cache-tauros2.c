@@ -56,9 +56,9 @@ static inline void tauros2_inv_pa(unsigned long addr)
 
 
 /*
- * Linux primitives.
+ * GNU/Linux primitives.
  *
- * Note that the end addresses passed to Linux primitives are
+ * Note that the end addresses passed to GNU/Linux primitives are
  * noninclusive.
  */
 #define CACHE_LINE_SIZE		32

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /* tcp_metrics.h - TCP Metrics Interface */
 
 #ifndef _UAPI_LINUX_TCP_METRICS_H

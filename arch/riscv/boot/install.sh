@@ -9,7 +9,7 @@
 # Adapted from code in arch/i386/boot/Makefile by H. Peter Anvin
 # Adapted from code in arch/i386/boot/install.sh by Russell King
 #
-# "make install" script for the RISC-V Linux port
+# "make install" script for the RISC-V GNU/Linux port
 #
 # Arguments:
 #   $1 - kernel version

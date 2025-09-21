@@ -58,7 +58,7 @@ Detection and Recovery
 ----------------------
 In the following discussion, a generic overview of how to detect
 and recover from EEH errors will be presented. This is followed
-by an overview of how the current implementation in the Linux
+by an overview of how the current implementation in the GNU/Linux
 kernel does it.  The actual implementation is subject to change,
 and some of the finer points are still being debated.  These
 may in turn be swayed if or when other architectures implement
@@ -76,9 +76,9 @@ This includes access to PCI memory, I/O space, and PCI config
 space.  Interrupts; however, will continue to be delivered.
 
 Detection and recovery are performed with the aid of ppc64
-firmware.  The programming interfaces in the Linux kernel
+firmware.  The programming interfaces in the GNU/Linux kernel
 into the firmware are referred to as RTAS (Run-Time Abstraction
-Services).  The Linux kernel does not (should not) access
+Services).  The GNU/Linux kernel does not (should not) access
 the EEH function in the PCI chipsets directly, primarily because
 there are a number of different chipsets out there, each with
 different interfaces and quirks. The firmware provides a
@@ -110,7 +110,7 @@ The correct way to deal with failed adapters is to use the standard
 PCI hotplug tools to remove and replace the dead card.
 
 
-Current PPC64 Linux EEH Implementation
+Current PPC64 GNU/Linux EEH Implementation
 --------------------------------------
 At this time, a generic EEH recovery mechanism has been implemented,
 so that individual device drivers do not need to be modified to support
@@ -150,7 +150,7 @@ useful to device-driver authors for finding out at what point the EEH
 error was detected, as the error itself usually occurs slightly
 beforehand.
 
-Next, it uses the Linux kernel notifier chain/work queue mechanism to
+Next, it uses the GNU/Linux kernel notifier chain/work queue mechanism to
 allow any interested parties to find out about the failure.  Device
 drivers, or other parts of the kernel, can use
 `eeh_register_notifier(struct notifier_block *)` to find out about EEH

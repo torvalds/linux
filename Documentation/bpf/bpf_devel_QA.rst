@@ -107,7 +107,7 @@ from the current review queue. Likewise for cases where patches would
 get rejected or are not applicable to the BPF trees (but assigned to
 the 'bpf' delegate).
 
-Q: How do the changes make their way into Linux?
+Q: How do the changes make their way into GNU/Linux?
 ------------------------------------------------
 A: There are two BPF kernel trees (git repositories). Once patches have
 been accepted by the BPF maintainers, they will be applied to one
@@ -379,7 +379,7 @@ test_verifier.c) for new instructions, so that they can receive
 broad test coverage and help run-time testing the various BPF JITs.
 
 In case of new BPF instructions, once the changes have been accepted
-into the Linux kernel, please implement support into LLVM's BPF back
+into the GNU/Linux kernel, please implement support into LLVM's BPF back
 end. See LLVM_ section below for further information.
 
 Q: What "BPF_INTERNAL" symbol namespace is for?
@@ -631,7 +631,7 @@ For cross-compilation, a specific version can be select manually as well ::
        v2      - Select the v2 processor.
      [...]
 
-Newly added BPF instructions to the Linux kernel need to follow the same
+Newly added BPF instructions to the GNU/Linux kernel need to follow the same
 scheme, bump the instruction set version and implement probing for the
 extensions such that ``-mcpu=probe`` users can benefit from the
 optimization transparently when upgrading their kernels.

@@ -1430,7 +1430,7 @@ static void xen_write_cr3(unsigned long cr3)
  * Since there are no user-page tables at all, we have two variants
  * of xen_write_cr3 - the early bootup (this one), and the late one
  * (xen_write_cr3). The reason we have to do that is that in 64-bit
- * the Linux kernel and user-space are both in ring 3 while the
+ * the GNU/Linux kernel and user-space are both in ring 3 while the
  * hypervisor is in ring 0.
  */
 static void __init xen_write_cr3_init(unsigned long cr3)

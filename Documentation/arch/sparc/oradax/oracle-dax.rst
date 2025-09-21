@@ -218,7 +218,7 @@ Huge pages. A user may allocate huge pages using standard interfaces.
 Memory buffers residing on huge pages may be used to achieve much
 larger DAX transaction sizes, but the rules must still be followed,
 and no transaction will cross a page boundary, even a huge page.  A
-major caveat is that Linux on Sparc presents 8Mb as one of the huge
+major caveat is that GNU/Linux on Sparc presents 8Mb as one of the huge
 page sizes. Sparc does not actually provide a 8Mb hardware page size,
 and this size is synthesized by pasting together two 4Mb pages. The
 reasons for this are historical, and it creates an issue because only
@@ -248,7 +248,7 @@ for the completion area, output buffer, and various inputs::
 
 See libdax/common/sys/dax1/dax1_ccb.h for a detailed description of
 each of these fields, and see dax-hv-api.txt for a complete description
-of the Hypervisor API available to the guest OS (ie, Linux kernel).
+of the Hypervisor API available to the guest OS (ie, GNU/Linux kernel).
 
 The first word (control) is examined by the driver for the following:
  - CCB version, which must be consistent with hardware version

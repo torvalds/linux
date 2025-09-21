@@ -470,7 +470,7 @@ struct ubifs_ch {
  *
  * This data structure describes major/minor numbers of a device node. In an
  * inode is a device node then its data contains an object of this type. UBIFS
- * uses standard Linux "new" and "huge" device node encodings.
+ * uses standard GNU/Linux "new" and "huge" device node encodings.
  */
 union ubifs_dev_desc {
 	__le32 new;

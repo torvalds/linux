@@ -11,14 +11,14 @@
 
 
 ===================
-Linux 和 Devicetree
+GNU/Linux 和 Devicetree
 ===================
 
-Linux对设备树数据的使用模型
+GNU/Linux对设备树数据的使用模型
 
 :作者: Grant Likely <grant.likely@secretlab.ca>
 
-这篇文章描述了Linux如何使用设备树。关于设备树数据格式的概述可以在
+这篇文章描述了GNU/Linux如何使用设备树。关于设备树数据格式的概述可以在
 devicetree.org\ [1]_ 的设备树使用页面上找到。
 
 .. [1] https://www.devicetree.org/specifications/
@@ -49,9 +49,9 @@ DT最初是由Open Firmware创建的，作为将数据从Open Firmware传递给�
 序都可用）。
 
 由于Open Firmware通常在PowerPC和SPARC平台上使用，长期以来，对这些架构的
-Linux支持一直使用设备树。
+GNU/Linux支持一直使用设备树。
 
-2005年，当PowerPC Linux开始大规模清理并合并32位和64位支持时，决定在所有
+2005年，当PowerPC GNU/Linux开始大规模清理并合并32位和64位支持时，决定在所有
 Powerpc平台上要求DT支持，无论它们是否使用Open Firmware。为了做到这一点，
 我们创建了一个叫做扁平化设备树（FDT）的DT表示法，它可以作为一个二进制的blob
 传递给内核，而不需要真正的Open Firmware实现。U-Boot、kexec和其他引导程序
@@ -70,7 +70,7 @@ Powerpc平台上要求DT支持，无论它们是否使用Open Firmware。为了�
 2.1 高层次视角
 --------------
 最重要的是要明白，DT只是一个描述硬件的数据结构。它没有什么神奇之处，也不会神
-奇地让所有的硬件配置问题消失。它所做的是提供一种语言，将硬件配置与Linux内核
+奇地让所有的硬件配置问题消失。它所做的是提供一种语言，将硬件配置与GNU/Linux内核
 （或任何其他操作系统）中的板卡和设备驱动支持解耦。使用它可以使板卡和设备支持
 变成数据驱动；根据传递到内核的数据做出设置决定，而不是根据每台机器的硬编码选
 择。
@@ -78,7 +78,7 @@ Powerpc平台上要求DT支持，无论它们是否使用Open Firmware。为了�
 理想情况下，数据驱动的平台设置应该导致更少的代码重复，并使其更容易用一个内核
 镜像支持各种硬件。
 
-Linux使用DT数据有三个主要目的:
+GNU/Linux使用DT数据有三个主要目的:
 
 1) 平台识别。
 2) 运行时配置，以及
@@ -146,7 +146,7 @@ PowerPC使用了一个稍微不同的方案，它从每个machine_desc中调用.
 在大多数情况下，DT是将数据从固件传递给内核的唯一方法，所以也被用来传递运行
 时和配置数据，如内核参数字符串和initrd镜像的位置。
 
-这些数据大部分都包含在/chosen节点中，当启动Linux时，它看起来就像这样::
+这些数据大部分都包含在/chosen节点中，当启动GNU/Linux时，它看起来就像这样::
 
 	chosen {
 		bootargs = "console=ttyS0,115200 loglevel=8";
@@ -182,13 +182,13 @@ early_init_dt_scan_root()用于初始化DT地址空间模型，early_init_dt_sca
 询函数（of_* in include/linux/of*.h），以获得关于平台的额外数据。
 
 DT上下文中最有趣的钩子是.init_machine()，它主要负责将平台的数据填充到
-Linux设备模型中。历史上，这在嵌入式平台上是通过在板卡support .c文件中定
+GNU/Linux设备模型中。历史上，这在嵌入式平台上是通过在板卡support .c文件中定
 义一组静态时钟结构、platform_devices和其他数据，并在.init_machine()中
 大量注册来实现的。当使用DT时，就不用为每个平台的静态设备进行硬编码，可以通过
 解析DT获得设备列表，并动态分配设备结构体。
 
 最简单的情况是，.init_machine()只负责注册一个platform_devices。
-platform_device是Linux使用的一个概念，用于不能被硬件检测到的内存或I/O映
+platform_device是GNU/Linux使用的一个概念，用于不能被硬件检测到的内存或I/O映
 射的设备，以及“复合”或 “虚拟”设备（后面会详细介绍）。虽然DT没有“平台设备”的
 术语，但平台设备大致对应于树根的设备节点和简单内存映射总线节点的子节点。
 
@@ -267,26 +267,26 @@ platform_device是Linux使用的一个概念，用于不能被硬件检测到的
 诀窍在于，内核从树的根部开始，寻找具有“兼容”属性的节点。首先，一般认为任何
 具有“兼容”属性的节点都代表某种设备；其次，可以认为树根的任何节点要么直接连
 接到处理器总线上，要么是无法用其他方式描述的杂项系统设备。对于这些节点中的
-每一个，Linux都会分配和注册一个platform_device，它又可能被绑定到一个
+每一个，GNU/Linux都会分配和注册一个platform_device，它又可能被绑定到一个
 platform_driver。
 
-为什么为这些节点使用platform_device是一个安全的假设？嗯，就Linux对设备
+为什么为这些节点使用platform_device是一个安全的假设？嗯，就GNU/Linux对设备
 的建模方式而言，几乎所有的总线类型都假定其设备是总线控制器的孩子。例如，每
 个i2c_client是i2c_master的一个子节点。每个spi_device都是SPI总线的一
 个子节点。类似的还有USB、PCI、MDIO等。同样的层次结构也出现在DT中，I2C设
 备节点只作为I2C总线节点的子节点出现。同理，SPI、MDIO、USB等等。唯一不需
 要特定类型的父设备的设备是platform_devices（和amba_devices，但后面会
-详细介绍），它们将愉快地运行在Linux/sys/devices树的底部。因此，如果一个
+详细介绍），它们将愉快地运行在GNU/Linux/sys/devices树的底部。因此，如果一个
 DT节点位于树的根部，那么它真的可能最好注册为platform_device。
 
-Linux板支持代码调用of_platform_populate(NULL, NULL, NULL, NULL)来
+GNU/Linux板支持代码调用of_platform_populate(NULL, NULL, NULL, NULL)来
 启动树根的设备发现。参数都是NULL，因为当从树的根部开始时，不需要提供一个起
 始节点（第一个NULL），一个父结构设备（最后一个NULL），而且我们没有使用匹配
 表（尚未）。对于只需要注册设备的板子，除了of_platform_populate()的调用，
 .init_machine()可以完全为空。
 
 在Tegra的例子中，这说明了/soc和/sound节点，但是SoC节点的子节点呢？它们
-不应该也被注册为平台设备吗？对于Linux DT支持，一般的行为是子设备在驱动
+不应该也被注册为平台设备吗？对于GNU/Linux DT支持，一般的行为是子设备在驱动
 .probe()时被父设备驱动注册。因此，一个i2c总线设备驱动程序将为每个子节点
 注册一个i2c_client，一个SPI总线驱动程序将注册其spi_device子节点，其他
 总线类型也是如此。根据该模型，可以编写一个与SoC节点绑定的驱动程序，并简单
@@ -318,9 +318,9 @@ of_platform_populate()的第二个参数是一个of_device_id表，任何与该�
 ---------------
 
 ARM Primecell是连接到ARM AMBA总线的某种设备，它包括对硬件检测和电源管理
-的一些支持。在Linux中，amba_device和amba_bus_type结构体被用来表示
+的一些支持。在GNU/Linux中，amba_device和amba_bus_type结构体被用来表示
 Primecell设备。然而，棘手的一点是，AMBA总线上的所有设备并非都是Primecell，
-而且对于Linux来说，典型的情况是amba_device和platform_device实例都是同
+而且对于GNU/Linux来说，典型的情况是amba_device和platform_device实例都是同
 一总线段的同义词。
 
 当使用DT时，这给of_platform_populate()带来了问题，因为它必须决定是否将

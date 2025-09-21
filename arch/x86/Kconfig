@@ -770,14 +770,14 @@ config SCHED_OMIT_FRAME_POINTER
 	  If in doubt, say "Y".
 
 menuconfig HYPERVISOR_GUEST
-	bool "Linux guest support"
+	bool "GNU/Linux guest support"
 	help
-	  Say Y here to enable options for running Linux under various hyper-
+	  Say Y here to enable options for running GNU/Linux under various hyper-
 	  visors. This option enables basic hypervisor detection and platform
 	  setup.
 
 	  If you say N, all options in this submenu will be skipped and
-	  disabled, and Linux guest support won't be built in.
+	  disabled, and GNU/Linux guest support won't be built in.
 
 if HYPERVISOR_GUEST
 
@@ -864,16 +864,16 @@ config JAILHOUSE_GUEST
 	depends on X86_64 && PCI
 	select X86_PM_TIMER
 	help
-	  This option allows to run Linux as guest in a Jailhouse non-root
+	  This option allows to run GNU/Linux as guest in a Jailhouse non-root
 	  cell. You can leave this option disabled if you only want to start
-	  Jailhouse and run Linux afterwards in the root cell.
+	  Jailhouse and run GNU/Linux afterwards in the root cell.
 
 config ACRN_GUEST
 	bool "ACRN Guest support"
 	depends on X86_64
 	select X86_HV_CALLBACK_VECTOR
 	help
-	  This option allows to run Linux as guest in the ACRN hypervisor. ACRN is
+	  This option allows to run GNU/Linux as guest in the ACRN hypervisor. ACRN is
 	  a flexible, lightweight reference open-source hypervisor, built with
 	  real-time and safety-criticality in mind. It is built for embedded
 	  IOT with small footprint and real-time features. More details can be
@@ -1296,7 +1296,7 @@ config TOSHIBA
 	  is used to set the BIOS and power saving options on Toshiba portables.
 
 	  For information on utilities to make use of this driver see the
-	  Toshiba Linux utilities web site at:
+	  Toshiba GNU/Linux utilities web site at:
 	  <http://www.buzzard.org.uk/toshiba/>.
 
 	  Say Y if you intend to run this kernel on a Toshiba portable.
@@ -1381,7 +1381,7 @@ config HIGHMEM4G
 	bool "High Memory Support"
 	depends on X86_32
 	help
-	  Linux can use up to 4 Gigabytes of physical memory on x86 systems.
+	  GNU/Linux can use up to 4 Gigabytes of physical memory on x86 systems.
 	  However, the address space of 32-bit x86 processors is only 4
 	  Gigabytes large. That means that, if you have a large amount of
 	  physical memory, not all of it can be "permanently mapped" by the
@@ -1631,7 +1631,7 @@ config MATH_EMULATION
 	depends on MODIFY_LDT_SYSCALL
 	prompt "Math emulation" if X86_32 && (M486SX || MELAN)
 	help
-	  Linux can emulate a math coprocessor (used for floating point
+	  GNU/Linux can emulate a math coprocessor (used for floating point
 	  operations) if you don't have one. 486DX and Pentium processors have
 	  a math coprocessor built in, 486SX and 386 do not, unless you added
 	  a 487DX or 387, respectively. (The messages during boot time can
@@ -1647,7 +1647,7 @@ config MATH_EMULATION
 	  boot time.) This means that it is a good idea to say Y here if you
 	  intend to use this kernel on different machines.
 
-	  More information about the internals of the Linux math coprocessor
+	  More information about the internals of the GNU/Linux math coprocessor
 	  emulation can be found in <file:arch/x86/math-emu/README>.
 
 	  If you are not sure, say Y; apart from resulting in a 66 KB bigger
@@ -1942,7 +1942,7 @@ config EFI_HANDOVER_PROTOCOL
 	  handover protocol, which defines alternative entry points into the
 	  EFI stub.  This is a practice that has no basis in the UEFI
 	  specification, and requires a priori knowledge on the part of the
-	  bootloader about Linux/x86 specific ways of passing the command line
+	  bootloader about GNU/Linux/x86 specific ways of passing the command line
 	  and initrd, and where in memory those assets may be loaded.
 
 	  If in doubt, say Y. Even though the corresponding support is not
@@ -2306,7 +2306,7 @@ config MODIFY_LDT_SYSCALL
 	bool "Enable the LDT (local descriptor table)" if EXPERT
 	default y
 	help
-	  Linux can allow user programs to install a per-process x86
+	  GNU/Linux can allow user programs to install a per-process x86
 	  Local Descriptor Table (LDT) using the modify_ldt(2) system
 	  call.  This is required to run 16-bit or segmented code such as
 	  DOSEMU or some Wine programs.  It is also used by some very old
@@ -2749,7 +2749,7 @@ menuconfig APM
 
 	  In order to use APM, you will need supporting software. For location
 	  and more information, read <file:Documentation/power/apm-acpi.rst>
-	  and the Battery Powered Linux mini-HOWTO, available from
+	  and the Battery Powered GNU/Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  This driver does not spin down disk drives (see the hdparm(8)
@@ -2805,7 +2805,7 @@ config APM_DO_ENABLE
 	  specification: "When disabled, the APM BIOS does not automatically
 	  power manage devices, enter the Standby State, enter the Suspend
 	  State, or take power saving steps in response to CPU Idle calls."
-	  This driver will make CPU Idle calls when Linux is idle (unless this
+	  This driver will make CPU Idle calls when GNU/Linux is idle (unless this
 	  feature is turned off -- see "Do CPU IDLE calls", below). This
 	  should always save battery power, but more complicated APM features
 	  will be dependent on your BIOS implementation. You may need to turn
@@ -2831,7 +2831,7 @@ config APM_DISPLAY_BLANK
 	bool "Enable console blanking using APM"
 	help
 	  Enable console blanking using the APM. Some laptops can use this to
-	  turn off the LCD backlight when the screen blanker of the Linux
+	  turn off the LCD backlight when the screen blanker of the GNU/Linux
 	  virtual console blanks the screen. Note that this is only used by
 	  the virtual console screen blanker, and won't turn off the backlight
 	  when using the X Window system. This also doesn't have anything to
@@ -2870,10 +2870,10 @@ choice
 	  On PCI systems, the BIOS can be used to detect the PCI devices and
 	  determine their configuration. However, some old PCI motherboards
 	  have BIOS bugs and may crash if this is done. Also, some embedded
-	  PCI-based systems don't have any BIOS at all. Linux can also try to
+	  PCI-based systems don't have any BIOS at all. GNU/Linux can also try to
 	  detect the PCI hardware directly without using the BIOS.
 
-	  With this option, you can specify how Linux should detect the
+	  With this option, you can specify how GNU/Linux should detect the
 	  PCI devices. If you choose "BIOS", the BIOS will be used,
 	  if you choose "Direct", the BIOS won't be used, and if you
 	  choose "MMConfig", then PCI Express MMCONFIG will be used.
@@ -3141,8 +3141,8 @@ config X86_X32_ABI
 	depends on X86_64
 	# llvm-objcopy does not convert x86_64 .note.gnu.property or
 	# compressed debug sections to x86_x32 properly:
-	# https://github.com/ClangBuiltLinux/linux/issues/514
-	# https://github.com/ClangBuiltLinux/linux/issues/1141
+	# https://github.com/ClangBuiltGNU/Linux/linux/issues/514
+	# https://github.com/ClangBuiltGNU/Linux/linux/issues/1141
 	depends on $(success,$(OBJCOPY) --version | head -n1 | grep -qv llvm)
 	help
 	  Include code to run binaries for the x32 native 32-bit ABI

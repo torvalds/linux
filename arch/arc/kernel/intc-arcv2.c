@@ -58,7 +58,7 @@ void arc_init_IRQ(void)
 	/*
 	 * ARCv2 core intc provides multiple interrupt priorities (up to 16).
 	 * Typical builds though have only two levels (0-high, 1-low)
-	 * Linux by default uses lower prio 1 for most irqs, reserving 0 for
+	 * GNU/Linux by default uses lower prio 1 for most irqs, reserving 0 for
 	 * NMI style interrupts in future (say perf)
 	 */
 

@@ -2,7 +2,7 @@
 /*
  * EFI support for Xen.
  *
- * Copyright (C) 1999 VA Linux Systems
+ * Copyright (C) 1999 VA GNU/Linux Systems
  * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  * Copyright (C) 1999-2002 Hewlett-Packard Co.
  *	David Mosberger-Tang <davidm@hpl.hp.com>

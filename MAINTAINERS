@@ -2370,9 +2370,9 @@ L:	asahi@lists.linux.dev
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	https://asahilinux.org
-B:	https://github.com/AsahiLinux/linux/issues
+B:	https://github.com/AsahiGNU/Linux/linux/issues
 C:	irc://irc.oftc.net/asahi-dev
-T:	git https://github.com/AsahiLinux/linux.git
+T:	git https://github.com/AsahiGNU/Linux/linux.git
 F:	Documentation/devicetree/bindings/arm/apple.yaml
 F:	Documentation/devicetree/bindings/arm/apple/*
 F:	Documentation/devicetree/bindings/clock/apple,nco.yaml
@@ -2539,7 +2539,7 @@ F:	drivers/iio/adc/ep93xx_adc.c
 ARM/CIX SOC SUPPORT
 M:	Peter Chen <peter.chen@cixtech.com>
 M:	Fugang Duan <fugang.duan@cixtech.com>
-R:	CIX Linux Kernel Upstream Group <cix-kernel-upstream@cixtech.com>
+R:	CIX GNU/Linux Kernel Upstream Group <cix-kernel-upstream@cixtech.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/cix.git
@@ -2940,7 +2940,7 @@ N:	atmel
 ARM/Microchip Sparx5 SoC support
 M:	Steen Hegelund <Steen.Hegelund@microchip.com>
 M:	Daniel Machon <daniel.machon@microchip.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/arm64/boot/dts/microchip/sparx*
@@ -3083,7 +3083,7 @@ ARM/NXP S32G ARCHITECTURE
 R:	Chester Lin <chester62515@gmail.com>
 R:	Matthias Brugger <mbrugger@suse.com>
 R:	Ghennadi Procopciuc <ghennadi.procopciuc@oss.nxp.com>
-R:	NXP S32 Linux Team <s32@nxp.com>
+R:	NXP S32 GNU/Linux Team <s32@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/rtc/nxp,s32g-rtc.yaml
@@ -4341,9 +4341,9 @@ L:	linux-block@vger.kernel.org
 L:	rust-for-linux@vger.kernel.org
 S:	Supported
 W:	https://rust-for-linux.com
-B:	https://github.com/Rust-for-Linux/linux/issues
+B:	https://github.com/Rust-for-GNU/Linux/linux/issues
 C:	https://rust-for-linux.zulipchat.com/#narrow/stream/Block
-T:	git https://github.com/Rust-for-Linux/linux.git rust-block-next
+T:	git https://github.com/Rust-for-GNU/Linux/linux.git rust-block-next
 F:	drivers/block/rnull.rs
 F:	rust/kernel/block.rs
 F:	rust/kernel/block/
@@ -4913,7 +4913,7 @@ F:	include/linux/bcm963xx_tag.h
 
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
 M:	Rasesh Mody <rmody@marvell.com>
-M:	GR-Linux-NIC-Dev@marvell.com
+M:	GR-GNU/Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/broadcom/bnx2.*
@@ -5229,7 +5229,7 @@ F:	drivers/scsi/bfa/
 BROCADE BNA 10 GIGABIT ETHERNET DRIVER
 M:	Rasesh Mody <rmody@marvell.com>
 M:	Sudarsana Kalluru <skalluru@marvell.com>
-M:	GR-Linux-NIC-Dev@marvell.com
+M:	GR-GNU/Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/brocade/bna/
@@ -5955,7 +5955,7 @@ M:	Kees Cook <kees@kernel.org>
 R:	Nathan Chancellor <nathan@kernel.org>
 L:	llvm@lists.linux.dev
 S:	Supported
-B:	https://github.com/ClangBuiltLinux/linux/issues
+B:	https://github.com/ClangBuiltGNU/Linux/linux/issues
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	include/linux/cfi.h
 F:	kernel/cfi.c
@@ -5973,7 +5973,7 @@ R:	Justin Stitt <justinstitt@google.com>
 L:	llvm@lists.linux.dev
 S:	Supported
 W:	https://clangbuiltlinux.github.io/
-B:	https://github.com/ClangBuiltLinux/linux/issues
+B:	https://github.com/ClangBuiltGNU/Linux/linux/issues
 C:	irc://irc.libera.chat/clangbuiltlinux
 F:	Documentation/kbuild/llvm.rst
 F:	include/linux/compiler-clang.h
@@ -6098,7 +6098,7 @@ R:	Bharath SM <bharathsm@microsoft.com> (deferred close, directory leases)
 L:	linux-cifs@vger.kernel.org
 L:	samba-technical@lists.samba.org (moderated for non-subscribers)
 S:	Supported
-W:	https://wiki.samba.org/index.php/LinuxCIFS
+W:	https://wiki.samba.org/index.php/GNU/LinuxCIFS
 T:	git git://git.samba.org/sfrench/cifs-2.6.git
 F:	Documentation/admin-guide/cifs/
 F:	fs/smb/client/
@@ -8270,7 +8270,7 @@ L:	dri-devel@lists.freedesktop.org
 L:	asahi@lists.linux.dev
 S:	Maintained
 W:	https://asahilinux.org
-B:	https://github.com/AsahiLinux/linux/issues
+B:	https://github.com/AsahiGNU/Linux/linux/issues
 C:	irc://irc.oftc.net/asahi-dev
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/apple,h7-display-pipe-mipi.yaml
@@ -10955,8 +10955,8 @@ R:	Stephen Boyd <sboyd@kernel.org>
 L:	rust-for-linux@vger.kernel.org
 S:	Supported
 W:	https://rust-for-linux.com
-B:	https://github.com/Rust-for-Linux/linux/issues
-T:	git https://github.com/Rust-for-Linux/linux.git timekeeping-next
+B:	https://github.com/Rust-for-GNU/Linux/linux/issues
+T:	git https://github.com/Rust-for-GNU/Linux/linux.git timekeeping-next
 F:	rust/kernel/time.rs
 F:	rust/kernel/time/
 
@@ -10966,7 +10966,7 @@ S:	Orphan
 F:	drivers/net/hamradio/scc.c
 
 HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
-M:	HighPoint Linux Team <linux@highpoint-tech.com>
+M:	HighPoint GNU/Linux Team <linux@highpoint-tech.com>
 S:	Supported
 W:	http://www.highpoint-tech.com
 F:	Documentation/scsi/hptiop.rst
@@ -11698,7 +11698,7 @@ L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
 F:	drivers/pci/hotplug/rpadlpar*
 
-IBM Power Linux RAID adapter
+IBM Power GNU/Linux RAID adapter
 M:	Brian King <brking@us.ibm.com>
 S:	Supported
 F:	drivers/scsi/ipr.*
@@ -13627,7 +13627,7 @@ M:	Mimi Zohar <zohar@linux.ibm.com>
 L:	linux-integrity@vger.kernel.org
 L:	keyrings@vger.kernel.org
 S:	Supported
-W:	https://kernsec.org/wiki/index.php/Linux_Kernel_Integrity
+W:	https://kernsec.org/wiki/index.php/GNU/Linux_Kernel_Integrity
 F:	security/integrity/platform_certs
 
 KFENCE
@@ -14435,7 +14435,7 @@ LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Sathya Prakash <sathya.prakash@broadcom.com>
 M:	Sreekanth Reddy <sreekanth.reddy@broadcom.com>
 M:	Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>
-L:	MPT-FusionLinux.pdl@broadcom.com
+L:	MPT-FusionGNU/Linux.pdl@broadcom.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 W:	http://www.avagotech.com/support/
@@ -14534,7 +14534,7 @@ W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/i2c/i2c-mux-ltc4306.txt
 F:	drivers/i2c/muxes/i2c-mux-ltc4306.c
 
-LTP (Linux Test Project)
+LTP (GNU/Linux Test Project)
 M:	Andrea Cervesato <andrea.cervesato@suse.com>
 M:	Cyril Hrubis <chrubis@suse.cz>
 M:	Jan Stancek <jstancek@redhat.com>
@@ -16560,7 +16560,7 @@ F:	drivers/media/platform/atmel/atmel-isi.h
 
 MICROCHIP KSZ SERIES ETHERNET SWITCH DRIVER
 M:	Woojung Huh <woojung.huh@microchip.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/microchip,ksz.yaml
@@ -16572,7 +16572,7 @@ F:	net/dsa/tag_ksz.c
 
 MICROCHIP LAN743X ETHERNET DRIVER
 M:	Bryan Whitehead <bryan.whitehead@microchip.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/microchip/lan743x_*
@@ -16586,14 +16586,14 @@ F:	drivers/net/ethernet/microchip/lan865x/lan865x.c
 
 MICROCHIP LAN87xx/LAN937x T1 PHY DRIVER
 M:	Arun Ramadoss <arun.ramadoss@microchip.com>
-R:	UNGLinuxDriver@microchip.com
+R:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/phy/microchip_t1.c
 
 MICROCHIP LAN966X ETHERNET DRIVER
 M:	Horatiu Vultur <horatiu.vultur@microchip.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/microchip/lan966x/*
@@ -16612,7 +16612,7 @@ F:	drivers/misc/lan966x_pci.dtso
 
 MICROCHIP LAN969X ETHERNET DRIVER
 M:	Daniel Machon <daniel.machon@microchip.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/microchip/sparx5/lan969x/*
@@ -16694,7 +16694,7 @@ F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_otpe2p.c
 MICROCHIP PCI1XXXX I2C DRIVER
 M:	Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>
 M:	Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	Microchip GNU/Linux Driver Support <UNGGNU/LinuxDriver@microchip.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-mchp-pci1xxxx.c
@@ -16802,7 +16802,7 @@ F:	drivers/dpll/zl3073x/
 
 MICROSEMI MIPS SOCS
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/mips/mscc.txt
@@ -17890,7 +17890,7 @@ F:	tools/testing/selftests/net/af_unix/
 NETXEN (1/10) GbE SUPPORT
 M:	Manish Chopra <manishc@marvell.com>
 M:	Rahul Verma <rahulv@marvell.com>
-M:	GR-Linux-NIC-Dev@marvell.com
+M:	GR-GNU/Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/qlogic/netxen/
@@ -18393,7 +18393,7 @@ OCELOT ETHERNET SWITCH DRIVER
 M:	Vladimir Oltean <vladimir.oltean@nxp.com>
 M:	Claudiu Manoil <claudiu.manoil@nxp.com>
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/dsa/ocelot/*
@@ -19905,7 +19905,7 @@ M:	Fabio Estevam <festevam@gmail.com>
 M:	Shawn Guo <shawnguo@kernel.org>
 M:	Jacky Bai <ping.bai@nxp.com>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
-R:	NXP S32 Linux Team <s32@nxp.com>
+R:	NXP S32 GNU/Linux Team <s32@nxp.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/fsl,*
@@ -20187,7 +20187,7 @@ PPS SUPPORT
 M:	Rodolfo Giometti <giometti@enneenne.com>
 L:	linuxpps@ml.enneenne.com (subscribers-only)
 S:	Maintained
-W:	http://wiki.enneenne.com/index.php/LinuxPPS_support
+W:	http://wiki.enneenne.com/index.php/GNU/LinuxPPS_support
 F:	Documentation/ABI/testing/sysfs-pps
 F:	Documentation/ABI/testing/sysfs-pps-gen
 F:	Documentation/ABI/testing/sysfs-pps-gen-tio
@@ -20545,7 +20545,7 @@ S:	Supported
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
-M:	GR-Linux-NIC-Dev@marvell.com
+M:	GR-GNU/Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
@@ -20561,7 +20561,7 @@ F:	drivers/scsi/qla4xxx/
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
 M:	Shahed Shaikh <shshaikh@marvell.com>
 M:	Manish Chopra <manishc@marvell.com>
-M:	GR-Linux-NIC-Dev@marvell.com
+M:	GR-GNU/Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/qlogic/qlcnic/
@@ -21224,14 +21224,14 @@ F:	include/linux/rtc/
 F:	include/uapi/linux/rtc.h
 F:	tools/testing/selftests/rtc/
 
-Real-time Linux Analysis (RTLA) tools
+Real-time GNU/Linux Analysis (RTLA) tools
 M:	Steven Rostedt <rostedt@goodmis.org>
 L:	linux-trace-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/tools/rtla/
 F:	tools/tracing/rtla/
 
-Real-time Linux (PREEMPT_RT)
+Real-time GNU/Linux (PREEMPT_RT)
 M:	Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 M:	Clark Williams <clrkwllms@kernel.org>
 M:	Steven Rostedt <rostedt@goodmis.org>
@@ -22075,10 +22075,10 @@ R:	Danilo Krummrich <dakr@kernel.org>
 L:	rust-for-linux@vger.kernel.org
 S:	Supported
 W:	https://rust-for-linux.com
-B:	https://github.com/Rust-for-Linux/linux/issues
+B:	https://github.com/Rust-for-GNU/Linux/linux/issues
 C:	zulip://rust-for-linux.zulipchat.com
 P:	https://rust-for-linux.com/contributing
-T:	git https://github.com/Rust-for-Linux/linux.git rust-next
+T:	git https://github.com/Rust-for-GNU/Linux/linux.git rust-next
 F:	.clippy.toml
 F:	Documentation/rust/
 F:	include/trace/events/rust_sample.h
@@ -22096,7 +22096,7 @@ R:	Liam R. Howlett <Liam.Howlett@oracle.com>
 R:	Uladzislau Rezki <urezki@gmail.com>
 L:	rust-for-linux@vger.kernel.org
 S:	Maintained
-T:	git https://github.com/Rust-for-Linux/linux.git alloc-next
+T:	git https://github.com/Rust-for-GNU/Linux/linux.git alloc-next
 F:	rust/kernel/alloc.rs
 F:	rust/kernel/alloc/
 
@@ -22105,10 +22105,10 @@ M:	Benno Lossin <lossin@kernel.org>
 L:	rust-for-linux@vger.kernel.org
 S:	Maintained
 W:	https://rust-for-linux.com/pin-init
-B:	https://github.com/Rust-for-Linux/pin-init/issues
+B:	https://github.com/Rust-for-GNU/Linux/pin-init/issues
 C:	zulip://rust-for-linux.zulipchat.com
 P:	rust/pin-init/CONTRIBUTING.md
-T:	git https://github.com/Rust-for-Linux/linux.git pin-init-next
+T:	git https://github.com/Rust-for-GNU/Linux/linux.git pin-init-next
 F:	rust/kernel/init.rs
 F:	rust/pin-init/
 K:	\bpin-init\b|pin_init\b|PinInit
@@ -22814,7 +22814,7 @@ L:	linux-security-module@vger.kernel.org
 S:	Supported
 Q:	https://patchwork.kernel.org/project/linux-security-module/list
 B:	mailto:linux-security-module@vger.kernel.org
-P:	https://github.com/LinuxSecurityModule/kernel/blob/main/README.md
+P:	https://github.com/GNU/LinuxSecurityModule/kernel/blob/main/README.md
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/lsm.git
 F:	include/linux/lsm/
 F:	include/linux/lsm_audit.h
@@ -22833,14 +22833,14 @@ M:	Stephen Smalley <stephen.smalley.work@gmail.com>
 R:	Ondrej Mosnacek <omosnace@redhat.com>
 L:	selinux@vger.kernel.org
 S:	Supported
-W:	https://github.com/SELinuxProject
+W:	https://github.com/SEGNU/LinuxProject
 Q:	https://patchwork.kernel.org/project/selinux/list
 B:	mailto:selinux@vger.kernel.org
-P:	https://github.com/SELinuxProject/selinux-kernel/blob/main/README.md
+P:	https://github.com/SEGNU/LinuxProject/selinux-kernel/blob/main/README.md
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/selinux.git
 F:	Documentation/ABI/removed/sysfs-selinux-checkreqprot
 F:	Documentation/ABI/removed/sysfs-selinux-disable
-F:	Documentation/admin-guide/LSM/SELinux.rst
+F:	Documentation/admin-guide/LSM/SEGNU/Linux.rst
 F:	include/trace/events/avc.h
 F:	include/uapi/linux/selinux_netlink.h
 F:	scripts/selinux/
@@ -24754,7 +24754,7 @@ F:	Documentation/process/contribution-maturity-model.rst
 F:	Documentation/process/researcher-guidelines.rst
 
 TECHNOLOGIC SYSTEMS TS-5500 PLATFORM SUPPORT
-M:	"Savoir-faire Linux Inc." <kernel@savoirfairelinux.com>
+M:	"Savoir-faire GNU/Linux Inc." <kernel@savoirfairelinux.com>
 S:	Maintained
 F:	arch/x86/platform/ts5500/
 
@@ -26080,7 +26080,7 @@ F:	drivers/usb/isp1760/*
 USB LAN78XX ETHERNET DRIVER
 M:	Thangaraj Samynathan <Thangaraj.S@microchip.com>
 M:	Rengarajan Sundararajan <Rengarajan.S@microchip.com>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/microchip,lan78xx.txt
@@ -26189,7 +26189,7 @@ F:	drivers/net/usb/smsc75xx.*
 
 USB SMSC95XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
-M:	UNGLinuxDriver@microchip.com
+M:	UNGGNU/LinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/usb/smsc95xx.*
@@ -27405,9 +27405,9 @@ M:	Andreas Hindborg <a.hindborg@kernel.org>
 L:	rust-for-linux@vger.kernel.org
 S:	Supported
 W:	https://rust-for-linux.com
-B:	https://github.com/Rust-for-Linux/linux/issues
+B:	https://github.com/Rust-for-GNU/Linux/linux/issues
 C:	https://rust-for-linux.zulipchat.com
-T:	git https://github.com/Rust-for-Linux/linux.git xarray-next
+T:	git https://github.com/Rust-for-GNU/Linux/linux.git xarray-next
 F:	rust/kernel/xarray.rs
 
 XBOX DVD IR REMOTE

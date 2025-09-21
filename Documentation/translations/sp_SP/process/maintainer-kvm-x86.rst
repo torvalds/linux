@@ -195,7 +195,7 @@ El formato de prefijo más recomendable es ``KVM: <topic>:``, donde
 - nVMX
 
 **¡NO use x86/kvm!** ``x86/kvm`` se usa exclusivamente para cambios de
-Linux virtualizado por KVM, es decir, para arch/x86/kernel/kvm.c. No use
+GNU/Linux virtualizado por KVM, es decir, para arch/x86/kernel/kvm.c. No use
 nombres de archivos o archivos completos como prefijo de asunto/shortlog.
 
 Tenga en cuenta que esto no coincide con las ramas temáticas (las ramas

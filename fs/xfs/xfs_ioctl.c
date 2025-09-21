@@ -437,7 +437,7 @@ xfs_ioc_rtgroup_geometry(
 }
 
 /*
- * Linux extended inode flags interface.
+ * GNU/Linux extended inode flags interface.
  */
 
 static void

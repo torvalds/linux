@@ -286,8 +286,8 @@ Code  Seq#    Include File                                             Comments
 'p'   40-7F  linux/nvram.h
 'p'   80-9F  linux/ppdev.h                                             user-space parport
                                                                        <mailto:tim@cyberelk.net>
-'p'   A1-A5  linux/pps.h                                               LinuxPPS
-'p'   B1-B3  linux/pps_gen.h                                           LinuxPPS
+'p'   A1-A5  linux/pps.h                                               GNU/LinuxPPS
+'p'   B1-B3  linux/pps_gen.h                                           GNU/LinuxPPS
                                                                        <mailto:giometti@linux.it>
 'q'   00-1F  linux/serio.h
 'q'   80-FF  linux/telephony.h                                         Internet PhoneJACK, Internet LineJACK
@@ -401,7 +401,7 @@ Code  Seq#    Include File                                             Comments
 0xEE  00-09  uapi/linux/pfrut.h                                        Platform Firmware Runtime Update and Telemetry
 0xF3  00-3F  drivers/usb/misc/sisusbvga/sisusb.h                       sisfb (in development)
                                                                        <mailto:thomas@winischhofer.net>
-0xF6  all                                                              LTTng Linux Trace Toolkit Next Generation
+0xF6  all                                                              LTTng GNU/Linux Trace Toolkit Next Generation
                                                                        <mailto:mathieu.desnoyers@efficios.com>
 0xF8  all    arch/x86/include/uapi/asm/amd_hsmp.h                      AMD HSMP EPYC system management interface driver
                                                                        <mailto:nchatrad@amd.com>

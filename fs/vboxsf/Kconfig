@@ -4,7 +4,7 @@ config VBOXSF_FS
 	select NLS
 	help
 	  VirtualBox hosts can share folders with guests, this driver
-	  implements the Linux-guest side of this allowing folders exported
-	  by the host to be mounted under Linux.
+	  implements the GNU/Linux-guest side of this allowing folders exported
+	  by the host to be mounted under GNU/Linux.
 
 	  If you want to use shared folders in VirtualBox guests, answer Y or M.

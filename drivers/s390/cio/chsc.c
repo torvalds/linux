@@ -58,7 +58,7 @@ EXPORT_SYMBOL(chsc_notifier_unregister);
  * chsc_error_from_response() - convert a chsc response to an error
  * @response: chsc response code
  *
- * Returns an appropriate Linux error code for @response.
+ * Returns an appropriate GNU/Linux error code for @response.
  */
 int chsc_error_from_response(int response)
 {

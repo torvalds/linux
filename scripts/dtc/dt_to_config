@@ -187,7 +187,7 @@ Valid options:
   tree file and the kernel config options that enable the driver source
   files.
 
-  This program must be run in the root directory of a Linux kernel
+  This program must be run in the root directory of a GNU/Linux kernel
   source tree.
 
   The default format is a report that is intended to be easily human
@@ -1202,7 +1202,7 @@ if (-x "scripts/dtc/dtx_diff") {
 } else {
 
        print STDERR "\n";
-       print STDERR "$script_name must be run from the root directory of a Linux kernel tree\n";
+       print STDERR "$script_name must be run from the root directory of a GNU/Linux kernel tree\n";
        print STDERR "\n";
        exit 3;
 }

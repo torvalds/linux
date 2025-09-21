@@ -1093,7 +1093,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 
 	scoped_guard(mutex, &gpio_devices_lock) {
 		/*
-		 * TODO: this allocates a Linux GPIO number base in the global
+		 * TODO: this allocates a GNU/Linux GPIO number base in the global
 		 * GPIO numberspace for this chip. In the long run we want to
 		 * get *rid* of this numberspace and use only descriptors, but
 		 * it may be a pipe dream. It will not happen before we get rid

@@ -3,7 +3,7 @@
  *
  *  Contributed by HP Systems
  *
- *  Modified for Linux/MIPS (and MIPS in general) by Andreas Busse
+ *  Modified for GNU/Linux/MIPS (and MIPS in general) by Andreas Busse
  *  Send complaints, suggestions etc. to <andy@waldorf-gmbh.de>
  *
  *  Copyright (C) 1995 Andreas Busse

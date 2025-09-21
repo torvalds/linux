@@ -107,7 +107,7 @@
 
 /**
  * struct xusb_req - Xilinx USB device request structure
- * @usb_req: Linux usb request structure
+ * @usb_req: GNU/Linux usb request structure
  * @queue: usb device request queue
  * @ep: pointer to xusb_endpoint structure
  */

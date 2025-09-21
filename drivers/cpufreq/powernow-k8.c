@@ -692,9 +692,9 @@ static int find_psb_table(struct powernow_k8_data *data)
 	}
 	/*
 	 * If you see this message, complain to BIOS manufacturer. If
-	 * he tells you "we do not support Linux" or some similar
+	 * he tells you "we do not support GNU/Linux" or some similar
 	 * nonsense, remember that Windows 2000 uses the same legacy
-	 * mechanism that the old Linux PSB driver uses. Tell them it
+	 * mechanism that the old GNU/Linux PSB driver uses. Tell them it
 	 * is broken with Windows 2000.
 	 *
 	 * The reference to the AMD documentation is chapter 9 in the

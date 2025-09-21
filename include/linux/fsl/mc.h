@@ -99,7 +99,7 @@ struct fsl_mc_resource {
 
 /**
  * struct fsl_mc_device_irq - MC object device message-based interrupt
- * @virq: Linux virtual interrupt number
+ * @virq: GNU/Linux virtual interrupt number
  * @mc_dev: MC object device that owns this interrupt
  * @dev_irq_index: device-relative IRQ index
  * @resource: MC generic resource associated with the interrupt
@@ -167,7 +167,7 @@ struct fsl_mc_obj_desc {
 
 /**
  * struct fsl_mc_device - MC object device object
- * @dev: Linux driver model device object
+ * @dev: GNU/Linux driver model device object
  * @dma_mask: Default DMA mask
  * @flags: MC object device flags
  * @icid: Isolation context ID for the device

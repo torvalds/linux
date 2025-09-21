@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * core.c - Implementation of core module of MOST Linux driver stack
+ * core.c - Implementation of core module of MOST GNU/Linux driver stack
  *
  * Copyright (C) 2013-2020 Microchip Technology Germany II GmbH & Co. KG
  */
@@ -1485,4 +1485,4 @@ subsys_initcall(most_init);
 module_exit(most_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Gromm <christian.gromm@microchip.com>");
-MODULE_DESCRIPTION("Core module of stacked MOST Linux driver");
+MODULE_DESCRIPTION("Core module of stacked MOST GNU/Linux driver");

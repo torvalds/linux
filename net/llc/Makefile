@@ -1,5 +1,5 @@
 ###########################################################################
-# Makefile for the Linux 802.2 LLC (fully-functional) layer.
+# Makefile for the GNU/Linux 802.2 LLC (fully-functional) layer.
 #
 # Copyright (c) 1997 by Procom Technology,Inc.
 #		2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>

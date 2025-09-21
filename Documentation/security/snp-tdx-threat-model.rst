@@ -1,5 +1,5 @@
 ======================================================
-Confidential Computing in Linux for x86 virtualization
+Confidential Computing in GNU/Linux for x86 virtualization
 ======================================================
 
 .. contents:: :local:
@@ -10,14 +10,14 @@ Motivation
 ==========
 
 Kernel developers working on confidential computing for virtualized
-environments in x86 operate under a set of assumptions regarding the Linux
+environments in x86 operate under a set of assumptions regarding the GNU/Linux
 kernel threat model that differ from the traditional view. Historically,
-the Linux threat model acknowledges attackers residing in userspace, as
+the GNU/Linux threat model acknowledges attackers residing in userspace, as
 well as a limited set of external attackers that are able to interact with
 the kernel through various networking or limited HW-specific exposed
 interfaces (USB, thunderbolt). The goal of this document is to explain
 additional attack vectors that arise in the confidential computing space
-and discuss the proposed protection mechanisms for the Linux kernel.
+and discuss the proposed protection mechanisms for the GNU/Linux kernel.
 
 Overview and terminology
 ========================
@@ -80,17 +80,17 @@ The specific details of the CoCo security manager vastly diverge between
 technologies. For example, in some cases, it will be implemented in HW
 while in others it may be pure SW.
 
-Existing Linux kernel threat model
+Existing GNU/Linux kernel threat model
 ==================================
 
-The overall components of the current Linux kernel threat model are::
+The overall components of the current GNU/Linux kernel threat model are::
 
      +-----------------------+      +-------------------+
      |                       |<---->| Userspace         |
      |                       |      +-------------------+
      |   External attack     |         | Interfaces |
      |       vectors         |      +-------------------+
-     |                       |<---->| Linux Kernel      |
+     |                       |<---->| GNU/Linux Kernel      |
      |                       |      +-------------------+
      +-----------------------+      +-------------------+
                                     | Bootloader/BIOS   |
@@ -105,7 +105,7 @@ the boot process, but this diagram does not represent it explicitly. The
 communication between kernel and userspace. This includes system calls,
 kernel APIs, device drivers, etc.
 
-The existing Linux kernel threat model typically assumes execution on a
+The existing GNU/Linux kernel threat model typically assumes execution on a
 trusted HW platform with all of the firmware and bootloaders included on
 its TCB. The primary attacker resides in the userspace, and all of the data
 coming from there is generally considered untrusted, unless userspace is
@@ -143,7 +143,7 @@ kernel communication with most of the HW::
    |                       |     |  +-------------------+ |
    |   External attack     |     |     | Interfaces |     |
    |       vectors         |     |  +-------------------+ |
-   |                       |<--->|  | Linux Kernel      | |
+   |                       |<--->|  | GNU/Linux Kernel      | |
    |                       |     |  +-------------------+ |
    +-----------------------+     |  +-------------------+ |
                                  |  | Bootloader/BIOS   | |
@@ -163,18 +163,18 @@ attacks by adding security features like guest data confidentiality and
 integrity protection. This threat model assumes that those features are
 available and intact.
 
-The **Linux kernel CoCo VM security objectives** can be summarized as follows:
+The **GNU/Linux kernel CoCo VM security objectives** can be summarized as follows:
 
 1. Preserve the confidentiality and integrity of CoCo guest's private
 memory and registers.
 
-2. Prevent privileged escalation from a host into a CoCo guest Linux kernel.
+2. Prevent privileged escalation from a host into a CoCo guest GNU/Linux kernel.
 While it is true that the host (and host-side VMM) requires some level of
 privilege to create, destroy, or pause the guest, part of the goal of
 preventing privileged escalation is to ensure that these operations do not
 provide a pathway for attackers to gain access to the guest's kernel.
 
-The above security objectives result in two primary **Linux kernel CoCo
+The above security objectives result in two primary **GNU/Linux kernel CoCo
 VM assets**:
 
 1. Guest kernel execution context.
@@ -186,8 +186,8 @@ that the guest can consume, network bandwidth, etc. Because of this, the
 host Denial of Service (DoS) attacks against CoCo guests are beyond the
 scope of this threat model.
 
-The **Linux CoCo VM attack surface** is any interface exposed from a CoCo
-guest Linux kernel towards an untrusted host that is not covered by the
+The **GNU/Linux CoCo VM attack surface** is any interface exposed from a CoCo
+guest GNU/Linux kernel towards an untrusted host that is not covered by the
 CoCo technology SW/HW protection. This includes any possible
 side-channels, as well as transient execution side channels. Examples of
 explicit (not side-channel) interfaces include accesses to port I/O, MMIO
@@ -201,11 +201,11 @@ images, the kernel image together with the kernel command line. All of this
 data should also be considered untrusted until its integrity and
 authenticity is established via attestation.
 
-The table below shows a threat matrix for the CoCo guest Linux kernel but
+The table below shows a threat matrix for the CoCo guest GNU/Linux kernel but
 does not discuss potential mitigation strategies. The matrix refers to
 CoCo-specific versions of the guest, host and platform.
 
-.. list-table:: CoCo Linux guest kernel threat matrix
+.. list-table:: CoCo GNU/Linux guest kernel threat matrix
    :widths: auto
    :align: center
    :header-rows: 1

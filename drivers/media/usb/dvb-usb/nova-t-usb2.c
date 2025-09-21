@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* DVB USB framework compliant Linux driver for the Hauppauge WinTV-NOVA-T usb2
+/* DVB USB framework compliant GNU/Linux driver for the Hauppauge WinTV-NOVA-T usb2
  * DVB-T receiver.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)

@@ -2,7 +2,7 @@
 /*
  * zfcp device driver
  *
- * Interface to Linux SCSI midlayer.
+ * Interface to GNU/Linux SCSI midlayer.
  *
  * Copyright IBM Corp. 2002, 2020
  */

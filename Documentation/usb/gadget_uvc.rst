@@ -1,11 +1,11 @@
 =======================
-Linux UVC Gadget Driver
+GNU/Linux UVC Gadget Driver
 =======================
 
 Overview
 --------
 The UVC Gadget driver is a driver for hardware on the *device* side of a USB
-connection. It is intended to run on a Linux system that has USB device-side
+connection. It is intended to run on a GNU/Linux system that has USB device-side
 hardware such as boards with an OTG port.
 
 On the device system, once the driver is bound it appears as a V4L2 device with

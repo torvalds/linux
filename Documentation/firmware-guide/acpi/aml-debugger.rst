@@ -9,14 +9,14 @@ The AML Debugger
 :Author: Lv Zheng <lv.zheng@intel.com>
 
 
-This document describes the usage of the AML debugger embedded in the Linux
+This document describes the usage of the AML debugger embedded in the GNU/Linux
 kernel.
 
 1. Build the debugger
 =====================
 
 The following kernel configuration items are required to enable the AML
-debugger interface from the Linux kernel::
+debugger interface from the GNU/Linux kernel::
 
    CONFIG_ACPI_DEBUGGER=y
    CONFIG_ACPI_DEBUGGER_USER=m

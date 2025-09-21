@@ -30,7 +30,7 @@
  */
 
 
-typedef struct sg_iovec /* same structure as used by readv() Linux system */
+typedef struct sg_iovec /* same structure as used by readv() GNU/Linux system */
 {                       /* call. It defines one scatter-gather element. */
     void __user *iov_base;      /* Starting address  */
     size_t iov_len;             /* Length in bytes  */

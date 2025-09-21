@@ -2,7 +2,7 @@
 /*
  * Apple SMC (System Management Controller) core definitions
  *
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  */
 
 #ifndef _LINUX_MFD_MACSMC_H

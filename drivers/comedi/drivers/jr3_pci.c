@@ -3,7 +3,7 @@
  * comedi/drivers/jr3_pci.c
  * hardware driver for JR3/PCI force sensor board
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2007 Anders Blomdell <anders.blomdell@control.lth.se>
  */
 /*

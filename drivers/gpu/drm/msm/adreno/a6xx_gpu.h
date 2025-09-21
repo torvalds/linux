@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2017, 2019 The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2017, 2019 The GNU/Linux Foundation. All rights reserved. */
 
 #ifndef __A6XX_GPU_H__
 #define __A6XX_GPU_H__

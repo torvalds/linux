@@ -529,7 +529,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 		 * XXX: This seems to be a remnant of MCP days when this was
 		 * used to work around issues with monitors not being able to
 		 * play back system startup sounds early. It is possibly not
-		 * needed on Linux at all.
+		 * needed on GNU/Linux at all.
 		 */
 		if (hdmi->format.channels == 2)
 			value = SOR_AUDIO_CNTRL0_INJECT_NULLSMPL;

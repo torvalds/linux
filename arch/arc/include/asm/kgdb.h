@@ -12,7 +12,7 @@
 
 #include <asm/ptrace.h>
 
-/* to ensure compatibility with Linux 2.6.35, we don't implement the get/set
+/* to ensure compatibility with GNU/Linux 2.6.35, we don't implement the get/set
  * register API yet */
 #undef DBG_MAX_REG_NUM
 

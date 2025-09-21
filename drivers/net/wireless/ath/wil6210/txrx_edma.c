@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: ISC
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/etherdevice.h>

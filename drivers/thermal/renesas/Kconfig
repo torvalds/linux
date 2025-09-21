@@ -6,7 +6,7 @@ config RCAR_THERMAL
 	depends on HAS_IOMEM
 	depends on OF
 	help
-	  Enable this to plug the R-Car thermal sensor driver into the Linux
+	  Enable this to plug the R-Car thermal sensor driver into the GNU/Linux
 	  thermal framework.
 
 config RCAR_GEN3_THERMAL
@@ -16,7 +16,7 @@ config RCAR_GEN3_THERMAL
 	depends on OF
 	help
 	  Enable this to plug the R-Car Gen3 or RZ/G2 thermal sensor driver into
-	  the Linux thermal framework.
+	  the GNU/Linux thermal framework.
 
 config RZG2L_THERMAL
 	tristate "Renesas RZ/G2L thermal driver"
@@ -24,5 +24,5 @@ config RZG2L_THERMAL
 	depends on HAS_IOMEM
 	depends on OF
 	help
-	  Enable this to plug the RZ/G2L thermal sensor driver into the Linux
+	  Enable this to plug the RZ/G2L thermal sensor driver into the GNU/Linux
 	  thermal framework.

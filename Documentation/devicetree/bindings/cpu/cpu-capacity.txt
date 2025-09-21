@@ -234,5 +234,5 @@ cpus {
 5 - References
 ===========================================
 
-[1] ARM Linux Kernel documentation - CPUs bindings
+[1] ARM GNU/Linux Kernel documentation - CPUs bindings
     Documentation/devicetree/bindings/arm/cpus.yaml

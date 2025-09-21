@@ -104,7 +104,7 @@ struct augmented_firmware_file {
 						sizeof(struct firmware_file))
 
 struct firmware_details {
-	/* Linux core piece */
+	/* GNU/Linux core piece */
 	const struct firmware *fw;
 
 	struct css_header *css_header;

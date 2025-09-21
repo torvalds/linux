@@ -109,7 +109,7 @@ static void pnpacpi_add_irqresource(struct pnp_dev *dev, struct resource *r)
 /*
  * Device CSRs that do not appear in PCI config space should be described
  * via ACPI.  This would normally be done with Address Space Descriptors
- * marked as "consumer-only," but old versions of Windows and Linux ignore
+ * marked as "consumer-only," but old versions of Windows and GNU/Linux ignore
  * the producer/consumer flag, so HP invented a vendor-defined resource to
  * describe the location and size of CSR space.
  */

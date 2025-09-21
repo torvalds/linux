@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===================================
-Using AutoFDO with the Linux kernel
+Using AutoFDO with the GNU/Linux kernel
 ===================================
 
 This enables AutoFDO build support for the kernel when using

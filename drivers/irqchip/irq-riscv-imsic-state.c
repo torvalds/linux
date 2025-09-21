@@ -298,7 +298,7 @@ void imsic_vector_mask(struct imsic_vector *vec)
 		return;
 
 	/*
-	 * This function is called through Linux irq subsystem with
+	 * This function is called through GNU/Linux irq subsystem with
 	 * irqs disabled so no need to save/restore irq flags.
 	 */
 
@@ -320,7 +320,7 @@ void imsic_vector_unmask(struct imsic_vector *vec)
 		return;
 
 	/*
-	 * This function is called through Linux irq subsystem with
+	 * This function is called through GNU/Linux irq subsystem with
 	 * irqs disabled so no need to save/restore irq flags.
 	 */
 

@@ -42,7 +42,7 @@ properties:
 
   autorepeat:
     description: |
-      Enables the Linux input system's autorepeat feature on the input device.
+      Enables the GNU/Linux input system's autorepeat feature on the input device.
 
   linux,keycodes:
     minItems: 3

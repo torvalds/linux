@@ -21,9 +21,9 @@ state of a system.
 Since it is a platform level framework, this has several components.
 Some parts of the technology is implemented in the firmware and uses
 ACPI and PCI devices to expose various features for monitoring and
-control. Linux has a set of kernel drivers exposing hardware interface
+control. GNU/Linux has a set of kernel drivers exposing hardware interface
 to user space. This allows user space thermal solutions like
-"Linux Thermal Daemon" to read platform specific thermal and power
+"GNU/Linux Thermal Daemon" to read platform specific thermal and power
 tables to deliver adequate performance while keeping the system under
 thermal limits.
 

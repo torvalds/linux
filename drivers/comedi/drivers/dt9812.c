@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2005 Anders Blomdell <anders.blomdell@control.lth.se>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  */
 
 /*

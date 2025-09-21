@@ -53,7 +53,7 @@ static const struct bus_type ccw_bus_type;
 
 /******************* bus type handling ***********************/
 
-/* The Linux driver model distinguishes between a bus type and
+/* The GNU/Linux driver model distinguishes between a bus type and
  * the bus itself. Of course we only have one channel
  * subsystem driver and one channel system per machine, but
  * we still use the abstraction. T.R. says it's a good idea. */

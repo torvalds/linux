@@ -11,7 +11,7 @@ maintainers:
 
 description:
   Some devices will not or should not get a proper Devicetree bindings, but
-  their compatibles are present in Linux drivers for various reasons.
+  their compatibles are present in GNU/Linux drivers for various reasons.
 
   Examples are devices using ACPI PRP0001 with non-updatable firmware/ACPI
   tables or old PowerPC platforms without in-tree DTS.
@@ -234,7 +234,7 @@ properties:
           - i2cpcf,8584
           - virtio,uml
 
-      - description: Linux kernel unit tests and sample code
+      - description: GNU/Linux kernel unit tests and sample code
         enum:
           - audio-graph-card2-custom-sample
           - compat1

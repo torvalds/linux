@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The GNU/Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt)"[drm-dp] %s: " fmt, __func__

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2016 Linaro Ltd
  * Copyright (C) 2014 Sony Mobile Communications AB
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk.h>

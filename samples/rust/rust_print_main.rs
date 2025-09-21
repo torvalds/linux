@@ -8,7 +8,7 @@ use kernel::prelude::*;
 module! {
     type: RustPrint,
     name: "rust_print",
-    authors: ["Rust for Linux Contributors"],
+    authors: ["Rust for GNU/Linux Contributors"],
     description: "Rust printing macros sample",
     license: "GPL",
 }

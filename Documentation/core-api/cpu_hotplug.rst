@@ -21,7 +21,7 @@ insertion and removal require support for CPU hotplug.
 Such advances require CPUs available to a kernel to be removed either for
 provisioning reasons, or for RAS purposes to keep an offending CPU off
 system execution path. Hence the need for CPU hotplug support in the
-Linux kernel.
+GNU/Linux kernel.
 
 A more novel use of CPU-hotplug support is its use today in suspend resume
 support for SMP. Dual-core and HT support makes even a laptop run SMP kernels

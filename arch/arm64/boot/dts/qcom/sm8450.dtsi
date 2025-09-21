@@ -745,7 +745,7 @@
 
 		/* uefi region can be reused by APPS */
 
-		/* Linux kernel image is loaded at 0xa0000000 */
+		/* GNU/Linux kernel image is loaded at 0xa0000000 */
 
 		oem_vm_mem: memory@bb000000 {
 			reg = <0x0 0xbb000000 0x0 0x5000000>;

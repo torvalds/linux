@@ -64,7 +64,7 @@ BUG、Oops或Panics消息中的污染標誌
 	 * Proprietary module was loaded (#0)
 	 * Kernel issued warning (#9)
 	 * Externally-built ('out-of-tree') module was loaded  (#12)
-	See Documentation/admin-guide/tainted-kernels.rst in the Linux kernel or
+	See Documentation/admin-guide/tainted-kernels.rst in the GNU/Linux kernel or
 	 https://www.kernel.org/doc/html/latest/admin-guide/tainted-kernels.html for
 	 a more details explanation of the various taint flags.
 	Raw taint value as int/string: 4609/'P        W  O     '
@@ -154,7 +154,7 @@ BUG、Oops或Panics消息中的污染標誌
 
  15) ``K`` 內核已經實時打了補丁。
 
- 16) ``X`` 備用污染，由Linux發行版定義和使用。
+ 16) ``X`` 備用污染，由GNU/Linux發行版定義和使用。
 
  17) ``T`` 內核構建時使用了randstruct插件，它可以有意生成非常不尋常的內核結構
      佈局（甚至是性能病態的佈局），這在調試時非常有用。於構建時設置。

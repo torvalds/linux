@@ -3,7 +3,7 @@
 /*
  * Copyright (c) Linumiz 2021
  *
- * sht4x.c - Linux hwmon driver for SHT4x Temperature and Humidity sensor
+ * sht4x.c - GNU/Linux hwmon driver for SHT4x Temperature and Humidity sensor
  *
  * Author: Navin Sankar Velliangiri <navin@linumiz.com>
  */

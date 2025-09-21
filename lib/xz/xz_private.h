@@ -53,7 +53,7 @@
 	/*
 	 * For userspace builds, use a separate header to define the required
 	 * macros and functions. This makes it easier to adapt the code into
-	 * different environments and avoids clutter in the Linux kernel tree.
+	 * different environments and avoids clutter in the GNU/Linux kernel tree.
 	 */
 #	include "xz_config.h"
 #endif

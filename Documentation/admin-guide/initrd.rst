@@ -175,7 +175,7 @@ only add a symbolic link from ``/sbin/init`` to ``/bin/sh``. Alternatively, you
 can try the experimental newlib environment [#f2]_ to create a small
 initrd.
 
-Finally, you have to boot the kernel and load initrd. Almost all Linux
+Finally, you have to boot the kernel and load initrd. Almost all GNU/Linux
 boot loaders support initrd. Since the boot process is still compatible
 with an older mechanism, the following boot command line parameters
 have to be given::
@@ -211,7 +211,7 @@ Changing the root device
 ------------------------
 
 When finished with its duties, init typically changes the root device
-and proceeds with starting the Linux system on the "real" root device.
+and proceeds with starting the GNU/Linux system on the "real" root device.
 
 The procedure involves the following steps:
  - mounting the new root file system
@@ -301,7 +301,7 @@ The key role of initrd here is to re-use the configuration data during
 normal system operation without requiring the use of a bloated "generic"
 kernel or re-compiling or re-linking the kernel.
 
-A second scenario is for installations where Linux runs on systems with
+A second scenario is for installations where GNU/Linux runs on systems with
 different hardware configurations in a single administrative domain. In
 such cases, it is desirable to generate only a small set of kernels
 (ideally only one) and to keep the system-specific part of configuration
@@ -375,9 +375,9 @@ the cmdline) before the final execution of the real ``/sbin/init``.
 Resources
 ---------
 
-.. [#f1] Almesberger, Werner; "Booting Linux: The History and the Future"
+.. [#f1] Almesberger, Werner; "Booting GNU/Linux: The History and the Future"
     https://www.almesberger.net/cv/papers/ols2k-9.ps.gz
 .. [#f2] newlib package (experimental), with initrd example
     https://www.sourceware.org/newlib/
-.. [#f3] util-linux: Miscellaneous utilities for Linux
+.. [#f3] util-linux: Miscellaneous utilities for GNU/Linux
     https://www.kernel.org/pub/linux/utils/util-linux/

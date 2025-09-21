@@ -17,7 +17,7 @@
  *
  * John Sims, for much testing and feedback on pcidas-4020 support.
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
  */
 

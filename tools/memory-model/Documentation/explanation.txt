@@ -1,4 +1,4 @@
-Explanation of the Linux-Kernel Memory Consistency Model
+Explanation of the GNU/Linux-Kernel Memory Consistency Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :Author: Alan Stern <stern@rowland.harvard.edu>
@@ -38,7 +38,7 @@ Explanation of the Linux-Kernel Memory Consistency Model
 INTRODUCTION
 ------------
 
-The Linux-kernel memory consistency model (LKMM) is rather complex and
+The GNU/Linux-kernel memory consistency model (LKMM) is rather complex and
 obscure.  This is particularly evident if you read through the
 linux-kernel.bell and linux-kernel.cat files that make up the formal
 version of the model; they are extremely terse and their meanings are
@@ -72,7 +72,7 @@ A memory consistency model (or just memory model, for short) is
 something which predicts, given a piece of computer code running on a
 particular kind of system, what values may be obtained by the code's
 load instructions.  The LKMM makes these predictions for code running
-as part of the Linux kernel.
+as part of the GNU/Linux kernel.
 
 In practice, people tend to use memory models the other way around.
 That is, given a piece of code and a collection of values specified
@@ -88,7 +88,7 @@ factors such as DMA and mixed-size accesses.)  But on multiprocessor
 systems, with multiple CPUs making concurrent accesses to shared
 memory locations, things aren't so simple.
 
-Different architectures have differing memory models, and the Linux
+Different architectures have differing memory models, and the GNU/Linux
 kernel supports a variety of architectures.  The LKMM has to be fairly
 permissive, in the sense that any behavior allowed by one of these
 architectures also has to be allowed by the LKMM.
@@ -1091,7 +1091,7 @@ then ignore the result if it turns out that the second load shouldn't
 be executed after all.  And lastly, the real difficulties begin when
 we consider address dependencies to loads.
 
-To be fair about it, all Linux-supported architectures do execute
+To be fair about it, all GNU/Linux-supported architectures do execute
 loads in program order if there is an address dependency between them.
 After all, a CPU cannot ask the memory subsystem to load a value from
 a particular location before it knows what that location is.  However,
@@ -1126,7 +1126,7 @@ an address dependency like this:
 
 because it could tell that the store and the second load access the
 same location even before it knows what the location's address is.
-However, none of the architectures supported by the Linux kernel do
+However, none of the architectures supported by the GNU/Linux kernel do
 this.)
 
 Two memory accesses of the same location must always be executed in
@@ -2157,7 +2157,7 @@ critical sections used different lock variables.)
 These two special requirements for lock-release and lock-acquire do
 not arise from the operational model.  Nevertheless, kernel developers
 have come to expect and rely on them because they do hold on all
-architectures supported by the Linux kernel, albeit for various
+architectures supported by the GNU/Linux kernel, albeit for various
 differing reasons.
 
 
@@ -2371,7 +2371,7 @@ a compiler barrier.
 
 A compiler barrier is a kind of fence, but as the name implies, it
 only affects the compiler; it does not necessarily have any effect on
-how instructions are executed by the CPU.  In Linux kernel source
+how instructions are executed by the CPU.  In GNU/Linux kernel source
 code, the barrier() function is a compiler barrier.  It doesn't give
 rise directly to any machine instructions in the object code; rather,
 it affects how the compiler generates the rest of the object code.
@@ -2487,7 +2487,7 @@ where the compiler adds a load.
 
 (This may be overly cautious.  We don't know of any examples where a
 compiler has augmented a store with a load in this fashion, and the
-Linux kernel developers would probably fight pretty hard to change a
+GNU/Linux kernel developers would probably fight pretty hard to change a
 compiler if it ever did this.  Still, better safe than sorry.)
 
 Incidentally, the other tranformation -- augmenting a plain load by
@@ -2727,7 +2727,7 @@ the value of x, there is nothing for the smp_rmb() fence to act on.
 The LKMM defines a few extra synchronization operations in terms of
 things we have already covered.  In particular, rcu_dereference() is
 treated as READ_ONCE() and rcu_assign_pointer() is treated as
-smp_store_release() -- which is basically how the Linux kernel treats
+smp_store_release() -- which is basically how the GNU/Linux kernel treats
 them.
 
 Although we said that plain accesses are not linked by the ppo

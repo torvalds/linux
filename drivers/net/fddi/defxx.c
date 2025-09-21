@@ -9,7 +9,7 @@
  *   the GNU General Public License, incorporated herein by reference.
  *
  * Abstract:
- *   A Linux device driver supporting the Digital Equipment Corporation
+ *   A GNU/Linux device driver supporting the Digital Equipment Corporation
  *   FDDI TURBOchannel, EISA and PCI controller families.  Supported
  *   adapters include:
  *
@@ -25,15 +25,15 @@
  *
  * Credits:
  *   I'd like to thank Patricia Cross for helping me get started with
- *   Linux, David Davies for a lot of help upgrading and configuring
+ *   GNU/Linux, David Davies for a lot of help upgrading and configuring
  *   my development system and for answering many OS and driver
  *   development questions, and Alan Cox for recommendations and
- *   integration help on getting FDDI support into Linux.  LVS
+ *   integration help on getting FDDI support into GNU/Linux.  LVS
  *
  * Driver Architecture:
  *   The driver architecture is largely based on previous driver work
  *   for other operating systems.  The upper edge interface and
- *   functions were largely taken from existing Linux device drivers
+ *   functions were largely taken from existing GNU/Linux device drivers
  *   such as David Davies' DE4X5.C driver and Donald Becker's TULIP.C
  *   driver.
  *
@@ -66,7 +66,7 @@
  *
  *   Driver Shutdown -
  *		Apparently, there is no shutdown or halt routine support under
- *		Linux.  This routine would be called during "reboot" or
+ *		GNU/Linux.  This routine would be called during "reboot" or
  *		"shutdown" to allow the driver to place the adapter in a safe
  *		state before a warm reboot occurs.  To be really safe, the user
  *		should close the adapter before shutdown (eg. ifconfig fddi0 down)
@@ -89,7 +89,7 @@
  *		controller interrupt enable/disable.
  *
  *		The driver currently enables and disables adapter interrupts at the
- *		bus-logic chip and assumes that Linux will take care of clearing or
+ *		bus-logic chip and assumes that GNU/Linux will take care of clearing or
  *		acknowledging any host-based interrupt chips.
  *
  *   Control Functions -
@@ -97,7 +97,7 @@
  *		or deleting multicast addresses, enabling or disabling packet
  *		reception filters, or other custom/proprietary commands.  Presently,
  *		the driver supports the "get statistics", "set multicast list", and
- *		"set mac address" functions defined by Linux.  A list of possible
+ *		"set mac address" functions defined by GNU/Linux.  A list of possible
  *		enhancements include:
  *
  *				- Custom ioctl interface for executing port interface commands
@@ -3306,7 +3306,7 @@ static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 	 * Verify that incoming transmit request is OK
 	 *
 	 * Note: The packet size check is consistent with other
-	 *		 Linux device drivers, although the correct packet
+	 *		 GNU/Linux device drivers, although the correct packet
 	 *		 size should be verified before calling the
 	 *		 transmit routine.
 	 */

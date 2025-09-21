@@ -2112,14 +2112,14 @@ void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb)
 			/*
 			 * Our SFU ("Services for Unix") emulation allows now
 			 * creating new and reading existing SFU symlinks.
-			 * Older Linux kernel versions were not able to neither
+			 * Older GNU/Linux kernel versions were not able to neither
 			 * read existing nor create new SFU symlinks. But
 			 * creating and reading SFU style mknod and FIFOs was
 			 * supported for long time. When "mfsymlinks" and
 			 * "sfu" are both enabled at the same time, it allows
 			 * reading both types of symlinks, but will only create
 			 * them with mfsymlinks format. This allows better
-			 * Apple compatibility, compatibility with older Linux
+			 * Apple compatibility, compatibility with older GNU/Linux
 			 * kernel clients (probably better for Samba too)
 			 * while still recognizing old Windows style symlinks.
 			 */

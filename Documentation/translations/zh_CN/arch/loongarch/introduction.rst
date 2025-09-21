@@ -47,7 +47,7 @@ LA64中每个寄存器为64位宽。 ``$r0`` 的内容总是固定为0，而其�
 ================= =============== =================== ==========
 
 .. note::
-    注意： ``$r21`` 寄存器在ELF psABI中保留未使用，但是在Linux内核用于保
+    注意： ``$r21`` 寄存器在ELF psABI中保留未使用，但是在GNU/Linux内核用于保
     存每CPU变量基地址。该寄存器没有ABI命名，不过在内核中称为 ``$u0`` 。在
     一些遗留代码中有时可能见到 ``$v0`` 和 ``$v1`` ，它们是 ``$a0`` 和
     ``$a1`` 的别名，属于已经废弃的用法。
@@ -348,6 +348,6 @@ LoongArch的ELF psABI文档：
 
   https://github.com/loongson/LoongArch-Documentation/releases/latest/download/LoongArch-ELF-ABI-v2.01-EN.pdf （英文版）
 
-Loongson与LoongArch的Linux内核源码仓库：
+Loongson与LoongArch的GNU/Linux内核源码仓库：
 
   https://git.kernel.org/pub/scm/linux/kernel/git/chenhuacai/linux-loongson.git

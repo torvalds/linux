@@ -190,7 +190,7 @@ static void intelfb_set_suspend(struct drm_fb_helper *fb_helper, bool suspend)
 	struct fb_info *info = fb_helper->info;
 
 	/*
-	 * When resuming from hibernation, Linux restores the object's
+	 * When resuming from hibernation, GNU/Linux restores the object's
 	 * content from swap if the buffer is backed by shmemfs. If the
 	 * object is stolen however, it will be full of whatever garbage
 	 * was left in there. Clear it to zero in this case.

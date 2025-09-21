@@ -6,7 +6,7 @@
  */
 
 /*
- * Drew Eckhardt's excellent 'Generic NCR5380' sources from Linux-PC
+ * Drew Eckhardt's excellent 'Generic NCR5380' sources from GNU/Linux-PC
  * provided much of the inspiration and some of the code for this
  * driver. Everything I know about Amiga DMA was gleaned from careful
  * reading of Hamish Mcdonald's original wd33c93 driver; in fact, I
@@ -98,7 +98,7 @@ MODULE_LICENSE("GPL");
  * 'setup_strings' is a single string used to pass operating parameters and
  * settings from the kernel/module command-line to the driver. 'setup_args[]'
  * is an array of strings that define the compile-time default values for
- * these settings. If Linux boots with an amiboot or insmod command-line,
+ * these settings. If GNU/Linux boots with an amiboot or insmod command-line,
  * those settings are combined with 'setup_args[]'. Note that amiboot
  * command-lines are prefixed with "wd33c93=" while insmod uses a
  * "setup_strings=" prefix. The driver recognizes the following keywords

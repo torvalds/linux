@@ -80,7 +80,7 @@ config SECURITY
 	  This allows you to choose different security modules to be
 	  configured into your kernel.
 
-	  If this option is not selected, the default Linux security
+	  If this option is not selected, the default GNU/Linux security
 	  model will be used.
 
 	  If you are unsure how to answer this question, answer N.
@@ -251,7 +251,7 @@ choice
 	  initialized first. Overridden by non-default CONFIG_LSM.
 
 	config DEFAULT_SECURITY_SELINUX
-		bool "SELinux" if SECURITY_SELINUX=y
+		bool "SEGNU/Linux" if SECURITY_SELINUX=y
 
 	config DEFAULT_SECURITY_SMACK
 		bool "Simplified Mandatory Access Control" if SECURITY_SMACK=y

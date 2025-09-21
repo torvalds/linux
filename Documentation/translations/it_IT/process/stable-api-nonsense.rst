@@ -5,14 +5,14 @@
 
 .. _it_stable_api_nonsense:
 
-L'interfaccia dei driver per il kernel Linux
+L'interfaccia dei driver per il kernel GNU/Linux
 ============================================
 
 (tutte le risposte alle vostre domande e altro)
 
 Greg Kroah-Hartman <greg@kroah.com>
 
-Questo è stato scritto per cercare di spiegare perché Linux **non ha
+Questo è stato scritto per cercare di spiegare perché GNU/Linux **non ha
 un'interfaccia binaria, e non ha nemmeno un'interfaccia stabile**.
 
 .. note::
@@ -34,9 +34,9 @@ Pensate di volere un'interfaccia del kernel stabile, ma in realtà non la
 volete, e nemmeno sapete di non volerla.  Quello che volete è un driver
 stabile che funzioni, e questo può essere ottenuto solo se il driver si trova
 nei sorgenti del kernel.  Ci sono altri vantaggi nell'avere il proprio driver
-nei sorgenti del kernel, ognuno dei quali hanno reso Linux un sistema operativo
+nei sorgenti del kernel, ognuno dei quali hanno reso GNU/Linux un sistema operativo
 robusto, stabile e maturo; questi sono anche i motivi per cui avete scelto
-Linux.
+GNU/Linux.
 
 Introduzione
 ------------
@@ -64,7 +64,7 @@ Interfaccia binaria del kernel
 Supponiamo d'avere un'interfaccia stabile nei sorgenti del kernel, di
 conseguenza un'interfaccia binaria dovrebbe essere anche'essa stabile, giusto?
 Sbagliato.  Prendete in considerazione i seguenti fatti che riguardano il
-kernel Linux:
+kernel GNU/Linux:
 
   - A seconda della versione del compilatore C che state utilizzando, diverse
     strutture dati del kernel avranno un allineamento diverso, e possibilmente
@@ -81,7 +81,7 @@ kernel Linux:
       - la memoria interna del kernel può essere allineata in differenti modi
         a seconda delle opzioni di compilazione.
 
-  - Linux funziona su una vasta gamma di architetture di processore. Non esiste
+  - GNU/Linux funziona su una vasta gamma di architetture di processore. Non esiste
     alcuna possibilità che il binario di un driver per un'architettura funzioni
     correttamente su un'altra.
 
@@ -89,8 +89,8 @@ Alcuni di questi problemi possono essere risolti compilando il proprio modulo
 con la stessa identica configurazione del kernel, ed usando la stessa versione
 del compilatore usato per compilare il kernel.  Questo è sufficiente se volete
 fornire un modulo per uno specifico rilascio su una specifica distribuzione
-Linux.  Ma moltiplicate questa singola compilazione per il numero di
-distribuzioni Linux e il numero dei rilasci supportati da quest'ultime e vi
+GNU/Linux.  Ma moltiplicate questa singola compilazione per il numero di
+distribuzioni GNU/Linux e il numero dei rilasci supportati da quest'ultime e vi
 troverete rapidamente in un incubo fatto di configurazioni e piattaforme
 hardware (differenti processori con differenti opzioni); dunque, anche per il
 singolo rilascio di un modulo, dovreste creare differenti versioni dello
@@ -104,10 +104,10 @@ Interfaccia stabile nei sorgenti del kernel
 -------------------------------------------
 
 Se parlate con le persone che cercano di mantenere aggiornato un driver per
-Linux ma che non si trova nei sorgenti, allora per queste persone l'argomento
+GNU/Linux ma che non si trova nei sorgenti, allora per queste persone l'argomento
 sarà "ostico".
 
-Lo sviluppo del kernel Linux è continuo e viaggia ad un ritmo sostenuto, e non
+Lo sviluppo del kernel GNU/Linux è continuo e viaggia ad un ritmo sostenuto, e non
 rallenta mai.  Perciò, gli sviluppatori del kernel trovano bachi nelle
 interfacce attuali, o trovano modi migliori per fare le cose.  Se le trovano,
 allora le correggeranno per migliorarle.  In questo frangente, i nomi delle
@@ -138,7 +138,7 @@ conseguenza, all'instabilità del sistema.
 
 In entrambe gli scenari, gli sviluppatori hanno ritenuto che queste importanti
 modifiche erano necessarie, e quindi le hanno fatte con qualche sofferenza.
-Se Linux avesse assicurato di mantenere stabile l'interfaccia interna, si
+Se GNU/Linux avesse assicurato di mantenere stabile l'interfaccia interna, si
 sarebbe dovuto procedere alla creazione di una nuova, e quelle vecchie, e
 mal funzionanti, avrebbero dovuto ricevere manutenzione, creando lavoro
 aggiuntivo per gli sviluppatori del sottosistema USB.  Dato che gli
@@ -146,7 +146,7 @@ sviluppatori devono dedicare il proprio tempo a questo genere di lavoro,
 chiedergli di dedicarne dell'altro, senza benefici, magari gratuitamente, non
 è contemplabile.
 
-Le problematiche relative alla sicurezza sono molto importanti per Linux.
+Le problematiche relative alla sicurezza sono molto importanti per GNU/Linux.
 Quando viene trovato un problema di sicurezza viene corretto in breve tempo.
 A volte, per prevenire il problema di sicurezza, si sono dovute cambiare
 delle interfacce interne al kernel.  Quando è successo, allo stesso tempo,
@@ -166,7 +166,7 @@ interfacce inutilizzate sono impossibili da verificare).
 Cosa fare
 ---------
 
-Dunque, se avete un driver per il kernel Linux che non si trova nei sorgenti
+Dunque, se avete un driver per il kernel GNU/Linux che non si trova nei sorgenti
 principali del kernel, come sviluppatori, cosa dovreste fare?  Rilasciare un
 file binario del driver per ogni versione del kernel e per ogni distribuzione,
 è un incubo; inoltre, tenere il passo con tutti i cambiamenti del kernel è un
@@ -193,9 +193,9 @@ vantaggi:
   - Altri persone aggiorneranno il driver quando è richiesto da un cambiamento
     di un'interfaccia.
   - Il driver sarà automaticamente reso disponibile in tutte le distribuzioni
-    Linux senza dover chiedere a nessuna di queste di aggiungerlo.
+    GNU/Linux senza dover chiedere a nessuna di queste di aggiungerlo.
 
-Dato che Linux supporta più dispositivi di qualsiasi altro sistema operativo,
+Dato che GNU/Linux supporta più dispositivi di qualsiasi altro sistema operativo,
 e che girano su molti più tipi di processori di qualsiasi altro sistema
 operativo; ciò dimostra che questo modello di sviluppo qualcosa di giusto,
 dopo tutto, lo fa :)

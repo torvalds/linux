@@ -76,7 +76,7 @@ def get_kernel_root_path() -> str:
 		sys.exit(1)
 	return parts[0]
 
-def config_tests(linux: kunit_kernel.LinuxSourceTree,
+def config_tests(linux: kunit_kernel.GNU/LinuxSourceTree,
 		 request: KunitConfigRequest) -> KunitResult:
 	stdout.print_with_timestamp('Configuring KUnit Kernel ...')
 
@@ -86,7 +86,7 @@ def config_tests(linux: kunit_kernel.LinuxSourceTree,
 	status = KunitStatus.SUCCESS if success else KunitStatus.CONFIG_FAILURE
 	return KunitResult(status, config_end - config_start)
 
-def build_tests(linux: kunit_kernel.LinuxSourceTree,
+def build_tests(linux: kunit_kernel.GNU/LinuxSourceTree,
 		request: KunitBuildRequest) -> KunitResult:
 	stdout.print_with_timestamp('Building KUnit Kernel ...')
 
@@ -98,7 +98,7 @@ def build_tests(linux: kunit_kernel.LinuxSourceTree,
 	status = KunitStatus.SUCCESS if success else KunitStatus.BUILD_FAILURE
 	return KunitResult(status, build_end - build_start)
 
-def config_and_build_tests(linux: kunit_kernel.LinuxSourceTree,
+def config_and_build_tests(linux: kunit_kernel.GNU/LinuxSourceTree,
 			   request: KunitBuildRequest) -> KunitResult:
 	config_result = config_tests(linux, request)
 	if config_result.status != KunitStatus.SUCCESS:
@@ -106,7 +106,7 @@ def config_and_build_tests(linux: kunit_kernel.LinuxSourceTree,
 
 	return build_tests(linux, request)
 
-def _list_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -> List[str]:
+def _list_tests(linux: kunit_kernel.GNU/LinuxSourceTree, request: KunitExecRequest) -> List[str]:
 	args = ['kunit.action=list']
 
 	if request.kernel_args:
@@ -125,7 +125,7 @@ def _list_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) 
 	# Filter out any extraneous non-test output that might have gotten mixed in.
 	return [l for l in output if re.match(r'^[^\s.]+\.[^\s.]+$', l)]
 
-def _list_tests_attr(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -> Iterable[str]:
+def _list_tests_attr(linux: kunit_kernel.GNU/LinuxSourceTree, request: KunitExecRequest) -> Iterable[str]:
 	args = ['kunit.action=list_attr']
 
 	if request.kernel_args:
@@ -156,7 +156,7 @@ def _suites_from_test_list(tests: List[str]) -> List[str]:
 			suites.append(suite)
 	return suites
 
-def exec_tests(linux: kunit_kernel.LinuxSourceTree, request: KunitExecRequest) -> KunitResult:
+def exec_tests(linux: kunit_kernel.GNU/LinuxSourceTree, request: KunitExecRequest) -> KunitResult:
 	filter_globs = [request.filter_glob]
 	if request.list_tests:
 		output = _list_tests(linux, request)
@@ -266,7 +266,7 @@ def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input
 
 	return KunitResult(KunitStatus.SUCCESS, parse_time), test
 
-def run_tests(linux: kunit_kernel.LinuxSourceTree,
+def run_tests(linux: kunit_kernel.GNU/LinuxSourceTree,
 	      request: KunitRequest) -> KunitResult:
 	run_start = time.time()
 
@@ -441,8 +441,8 @@ def add_parse_opts(parser: argparse.ArgumentParser) -> None:
 			    action='store_true')
 
 
-def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree:
-	"""Returns a LinuxSourceTree based on the user's arguments."""
+def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.GNU/LinuxSourceTree:
+	"""Returns a GNU/LinuxSourceTree based on the user's arguments."""
 	# Allow users to specify multiple arguments in one string, e.g. '-smp 8'
 	qemu_args: List[str] = []
 	if cli_args.qemu_args:
@@ -455,7 +455,7 @@ def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree
 		# --kunitconfig options to have differing options.
 		kunitconfigs = [kunit_kernel.ALL_TESTS_CONFIG_PATH] + kunitconfigs
 
-	return kunit_kernel.LinuxSourceTree(cli_args.build_dir,
+	return kunit_kernel.GNU/LinuxSourceTree(cli_args.build_dir,
 			kunitconfig_paths=kunitconfigs,
 			kconfig_add=cli_args.kconfig_add,
 			arch=cli_args.arch,

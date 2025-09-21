@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2016 Linaro Ltd
  * Copyright (C) 2015 Sony Mobile Communications Inc
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/firmware.h>

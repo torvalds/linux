@@ -3,7 +3,7 @@
 .. _networking-filter:
 
 =======================================================
-Linux Socket Filtering aka Berkeley Packet Filter (BPF)
+GNU/Linux Socket Filtering aka Berkeley Packet Filter (BPF)
 =======================================================
 
 Notice
@@ -16,17 +16,17 @@ on eBPF.
 Introduction
 ------------
 
-Linux Socket Filtering (LSF) is derived from the Berkeley Packet Filter.
-Though there are some distinct differences between the BSD and Linux
-Kernel filtering, but when we speak of BPF or LSF in Linux context, we
-mean the very same mechanism of filtering in the Linux kernel.
+GNU/Linux Socket Filtering (LSF) is derived from the Berkeley Packet Filter.
+Though there are some distinct differences between the BSD and GNU/Linux
+Kernel filtering, but when we speak of BPF or LSF in GNU/Linux context, we
+mean the very same mechanism of filtering in the GNU/Linux kernel.
 
 BPF allows a user-space program to attach a filter onto any socket and
 allow or disallow certain types of data to come through the socket. LSF
 follows exactly the same filter code structure as BSD's BPF, so referring
 to the BSD bpf.4 manpage is very helpful in creating filters.
 
-On Linux, BPF is much simpler than on BSD. One does not have to worry
+On GNU/Linux, BPF is much simpler than on BSD. One does not have to worry
 about devices or anything like that. You simply create your filter code,
 send it to the kernel via the SO_ATTACH_FILTER option and if your filter
 code passes the kernel check on it, you then immediately begin filtering
@@ -52,7 +52,7 @@ internal compiler that generates a structure that can eventually be loaded
 via SO_ATTACH_FILTER to the kernel. `tcpdump -i em1 port 22 -ddd`
 displays what is being placed into this structure.
 
-Although we were only speaking about sockets here, BPF in Linux is used
+Although we were only speaking about sockets here, BPF in GNU/Linux is used
 in many more places. There's xt_bpf for netfilter, cls_bpf in the kernel
 qdisc layer, SECCOMP-BPF (SECure COMPuting [1]_), and lots of other places
 such as team driver, PTP code, etc where BPF is being used.
@@ -169,7 +169,7 @@ covered by libpcap in high-level syntax, so as an application developer
 you should stick to that. libpcap wraps its own layer around all that.
 
 Unless i) using/linking to libpcap is not an option, ii) the required BPF
-filters use Linux extensions that are not supported by libpcap's compiler,
+filters use GNU/Linux extensions that are not supported by libpcap's compiler,
 iii) a filter might be more complex and not cleanly implementable with
 libpcap's compiler, or iv) particular filter codes should be optimized
 differently than libpcap's internal compiler does; then in such cases
@@ -280,7 +280,7 @@ The next table shows addressing formats from the 2nd column:
   12               extension            BPF extension
   ===============  ===================  ===============================================
 
-The Linux kernel also has a couple of BPF extensions that are used along
+The GNU/Linux kernel also has a couple of BPF extensions that are used along
 with the class of load instructions by "overloading" the k argument with
 a negative offset + a particular extension offset. The result of such BPF
 extensions are loaded into A.
@@ -512,7 +512,7 @@ bpf passes:1 fails:9
 JIT compiler
 ------------
 
-The Linux kernel has a built-in BPF JIT compiler for x86_64, SPARC,
+The GNU/Linux kernel has a built-in BPF JIT compiler for x86_64, SPARC,
 PowerPC, ARM, ARM64, MIPS, RISC-V, s390, and ARC and can be enabled through
 CONFIG_BPF_JIT. The JIT compiler is transparently invoked for each
 attached filter from user space or for internal kernel users if it has
@@ -670,7 +670,7 @@ including timings in nsec can be found in the kernel log (dmesg).
 Misc
 ----
 
-Also trinity, the Linux syscall fuzzer, has built-in support for BPF and
+Also trinity, the GNU/Linux syscall fuzzer, has built-in support for BPF and
 SECCOMP-BPF kernel fuzzing.
 
 Written by

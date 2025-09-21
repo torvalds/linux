@@ -75,7 +75,7 @@ handler returns either -ENOTTY or -ENOIOCTLCMD, which also results in
 -ENOTTY being returned from the system call. Some subsystems return
 -ENOSYS or -EINVAL here for historic reasons, but this is wrong.
 
-Prior to Linux 5.5, compat_ioctl handlers were required to return
+Prior to GNU/Linux 5.5, compat_ioctl handlers were required to return
 -ENOIOCTLCMD in order to use the fallback conversion into native
 commands. As all subsystems are now responsible for handling compat
 mode themselves, this is no longer needed, but it may be important to

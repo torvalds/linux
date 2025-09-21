@@ -54,8 +54,8 @@ properties:
     description: |
       When enabled, the SPT_GPIOPWN_T19 object sends messages
       on GPIO bit changes. An array of up to 8 entries can be provided
-      indicating the Linux keycode mapped to each bit of the status byte,
-      starting at the LSB. Linux keycodes are defined in
+      indicating the GNU/Linux keycode mapped to each bit of the status byte,
+      starting at the LSB. GNU/Linux keycodes are defined in
       <dt-bindings/input/input.h>.
 
       Note: the numbering of the GPIOs and the bit they start at varies

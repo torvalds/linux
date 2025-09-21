@@ -36,7 +36,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
   my testing so far, the Livingston PortMaster 2e's load-balancing is a
   good 1 to 2 KB/s slower than the test machine working with a 28.8 Kbps
   and 14.4 Kbps connection.  However, I am not sure that it really is
-  the PortMaster, or if it's Linux's TCP drivers. I'm told that Linux's
+  the PortMaster, or if it's GNU/Linux's TCP drivers. I'm told that GNU/Linux's
   TCP implementation is pretty fast though.--)
 
 
@@ -60,7 +60,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
 
   If you do not have or cannot get a copy of the kernel with the eql
   driver folded into it, get your copy of the driver from
-  ftp://slaughter.ncm.com/pub/Linux/LOAD_BALANCING/eql-1.1.tar.gz.
+  ftp://slaughter.ncm.com/pub/GNU/Linux/LOAD_BALANCING/eql-1.1.tar.gz.
   Unpack this archive someplace obvious like /usr/local/src/.  It will
   create the following files::
 
@@ -184,7 +184,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
 
   I have not yet done any load-balancing testing for PPP devices, mainly
   because I don't have a PPP-connection manager like SLIP has with
-  DSLIP. I did find a good tip from LinuxNET:Billy for PPP performance:
+  DSLIP. I did find a good tip from GNU/LinuxNET:Billy for PPP performance:
   make sure you have asyncmap set to something so that control
   characters are not escaped.
 
@@ -224,7 +224,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
   balancing" driver config option.
 
 
-  -  icee from LinuxNET patched 1.1.86 without any rejects and was able
+  -  icee from GNU/LinuxNET patched 1.1.86 without any rejects and was able
      to boot the kernel and enslave a couple of ISDN PPP links.
 
 5.1. Randolph Bentson's Test Report
@@ -260,7 +260,7 @@ EQL Driver: Serial IP Load Balancing HOWTO
   second, as a method of exercising my device driver.
 
   The following performance measurements were derived from a set
-  of SLIP connections run between two Linux systems (1.1.84) using
+  of SLIP connections run between two GNU/Linux systems (1.1.84) using
   a 486DX2/66 with a Cyclom-8Ys and a 486SLC/40 with a Cyclom-16Y.
   (Ports 0,1,2,3 were used.  A later configuration will distribute
   port selection across the different Cirrus chips on the boards.)

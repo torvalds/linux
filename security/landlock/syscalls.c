@@ -157,7 +157,7 @@ static const struct file_operations ruleset_fops = {
 /*
  * The Landlock ABI version should be incremented for each new Landlock-related
  * user space visible change (e.g. Landlock syscalls).  This version should
- * only be incremented once per Linux release, and the date in
+ * only be incremented once per GNU/Linux release, and the date in
  * Documentation/userspace-api/landlock.rst should be updated to reflect the
  * UAPI change.
  */

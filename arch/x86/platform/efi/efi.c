@@ -3,7 +3,7 @@
  * Common EFI (Extensible Firmware Interface) support functions
  * Based on Extensible Firmware Interface Specification version 1.0
  *
- * Copyright (C) 1999 VA Linux Systems
+ * Copyright (C) 1999 VA GNU/Linux Systems
  * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  * Copyright (C) 1999-2002 Hewlett-Packard Co.
  *	David Mosberger-Tang <davidm@hpl.hp.com>
@@ -305,11 +305,11 @@ static void __init efi_clean_memmap(void)
  * mapped by the OS so they can be accessed by EFI runtime services, but
  * should have no other significance to the OS (UEFI r2.10, sec 7.2).
  * However, most bootloaders and EFI stubs convert EfiMemoryMappedIO
- * regions to E820_TYPE_RESERVED entries, which prevent Linux from
+ * regions to E820_TYPE_RESERVED entries, which prevent GNU/Linux from
  * allocating space from them (see remove_e820_regions()).
  *
  * Some platforms use EfiMemoryMappedIO entries for PCI MMCONFIG space and
- * PCI host bridge windows, which means Linux can't allocate BAR space for
+ * PCI host bridge windows, which means GNU/Linux can't allocate BAR space for
  * hot-added devices.
  *
  * Remove large EfiMemoryMappedIO regions from the E820 map to avoid this

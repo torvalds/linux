@@ -919,8 +919,8 @@ static __init void qemu_header(void)
 
 	pr_info("--- cut here ---\n");
 	pr_info("/* AUTO-GENERATED HEADER FILE FOR SEABIOS FIRMWARE */\n");
-	pr_cont("/* generated with Linux kernel */\n");
-	pr_cont("/* search for PARISC_QEMU_MACHINE_HEADER in Linux */\n\n");
+	pr_cont("/* generated with GNU/Linux kernel */\n");
+	pr_cont("/* search for PARISC_QEMU_MACHINE_HEADER in GNU/Linux */\n\n");
 
 	pr_info("#define PARISC_MODEL \"%s\"\n\n",
 			boot_cpu_data.pdc.sys_model_name);

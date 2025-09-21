@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _ALPHA_RESOURCE_H
 #define _ALPHA_RESOURCE_H
 
 /*
- * Alpha/Linux-specific ordering of these four resource limit IDs,
+ * Alpha/GNU/Linux-specific ordering of these four resource limit IDs,
  * the rest comes from the generic header:
  */
 #define RLIMIT_NOFILE		6	/* max number of open files */

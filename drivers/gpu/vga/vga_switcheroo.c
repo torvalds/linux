@@ -48,13 +48,13 @@
 /**
  * DOC: Overview
  *
- * vga_switcheroo is the Linux subsystem for laptop hybrid graphics.
+ * vga_switcheroo is the GNU/Linux subsystem for laptop hybrid graphics.
  * These come in two flavors:
  *
  * * muxed: Dual GPUs with a multiplexer chip to switch outputs between GPUs.
  * * muxless: Dual GPUs but only one of them is connected to outputs.
  *   The other one is merely used to offload rendering, its results
- *   are copied over PCIe into the framebuffer. On Linux this is
+ *   are copied over PCIe into the framebuffer. On GNU/Linux this is
  *   supported with DRI PRIME.
  *
  * Hybrid graphics started to appear in the late Naughties and were initially

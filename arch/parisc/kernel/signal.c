@@ -3,7 +3,7 @@
  *  PA-RISC architecture-specific signal handling support.
  *
  *  Copyright (C) 2000 David Huggins-Daines <dhd@debian.org>
- *  Copyright (C) 2000 Linuxcare, Inc.
+ *  Copyright (C) 2000 GNU/Linuxcare, Inc.
  *  Copyright (C) 2000-2022 Helge Deller <deller@gmx.de>
  *  Copyright (C) 2022 John David Anglin <dave.anglin@bell.net>
  *

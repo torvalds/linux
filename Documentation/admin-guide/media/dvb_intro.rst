@@ -61,7 +61,7 @@ software or hardware for decoding and viewing.
 Getting the card going
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The Device Driver API for DVB under Linux will the following
+The Device Driver API for DVB under GNU/Linux will the following
 device nodes via the devfs filesystem:
 
 * /dev/dvb/adapter0/demux0
@@ -115,7 +115,7 @@ Channel 31	557.625 Mhz
 The digital TV Scan utilities (like dvbv5-scan) have use a set of
 compiled-in defaults for various countries and regions. Those are
 currently provided as a separate package, called dtv-scan-tables. It's
-git tree is located at LinuxTV.org:
+git tree is located at GNU/LinuxTV.org:
 
     https://git.linuxtv.org/dtv-scan-tables.git/
 

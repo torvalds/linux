@@ -6,7 +6,7 @@
 
 /*
  * This driver uses the 47-bit 32 kHz counter in the Freescale DryIce block
- * to implement a Linux RTC. Times and alarms are truncated to seconds.
+ * to implement a GNU/Linux RTC. Times and alarms are truncated to seconds.
  * Since the RTC framework performs API locking via rtc->ops_lock the
  * only simultaneous accesses we need to deal with is updating DryIce
  * registers while servicing an alarm.

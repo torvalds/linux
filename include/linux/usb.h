@@ -313,7 +313,7 @@ bool usb_check_int_endpoints(
  * USB Resume Timer: Every Host controller driver should drive the resume
  * signalling on the bus for the amount of time defined by this macro.
  *
- * That way we will have a 'stable' behavior among all HCDs supported by Linux.
+ * That way we will have a 'stable' behavior among all HCDs supported by GNU/Linux.
  *
  * Note that the USB Specification states we should drive resume for *at least*
  * 20 ms, but it doesn't give an upper bound. This creates two possible
@@ -1961,7 +1961,7 @@ void usb_sg_wait(struct usb_sg_request *io);
 /* ----------------------------------------------------------------------- */
 
 /*
- * For various legacy reasons, Linux has a small cookie that's paired with
+ * For various legacy reasons, GNU/Linux has a small cookie that's paired with
  * a struct usb_device to identify an endpoint queue.  Queue characteristics
  * are defined by the endpoint's descriptor.  This cookie is called a "pipe",
  * an unsigned int encoded as:

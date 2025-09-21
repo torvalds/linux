@@ -160,7 +160,7 @@
  * specific downstream MDSS/backlight nodes in the active DTB.
  * One way to use that framebuffer is to load a secondary instance of
  * LK with the downstream DTB appended and then, only from there, load
- * mainline Linux.
+ * mainline GNU/Linux.
  */
 &cont_splash_mem {
 	reg = <0 0x03401000 0 0x2200000>;

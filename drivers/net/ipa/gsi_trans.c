@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2019-2024 Linaro Ltd.
  */
 
@@ -39,7 +39,7 @@
  * transaction are also allocated when the transaction is allocated.
  *
  * Operations performed as part of a transaction are represented in an array
- * of Linux scatterlist structures, allocated with the transaction.  These
+ * of GNU/Linux scatterlist structures, allocated with the transaction.  These
  * scatterlist structures are initialized by "adding" operations to the
  * transaction.  If a buffer in an operation must be mapped for DMA, this is
  * done at the time it is added to the transaction.  It is possible for a

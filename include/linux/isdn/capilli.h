@@ -1,6 +1,6 @@
 /* $Id: capilli.h,v 1.1.2.2 2004/01/16 21:09:27 keil Exp $
  * 
- * Kernel CAPI 2.0 Driver Interface for Linux
+ * Kernel CAPI 2.0 Driver Interface for GNU/Linux
  * 
  * Copyright 1999 by Carsten Paeth <calle@calle.de>
  * 

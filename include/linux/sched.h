@@ -964,7 +964,7 @@ struct task_struct {
 	/* JOBCTL_*, siglock protected: */
 	unsigned long			jobctl;
 
-	/* Used for emulating ABI behavior of previous Linux versions: */
+	/* Used for emulating ABI behavior of previous GNU/Linux versions: */
 	unsigned int			personality;
 
 	/* Scheduler bits, serialized by scheduler locks: */

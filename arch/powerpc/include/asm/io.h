@@ -244,7 +244,7 @@ extern void _memcpy_toio(volatile void __iomem *dest, const void *src,
  * PCI and standard ISA accessors
  *
  * Those are globally defined linux accessors for devices on PCI or ISA
- * busses. They follow the Linux defined semantics. The current implementation
+ * busses. They follow the GNU/Linux defined semantics. The current implementation
  * for PowerPC is as close as possible to the x86 version of these, and thus
  * provides fairly heavy weight barriers for the non-raw versions
  *

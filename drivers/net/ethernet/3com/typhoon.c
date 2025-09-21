@@ -1,8 +1,8 @@
-/* typhoon.c: A Linux Ethernet device driver for 3Com 3CR990 family of NICs */
+/* typhoon.c: A GNU/Linux Ethernet device driver for 3Com 3CR990 family of NICs */
 /*
 	Written 2002-2004 by David Dillow <dave@thedillows.org>
 	Based on code written 1998-2000 by Donald Becker <becker@scyld.com> and
-	Linux 2.2.x driver by David P. McLean <davidpmclean@yahoo.com>.
+	GNU/Linux 2.2.x driver by David P. McLean <davidpmclean@yahoo.com>.
 
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
@@ -903,7 +903,7 @@ typhoon_do_get_stats(struct typhoon *tp)
 	if (err < 0)
 		return err;
 
-	/* 3Com's Linux driver uses txMultipleCollisions as it's
+	/* 3Com's GNU/Linux driver uses txMultipleCollisions as it's
 	 * collisions value, but there is some other collision info as well...
 	 *
 	 * The extra status reported would be a good candidate for

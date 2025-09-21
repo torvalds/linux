@@ -639,7 +639,7 @@ EXPORT_SYMBOL(cros_ec_query_all);
  *
  * Call this to send a command to the ChromeOS EC. This should be used instead
  * of calling the EC's cmd_xfer() callback directly. This function does not
- * convert EC command execution error codes to Linux error codes. Most
+ * convert EC command execution error codes to GNU/Linux error codes. Most
  * in-kernel users will want to use cros_ec_cmd_xfer_status() instead since
  * that function implements the conversion.
  *
@@ -650,7 +650,7 @@ EXPORT_SYMBOL(cros_ec_query_all);
  *      reported in msg->result. The result will be EC_RES_SUCCESS if the
  *      command was executed successfully or report an EC command execution
  *      error.
- * <0 - EC communication error. Return value is the Linux error code.
+ * <0 - EC communication error. Return value is the GNU/Linux error code.
  */
 int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev, struct cros_ec_command *msg)
 {
@@ -710,7 +710,7 @@ EXPORT_SYMBOL(cros_ec_cmd_xfer);
  *
  * Return:
  * >=0 - The number of bytes transferred.
- * <0 - Linux error code
+ * <0 - GNU/Linux error code
  */
 int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg)

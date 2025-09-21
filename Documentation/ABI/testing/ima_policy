@@ -71,7 +71,7 @@ Description:
 			pcr:= decimal value
 			label:= [selinux]|[kernel_info]|[data_label]
 			data_label:= a unique string used for grouping and limiting critical data.
-			For example, "selinux" to measure critical data for SELinux.
+			For example, "selinux" to measure critical data for SEGNU/Linux.
 			appraise_algos:= comma-separated list of hash algorithms
 			For example, "sha256,sha512" to only accept to appraise
 			files where the security.ima xattr was hashed with one
@@ -125,7 +125,7 @@ Description:
 
 		Examples of LSM specific definitions:
 
-		SELinux::
+		SEGNU/Linux::
 
 			dont_measure obj_type=var_log_t
 			dont_appraise obj_type=var_log_t

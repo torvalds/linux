@@ -31,7 +31,7 @@ config OPT_LIB_ASM
 comment "Definitions for MICROBLAZE0"
 
 config KERNEL_BASE_ADDR
-	hex "Physical address where Linux Kernel is"
+	hex "Physical address where GNU/Linux Kernel is"
 	default "0x90000000"
 	help
 	  BASE Address for kernel

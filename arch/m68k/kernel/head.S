@@ -2,7 +2,7 @@
 ** -*- mode: asm -*-
 **
 ** head.S -- This file contains the initial boot code for the
-**	     Linux/68k kernel.
+**	     GNU/Linux/68k kernel.
 **
 ** Copyright 1993 by Hamish Macdonald
 **
@@ -29,7 +29,7 @@
 */
 
 /*
- * Linux startup code.
+ * GNU/Linux startup code.
  *
  * At this point, the boot loader has:
  * Disabled interrupts
@@ -161,7 +161,7 @@
  *
  * console_put_penguin
  * -------------------
- *	An important part of any Linux bring up is the penguin and there's
+ *	An important part of any GNU/Linux bring up is the penguin and there's
  * nothing like getting the Penguin on the screen!  This algorithm will work
  * on any machine for which there is a console_plot_pixel.
  *
@@ -913,7 +913,7 @@ L(nocon):
  *	mmu_init
  *
  *	This block of code does what's necessary to map in the various kinds
- *	of machines for execution of Linux.
+ *	of machines for execution of GNU/Linux.
  *	First map the first 4, 8, or 16 MB of kernel code & data
  */
 
@@ -2159,7 +2159,7 @@ func_start	mmu_map,%d0-%d4/%a0-%a4
  *
  *	The 040 does not support early terminating descriptors, as
  *	the 030 does.  Therefore, a third level of table is needed
- *	for the 040, and that would be the page table.  In Linux,
+ *	for the 040, and that would be the page table.  In GNU/Linux,
  *	page tables are allocated directly from the memory above the
  *	kernel.
  *

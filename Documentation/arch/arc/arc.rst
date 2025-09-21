@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Linux kernel for ARC processors
+GNU/Linux kernel for ARC processors
 *******************************
 
 Other sources of information
@@ -35,21 +35,21 @@ Important note on ARC processors configurability
 ################################################
 
 ARC processors are highly configurable and several configurable options
-are supported in Linux. Some options are transparent to software
+are supported in GNU/Linux. Some options are transparent to software
 (i.e cache geometries, some can be detected at runtime and configured
 and used accordingly, while some need to be explicitly selected or configured
 in the kernel's configuration utility (AKA "make menuconfig").
 
 However not all configurable options are supported when an ARC processor
-is to run Linux. SoC design teams should refer to "Appendix E:
-Configuration for ARC Linux" in the ARC HS Databook for configurability
+is to run GNU/Linux. SoC design teams should refer to "Appendix E:
+Configuration for ARC GNU/Linux" in the ARC HS Databook for configurability
 guidelines.
 
 Following these guidelines and selecting valid configuration options
 up front is critical to help prevent any unwanted issues during
 SoC bringup and software development in general.
 
-Building the Linux kernel for ARC processors
+Building the GNU/Linux kernel for ARC processors
 ############################################
 
 The process of kernel building for ARC processors is the same as for any other
@@ -68,7 +68,7 @@ available from:
 - Synopsys GNU toolchain releases:
   `<https://github.com/foss-for-synopsys-dwc-arc-processors/toolchain/releases>`_
 
-- Linux kernel compilers collection:
+- GNU/Linux kernel compilers collection:
   `<https://mirrors.edge.kernel.org/pub/tools/crosstool>`_
 
 - Bootlin's toolchain collection: `<https://toolchains.bootlin.com>`_

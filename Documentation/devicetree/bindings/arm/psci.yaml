@@ -12,7 +12,7 @@ maintainers:
 description: |+
   Firmware implementing the PSCI functions described in ARM document number
   ARM DEN 0022A ("Power State Coordination Interface System Software on ARM
-  processors") can be used by Linux to initiate various CPU-centric power
+  processors") can be used by GNU/Linux to initiate various CPU-centric power
   operations.
 
   Issue A of the specification describes functions for CPU suspend, hotplug

@@ -1224,7 +1224,7 @@ static int perform_admin_operation(struct vdo *vdo, u32 starting_phase,
 	vdo_launch_completion(prepare_admin_completion(vdo, callback, error_handler));
 
 	/*
-	 * Using the "interruptible" interface means that Linux will not log a message when we wait
+	 * Using the "interruptible" interface means that GNU/Linux will not log a message when we wait
 	 * for more than 120 seconds.
 	 */
 	while (wait_for_completion_interruptible(&admin->callback_sync)) {

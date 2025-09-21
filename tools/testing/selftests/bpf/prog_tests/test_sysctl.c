@@ -455,7 +455,7 @@ static struct sysctl_test tests[] = {
 			/* if (ret == expected && */
 			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 6, 6),
 
-			/*     buf[0:6] == "Linux\n\0") */
+			/*     buf[0:6] == "GNU/Linux\n\0") */
 			BPF_LD_IMM64(BPF_REG_8,
 				     bpf_be64_to_cpu(0x4c696e75780a0000ULL)),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
@@ -494,7 +494,7 @@ static struct sysctl_test tests[] = {
 			/* if (ret == expected && */
 			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 6, 6),
 
-			/*     buf[0:6] == "Linux\n\0") */
+			/*     buf[0:6] == "GNU/Linux\n\0") */
 			BPF_LD_IMM64(BPF_REG_8,
 				     bpf_be64_to_cpu(0x4c696e75780a0000ULL)),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
@@ -533,7 +533,7 @@ static struct sysctl_test tests[] = {
 			/* if (ret == expected && */
 			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -E2BIG, 6),
 
-			/*     buf[0:6] == "Linux\0") */
+			/*     buf[0:6] == "GNU/Linux\0") */
 			BPF_LD_IMM64(BPF_REG_8,
 				     bpf_be64_to_cpu(0x4c696e7578000000ULL)),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),

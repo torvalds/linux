@@ -1,6 +1,6 @@
-Linux Ftrace Testcases
+GNU/Linux Ftrace Testcases
 
-This is a collection of testcases for ftrace tracing feature in the Linux
+This is a collection of testcases for ftrace tracing feature in the GNU/Linux
 kernel. Since ftrace exports interfaces via the debugfs, we just need
 shell scripts for testing. Feel free to add new test cases.
 

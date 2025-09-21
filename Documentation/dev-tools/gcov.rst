@@ -1,8 +1,8 @@
-Using gcov with the Linux kernel
+Using gcov with the GNU/Linux kernel
 ================================
 
 gcov profiling kernel support enables the use of GCC's coverage testing
-tool gcov_ with the Linux kernel. Coverage data of a running kernel
+tool gcov_ with the GNU/Linux kernel. Coverage data of a running kernel
 is exported in gcov-compatible format via the "gcov" debugfs directory.
 To get coverage data for a specific file, change to the kernel build
 directory and use gcov with the ``-o`` option as follows (requires root)::

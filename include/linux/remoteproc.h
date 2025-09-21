@@ -289,7 +289,7 @@ struct fw_rsc_vdev_vring {
  *
  * Note:
  * 1. unlike virtualization systems, the term 'host' here means
- *    the Linux side which is running remoteproc to control the remote
+ *    the GNU/Linux side which is running remoteproc to control the remote
  *    processors. We use the name 'gfeatures' to comply with virtio's terms,
  *    though there isn't really any virtualized guest OS here: it's the host
  *    which is responsible for negotiating the final features.
@@ -493,8 +493,8 @@ struct rproc_dump_segment {
  * enum rproc_features - features supported
  *
  * @RPROC_FEAT_ATTACH_ON_RECOVERY: The remote processor does not need help
- *				   from Linux to recover, such as firmware
- *				   loading. Linux just needs to attach after
+ *				   from GNU/Linux to recover, such as firmware
+ *				   loading. GNU/Linux just needs to attach after
  *				   recovery.
  */
 

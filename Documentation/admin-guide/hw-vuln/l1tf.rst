@@ -75,7 +75,7 @@ Attack scenarios
    encoded in the address bits of the PTE, thus making attacks more
    deterministic and more practical.
 
-   The Linux kernel contains a mitigation for this attack vector, PTE
+   The GNU/Linux kernel contains a mitigation for this attack vector, PTE
    inversion, which is permanently enabled and has no performance
    impact. The kernel ensures that the address bits of PTEs, which are not
    marked present, never point to cacheable physical memory space.
@@ -105,7 +105,7 @@ Attack scenarios
    effective (shadow) page tables.
 
    While solutions exist to mitigate these attack vectors fully, these
-   mitigations are not enabled by default in the Linux kernel because they
+   mitigations are not enabled by default in the GNU/Linux kernel because they
    can affect performance significantly. The kernel provides several
    mechanisms which can be utilized to address the problem depending on the
    deployment scenario. The mitigations, their protection scope and impact
@@ -119,7 +119,7 @@ Attack scenarios
 L1TF system information
 -----------------------
 
-The Linux kernel provides a sysfs interface to enumerate the current L1TF
+The GNU/Linux kernel provides a sysfs interface to enumerate the current L1TF
 status of the system: whether the system is vulnerable, and which
 mitigations are active. The relevant sysfs file is:
 

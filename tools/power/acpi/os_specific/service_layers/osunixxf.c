@@ -9,7 +9,7 @@
 
 /*
  * These interfaces are required in order to compile the ASL compiler and the
- * various ACPICA tools under Linux or other Unix-like system.
+ * various ACPICA tools under GNU/Linux or other Unix-like system.
  */
 #include <acpi/acpi.h>
 #include "accommon.h"

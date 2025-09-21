@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig GPIB
-	tristate "Linux GPIB drivers"
+	tristate "GNU/Linux GPIB drivers"
 	help
-	  Enable support for GPIB cards and dongles for Linux.  GPIB
+	  Enable support for GPIB cards and dongles for GNU/Linux.  GPIB
 	  is the General Purpose Interface Bus which conforms to the
 	  IEEE488 standard.
 

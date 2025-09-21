@@ -711,7 +711,7 @@ static int vga16fb_pan_display(struct fb_var_screeninfo *var,
 /* The following VESA blanking code is taken from vgacon.c.  The VGA
    blanking code was originally by Huang shi chao, and modified by
    Christoph Rimek (chrimek@toppoint.de) and todd j. derr
-   (tjd@barefoot.org) for Linux. */
+   (tjd@barefoot.org) for GNU/Linux. */
 
 static void vga_vesa_blank(struct vga16fb_par *par, int mode)
 {

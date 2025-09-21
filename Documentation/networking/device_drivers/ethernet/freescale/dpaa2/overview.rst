@@ -8,7 +8,7 @@ DPAA2 (Data Path Acceleration Architecture Gen2) Overview
 :Copyright: |copy| 2018 NXP
 
 This document provides an overview of the Freescale DPAA2 architecture
-and how it is integrated into the Linux kernel.
+and how it is integrated into the GNU/Linux kernel.
 
 Introduction
 ============
@@ -270,18 +270,18 @@ same container/DPRC share the same 'device-id'.
 For ARM-based SoC this is the same as the stream ID.
 
 
-DPAA2 Linux Drivers Overview
+DPAA2 GNU/Linux Drivers Overview
 ============================
 
-This section provides an overview of the Linux kernel drivers for
+This section provides an overview of the GNU/Linux kernel drivers for
 DPAA2-- 1) the bus driver and associated "DPAA2 infrastructure"
 drivers and 2) functional object drivers (such as Ethernet).
 
 As described previously, a DPRC is a container that holds the other
 types of DPAA2 objects.  It is functionally similar to a plug-and-play
 bus controller.
-Each object in the DPRC is a Linux "device" and is bound to a driver.
-The diagram below shows the Linux drivers involved in a networking
+Each object in the DPRC is a GNU/Linux "device" and is bound to a driver.
+The diagram below shows the GNU/Linux drivers involved in a networking
 scenario and the objects bound to each driver.  A brief description
 of each driver follows.
 
@@ -392,7 +392,7 @@ Ethernet driver
 The Ethernet driver is bound to a DPNI and implements the kernel
 interfaces needed to connect the DPAA2 network interface to
 the network stack.
-Each DPNI corresponds to a Linux network interface.
+Each DPNI corresponds to a GNU/Linux network interface.
 
 MAC driver
 ----------

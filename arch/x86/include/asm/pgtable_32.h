@@ -5,7 +5,7 @@
 #include <asm/pgtable_32_types.h>
 
 /*
- * The Linux memory management assumes a three-level page table setup. On
+ * The GNU/Linux memory management assumes a three-level page table setup. On
  * the i386, we use that, but "fold" the mid level into the top-level page
  * table, so that we physically have the same two-level page table as the
  * i386 mmu expects.

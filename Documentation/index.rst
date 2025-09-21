@@ -3,7 +3,7 @@
 .. _linux_doc:
 
 ==============================
-The Linux Kernel documentation
+The GNU/Linux Kernel documentation
 ==============================
 
 This is the top level of the kernel's documentation tree.  Kernel
@@ -78,7 +78,7 @@ developers seeking information on the kernel's user-space APIs.
    Userspace tools <tools/index>
    Userspace API <userspace-api/index>
 
-See also: the `Linux man pages <https://www.kernel.org/doc/man-pages/>`_,
+See also: the `GNU/Linux man pages <https://www.kernel.org/doc/man-pages/>`_,
 which are kept separately from the kernel's own documentation.
 
 Firmware-related documentation

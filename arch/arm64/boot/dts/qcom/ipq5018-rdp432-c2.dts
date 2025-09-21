@@ -2,7 +2,7 @@
 /*
  * IPQ5018 MP03.1-C2 board device tree source
  *
- * Copyright (c) 2023 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 The GNU/Linux Foundation. All rights reserved.
  */
 
 /dts-v1/;

@@ -9,8 +9,8 @@ config PLIP
 	help
 	  PLIP (Parallel Line Internet Protocol) is used to create a
 	  reasonably fast mini network consisting of two (or, rarely, more)
-	  local machines.  A PLIP link from a Linux box is a popular means to
-	  install a Linux distribution on a machine which doesn't have a
+	  local machines.  A PLIP link from a GNU/Linux box is a popular means to
+	  install a GNU/Linux distribution on a machine which doesn't have a
 	  CD-ROM drive (a minimal system has to be transferred with floppies
 	  first). The kernels on both machines need to have this PLIP option
 	  enabled for this to work.
@@ -31,7 +31,7 @@ config PLIP
 	  as the NET-3-HOWTO, both available from
 	  <http://www.tldp.org/docs.html#howto>.  Note that the PLIP
 	  protocol has been changed and this PLIP driver won't work together
-	  with the PLIP support in Linux versions 1.0.x.  This option enlarges
+	  with the PLIP support in GNU/Linux versions 1.0.x.  This option enlarges
 	  your kernel by about 8 KB.
 
 	  To compile this driver as a module, choose M here. The module

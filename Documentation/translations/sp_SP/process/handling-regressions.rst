@@ -8,7 +8,7 @@ Gestión de regresiones
 ++++++++++++++++++++++
 
 *No causamos regresiones* -- este documento describe la que es la "primera
-regla del desarrollo del kernel de Linux" y que implica en la práctica para
+regla del desarrollo del kernel de GNU/Linux" y que implica en la práctica para
 los desarrolladores. Y complementa la documentación:
 Documentation/admin-guide/reporting-regressions.rst, que cubre el tema
 desde el punto de vista de un usuario; si nunca ha leído ese texto, realice
@@ -28,7 +28,7 @@ Las partes importantes (el "TL;DR")
     * Mande o redirija cualquier informe originado en los gestores de bugs
       a la lista.
 
-#. Haga que el bot del kernel de Linux "regzbot" realice el seguimiento del
+#. Haga que el bot del kernel de GNU/Linux "regzbot" realice el seguimiento del
    incidente (esto es opcional, pero recomendado).
 
     * Para reportes enviados por correo, verificar si contiene alguna línea
@@ -57,7 +57,7 @@ Las partes importantes (el "TL;DR")
    deberían ser integradas en menos de dos semanas, pero algunas pueden
    resolverse en dos o tres días.
 
-Detalles importantes para desarrolladores en la regresiones de kernel de Linux
+Detalles importantes para desarrolladores en la regresiones de kernel de GNU/Linux
 ==============================================================================
 
 Puntos básicos importantes más en detalle
@@ -66,7 +66,7 @@ Puntos básicos importantes más en detalle
 Qué hacer cuando se recibe un aviso de regresión.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Asegúrese de que el programa de gestión de regresiones del kernel de Linux
+Asegúrese de que el programa de gestión de regresiones del kernel de GNU/Linux
 y los subscritos a la lista de correo `regression mailing list
 <https://lore.kernel.org/regressions/>`_ (regressions@lists.linux.dev) son
 conocedores de cualquier nuevo informe de regresión:
@@ -85,7 +85,7 @@ conocedores de cualquier nuevo informe de regresión:
 
 Cuando se realice cualquiera de las acciones anteriores, considere
 inmediatamente iniciar el seguimiento de la regresión con "regzbot" el
-gestor de regresiones del kernel de Linux.
+gestor de regresiones del kernel de GNU/Linux.
 
  * Para los informes enviados por email, verificar si se ha incluido un
    comando a "regzbot", como ``#regzbot introduced 1f2e3d4c5b6a``. Si no es
@@ -142,7 +142,7 @@ Todo esto se espera y es importante en una regresión, ya que estas
 etiquetas son de gran valor para todos (incluido usted) que pueda estar
 mirando en ese incidente semanas, meses o años después. Estas etiquetas son
 también cruciales para las herramientas y scripts usados por otros
-desarrolladores del kernel o distribuciones de Linux; una de esas
+desarrolladores del kernel o distribuciones de GNU/Linux; una de esas
 herramientas es regzbot, el cual depende mucho de las etiquetas "Link:"
 para asociar los informes por regresiones con los cambios que las
 resuelven.
@@ -168,7 +168,7 @@ presentan unas reglas generales, en orden de importancia:
 
  * Priorice el trabajo en la gestión de los informes de la regresión y
    arreglar la regresión por encima de cualquier otro trabajo en el kernel
-   de Linux, a menos que lo último afecte profundamente a efectos de
+   de GNU/Linux, a menos que lo último afecte profundamente a efectos de
    seguridad, o cause errores en los que haya pérdida o daño de datos.
 
  * Considere siempre revertir los commits responsables y re-aplicarlos
@@ -193,7 +193,7 @@ presentan unas reglas generales, en orden de importancia:
    regresiones en las preliberaciones. Esto cambia después de la liberación
    de la quinta pre-liberación, aka "-rc5": la rama principal entonces se
    vuelve más importante, asegurar que todas las mejoras y correcciones son
-   idealmente testeados juntos por al menos una semana antes de que Linux
+   idealmente testeados juntos por al menos una semana antes de que GNU/Linux
    libere la nueva versión en la rama principal.
 
  * Intente arreglar regresiones en un intervalo de una semana después de
@@ -215,7 +215,7 @@ presentan unas reglas generales, en orden de importancia:
    después de que el culpable haya sido identificado. Dos o tres semanas
    adicionales son aceptables para regresiones de rendimiento y otros
    incidentes que son molestos, pero no bloquean a nadie la ejecución de
-   Linux (a menos que se un incidente en el ciclo de desarrollo actual, en
+   GNU/Linux (a menos que se un incidente en el ciclo de desarrollo actual, en
    ese caso se debería gestionar antes de la liberación de la versión).
    Unas semanas son aceptables si la regresión únicamente puede ser
    arreglada con un cambio arriesgado y al mismo tiempo únicamente afecta a
@@ -257,7 +257,7 @@ Si al final, el riesgo de la regresión parece ser relativamente pequeño,
 entonces adelante con el cambio, pero siempre informe a todas las partes
 involucradas del posible riesgo. Por tanto, asegúrese de que la descripción
 del parche, se hace explícito este hecho. Una vez el cambio ha sido
-integrado, informe al gestor de regresiones de Linux y a las listas de
+integrado, informe al gestor de regresiones de GNU/Linux y a las listas de
 correo de regresiones sobre el riesgo, de manera que cualquiera que tenga
 el cambio en el radar, en el caso de que aparezcan reportes. Dependiendo
 del riesgo, quizás se quiera preguntar al mantenedor del subsistema, que
@@ -284,21 +284,21 @@ A quién preguntar por consejo cuando se trata de regresiones
 
 Mande un email a la lista de correo de regresiones
 (regressions@lists.linux.dev) y CC al seguidor de regresiones del kernel de
-Linux (regressions@leemhuis.info); Si el incidente pudiera ser mejor
+GNU/Linux (regressions@leemhuis.info); Si el incidente pudiera ser mejor
 gestionarlo en privado, puede omitirse la lista.
 
 
 Más sobre la gestión de regresiones con regzbot
 -----------------------------------------------
 
-¿Por qué el kernel de Linux tiene un gestor de regresiones, y por qué se usa regzbot?
+¿Por qué el kernel de GNU/Linux tiene un gestor de regresiones, y por qué se usa regzbot?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Reglas como "no regresiones" necesitan asegurar que se cumplen, de otro
 modo se romperían accidentalmente o a propósito. La historia ha mostrado
-que esto es verdad también para el kernel de Linux. Esto es por lo que
+que esto es verdad también para el kernel de GNU/Linux. Esto es por lo que
 Thorsten Leemhuis se ofreció como voluntario para dar una solución a esto,
-con el gestor de regresiones del kernel de Linux. A nadie se le paga por
+con el gestor de regresiones del kernel de GNU/Linux. A nadie se le paga por
 hacer esto, y esa es la razón por la gestión de regresiones es un servicio
 con el "mejor esfuerzo".
 
@@ -338,7 +338,7 @@ Hacerlo es por el bien de todo el mundo, tanto los mantenedores del kernel,
 como Linus Torvalds dependen parcialmente en regzbot para seguir su trabajo
 -- por ejemplo cuando deciden liberar una nueva versión o ampliar la fase de
 desarrollo. Para esto necesitan conocer todas las regresiones que están sin
-corregir; para esto, es conocido que Linux mira los informes semanales que
+corregir; para esto, es conocido que GNU/Linux mira los informes semanales que
 manda regzbot.
 
 ¿He de informar a regzbot cada regresión que encuentre?
@@ -346,7 +346,7 @@ manda regzbot.
 
 Idealmente, sí: todos somos humanos y olvidamos fácilmente los problemas
 cuando algo más importante aparece inesperadamente -- por ejemplo un
-problema mayor en el kernel de Linux o algo en la vida real que nos mantenga
+problema mayor en el kernel de GNU/Linux o algo en la vida real que nos mantenga
 alejados de los teclados por un tiempo. Por eso es mejor informar a regzbot
 sobre cada regresión, excepto cuando inmediatamente escribimos un parche y
 los mandamos al árbol de desarrollo en el que se integran habitualmente a
@@ -357,7 +357,7 @@ la serie del kernel.
 
 Verifique el `interfaz web de regzbot <https://linux-regtracking.leemhuis.info/regzbot/>`_
 para ver la última información; o `busque el último informe de regresiones
-<https://lore.kernel.org/lkml/?q=%22Linux+regressions+report%22+f%3Aregzbot>`_,
+<https://lore.kernel.org/lkml/?q=%22GNU/Linux+regressions+report%22+f%3Aregzbot>`_,
 el cual suele ser enviado por regzbot una vez a la semana el domingo por la
 noche (UTC), lo cual es unas horas antes de que Linus normalmente anuncie
 las "(pre-)releases".
@@ -365,7 +365,7 @@ las "(pre-)releases".
 ¿Qué sitios supervisa regzbot?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Regzbot supervisa las listas de correo más importantes de Linux, como
+Regzbot supervisa las listas de correo más importantes de GNU/Linux, como
 también las de los repositorios linux-next, mainline y stable/longterm.
 
 
@@ -373,7 +373,7 @@ también las de los repositorios linux-next, mainline y stable/longterm.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 El bot debe hacer seguimiento de las regresiones, y por tanto por favor,
 no involucre a regzbot para incidencias normales. Pero es correcto para
-el gestor de incidencias de kernel de Linux, monitorizar incidentes
+el gestor de incidencias de kernel de GNU/Linux, monitorizar incidentes
 graves, como informes sobre cuelgues, corrupción de datos o errores
 internos (Panic, Oops, BUG(), warning, ...).
 
@@ -444,7 +444,7 @@ respuestas al correo en el que se uso como respuesta a ese correo:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Hay información más detallada y actualizada sobre el bot de seguimiento de
-regresiones del kernel de Linux en: `project page <https://gitlab.com/knurd42/regzbot>`_,
+regresiones del kernel de GNU/Linux en: `project page <https://gitlab.com/knurd42/regzbot>`_,
 y entre otros contiene una  `guia de inicio <https://gitlab.com/knurd42/regzbot/-/blob/main/docs/getting_started.md>`_
 y `documentación de referencia <https://gitlab.com/knurd42/regzbot/-/blob/main/docs/reference.md>`_
 Ambos contienen más detalles que las secciones anteriores.

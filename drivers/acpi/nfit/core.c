@@ -423,7 +423,7 @@ static int cmd_to_func(struct nfit_mem *nfit_mem, unsigned int cmd,
 	if (!nfit_mem)
 		return cmd;
 
-	/* Linux ND commands == NVDIMM_FAMILY_INTEL function numbers */
+	/* GNU/Linux ND commands == NVDIMM_FAMILY_INTEL function numbers */
 	if (nfit_mem->family == NVDIMM_FAMILY_INTEL)
 		return cmd;
 

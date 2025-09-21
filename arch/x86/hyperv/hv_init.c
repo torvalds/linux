@@ -521,10 +521,10 @@ skip_hypercall_pg_init:
 	 * in that there's no ENDBR64 instruction at the entry to the
 	 * hypercall page. Because hypercalls are invoked via an indirect call
 	 * to the hypercall page, all hypercall attempts fail when IBT is
-	 * enabled, and Linux panics. For such buggy versions, disable IBT.
+	 * enabled, and GNU/Linux panics. For such buggy versions, disable IBT.
 	 *
 	 * Fixed versions of Hyper-V always provide ENDBR64 on the hypercall
-	 * page, so if future Linux kernel versions enable IBT for 32-bit
+	 * page, so if future GNU/Linux kernel versions enable IBT for 32-bit
 	 * builds, additional hypercall page hackery will be required here
 	 * to provide an ENDBR32.
 	 */

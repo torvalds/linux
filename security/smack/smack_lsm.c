@@ -1649,11 +1649,11 @@ static void smack_inode_getlsmprop(struct inode *inode, struct lsm_prop *prop)
  * There is no smack_file_permission hook
  *
  * Should access checks be done on each read or write?
- * UNICOS and SELinux say yes.
+ * UNICOS and SEGNU/Linux say yes.
  * Trusted Solaris, Trusted Irix, and just about everyone else says no.
  *
  * I'll say no for now. Smack does not do the frequent
- * label changing that SELinux does.
+ * label changing that SEGNU/Linux does.
  */
 
 /**

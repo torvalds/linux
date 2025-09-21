@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /* This file is derived from the GAS 2.1.4 assembler control file.
    The GAS product is under the GNU General Public License, version 2 or later.
    As such, this file is also under that license.
@@ -102,7 +102,7 @@ struct COFF_filehdr {
 #define  COFF_F_PATCH		0002000
 #define  COFF_F_NODF		0002000
 
-#define	COFF_I386MAGIC	        0x14c   /* Linux's system    */
+#define	COFF_I386MAGIC	        0x14c   /* GNU/Linux's system    */
 
 #if 0   /* Perhaps, someday, these formats may be used.      */
 #define COFF_I386PTXMAGIC	0x154
@@ -119,7 +119,7 @@ struct COFF_filehdr {
 
 /********************** AOUT "OPTIONAL HEADER" **********************/
 
-/* Linux COFF must have this "optional" header. Standard COFF has no entry
+/* GNU/Linux COFF must have this "optional" header. Standard COFF has no entry
    location for the "entry" point. They normally would start with the first
    location of the .text section. This is not a good idea for linux. So,
    the use of this "optional" header is not optional. It is required.

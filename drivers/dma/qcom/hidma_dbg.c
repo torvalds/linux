@@ -2,7 +2,7 @@
 /*
  * Qualcomm Technologies HIDMA debug file
  *
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/debugfs.h>

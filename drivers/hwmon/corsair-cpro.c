@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * corsair-cpro.c - Linux driver for Corsair Commander Pro
+ * corsair-cpro.c - GNU/Linux driver for Corsair Commander Pro
  * Copyright (C) 2020 Marius Zachmann <mail@mariuszachmann.de>
  *
  * This driver uses hid reports to communicate with the device to allow hidraw userspace drivers

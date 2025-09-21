@@ -6,7 +6,7 @@
 
 .. _it_kernel_docs:
 
-Ulteriore Documentazione Del Kernel Linux
+Ulteriore Documentazione Del Kernel GNU/Linux
 =========================================
 
 .. note::

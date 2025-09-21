@@ -25,7 +25,7 @@ config XFRM_USER
 	select XFRM_ALGO
 	help
 	  Support for Transformation(XFRM) user configuration interface
-	  like IPsec used by native Linux tools.
+	  like IPsec used by native GNU/Linux tools.
 
 	  If unsure, say Y.
 
@@ -36,7 +36,7 @@ config XFRM_USER_COMPAT
 	select WANT_COMPAT_NETLINK_MESSAGES
 	help
 	  Transformation(XFRM) user configuration interface like IPsec
-	  used by compatible Linux applications.
+	  used by compatible GNU/Linux applications.
 
 	  If unsure, say N.
 

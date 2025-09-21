@@ -511,7 +511,7 @@ config MTD_NAND_DISKONCHIP_PROBE_ADVANCED
 	help
 	  This option allows you to specify nonstandard address at which to
 	  probe for a DiskOnChip, or to change the detection options.  You
-	  are unlikely to need any of this unless you are using LinuxBIOS.
+	  are unlikely to need any of this unless you are using GNU/LinuxBIOS.
 	  Say 'N'.
 
 config MTD_NAND_DISKONCHIP_PROBE_ADDRESS
@@ -538,7 +538,7 @@ config MTD_NAND_DISKONCHIP_PROBE_HIGH
 	  By default, the probe for DiskOnChip devices will look for a
 	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
 	  This option changes to make it probe between 0xFFFC8000 and
-	  0xFFFEE000.  Unless you are using LinuxBIOS, this is unlikely to be
+	  0xFFFEE000.  Unless you are using GNU/LinuxBIOS, this is unlikely to be
 	  useful to you.  Say 'N'.
 
 config MTD_NAND_DISKONCHIP_BBTWRITE
@@ -546,17 +546,17 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	depends on MTD_NAND_DISKONCHIP
 	help
 	  On DiskOnChip devices shipped with the INFTL filesystem (Millennium
-	  and 2000 TSOP/Alon), Linux reserves some space at the end of the
+	  and 2000 TSOP/Alon), GNU/Linux reserves some space at the end of the
 	  device for the Bad Block Table (BBT).  If you have existing INFTL
-	  data on your device (created by non-Linux tools such as M-Systems'
-	  DOS drivers), your data might overlap the area Linux wants to use for
+	  data on your device (created by non-GNU/Linux tools such as M-Systems'
+	  DOS drivers), your data might overlap the area GNU/Linux wants to use for
 	  the BBT.  If this is a concern for you, leave this option disabled and
-	  Linux will not write BBT data into this area.
+	  GNU/Linux will not write BBT data into this area.
 	  The downside of leaving this option disabled is that if bad blocks
-	  are detected by Linux, they will not be recorded in the BBT, which
+	  are detected by GNU/Linux, they will not be recorded in the BBT, which
 	  could cause future problems.
 	  Once you enable this option, new filesystems (INFTL or others, created
-	  in Linux or other operating systems) will not use the reserved area.
+	  in GNU/Linux or other operating systems) will not use the reserved area.
 	  The only reason not to enable this option is to prevent damage to
 	  preexisting filesystems.
 	  Even if you leave this disabled, you can enable BBT writes at module

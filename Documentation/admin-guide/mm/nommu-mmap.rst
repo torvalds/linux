@@ -120,7 +120,7 @@ Further notes on no-MMU MMAP
 
  (#) The memory allocated by a request for an anonymous mapping will normally
      be cleared by the kernel before being returned in accordance with the
-     Linux man pages (ver 2.22 or later).
+     GNU/Linux man pages (ver 2.22 or later).
 
      In the MMU case this can be achieved with reasonable performance as
      regions are backed by virtual pages, with the contents only being mapped

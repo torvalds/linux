@@ -60,7 +60,7 @@ those related to initialization, method execution, informational messages, etc.
 To build debug_level, look at the level specified in an ACPI_DEBUG_PRINT()
 statement.
 
-The ACPI interpreter uses several different levels, but the Linux
+The ACPI interpreter uses several different levels, but the GNU/Linux
 ACPI core and ACPI drivers generally only use ACPI_LV_INFO.
 
 You can set the debug_level mask at boot-time using the acpi.debug_level

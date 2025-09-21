@@ -101,7 +101,7 @@ config IOSM
 	  This driver enables Intel M.2 WWAN Device communication.
 
 	  If you have one of those Intel M.2 WWAN Modules and wish to use it in
-	  Linux say Y/M here.
+	  GNU/Linux say Y/M here.
 
 	  If unsure, say N.
 

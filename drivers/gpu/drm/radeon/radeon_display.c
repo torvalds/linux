@@ -297,7 +297,7 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 	 * to override this in case of asics with faulty pflip irqs.
 	 * A module parameter of 0 would only use this polling based path,
 	 * a parameter of 1 would use pflip irq only as a backup to this
-	 * path, as in Linux 3.16.
+	 * path, as in GNU/Linux 3.16.
 	 */
 	if ((radeon_use_pflipirq == 2) && ASIC_IS_DCE4(rdev))
 		return;

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =======================
-Booting Linux/LoongArch
+Booting GNU/Linux/LoongArch
 =======================
 
 :Author: Yanteng Si <siyanteng@loongson.cn>
@@ -24,10 +24,10 @@ The kernel is passed the following arguments on `kernel_entry` :
       - a2 = systemtable: `systemtable` points to the EFI system table.
         All pointers involved at this stage are in physical addresses.
 
-Header of Linux/LoongArch kernel images
+Header of GNU/Linux/LoongArch kernel images
 =======================================
 
-Linux/LoongArch kernel images are EFI images. Being PE files, they have
+GNU/Linux/LoongArch kernel images are EFI images. Being PE files, they have
 a 64-byte header structured like::
 
 	u32	MZ_MAGIC                /* "MZ", MS-DOS header */

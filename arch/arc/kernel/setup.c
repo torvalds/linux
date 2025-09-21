@@ -390,18 +390,18 @@ static void arc_chk_core_config(struct cpuinfo_arc *info)
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
 	 * DCCM can be arbit placed in hardware.
-	 * Make sure its placement/sz matches what Linux is built with
+	 * Make sure its placement/sz matches what GNU/Linux is built with
 	 */
 	if ((unsigned int)__arc_dccm_base != info->dccm.base)
-		panic("Linux built with incorrect DCCM Base address\n");
+		panic("GNU/Linux built with incorrect DCCM Base address\n");
 
 	if (CONFIG_ARC_DCCM_SZ * SZ_1K != info->dccm.sz)
-		panic("Linux built with incorrect DCCM Size\n");
+		panic("GNU/Linux built with incorrect DCCM Size\n");
 #endif
 
 #ifdef CONFIG_ARC_HAS_ICCM
 	if (CONFIG_ARC_ICCM_SZ * SZ_1K != info->iccm.sz)
-		panic("Linux built with incorrect ICCM Size\n");
+		panic("GNU/Linux built with incorrect ICCM Size\n");
 #endif
 }
 

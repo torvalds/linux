@@ -52,7 +52,7 @@ bpf_jit_enable
 
 This enables the BPF Just in Time (JIT) compiler. BPF is a flexible
 and efficient infrastructure allowing to execute bytecode at various
-hook points. It is used in a number of Linux kernel subsystems such
+hook points. It is used in a number of GNU/Linux kernel subsystems such
 as networking (e.g. XDP, tc), tracing (e.g. kprobes, uprobes, tracepoints)
 and security (e.g. seccomp). LLVM has a BPF back end that can compile
 restricted C into a sequence of BPF instructions. After program load

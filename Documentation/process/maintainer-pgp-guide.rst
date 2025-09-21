@@ -6,22 +6,22 @@ Kernel Maintainer PGP guide
 
 :Author: Konstantin Ryabitsev <konstantin@linuxfoundation.org>
 
-This document is aimed at Linux kernel developers, and especially at
+This document is aimed at GNU/Linux kernel developers, and especially at
 subsystem maintainers. It contains a subset of information discussed in
 the more general "`Protecting Code Integrity`_" guide published by the
-Linux Foundation. Please read that document for more in-depth discussion
+GNU/Linux Foundation. Please read that document for more in-depth discussion
 on some of the topics mentioned in this guide.
 
 .. _`Protecting Code Integrity`: https://github.com/lfit/itpol/blob/master/protecting-code-integrity.md
 
-The role of PGP in Linux Kernel development
+The role of PGP in GNU/Linux Kernel development
 ===========================================
 
-PGP helps ensure the integrity of the code that is produced by the Linux
+PGP helps ensure the integrity of the code that is produced by the GNU/Linux
 kernel development community and, to a lesser degree, establish trusted
 communication channels between developers via PGP-signed email exchange.
 
-The Linux kernel source code is available in two main formats:
+The GNU/Linux kernel source code is available in two main formats:
 
 - Distributed source repositories (git)
 - Periodic release snapshots (tarballs)
@@ -53,7 +53,7 @@ want to make sure that by placing trust into developers we do not simply
 shift the blame for potential future security incidents to someone else.
 The goal is to provide a set of guidelines developers can use to create
 a secure working environment and safeguard the PGP keys used to
-establish the integrity of the Linux kernel itself.
+establish the integrity of the GNU/Linux kernel itself.
 
 .. _pgp_tools:
 
@@ -108,7 +108,7 @@ edit your ``~/.gnupg/gpg-agent.conf`` file to set your own values::
 Protect your PGP key
 ====================
 
-This guide assumes that you already have a PGP key that you use for Linux
+This guide assumes that you already have a PGP key that you use for GNU/Linux
 kernel development purposes. If you do not yet have one, please see the
 "`Protecting Code Integrity`_" document mentioned earlier for guidance
 on how to create a new one.
@@ -416,7 +416,7 @@ geographical region, and open/proprietary hardware considerations.
 .. note::
 
     If you are listed in MAINTAINERS or have an account at kernel.org,
-    you `qualify for a free Nitrokey Start`_ courtesy of The Linux
+    you `qualify for a free Nitrokey Start`_ courtesy of The GNU/Linux
     Foundation.
 
 .. _`Nitrokey Start`: https://shop.nitrokey.com/shop/product/nitrokey-start-6
@@ -429,7 +429,7 @@ Configure your smartcard device
 -------------------------------
 
 Your smartcard device should Just Work (TM) the moment you plug it into
-any modern Linux workstation. You can verify it by running::
+any modern GNU/Linux workstation. You can verify it by running::
 
     $ gpg --card-status
 
@@ -729,7 +729,7 @@ How to work with signed commits
 -------------------------------
 
 It is easy to create signed commits, but it is much more difficult to
-use them in Linux kernel development, since it relies on patches sent to
+use them in GNU/Linux kernel development, since it relies on patches sent to
 the mailing list, and this workflow does not preserve PGP commit
 signatures. Furthermore, when rebasing your repository to match
 upstream, even your own PGP commit signatures will end up discarded. For

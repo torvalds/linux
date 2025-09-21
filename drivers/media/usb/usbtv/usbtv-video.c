@@ -33,7 +33,7 @@
  * http://www.fushicai.com/products_detail/&productId=d05449ee-b690-42f9-a661-aa7353894bed.html
  *
  * Following LWN articles were very useful in construction of this driver:
- * Video4Linux2 API series: http://lwn.net/Articles/203924/
+ * Video4GNU/Linux2 API series: http://lwn.net/Articles/203924/
  * videobuf2 API explanation: http://lwn.net/Articles/447435/
  * Thanks go to Jonathan Corbet for providing this quality documentation.
  * He is awesome.

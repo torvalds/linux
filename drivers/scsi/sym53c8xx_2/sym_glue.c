@@ -6,11 +6,11 @@
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
  * Copyright (c) 2003-2005  Matthew Wilcox <matthew@wil.cx>
  *
- * This driver is derived from the Linux sym53c8xx driver.
+ * This driver is derived from the GNU/Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
  * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
- * a port of the FreeBSD ncr driver to Linux-1.2.13.
+ * a port of the FreeBSD ncr driver to GNU/Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
  *         Wolfgang Stanglmeier        <wolf@cologne.de>
@@ -517,7 +517,7 @@ static int sym53c8xx_queue_command_lck(struct scsi_cmnd *cmd)
 static DEF_SCSI_QCMD(sym53c8xx_queue_command)
 
 /*
- *  Linux entry point of the interrupt handler.
+ *  GNU/Linux entry point of the interrupt handler.
  */
 static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 {
@@ -541,7 +541,7 @@ static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 }
 
 /*
- *  Linux entry point of the timer handler
+ *  GNU/Linux entry point of the timer handler
  */
 static void sym53c8xx_timer(struct timer_list *t)
 {
@@ -823,7 +823,7 @@ out:
 }
 
 /*
- * Linux entry point for device queue sizing.
+ * GNU/Linux entry point for device queue sizing.
  */
 static int sym53c8xx_sdev_configure(struct scsi_device *sdev,
 				    struct queue_limits *lim)
@@ -900,7 +900,7 @@ static void sym53c8xx_sdev_destroy(struct scsi_device *sdev)
 }
 
 /*
- *  Linux entry point for info() function
+ *  GNU/Linux entry point for info() function
  */
 static const char *sym53c8xx_info (struct Scsi_Host *host)
 {
@@ -1388,7 +1388,7 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 	sym_timer (np);
 
 	/*
-	 *  Fill Linux host instance structure
+	 *  Fill GNU/Linux host instance structure
 	 *  and return success.
 	 */
 	shost->max_channel	= 0;
@@ -1606,7 +1606,7 @@ static int sym_iomap_device(struct sym_device *device)
  * if an 875 is part of a PQS/PDS or not since if it is, it will
  * be on the same bus as the memory controller.  In its usual
  * mode of operation, the 875s are slaved to the memory
- * controller for all transfers.  To operate with the Linux
+ * controller for all transfers.  To operate with the GNU/Linux
  * driver, the memory controller is disabled and the 875s
  * freed to function independently.  The only wrinkle is that
  * the preset SCSI ID (which may be zero) must be read in from

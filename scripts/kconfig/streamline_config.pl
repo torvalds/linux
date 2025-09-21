@@ -8,7 +8,7 @@
 #
 # What it does?
 #
-#   If you have installed a Linux kernel from a distribution
+#   If you have installed a GNU/Linux kernel from a distribution
 #   that turns on way too many modules than you need, and
 #   you only want the modules you use, then this program
 #   is perfect for you.

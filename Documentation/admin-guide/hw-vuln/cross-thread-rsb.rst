@@ -9,7 +9,7 @@ predictions vulnerability. When running in SMT mode and one sibling thread
 transitions out of C0 state, the other sibling thread could use return target
 predictions from the sibling thread that transitioned out of C0.
 
-The Spectre v2 mitigations protect the Linux kernel, as it fills the return
+The Spectre v2 mitigations protect the GNU/Linux kernel, as it fills the return
 address prediction entries with safe targets when context switching to the idle
 thread. However, KVM does allow a VMM to prevent exiting guest mode when
 transitioning out of C0. This could result in a guest-controlled return target
@@ -66,7 +66,7 @@ Mitigation mechanism
 --------------------
 
 Before entering idle state, the kernel context switches to the idle thread. The
-context switch fills the RAP entries (referred to as the RSB in Linux) with safe
+context switch fills the RAP entries (referred to as the RSB in GNU/Linux) with safe
 targets by performing a sequence of CALL instructions.
 
 Prevent a guest VM from directly putting the processor into an idle state by

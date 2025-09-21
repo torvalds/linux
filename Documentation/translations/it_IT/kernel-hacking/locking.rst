@@ -18,10 +18,10 @@ Introduzione
 
 Benvenuto, alla notevole ed inaffidabile guida ai problemi di sincronizzazione
 (locking) nel kernel. Questo documento descrive il sistema di sincronizzazione
-nel kernel Linux 2.6.
+nel kernel GNU/Linux 2.6.
 
 Dato il largo utilizzo del multi-threading e della prelazione nel kernel
-Linux, chiunque voglia dilettarsi col kernel deve conoscere i concetti
+GNU/Linux, chiunque voglia dilettarsi col kernel deve conoscere i concetti
 fondamentali della concorrenza e della sincronizzazione nei sistemi
 multi-processore.
 
@@ -84,7 +84,7 @@ Corse critiche e sezioni critiche
 Questa sovrapposizione, ovvero quando un risultato dipende dal tempo che
 intercorre fra processi diversi, è chiamata corsa critica. La porzione
 di codice che contiene questo problema è chiamata sezione critica.
-In particolar modo da quando Linux ha incominciato a girare su
+In particolar modo da quando GNU/Linux ha incominciato a girare su
 macchine multi-processore, le sezioni critiche sono diventate uno dei
 maggiori problemi di progettazione ed implementazione del kernel.
 
@@ -99,7 +99,7 @@ per volta possa entrare nella sezione critica. Il kernel offre delle buone
 funzioni a questo scopo. E poi ci sono quelle meno buone, ma farò finta
 che non esistano.
 
-Sincronizzazione nel kernel Linux
+Sincronizzazione nel kernel GNU/Linux
 =================================
 
 Se dovessi darvi un suggerimento sulla sincronizzazione: **mantenetela
@@ -896,7 +896,7 @@ Stallo: semplice ed avanzato
 
 Esiste un tipo di  baco dove un pezzo di codice tenta di trattenere uno
 spinlock due volte: questo rimarrà in attesa attiva per sempre aspettando che
-il *lock* venga rilasciato (in Linux spinlocks, rwlocks e mutex non sono
+il *lock* venga rilasciato (in GNU/Linux spinlocks, rwlocks e mutex non sono
 ricorsivi).
 Questo è facile da diagnosticare: non è uno di quei problemi che ti tengono
 sveglio 5 notti a parlare da solo.
@@ -1060,7 +1060,7 @@ rapidamente. Consideriamo un processore Intel Pentium III a 700Mhz: questo
 esegue un'istruzione in 0.7ns, un incremento atomico richiede 58ns, acquisire
 un *lock* che è nella memoria cache del processore richiede 160ns, e un
 trasferimento dalla memoria cache di un altro processore richiede altri
-170/360ns (Leggetevi l'articolo di Paul McKenney's `Linux Journal RCU
+170/360ns (Leggetevi l'articolo di Paul McKenney's `GNU/Linux Journal RCU
 article <http://www.linuxjournal.com/article.php?sid=6993>`__).
 
 Questi due obiettivi sono in conflitto: trattenere un *lock* per il minor
@@ -1416,7 +1416,7 @@ Approfondimenti
    Caching for Kernel Programmers.
 
    L'introduzione alla sincronizzazione a livello di kernel di Curt Schimmel
-   è davvero ottima (non è scritta per Linux, ma approssimativamente si adatta
+   è davvero ottima (non è scritta per GNU/Linux, ma approssimativamente si adatta
    a tutte le situazioni). Il libro è costoso, ma vale ogni singolo spicciolo
    per capire la sincronizzazione nei sistemi multi-processore.
    [ISBN: 0201633388]

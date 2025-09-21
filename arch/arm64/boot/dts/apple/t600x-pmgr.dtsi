@@ -2,7 +2,7 @@
 /*
  * PMGR Power domains for the Apple T6001 "M1 Max" SoC
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 &DIE_NODE(pmgr) {

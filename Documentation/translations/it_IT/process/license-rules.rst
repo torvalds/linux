@@ -7,14 +7,14 @@
 
 .. _it_kernel_licensing:
 
-Regole per licenziare il kernel Linux
+Regole per licenziare il kernel GNU/Linux
 =====================================
 
-Il kernel Linux viene rilasciato sotto i termini definiti dalla seconda
+Il kernel GNU/Linux viene rilasciato sotto i termini definiti dalla seconda
 versione della licenza *GNU General Public License* (GPL-2.0), di cui una
 copia è disponibile nel file LICENSES/preferred/GPL-2.0; a questo si
 aggiunge eccezione per le chiamate di sistema come descritto in
-LICENSES/exceptions/Linux-syscall-note; tutto ciò è descritto nel file COPYING.
+LICENSES/exceptions/GNU/Linux-syscall-note; tutto ciò è descritto nel file COPYING.
 
 Questo documento fornisce una descrizione su come ogni singolo file sorgente
 debba essere licenziato per far si che sia chiaro e non ambiguo. Questo non
@@ -41,7 +41,7 @@ Secondo le note nel file COPYING, le chiamate di sistema sono un chiaro
 confine oltre il quale non si estendono i requisiti della GPL per quei
 programmi che le usano per comunicare con il kernel.  Dato che i file
 d'intestazione UAPI devono poter essere inclusi nei sorgenti di un
-qualsiasi programma eseguibile sul kernel Linux, questi meritano
+qualsiasi programma eseguibile sul kernel GNU/Linux, questi meritano
 un'eccezione documentata da una clausola speciale.
 
 Il modo più comune per indicare la licenza dei file sorgenti è quello di
@@ -55,12 +55,12 @@ Un'alternativa ai blocchi di testo è data dall'uso degli identificatori
 identificatori di licenza SPDX sono analizzabili dalle macchine e sono precisi
 simboli stenografici che identificano la licenza sotto la quale viene
 licenziato il file che lo include.  Gli identificatori di licenza SPDX sono
-gestiti del gruppo di lavoro SPDX presso la Linux Foundation e sono stati
+gestiti del gruppo di lavoro SPDX presso la GNU/Linux Foundation e sono stati
 concordati fra i soci nell'industria, gli sviluppatori di strumenti, e i
 rispettivi gruppi legali. Per maggiori informazioni, consultate
 https://spdx.org/
 
-Il kernel Linux richiede un preciso identificatore SPDX in tutti i file
+Il kernel GNU/Linux richiede un preciso identificatore SPDX in tutti i file
 sorgenti.  Gli identificatori validi verranno spiegati nella sezione
 `Identificatori di licenza`_ e sono stati copiati dalla lista ufficiale di
 licenze SPDX assieme al rispettivo testo come mostrato in
@@ -120,8 +120,8 @@ Sintassi degli identificatori di licenza
    WITH dovrebbe essere usato quando sono necessarie delle modifiche alla
    licenza.  Per esempio, la UAPI del kernel linux usa l'espressione::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
-      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note
 
    Altri esempi di usi di WITH all'interno del kernel sono::
 
@@ -146,7 +146,7 @@ Sintassi degli identificatori di licenza
       // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
       // SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
       // SPDX-License-Identifier: GPL-2.0 OR MPL-1.1
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH GNU/Linux-syscall-note) OR MIT
       // SPDX-License-Identifier: GPL-1.0+ OR BSD-3-Clause OR OpenSSL
 
    La parola chiave AND dovrebbe essere usata quando i termini di più licenze
@@ -154,7 +154,7 @@ Sintassi degli identificatori di licenza
    un altro progetto il quale da i permessi per aggiungerlo nel kernel ma
    richiede che i termini originali della licenza rimangano intatti::
 
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) AND MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH GNU/Linux-syscall-note) AND MIT
 
    Di seguito, un altro esempio dove entrambe i termini di licenza devono
    essere rispettati::
@@ -355,12 +355,12 @@ essere categorizzate in:
 
    Esempi::
 
-      LICENSES/exceptions/Linux-syscall-note
+      LICENSES/exceptions/GNU/Linux-syscall-note
 
-   Contiene la descrizione dell'eccezione per le chiamate di sistema Linux
-   così come documentato nel file COPYING del kernel Linux; questo viene usato
+   Contiene la descrizione dell'eccezione per le chiamate di sistema GNU/Linux
+   così come documentato nel file COPYING del kernel GNU/Linux; questo viene usato
    per i file d'intestazione per la UAPI.  Per esempio
-   /\* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note \*/::
+   /\* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note \*/::
 
       LICENSES/exceptions/GCC-exception-2.0
 
@@ -402,8 +402,8 @@ essere categorizzate in:
 
    Esempi::
 
-      SPDX-Exception-Identifier: Linux-syscall-note
-      SPDX-URL: https://spdx.org/licenses/Linux-syscall-note.html
+      SPDX-Exception-Identifier: GNU/Linux-syscall-note
+      SPDX-URL: https://spdx.org/licenses/GNU/Linux-syscall-note.html
       SPDX-Licenses: GPL-2.0, GPL-2.0+, GPL-1.0+, LGPL-2.0, LGPL-2.0+, LGPL-2.1, LGPL-2.1+
       Usage-Guidance:
         This exception is used together with one of the above SPDX-Licenses
@@ -411,7 +411,7 @@ essere categorizzate in:
 	into non GPL compliant user-space application code.
         To use this exception add it with the keyword WITH to one of the
 	identifiers in the SPDX-Licenses tag:
-	  SPDX-License-Identifier: <SPDX-License> WITH Linux-syscall-note
+	  SPDX-License-Identifier: <SPDX-License> WITH GNU/Linux-syscall-note
       Exception-Text:
         Full exception text
 

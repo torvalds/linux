@@ -3072,7 +3072,7 @@ static int is_inode_writable(struct cifsInodeInfo *cifs_inode)
    the file - in the future we could consider allowing
    refreshing the inode only on increases in the file size
    but this is tricky to do without racing with writebehind
-   page caching in the current Linux kernel design */
+   page caching in the current GNU/Linux kernel design */
 bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
 			    bool from_readdir)
 {

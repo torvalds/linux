@@ -646,7 +646,7 @@ static int validate_ctr_version(const u64 config, enum cpumf_ctr_set set)
 		 * is automatically enabled and activated on all CPUs with
 		 * multithreading (SMT).  Deactivation of multithreading
 		 * also disables the counter set.  State changes are ignored
-		 * by lcctl().	Because Linux controls SMT enablement through
+		 * by lcctl().	Because GNU/Linux controls SMT enablement through
 		 * a kernel parameter only, the counter set is either disabled
 		 * or enabled and active.
 		 *

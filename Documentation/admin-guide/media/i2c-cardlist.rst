@@ -5,8 +5,8 @@ I²C drivers
 
 The I²C (Inter-Integrated Circuit) bus is a three-wires bus used internally
 at the media cards for communication between different chips. While the bus
-is not visible to the Linux Kernel, drivers need to send and receive
-commands via the bus. The Linux Kernel driver abstraction has support to
+is not visible to the GNU/Linux Kernel, drivers need to send and receive
+commands via the bus. The GNU/Linux Kernel driver abstraction has support to
 implement different drivers for each component inside an I²C bus, as if
 the bus were visible to the main system board.
 

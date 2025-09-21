@@ -188,7 +188,7 @@ Module parameters::
 
 Example scripts
 ===============
-LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
+LUKS (GNU/Linux Unified Key Setup) is now the preferred way to set up disk
 encryption with dm-crypt using the 'cryptsetup' utility, see
 https://gitlab.com/cryptsetup/cryptsetup
 

@@ -1,4 +1,4 @@
-/* lance.c: An AMD LANCE/PCnet ethernet driver for Linux. */
+/* lance.c: An AMD LANCE/PCnet ethernet driver for GNU/Linux. */
 /*
 	Written/copyright 1993-1998 by Donald Becker.
 
@@ -18,12 +18,12 @@
 	Andrey V. Savochkin:
 	- alignment problem with 1.3.* kernel and some minor changes.
 	Thomas Bogendoerfer (tsbogend@bigbug.franken.de):
-	- added support for Linux/Alpha, but removed most of it, because
+	- added support for GNU/Linux/Alpha, but removed most of it, because
         it worked only for the PCI chip.
       - added hook for the 32bit lance driver
       - added PCnetPCI II (79C970A) to chip table
 	Paul Gortmaker (gpg109@rsphy1.anu.edu.au):
-	- hopefully fix above so Linux/Alpha can use ISA cards too.
+	- hopefully fix above so GNU/Linux/Alpha can use ISA cards too.
     8/20/96 Fixed 7990 autoIRQ failure and reversed unneeded alignment -djb
     v1.12 10/27/97 Module support -djb
     v1.14  2/3/98 Module support modified, made PCI support optional -djb
@@ -154,7 +154,7 @@ IIIB. 16M memory limitations.
 For the ISA bus master mode all structures used directly by the LANCE,
 the initialization block, Rx and Tx rings, and data buffers, must be
 accessible from the ISA bus, i.e. in the lower 16M of real memory.
-This is a problem for current Linux kernels on >16M machines. The network
+This is a problem for current GNU/Linux kernels on >16M machines. The network
 devices are initialized after memory initialization, and the kernel doles out
 memory from the top of memory downward.	 The current solution is to have a
 special network initialization routine that's called before memory

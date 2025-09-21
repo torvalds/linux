@@ -75,7 +75,7 @@ config ARM_ETHERH
 	select CRC32
 	help
 	  If you have an Acorn system with one of these network cards, you
-	  should say Y to this option if you wish to use it with Linux.
+	  should say Y to this option if you wish to use it with GNU/Linux.
 
 config MAC8390
 	tristate "Macintosh NS 8390 based ethernet cards"
@@ -178,7 +178,7 @@ config ULTRA
 	  Important: There have been many reports that, with some motherboards
 	  mixing an SMC Ultra and an Adaptec AHA154x SCSI card (or compatible,
 	  such as some BusLogic models) causes corruption problems with many
-	  operating systems. The Linux smc-ultra driver has a work-around for
+	  operating systems. The GNU/Linux smc-ultra driver has a work-around for
 	  this but keep it in mind if you have such a SCSI card and have
 	  problems.
 

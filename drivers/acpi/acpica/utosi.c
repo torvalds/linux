@@ -42,7 +42,7 @@ ACPI_MODULE_NAME("utosi")
  * Strings supported by the _OSI predefined control method (which is
  * implemented internally within this module.)
  *
- * March 2009: Removed "Linux" as this host no longer wants to respond true
+ * March 2009: Removed "GNU/Linux" as this host no longer wants to respond true
  * for this string. Basically, the only safe OS strings are windows-related
  * and in many or most cases represent the only test path within the
  * BIOS-provided ASL code.

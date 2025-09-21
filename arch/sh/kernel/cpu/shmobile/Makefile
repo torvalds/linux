@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/SuperH SH-Mobile backends.
+# Makefile for the GNU/Linux/SuperH SH-Mobile backends.
 #
 
 # Power Management & Sleep mode

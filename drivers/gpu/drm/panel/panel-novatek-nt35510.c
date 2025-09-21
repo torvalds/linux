@@ -5,7 +5,7 @@
  * Based on code by Robert Teather (C) 2012 Samsung
  *
  * This display driver (and I refer to the physical component NT35510,
- * not this Linux kernel software driver) can handle:
+ * not this GNU/Linux kernel software driver) can handle:
  * 480x864, 480x854, 480x800, 480x720 and 480x640 pixel displays.
  * It has 480x840x24bit SRAM embedded for storing a frame.
  * When powered on the display is by default in 480x800 mode.

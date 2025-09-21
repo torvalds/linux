@@ -223,7 +223,7 @@ struct mlxbf_tmfifo_msg_hdr {
 /*
  * Default MAC.
  * This MAC address will be read from EFI persistent variable if configured.
- * It can also be reconfigured with standard Linux tools.
+ * It can also be reconfigured with standard GNU/Linux tools.
  */
 static u8 mlxbf_tmfifo_net_default_mac[ETH_ALEN] = {
 	0x00, 0x1A, 0xCA, 0xFF, 0xFF, 0x01

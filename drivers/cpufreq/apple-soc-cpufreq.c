@@ -2,7 +2,7 @@
 /*
  * Apple SoC CPU cluster performance state driver
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  *
  * Based on scpi-cpufreq.c
  */

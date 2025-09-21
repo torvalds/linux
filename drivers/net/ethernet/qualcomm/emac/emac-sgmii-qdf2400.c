@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The GNU/Linux Foundation. All rights reserved.
  */
 
 /* Qualcomm Technologies, Inc. QDF2400 EMAC SGMII Controller driver.

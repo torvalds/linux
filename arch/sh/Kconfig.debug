@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
 config SH_STANDARD_BIOS
-	bool "Use LinuxSH standard BIOS"
+	bool "Use GNU/LinuxSH standard BIOS"
 	help
 	  Say Y here if your target has the gdb-sh-stub
-	  package from www.m17n.org (or any conforming standard LinuxSH BIOS)
+	  package from www.m17n.org (or any conforming standard GNU/LinuxSH BIOS)
 	  in FLASH or EPROM.  The kernel will use standard BIOS calls during
 	  boot for various housekeeping tasks (including calls to read and
 	  write characters to a system console, get a MAC address from an

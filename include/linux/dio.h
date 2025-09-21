@@ -22,7 +22,7 @@
  * So DIO cards cover [0x600000-0x800000); the areas [0x200000-0x400000) and
  * [0x800000-0x1000000) are for additional space required by things
  * like framebuffers. [0x400000-0x600000) is for miscellaneous internal I/O.
- * On Linux, this is currently all mapped into the virtual address space
+ * On GNU/Linux, this is currently all mapped into the virtual address space
  * at 0xf0000000 on bootup.
  * DIO-II boards are at 0x1000000 + (sc - 132) * 0x400000
  * which is address range [0x1000000-0x20000000) -- too big to map completely,

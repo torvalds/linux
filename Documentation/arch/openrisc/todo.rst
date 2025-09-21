@@ -2,7 +2,7 @@
 TODO
 ====
 
-The OpenRISC Linux port is fully functional and has been tracking upstream
+The OpenRISC GNU/Linux port is fully functional and has been tracking upstream
 since 2.6.35.  There are, however, remaining items to be completed within
 the coming months.  Here's a list of known-to-be-less-than-stellar items
 that are due for investigation shortly, i.e. our TODO list:

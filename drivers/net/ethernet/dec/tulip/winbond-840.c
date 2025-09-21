@@ -1,4 +1,4 @@
-/* winbond-840.c: A Linux PCI network adapter device driver. */
+/* winbond-840.c: A GNU/Linux PCI network adapter device driver. */
 /*
 	Written 1998-2001 by Donald Becker.
 

@@ -5,10 +5,10 @@
 
 .. _sp_process_statement_kernel:
 
-Aplicación de la licencia en el kernel Linux
+Aplicación de la licencia en el kernel GNU/Linux
 ============================================
 
-Como desarrolladores del kernel Linux, tenemos un gran interés en cómo se
+Como desarrolladores del kernel GNU/Linux, tenemos un gran interés en cómo se
 se utiliza nuestro software y cómo se aplica la licencia de nuestro software.
 El cumplimiento de las obligaciones de intercambio recíproco de GPL-2.0 son
 fundamentales en el largo plazo para la sostenibilidad de nuestro software
@@ -21,7 +21,7 @@ de una manera que beneficia a nuestra comunidad y no tenga un indeseado
 impacto negativo en la salud y crecimiento de nuestro ecosistema de software.
 Con el fin de disuadir la aplicación inútil de acciones, estamos de acuerdo
 en que es en el mejor interés de nuestro desarrollo como comunidad asumir
-el siguiente compromiso con los usuarios del kernel Linux, en nombre
+el siguiente compromiso con los usuarios del kernel GNU/Linux, en nombre
 nuestro y de cualquier sucesor de nuestros derechos de autor (copyright):
 
     Sin perjuicio de las disposiciones de terminación de GPL-2.0, aceptamos
@@ -83,7 +83,7 @@ en el pasado, o trabajaremos en el futuro.
 - Kees Cook (Google)
 - Jonathan Corbet
 - Dennis Dalessandro
-- Vivien Didelot (Savoir-faire Linux)
+- Vivien Didelot (Savoir-faire GNU/Linux)
 - Hans de Goede
 - Mel Gorman (SUSE)
 - Sven Eckelmann
@@ -114,7 +114,7 @@ en el pasado, o trabajaremos en el futuro.
 - Namhyung Kim
 - Colin Ian King
 - Jeff Kirsher
-- Greg Kroah-Hartman (Linux Foundation)
+- Greg Kroah-Hartman (GNU/Linux Foundation)
 - Christian König
 - Vinod Koul
 - Krzysztof Kozlowski

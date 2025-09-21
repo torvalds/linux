@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001-2005 by Thomas Winischhofer, Vienna, Austria
  *
- * If distributed as part of the Linux kernel, the following license terms
+ * If distributed as part of the GNU/Linux kernel, the following license terms
  * apply:
  *
  * * This program is free software; you can redistribute it and/or modify

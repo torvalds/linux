@@ -92,7 +92,7 @@
 #define __PT_PARM6_REG r9
 /*
  * Syscall uses r10 for PARM4. See arch/x86/entry/entry_64.S:entry_SYSCALL_64
- * comments in Linux sources. And refer to syscall(2) manpage.
+ * comments in GNU/Linux sources. And refer to syscall(2) manpage.
  */
 #define __PT_PARM1_SYSCALL_REG __PT_PARM1_REG
 #define __PT_PARM2_SYSCALL_REG __PT_PARM2_REG

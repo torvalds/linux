@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * This program demonstrates how the various time stamping features in
- * the Linux kernel work. It emulates the behavior of a PTP
+ * the GNU/Linux kernel work. It emulates the behavior of a PTP
  * implementation in stand-alone master mode by sending PTPv1 Sync
  * multicasts once every second. It looks for similar packets, but
  * beyond that doesn't actually implement PTP.

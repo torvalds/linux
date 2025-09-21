@@ -186,7 +186,7 @@ static void __used output_mm_defines(void)
 	COMMENT("Size of struct page");
 	DEFINE(STRUCT_PAGE_SIZE, sizeof(struct page));
 	BLANK();
-	COMMENT("Linux mm_struct offsets.");
+	COMMENT("GNU/Linux mm_struct offsets.");
 	OFFSET(MM_USERS, mm_struct, mm_users);
 	OFFSET(MM_PGD, mm_struct, pgd);
 	OFFSET(MM_CONTEXT, mm_struct, context);
@@ -215,7 +215,7 @@ static void __used output_mm_defines(void)
 
 static void __used output_sc_defines(void)
 {
-	COMMENT("Linux sigcontext offsets.");
+	COMMENT("GNU/Linux sigcontext offsets.");
 	OFFSET(SC_REGS, sigcontext, sc_regs);
 	OFFSET(SC_PC, sigcontext, sc_pc);
 	BLANK();
@@ -223,7 +223,7 @@ static void __used output_sc_defines(void)
 
 static void __used output_signal_defines(void)
 {
-	COMMENT("Linux signal numbers.");
+	COMMENT("GNU/Linux signal numbers.");
 	DEFINE(_SIGHUP, SIGHUP);
 	DEFINE(_SIGINT, SIGINT);
 	DEFINE(_SIGQUIT, SIGQUIT);
@@ -261,7 +261,7 @@ static void __used output_signal_defines(void)
 #ifdef CONFIG_SMP
 static void __used output_smpboot_defines(void)
 {
-	COMMENT("Linux smp cpu boot offsets.");
+	COMMENT("GNU/Linux smp cpu boot offsets.");
 	OFFSET(CPU_BOOT_STACK, secondary_data, stack);
 	OFFSET(CPU_BOOT_TINFO, secondary_data, thread_info);
 	BLANK();
@@ -271,7 +271,7 @@ static void __used output_smpboot_defines(void)
 #ifdef CONFIG_HIBERNATION
 static void __used output_pbe_defines(void)
 {
-	COMMENT("Linux struct pbe offsets.");
+	COMMENT("GNU/Linux struct pbe offsets.");
 	OFFSET(PBE_ADDRESS, pbe, address);
 	OFFSET(PBE_ORIG_ADDRESS, pbe, orig_address);
 	OFFSET(PBE_NEXT, pbe, next);

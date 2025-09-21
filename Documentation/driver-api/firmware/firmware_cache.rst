@@ -2,7 +2,7 @@
 Firmware cache
 ==============
 
-When Linux resumes from suspend some device drivers require firmware lookups to
+When GNU/Linux resumes from suspend some device drivers require firmware lookups to
 re-initialize devices. During resume there may be a period of time during which
 firmware lookups are not possible, during this short period of time firmware
 requests will fail. Time is of essence though, and delaying drivers to wait for

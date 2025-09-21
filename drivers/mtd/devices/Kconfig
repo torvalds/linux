@@ -180,7 +180,7 @@ config MTD_POWERNV_FLASH
 	depends on PPC_POWERNV
 	help
 	  This provides an MTD device to access flash on powernv OPAL
-	  platforms from Linux. This device abstracts away the
+	  platforms from GNU/Linux. This device abstracts away the
 	  firmware interface for flash access.
 
 config MTD_INTEL_DG

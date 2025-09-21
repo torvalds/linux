@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==============================================================================
-Concurrent Modification and Execution of Instructions (CMODX) for RISC-V Linux
+Concurrent Modification and Execution of Instructions (CMODX) for RISC-V GNU/Linux
 ==============================================================================
 
 CMODX is a programming technique where a program executes instructions that were
@@ -42,7 +42,7 @@ execution can be derect to another custom trampoline.
 CMODX in the User Space
 -----------------------
 
-Though fence.i is an unprivileged instruction, the default Linux ABI prohibits
+Though fence.i is an unprivileged instruction, the default GNU/Linux ABI prohibits
 the use of fence.i in userspace applications. At any point the scheduler may
 migrate a task onto a new hart. If migration occurs after the userspace
 synchronized the icache and instruction storage with fence.i, the icache on the
@@ -53,7 +53,7 @@ migrated to may not have synchronized instruction storage and icache.
 There are two ways to solve this problem: use the riscv_flush_icache() syscall,
 or use the ``PR_RISCV_SET_ICACHE_FLUSH_CTX`` prctl() and emit fence.i in
 userspace. The syscall performs a one-off icache flushing operation. The prctl
-changes the Linux ABI to allow userspace to emit icache flushing operations.
+changes the GNU/Linux ABI to allow userspace to emit icache flushing operations.
 
 As an aside, "deferred" icache flushes can sometimes be triggered in the kernel.
 At the time of writing, this only occurs during the riscv_flush_icache() syscall

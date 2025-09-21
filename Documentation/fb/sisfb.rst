@@ -89,18 +89,18 @@ Additionally, sisfb understands the keyword "vesa" followed by a VESA mode
 number in decimal or hexadecimal. For example: vesa=791 or vesa=0x117. Please
 use either "mode" or "vesa" but not both.
 
-Linux 2.4 only: If no mode is given, sisfb defaults to "no mode" (mode=none) if
+GNU/Linux 2.4 only: If no mode is given, sisfb defaults to "no mode" (mode=none) if
 compiled as a module; if sisfb is statically compiled into the kernel, it
 defaults to 800x600x8 unless CRT2 type is LCD, in which case the LCD's native
 resolution is used. If you want to switch to a different mode, use the fbset
 shell command.
 
-Linux 2.6 only: If no mode is given, sisfb defaults to 800x600x8 unless CRT2
+GNU/Linux 2.6 only: If no mode is given, sisfb defaults to 800x600x8 unless CRT2
 type is LCD, in which case it defaults to the LCD's native resolution. If
 you want to switch to another mode, use the stty shell command.
 
 You should compile in both vgacon (to boot if you remove you SiS card from
-your system) and sisfb (for graphics mode). Under Linux 2.6, also "Framebuffer
+your system) and sisfb (for graphics mode). Under GNU/Linux 2.6, also "Framebuffer
 console support" (fbcon) is needed for a graphical console.
 
 You should *not* compile-in vesafb. And please do not use the "vga=" keyword

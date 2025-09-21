@@ -2,7 +2,7 @@ Introduction
 ============
 
 The FPGA subsystem supports reprogramming FPGAs dynamically under
-Linux.  Some of the core intentions of the FPGA subsystems are:
+GNU/Linux.  Some of the core intentions of the FPGA subsystems are:
 
 * The FPGA subsystem is vendor agnostic.
 

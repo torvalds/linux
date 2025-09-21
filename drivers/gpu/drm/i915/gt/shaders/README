@@ -28,7 +28,7 @@ The instructions below assume:
     *  IGT gpu tools source code is located on your home directory (~) as ~/igt
     *  Mesa source code is located on your home directory (~) as ~/mesa
        and built under the ~/mesa/build directory
-    *  Linux kernel source code is under your home directory (~) as ~/linux
+    *  GNU/Linux kernel source code is under your home directory (~) as ~/linux
 
 Instructions
 ------------

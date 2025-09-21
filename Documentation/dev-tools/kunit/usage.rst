@@ -262,7 +262,7 @@ Classes are not a construct that is built into the C programming language;
 however, it is an easily derived concept. Accordingly, in most cases, every
 project that does not use a standardized object oriented library (like GNOME's
 GObject) has their own slightly different way of doing object oriented
-programming; the Linux kernel is no exception.
+programming; the GNU/Linux kernel is no exception.
 
 The central concept in kernel object oriented programming is the class. In the
 kernel, a *class* is a struct that contains function pointers. This creates a

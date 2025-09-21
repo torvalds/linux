@@ -3,7 +3,7 @@
  * ni_at_ao.c
  * Driver for NI AT-AO-6/10 boards
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000,2002 David A. Schleef <ds@schleef.org>
  */
 

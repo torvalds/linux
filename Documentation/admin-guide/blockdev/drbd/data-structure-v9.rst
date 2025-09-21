@@ -3,7 +3,7 @@ kernel data structure for DRBD-9
 ================================
 
 This describes the in kernel data structure for DRBD-9. Starting with
-Linux v3.14 we are reorganizing DRBD to use this data structure.
+GNU/Linux v3.14 we are reorganizing DRBD to use this data structure.
 
 Basic Data Structure
 ====================

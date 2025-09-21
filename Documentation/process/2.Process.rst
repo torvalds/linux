@@ -3,7 +3,7 @@
 How the development process works
 =================================
 
-Linux kernel development in the early 1990's was a pretty loose affair,
+GNU/Linux kernel development in the early 1990's was a pretty loose affair,
 with relatively small numbers of users and developers involved.  With a
 user base in the millions and with some 2,000 developers involved over the
 course of one year, the kernel has since had to evolve a number of
@@ -29,7 +29,7 @@ release history looks like this:
 Every 5.x release is a major kernel release with new features, internal
 API changes, and more.  A typical release can contain about 13,000
 changesets with changes to several hundred thousand lines of code.  5.x is
-the leading edge of Linux kernel development; the kernel uses a
+the leading edge of GNU/Linux kernel development; the kernel uses a
 rolling development model which is continually integrating major changes.
 
 A relatively straightforward discipline is followed with regard to the
@@ -296,12 +296,12 @@ there is a definite chance that it will not even compile.
 The primary tree for next-cycle patch merging is linux-next, maintained by
 Stephen Rothwell.  The linux-next tree is, by design, a snapshot of what
 the mainline is expected to look like after the next merge window closes.
-Linux-next trees are announced on the linux-kernel and linux-next mailing
+GNU/Linux-next trees are announced on the linux-kernel and linux-next mailing
 lists when they are assembled; they can be downloaded from:
 
 	https://www.kernel.org/pub/linux/kernel/next/
 
-Linux-next has become an integral part of the kernel development process;
+GNU/Linux-next has become an integral part of the kernel development process;
 all patches merged during a given merge window should really have found
 their way into linux-next some time before the merge window opens.
 
@@ -314,7 +314,7 @@ many sub-directories for drivers or filesystems that are on their way to
 being added to the kernel tree live.  They remain in drivers/staging while
 they still need more work; once complete, they can be moved into the
 kernel proper.  This is a way to keep track of drivers that aren't
-up to Linux kernel coding or quality standards, but people may want to use
+up to GNU/Linux kernel coding or quality standards, but people may want to use
 them and track development.
 
 Greg Kroah-Hartman currently maintains the staging tree.  Drivers that
@@ -355,7 +355,7 @@ time.  Some sort of familiarity with git is almost a requirement for kernel
 developers; even if they do not use it for their own work, they'll need git
 to keep up with what other developers (and the mainline) are doing.
 
-Git is now packaged by almost all Linux distributions.  There is a home
+Git is now packaged by almost all GNU/Linux distributions.  There is a home
 page at:
 
 	https://git-scm.com/
@@ -385,11 +385,11 @@ quilt is the best tool for the job.
 Mailing lists
 -------------
 
-A great deal of Linux kernel development work is done by way of mailing
+A great deal of GNU/Linux kernel development work is done by way of mailing
 lists.  It is hard to be a fully-functioning member of the community
-without joining at least one list somewhere.  But Linux mailing lists also
+without joining at least one list somewhere.  But GNU/Linux mailing lists also
 represent a potential hazard to developers, who risk getting buried under a
-load of electronic mail, running afoul of the conventions used on the Linux
+load of electronic mail, running afoul of the conventions used on the GNU/Linux
 lists, or both.
 
 Most kernel mailing lists are hosted at kernel.org; the master list can
@@ -439,7 +439,7 @@ There are a few hints which can help with linux-kernel survival:
   the quoted text you are responding to.) For more details, see
   :ref:`Documentation/process/submitting-patches.rst <interleaved_replies>`.
 
-- Ask on the correct mailing list.  Linux-kernel may be the general meeting
+- Ask on the correct mailing list.  GNU/Linux-kernel may be the general meeting
   point, but it is not the best place to find developers from all
   subsystems.
 
@@ -463,7 +463,7 @@ Companies often look to hire well-known developers to get a development
 group started.  This can, in fact, be an effective technique.  But it also
 tends to be expensive and does not do much to grow the pool of experienced
 kernel developers.  It is possible to bring in-house developers up to speed
-on Linux kernel development, given the investment of a bit of time.  Taking
+on GNU/Linux kernel development, given the investment of a bit of time.  Taking
 this time can endow an employer with a group of developers who understand
 the kernel and the company both, and who can help to train others as well.
 Over the medium term, this is often the more profitable approach.

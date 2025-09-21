@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-#  Makefile for the Linux Controller Area Network SPI drivers.
+#  Makefile for the GNU/Linux Controller Area Network SPI drivers.
 #
 
 

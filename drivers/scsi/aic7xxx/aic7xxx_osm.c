@@ -1,6 +1,6 @@
 
 /*
- * Adaptec AIC7xxx device driver for Linux.
+ * Adaptec AIC7xxx device driver for GNU/Linux.
  *
  * $Id: //depot/aic7xxx/linux/drivers/scsi/aic7xxx/aic7xxx_osm.c#235 $
  *
@@ -22,9 +22,9 @@
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Sources include the Adaptec 1740 driver (aha1740.c), the Ultrastor 24F
- * driver (ultrastor.c), various Linux kernel source, the Adaptec EISA
+ * driver (ultrastor.c), various GNU/Linux kernel source, the Adaptec EISA
  * config file (!adp7771.cfg), the Adaptec AHA-2740A Series User's Guide,
- * the Linux Kernel Hacker's Guide, Writing a SCSI Device Driver for Linux,
+ * the GNU/Linux Kernel Hacker's Guide, Writing a SCSI Device Driver for GNU/Linux,
  * the Adaptec 1542 driver (aha1542.c), the Adaptec EISA overlay file
  * (adp7770.ovl), the Adaptec AHA-2740 Series Technical Reference Manual,
  * the Adaptec AIC-7770 Data Book, the ANSI SCSI specification, the
@@ -386,7 +386,7 @@ void
 ahc_delay(long usec)
 {
 	/*
-	 * udelay on Linux can have problems for
+	 * udelay on GNU/Linux can have problems for
 	 * multi-millisecond waits.  Wait at most
 	 * 1024us per call.
 	 */
@@ -428,7 +428,7 @@ ahc_outsb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
 	int i;
 
 	/*
-	 * There is probably a more efficient way to do this on Linux
+	 * There is probably a more efficient way to do this on GNU/Linux
 	 * but we don't use this for anything speed critical and this
 	 * should work.
 	 */
@@ -442,7 +442,7 @@ ahc_insb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
 	int i;
 
 	/*
-	 * There is probably a more efficient way to do this on Linux
+	 * There is probably a more efficient way to do this on GNU/Linux
 	 * but we don't use this for anything speed critical and this
 	 * should work.
 	 */
@@ -828,8 +828,8 @@ ahc_dma_tag_create(struct ahc_softc *ahc, bus_dma_tag_t parent,
 		return (ENOMEM);
 
 	/*
-	 * Linux is very simplistic about DMA memory.  For now don't
-	 * maintain all specification information.  Once Linux supplies
+	 * GNU/Linux is very simplistic about DMA memory.  For now don't
+	 * maintain all specification information.  Once GNU/Linux supplies
 	 * better facilities for doing these operations, or the
 	 * needs of this particular driver change, we might need to do
 	 * more here.
@@ -1003,7 +1003,7 @@ ahc_parse_brace_option(char *opt_name, char *opt_arg, char *end, int depth,
 }
 
 /*
- * Handle Linux boot parameters. This routine allows for assigning a value
+ * Handle GNU/Linux boot parameters. This routine allows for assigning a value
  * to a parameter with a ':' between the parameter and the value.
  * ie. aic7xxx=stpwlev:1,extended
  */
@@ -1712,7 +1712,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 
 	/*
 	 * Guard against stale sense data.
-	 * The Linux mid-layer assumes that sense
+	 * The GNU/Linux mid-layer assumes that sense
 	 * was retrieved anytime the first byte of
 	 * the sense buffer looks "sane".
 	 */
@@ -1929,7 +1929,7 @@ static void
 ahc_linux_queue_cmd_complete(struct ahc_softc *ahc, struct scsi_cmnd *cmd)
 {
 	/*
-	 * Map CAM error codes into Linux Error codes.  We
+	 * Map CAM error codes into GNU/Linux Error codes.  We
 	 * avoid the conversion so that the DV code has the
 	 * full error information available when making
 	 * state change decisions.

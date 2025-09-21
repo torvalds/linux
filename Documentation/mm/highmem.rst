@@ -186,7 +186,7 @@ i386 PAE
 The i386 arch, under some circumstances, will permit you to stick up to 64GiB
 of RAM into your 32-bit machine.  This has a number of consequences:
 
-* Linux needs a page-frame structure for each page in the system and the
+* GNU/Linux needs a page-frame structure for each page in the system and the
   pageframes need to live in the permanent mapping, which means:
 
 * you can have 896M/sizeof(struct page) page-frames at most; with struct

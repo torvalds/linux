@@ -132,7 +132,7 @@ octeon_spin_wait_boot:
 #else
 	sync
 #endif
-	# Jump to the normal Linux SMP entry point
+	# Jump to the normal GNU/Linux SMP entry point
 	j   smp_bootstrap
 	nop
 #else /* CONFIG_SMP */

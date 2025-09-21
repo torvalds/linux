@@ -14,7 +14,7 @@
 
 	configurations {
 		conf-marduk {
-			description = "Marduk Linux kernel";
+			description = "Marduk GNU/Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-marduk";
 		};

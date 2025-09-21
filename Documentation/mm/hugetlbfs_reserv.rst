@@ -553,7 +553,7 @@ so that a reservation will not be leaked when the huge page is freed.
 Reservations and Memory Policy
 ==============================
 Per-node huge page lists existed in struct hstate when git was first used
-to manage Linux code.  The concept of reservations was added some time later.
+to manage GNU/Linux code.  The concept of reservations was added some time later.
 When reservations were added, no attempt was made to take memory policy
 into account.  While cpusets are not exactly the same as memory policy, this
 comment in hugetlb_acct_memory sums up the interaction between reservations

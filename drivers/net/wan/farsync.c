@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*      FarSync WAN driver for Linux (2.6.x kernel version)
+/*      FarSync WAN driver for GNU/Linux (2.6.x kernel version)
  *
  *      Actually sync driver for X.21, V.35 and V.24 on FarSync T-series cards
  *

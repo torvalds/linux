@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: GPL-2.0
- * Copyright (c) 2018, The Linux Foundation
+ * Copyright (c) 2018, The GNU/Linux Foundation
  */
 
 #include <dt-bindings/clock/qcom,dsi-phy-28nm.h>

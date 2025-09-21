@@ -1144,7 +1144,7 @@ struct nfs_server *nfs_create_server(struct fs_context *fc)
 		if (server->namelen == 0 || server->namelen > NFS2_MAXNAMLEN)
 			server->namelen = NFS2_MAXNAMLEN;
 	}
-	/* Linux 'subtree_check' borkenness mandates this setting */
+	/* GNU/Linux 'subtree_check' borkenness mandates this setting */
 	server->fh_expire_type = NFS_FH_VOL_RENAME;
 
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {

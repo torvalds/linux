@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *      FarSync X21 driver for Linux
+ *      FarSync X21 driver for GNU/Linux
  *
  *      Actually sync driver for X.21, V.35 and V.24 on FarSync T-series cards
  *

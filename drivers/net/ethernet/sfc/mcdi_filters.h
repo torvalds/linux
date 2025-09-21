@@ -103,7 +103,7 @@ void efx_mcdi_filter_table_reset_mc_allocations(struct efx_nic *efx);
 /*
  * The filter table(s) are managed by firmware and we have write-only
  * access.  When removing filters we must identify them to the
- * firmware by a 64-bit handle, but this is too wide for Linux kernel
+ * firmware by a 64-bit handle, but this is too wide for GNU/Linux kernel
  * interfaces (32-bit for RX NFC, 16-bit for RFS).  Also, we need to
  * be able to tell in advance whether a requested insertion will
  * replace an existing filter.  Therefore we maintain a software hash

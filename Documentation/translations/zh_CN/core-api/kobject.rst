@@ -183,7 +183,7 @@ kobject的关键功能之一是作为它所嵌入的对象的一个引用计数�
 当的使用。
 
 如果你使用struct kobject只是为了给你的结构体提供一个引用计数器，请使用struct kref
-来代替；kobject是多余的。关于如何使用kref结构体的更多信息，请参见Linux内核源代
+来代替；kobject是多余的。关于如何使用kref结构体的更多信息，请参见GNU/Linux内核源代
 码树中的文件Documentation/core-api/kref.rst
 
 

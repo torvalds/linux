@@ -3,7 +3,7 @@
  * Motorola CPCAP PMIC USB PHY driver
  * Copyright (C) 2017 Tony Lindgren <tony@atomide.com>
  *
- * Some parts based on earlier Motorola Linux kernel tree code in
+ * Some parts based on earlier Motorola GNU/Linux kernel tree code in
  * board-mapphone-usb.c and cpcap-usb-det.c:
  * Copyright (C) 2007 - 2011 Motorola, Inc.
  */

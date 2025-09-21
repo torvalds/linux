@@ -27,9 +27,9 @@
 
 /**
  * Implementation of spinlocks for Octeon CVMX.	 Although similar in
- * function to Linux kernel spinlocks, they are not compatible.
+ * function to GNU/Linux kernel spinlocks, they are not compatible.
  * Octeon CVMX spinlocks are only used to synchronize with the boot
- * monitor and other non-Linux programs running in the system.
+ * monitor and other non-GNU/Linux programs running in the system.
  */
 
 #ifndef __CVMX_SPINLOCK_H__
@@ -97,7 +97,7 @@ static inline void cvmx_spinlock_unlock(cvmx_spinlock_t *lock)
  *
  * Returns 0: lock successfully taken
  *	   1: lock not taken, held by someone else
- * These return values match the Linux semantics.
+ * These return values match the GNU/Linux semantics.
  */
 
 static inline unsigned int cvmx_spinlock_trylock(cvmx_spinlock_t *lock)
@@ -188,7 +188,7 @@ static inline void cvmx_spinlock_bit_lock(uint32_t *word)
  * @word:  word to lock bit 31 of
  * Returns 0: lock successfully taken
  *	   1: lock not taken, held by someone else
- * These return values match the Linux semantics.
+ * These return values match the GNU/Linux semantics.
  */
 static inline unsigned int cvmx_spinlock_bit_trylock(uint32_t *word)
 {

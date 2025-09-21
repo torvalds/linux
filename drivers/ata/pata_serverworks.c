@@ -14,7 +14,7 @@
  * Portions copyright (c) 2001 Sun Microsystems
  *
  *
- * RCC/ServerWorks IDE driver for Linux
+ * RCC/ServerWorks IDE driver for GNU/Linux
  *
  *   OSB4: `Open South Bridge' IDE Interface (fn 1)
  *         supports UDMA mode 2 (33 MB/s)

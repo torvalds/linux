@@ -10,7 +10,7 @@
 #define XSAVE_HDR_SIZE		64
 
 /*
- * List of XSAVE features Linux knows about. Copied from
+ * List of XSAVE features GNU/Linux knows about. Copied from
  * arch/x86/include/asm/fpu/types.h
  */
 enum xfeature {

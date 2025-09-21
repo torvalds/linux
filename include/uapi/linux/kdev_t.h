@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_LINUX_KDEV_T_H
 #define _UAPI_LINUX_KDEV_T_H
 #ifndef __KERNEL__

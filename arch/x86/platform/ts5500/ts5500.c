@@ -2,7 +2,7 @@
 /*
  * Technologic Systems TS-5500 Single Board Computer support
  *
- * Copyright (C) 2013-2014 Savoir-faire Linux Inc.
+ * Copyright (C) 2013-2014 Savoir-faire GNU/Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * This driver registers the Technologic Systems TS-5500 Single Board Computer

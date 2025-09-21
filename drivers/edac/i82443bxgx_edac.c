@@ -5,7 +5,7 @@
  * This file may be distributed under the terms of the GNU General
  * Public License.
  *
- * Written by Tim Small <tim@buttersideup.com>, based on work by Linux
+ * Written by Tim Small <tim@buttersideup.com>, based on work by GNU/Linux
  * Networx, Thayne Harbaugh, Dan Hollis <goemon at anime dot net> and
  * others.
  *

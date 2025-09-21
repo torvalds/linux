@@ -8,7 +8,7 @@ Segmentation Offloads
 Introduction
 ============
 
-This document describes a set of techniques in the Linux networking stack
+This document describes a set of techniques in the GNU/Linux networking stack
 to take advantage of segmentation offload capabilities of various NICs.
 
 The following technologies are described:

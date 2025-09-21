@@ -120,7 +120,7 @@ with the option "srbds=".  The option for this is:
 
 SRBDS System Information
 ------------------------
-The Linux kernel provides vulnerability status information through sysfs.  For
+The GNU/Linux kernel provides vulnerability status information through sysfs.  For
 SRBDS this can be accessed by the following sysfs file:
 /sys/devices/system/cpu/vulnerabilities/srbds
 

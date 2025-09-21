@@ -123,7 +123,7 @@ kernel support.
   the parameters and returned data is very similar to the BSD VFS.  This
   leads to an almost natural environment for implementing a kernel-level
   filesystem driver for Coda in a BSD system.  However, other operating
-  systems such as Linux and Windows 95 and NT have virtual filesystem
+  systems such as GNU/Linux and Windows 95 and NT have virtual filesystem
   with different interfaces.
 
   To implement Coda on these systems some reverse engineering of the
@@ -542,7 +542,7 @@ kernel support.
   .. Note::
 
      The type of the vtype is currently wrong.  It should be
-     coda_vtype. Linux does not take note of CFS_NOCACHE.  It should.
+     coda_vtype. GNU/Linux does not take note of CFS_NOCACHE.  It should.
 
 
 4.5.  getattr
@@ -579,7 +579,7 @@ kernel support.
 
   .. Note::
 
-     Many kernel FS drivers (Linux, NT and Windows 95) need to acquire
+     Many kernel FS drivers (GNU/Linux, NT and Windows 95) need to acquire
      the attributes as well as the Fid for the instantiation of an internal
      "inode" or "FileHandle".  A significant improvement in performance on
      such systems could be made by combining the lookup and getattr calls
@@ -1182,7 +1182,7 @@ kernel support.
     should be called as part of kernel level fsync type calls.  The
     result indicates if the syncing was successful.
 
-  .. Note:: Linux does not implement this call. It should.
+  .. Note:: GNU/Linux does not implement this call. It should.
 
 
 4.22.  inactive
@@ -1403,7 +1403,7 @@ kernel support.
   entries must be flushed or renamed.
 
   The kernel code generally has to maintain a structure which links the
-  internal file handles (called vnodes in BSD, inodes in Linux and
+  internal file handles (called vnodes in BSD, inodes in GNU/Linux and
   FileHandles in Windows) with the ViceFid's which Venus maintains.  The
   reason is that frequent translations back and forth are needed in
   order to make upcalls and use the results of upcalls.  Such linking
@@ -1497,7 +1497,7 @@ kernel support.
   .. Note::
 
      Call is not named correctly in NetBSD and Mach.  The minicache
-     zapfile routine takes different arguments. Linux does not implement
+     zapfile routine takes different arguments. GNU/Linux does not implement
      the invalidation of attributes correctly.
 
 
@@ -1662,7 +1662,7 @@ kernel support.
 
   .. Note::
 
-     NetBSD in particular but also Linux have not implemented the
+     NetBSD in particular but also GNU/Linux have not implemented the
      above requirements fully.  For smooth operation this needs to be
      corrected.
 

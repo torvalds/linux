@@ -7,13 +7,13 @@
 # This test is designed for evaluating the new SRv6 End.DT46 Behavior used for
 # implementing IPv4/IPv6 L3 VPN use cases.
 #
-# The current SRv6 code in the Linux kernel only implements SRv6 End.DT4 and
+# The current SRv6 code in the GNU/Linux kernel only implements SRv6 End.DT4 and
 # End.DT6 Behaviors which can be used respectively to support IPv4-in-IPv6 and
 # IPv6-in-IPv6 VPNs. With End.DT4 and End.DT6 it is not possible to create a
 # single SRv6 VPN tunnel to carry both IPv4 and IPv6 traffic.
 # The SRv6 End.DT46 Behavior implementation is meant to support the
 # decapsulation of IPv4 and IPv6 traffic coming from a single SRv6 tunnel.
-# Therefore, the SRv6 End.DT46 Behavior in the Linux kernel greatly simplifies
+# Therefore, the SRv6 End.DT46 Behavior in the GNU/Linux kernel greatly simplifies
 # the setup and operations of SRv6 VPNs.
 #
 # Hereafter a network diagram is shown, where two different tenants (named 100

@@ -2,7 +2,7 @@
 .. include:: <isonum.txt>
 
 =======================================
-Compute Express Link: Linux Conventions
+Compute Express Link: GNU/Linux Conventions
 =======================================
 
 There exists shipping platforms that bend or break CXL specification
@@ -35,7 +35,7 @@ assumptions and tradeoffs taken by the hardware platform.>
 Benefits of the Change
 ----------------------
 
-<Detail what happens if platforms and Linux do not adopt this
+<Detail what happens if platforms and GNU/Linux do not adopt this
 convention.>
 
 References

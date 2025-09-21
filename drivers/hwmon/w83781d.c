@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * w83781d.c - Part of lm_sensors, Linux kernel modules for hardware
+ * w83781d.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	       monitoring
  * Copyright (c) 1998 - 2001  Frodo Looijaard <frodol@dds.nl>,
  *			      Philip Edelbrock <phil@netroedge.com>,

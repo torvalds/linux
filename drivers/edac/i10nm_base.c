@@ -360,7 +360,7 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 			else
 				n += scnprintf(msg + n, len - n, "%.16llx ", log);
 
-			/* Clear RRL status if RRL in Linux control mode. */
+			/* Clear RRL status if RRL in GNU/Linux control mode. */
 			if (retry_rd_err_log == 2 && !j && (log & status_mask))
 				write_imc_reg(imc, ch, offset, width, log & ~status_mask);
 		}
@@ -1263,7 +1263,7 @@ module_param_cb(decoding_via_mca, &decoding_via_mca_param_ops, &decoding_via_mca
 MODULE_PARM_DESC(decoding_via_mca, "decoding_via_mca: 0=off(default), 1=enable");
 
 module_param(retry_rd_err_log, int, 0444);
-MODULE_PARM_DESC(retry_rd_err_log, "retry_rd_err_log: 0=off(default), 1=bios(Linux doesn't reset any control bits, but just reports values.), 2=linux(Linux tries to take control and resets mode bits, clear valid/UC bits after reading.)");
+MODULE_PARM_DESC(retry_rd_err_log, "retry_rd_err_log: 0=off(default), 1=bios(GNU/Linux doesn't reset any control bits, but just reports values.), 2=linux(GNU/Linux tries to take control and resets mode bits, clear valid/UC bits after reading.)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MC Driver for Intel 10nm server processors");

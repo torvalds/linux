@@ -14,19 +14,19 @@
 .. _cn_PCI_pci.rst:
 
 ===================
-如何写Linux PCI驱动
+如何写GNU/Linux PCI驱动
 ===================
 
 :作者: - Martin Mares <mj@ucw.cz>
           - Grant Grundler <grundler@parisc-linux.org>
 
 PCI的世界是巨大的，而且充满了（大多数是不愉快的）惊喜。由于每个CPU架构实现了不同
-的芯片组，并且PCI设备有不同的要求（呃，“特性”），结果是Linux内核中的PCI支持并不
+的芯片组，并且PCI设备有不同的要求（呃，“特性”），结果是GNU/Linux内核中的PCI支持并不
 像人们希望的那样简单。这篇短文试图向所有潜在的驱动程序作者介绍PCI设备驱动程序的
-Linux APIs。
+GNU/Linux APIs。
 
 更完整的资源是Jonathan Corbet、Alessandro Rubini和Greg Kroah-Hartman的
-《Linux设备驱动程序》第三版。LDD3可以免费获得（在知识共享许可下），网址是：
+《GNU/Linux设备驱动程序》第三版。LDD3可以免费获得（在知识共享许可下），网址是：
 https://lwn.net/Kernel/LDD3/。
 
 
@@ -34,7 +34,7 @@ https://lwn.net/Kernel/LDD3/。
 然而，请记住，所有的文档都会受到“维护不及时”的影响。如果事情没有按照这里描述的那
 样进行，请参考源代码。
 
-请将有关Linux PCI API的问题/评论/补丁发送到“Linux PCI”
+请将有关GNU/Linux PCI API的问题/评论/补丁发送到“GNU/Linux PCI”
 <linux-pci@atrey.karlin.mff.cuni.cz> 邮件列表。
 
 

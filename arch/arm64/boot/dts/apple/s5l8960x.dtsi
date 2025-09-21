@@ -5,7 +5,7 @@
  * Other Names: H6, "Alcatraz"
  *
  * Copyright (c) 2022, Konrad Dybcio <konradybcio@kernel.org>
- * Based on Asahi Linux's M1 (t8103.dtsi) and Corellium's A10 efforts.
+ * Based on Asahi GNU/Linux's M1 (t8103.dtsi) and Corellium's A10 efforts.
  */
 
 #include <dt-bindings/gpio/gpio.h>

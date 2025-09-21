@@ -500,7 +500,7 @@ the cache into four equal parts with masks: 0x1f, 0x3e0, 0x7c00, 0xf8000.
 
 Notes on Sub-NUMA Cluster mode
 ==============================
-When SNC mode is enabled, Linux may load balance tasks between Sub-NUMA
+When SNC mode is enabled, GNU/Linux may load balance tasks between Sub-NUMA
 nodes much more readily than between regular NUMA nodes since the CPUs
 on Sub-NUMA nodes share the same L3 cache and the system may report
 the NUMA distance between Sub-NUMA nodes with a lower value than used

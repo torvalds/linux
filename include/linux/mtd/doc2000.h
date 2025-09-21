@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Linux driver for Disk-On-Chip devices
+ * GNU/Linux driver for Disk-On-Chip devices
  *
  * Copyright © 1999 Machine Vision Holdings, Inc.
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>

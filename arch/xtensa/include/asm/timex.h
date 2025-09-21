@@ -24,7 +24,7 @@
 # define LINUX_TIMER     2
 # define LINUX_TIMER_INT XCHAL_TIMER2_INTERRUPT
 #else
-# error "Bad timer number for Linux configurations!"
+# error "Bad timer number for GNU/Linux configurations!"
 #endif
 
 extern unsigned long ccount_freq;

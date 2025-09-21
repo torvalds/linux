@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===============================
-The Linux kernel dpll subsystem
+The GNU/Linux kernel dpll subsystem
 ===============================
 
 DPLL

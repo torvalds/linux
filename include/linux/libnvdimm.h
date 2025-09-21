@@ -110,7 +110,7 @@ struct nd_interleave_set {
 	u64 cookie1;
 	/* v1.2 definition of the interleave-set-cookie algorithm */
 	u64 cookie2;
-	/* compatibility with initial buggy Linux implementation */
+	/* compatibility with initial buggy GNU/Linux implementation */
 	u64 altcookie;
 
 	guid_t type_guid;

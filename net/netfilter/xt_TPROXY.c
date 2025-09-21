@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Transparent proxy support for Linux/iptables
+ * Transparent proxy support for GNU/Linux/iptables
  *
  * Copyright (c) 2006-2010 BalaBit IT Ltd.
  * Author: Balazs Scheidler, Krisztian Kovacs

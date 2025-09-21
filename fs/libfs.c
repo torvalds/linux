@@ -1461,7 +1461,7 @@ EXPORT_SYMBOL_GPL(generic_encode_ino32_fh);
  * @get_inode:	filesystem callback to retrieve inode
  *
  * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
+ * GNU/Linux filehandle types and calls @get_inode on it to retrieve the
  * inode for the object specified in the file handle.
  */
 struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
@@ -1493,7 +1493,7 @@ EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
  * @get_inode:	filesystem callback to retrieve inode
  *
  * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
+ * GNU/Linux filehandle types and calls @get_inode on it to retrieve the
  * inode for the _parent_ object specified in the file handle if it
  * is specified in the file handle, or NULL otherwise.
  */

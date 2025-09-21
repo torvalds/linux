@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Jon Grierson <jd@renko.co.uk>
  * Copyright (C) 2006 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1999,2002,2003 David A. Schleef <ds@schleef.org>
  */
 

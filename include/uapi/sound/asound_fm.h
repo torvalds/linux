@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note */
 #ifndef __SOUND_ASOUND_FM_H
 #define __SOUND_ASOUND_FM_H
 
 /*
- *  Advanced Linux Sound Architecture - ALSA
+ *  Advanced GNU/Linux Sound Architecture - ALSA
  *
  *  Interface file between ALSA driver & user space
  *  Copyright (c) 1994-98 by Jaroslav Kysela <perex@perex.cz>,

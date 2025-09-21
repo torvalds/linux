@@ -3,7 +3,7 @@
  * Copyright (C) 1999 - 2010 Intel Corporation.
  * Copyright (C) 2010 OKI SEMICONDUCTOR Co., LTD.
  *
- * This code was derived from the Intel e1000e Linux driver.
+ * This code was derived from the Intel e1000e GNU/Linux driver.
  */
 #ifndef _PCH_GBE_PHY_H_
 #define _PCH_GBE_PHY_H_

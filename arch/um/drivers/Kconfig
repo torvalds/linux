@@ -11,7 +11,7 @@ config STDERR_CONSOLE
 config SSL
 	bool "Virtual serial line"
 	help
-	  The User-Mode Linux environment allows you to create virtual serial
+	  The User-Mode GNU/Linux environment allows you to create virtual serial
 	  lines on the UML that are usually made to show up on the host as
 	  ttys or ptys.
 
@@ -128,7 +128,7 @@ config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"
 	select MAY_HAVE_RUNTIME_DEPS
 	help
-	  This User-Mode Linux network driver uses multi-message send
+	  This User-Mode GNU/Linux network driver uses multi-message send
 	  and receive functions. The host running the UML guest must have
 	  a linux kernel version above 3.0 and a libc version > 2.13.
 	  This driver provides tap, raw, gre and l2tpv3 network transports.

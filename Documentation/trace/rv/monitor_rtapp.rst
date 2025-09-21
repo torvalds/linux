@@ -65,7 +65,7 @@ thread to sleep for one of the following reasons:
     top of futexes. Be aware that the C library might not implement conditional
     variables as safe for real-time. As an alternative, the librtpi library
     exists to provide a conditional variable implementation that is correct for
-    real-time applications in Linux.
+    real-time applications in GNU/Linux.
 
 Beside the reason for sleeping, the eventual waker should also be
 real-time-safe. Namely, one of:

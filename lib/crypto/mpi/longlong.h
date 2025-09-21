@@ -316,7 +316,7 @@ extern UDItype __udiv_qrnnd(UDItype *, UDItype, UDItype, UDItype);
 	     "rM" ((USItype)(al)), \
 	     "rM" ((USItype)(bl)))
 #if 0 && defined(_PA_RISC1_1)
-/* xmpyu uses floating point register which is not allowed in Linux kernel. */
+/* xmpyu uses floating point register which is not allowed in GNU/Linux kernel. */
 #define umul_ppmm(wh, wl, u, v) \
 do { \
 	union {UDItype __ll; \

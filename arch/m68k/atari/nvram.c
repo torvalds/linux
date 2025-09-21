@@ -146,7 +146,7 @@ static struct {
 	{ 0x80, "TOS" },
 	{ 0x40, "ASV" },
 	{ 0x20, "NetBSD (?)" },
-	{ 0x10, "Linux" },
+	{ 0x10, "GNU/Linux" },
 	{ 0x00, "unspecified" },
 };
 

@@ -95,7 +95,7 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_FLYVIDEO3000] = {
-		/* "Marco d'Itri" <md@Linux.IT> */
+		/* "Marco d'Itri" <md@GNU/Linux.IT> */
 		.name		= "LifeView FlyVIDEO3000",
 		.audio_clock	= 0x00200000,
 		.tuner_type	= TUNER_PHILIPS_PAL,

@@ -128,24 +128,24 @@ struct hvsock {
  *    GUID VmId;
  *    GUID ServiceId;
  * };
- * Note: VmID is not used by Linux VM and actually it isn't transmitted via
+ * Note: VmID is not used by GNU/Linux VM and actually it isn't transmitted via
  * VMBus, because here it's obvious the host and the VM can easily identify
  * each other. Though the VmID is useful on the host, especially in the case
- * of Windows container, Linux VM doesn't need it at all.
+ * of Windows container, GNU/Linux VM doesn't need it at all.
  *
- * To make use of the AF_VSOCK infrastructure in Linux VM, we have to limit
+ * To make use of the AF_VSOCK infrastructure in GNU/Linux VM, we have to limit
  * the available GUID space of SOCKADDR_HV so that we can create a mapping
  * between AF_VSOCK port and SOCKADDR_HV Service GUID. The rule of writing
- * Hyper-V Sockets apps on the host and in Linux VM is:
+ * Hyper-V Sockets apps on the host and in GNU/Linux VM is:
  *
  ****************************************************************************
  * The only valid Service GUIDs, from the perspectives of both the host and *
- * Linux VM, that can be connected by the other end, must conform to this   *
+ * GNU/Linux VM, that can be connected by the other end, must conform to this   *
  * format: <port>-facb-11e6-bd58-64006a7986d3.                              *
  ****************************************************************************
  *
  * When we write apps on the host to connect(), the GUID ServiceID is used.
- * When we write apps in Linux VM to connect(), we only need to specify the
+ * When we write apps in GNU/Linux VM to connect(), we only need to specify the
  * port and the driver will form the GUID and use that to request the host.
  *
  */

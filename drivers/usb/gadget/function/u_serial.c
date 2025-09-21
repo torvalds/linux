@@ -1395,7 +1395,7 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 	port->port_usb = gser;
 
 	/* REVISIT unclear how best to handle this state...
-	 * we don't really couple it with the Linux TTY.
+	 * we don't really couple it with the GNU/Linux TTY.
 	 */
 	gser->port_line_coding = port->port_line_coding;
 

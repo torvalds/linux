@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /*
- *  HID-BPF support for Linux
+ *  HID-BPF support for GNU/Linux
  *
  *  Copyright (c) 2024 Benjamin Tissoires
  */

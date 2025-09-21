@@ -11,7 +11,7 @@
  * Copyright (C) 1999 MIPS Technologies, Inc.
  * Copyright (C) 2000 Ulf Carlsson
  *
- * At this time Linux/MIPS64 only supports syscall tracing, even for 32-bit
+ * At this time GNU/Linux/MIPS64 only supports syscall tracing, even for 32-bit
  * binaries.
  */
 #include <linux/compiler.h>

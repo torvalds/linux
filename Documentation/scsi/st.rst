@@ -61,7 +61,7 @@ If more than one mode is used, all modes should contain definitions
 for the same set of parameters.
 
 Many Unices contain internal tables that associate different modes to
-supported devices. The Linux SCSI tape driver does not contain such
+supported devices. The GNU/Linux SCSI tape driver does not contain such
 tables (and will not do that in future). Instead of that, a utility
 program can be made that fetches the inquiry data sent by the device,
 scans its database, and sets up the modes using the ioctls. Another
@@ -388,9 +388,9 @@ IOCTLs
 
 The tape is positioned and the drive parameters are set with ioctls
 defined in mtio.h The tape control program 'mt' uses these ioctls. Try
-to find an mt that supports all of the Linux SCSI tape ioctls and
+to find an mt that supports all of the GNU/Linux SCSI tape ioctls and
 opens the device for writing if the tape contents will be modified
-(look for a package mt-st* from the Linux ftp sites; the GNU mt does
+(look for a package mt-st* from the GNU/Linux ftp sites; the GNU mt does
 not open for writing for, e.g., erase).
 
 The supported ioctls are:
@@ -674,5 +674,5 @@ ps), ps writes the function name in the WCHAN field. If not, you have
 to look up the function from System.map.
 
 Note also that the timeouts are very long compared to most other
-drivers. This means that the Linux driver may appear hung although the
+drivers. This means that the GNU/Linux driver may appear hung although the
 real reason is that the tape firmware has got confused.

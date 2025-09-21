@@ -190,7 +190,7 @@ static int k3rtc_unlock_rtc(struct ti_k3_rtc *priv)
  * This is the list of SoCs affected by TI's i2327 errata causing the RTC
  * state-machine to break if not unlocked fast enough during boot. These
  * SoCs must have the bootloader unlock this device very early in the
- * boot-flow before we (Linux) can use this device.
+ * boot-flow before we (GNU/Linux) can use this device.
  */
 static const struct soc_device_attribute has_erratum_i2327[] = {
 	{ .family = "AM62X", .revision = "SR1.0" },
@@ -205,7 +205,7 @@ static int k3rtc_configure(struct device *dev)
 	/*
 	 * HWBUG: The compare state machine is broken if the RTC module
 	 * is NOT unlocked in under one second of boot - which is pretty long
-	 * time from the perspective of Linux driver (module load, u-boot
+	 * time from the perspective of GNU/Linux driver (module load, u-boot
 	 * shell all can take much longer than this.
 	 *
 	 * In such occurrence, it is assumed that the RTC module is unusable

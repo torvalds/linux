@@ -207,7 +207,7 @@ static void prep_cmdline(void *chosen)
 	if (cmdline[0] == '\0')
 		getprop(chosen, "bootargs", cmdline, BOOT_COMMAND_LINE_SIZE-1);
 
-	printf("\n\rLinux/PowerPC load: %s", cmdline);
+	printf("\n\rGNU/Linux/PowerPC load: %s", cmdline);
 
 	/* If possible, edit the command line */
 	if (console_ops.edit_cmdline && getline_timeout)
@@ -280,5 +280,5 @@ void start(void)
 		       loader_info.promptr);
 
 	/* console closed so printf in fatal below may not work */
-	fatal("Error: Linux kernel returned to zImage boot wrapper!\n\r");
+	fatal("Error: GNU/Linux kernel returned to zImage boot wrapper!\n\r");
 }

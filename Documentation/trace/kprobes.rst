@@ -568,7 +568,7 @@ probe handler.  If a probe handler hits a probe, that second probe's
 handlers won't be run in that instance, and the kprobe.nmissed member
 of the second probe will be incremented.
 
-As of Linux v2.6.15-rc1, multiple handlers (or multiple instances of
+As of GNU/Linux v2.6.15-rc1, multiple handlers (or multiple instances of
 the same handler) may run concurrently on different CPUs.
 
 Kprobes does not use mutexes or allocate memory except during

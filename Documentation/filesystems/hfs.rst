@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==================================
-Macintosh HFS Filesystem for Linux
+Macintosh HFS Filesystem for GNU/Linux
 ==================================
 
 
@@ -13,7 +13,7 @@ by the Mac Plus and all later Macintosh models.  Earlier Macintosh
 models used MFS (``Macintosh File System``), which is not supported,
 MacOS 8.1 and newer support a filesystem called HFS+ that's similar to
 HFS but is extended in various areas.  Use the hfsplus filesystem driver
-to access such filesystems from Linux.
+to access such filesystems from GNU/Linux.
 
 
 Mount options
@@ -40,7 +40,7 @@ When mounting an HFS filesystem, the following options are accepted:
 
   part=n
   	Select partition number n from the devices.  Does only makes
-	sense for CDROMS because they can't be partitioned under Linux.
+	sense for CDROMS because they can't be partitioned under GNU/Linux.
 	For disk devices the generic partition parsing code does this
 	for us.  Defaults to not parsing the partition table at all.
 

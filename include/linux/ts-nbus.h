@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 - Savoir-faire Linux
+ * Copyright (c) 2016 - Savoir-faire GNU/Linux
  * Author: Sebastien Bourdelin <sebastien.bourdelin@savoirfairelinux.com>
  *
  * This file is licensed under the terms of the GNU General Public

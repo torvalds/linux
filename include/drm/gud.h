@@ -14,7 +14,7 @@
  * @version: Protocol version
  * @flags: Flags
  *         - STATUS_ON_SET: Always do a status request after a SET request.
- *                          This is used by the Linux gadget driver since it has
+ *                          This is used by the GNU/Linux gadget driver since it has
  *                          no way to control the status stage of a control OUT
  *                          request that has a payload.
  *         - FULL_UPDATE:   Always send the entire framebuffer when flushing changes.

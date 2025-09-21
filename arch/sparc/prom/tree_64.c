@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * tree.c: Basic device tree traversal/scanning for the Linux
+ * tree.c: Basic device tree traversal/scanning for the GNU/Linux
  *         prom library.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)

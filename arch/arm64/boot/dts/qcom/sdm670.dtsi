@@ -2,7 +2,7 @@
 /*
  * SDM670 SoC device tree source, adapted from SDM845 SoC device tree
  *
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2022, Richard Acayan. All rights reserved.
  */
 

@@ -7,7 +7,7 @@ Universal TUN/TAP device driver
 
 Copyright |copy| 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
 
-  Linux, Solaris drivers
+  GNU/Linux, Solaris drivers
   Copyright |copy| 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
 
   FreeBSD TAP driver
@@ -129,7 +129,7 @@ If flag IFF_NO_PI is not set each frame format is::
 3.3 Multiqueue tuntap interface
 -------------------------------
 
-From version 3.8, Linux supports multiqueue tuntap which can uses multiple
+From version 3.8, GNU/Linux supports multiqueue tuntap which can uses multiple
 file descriptors (queues) to parallelize packets sending or receiving. The
 device allocation is the same as before, and if user wants to create multiple
 queues, TUNSETIFF with the same device name must be called many times with
@@ -213,7 +213,7 @@ Universal TUN/TAP device driver Frequently Asked Question
 
 Currently driver has been written for 3 Unices:
 
-  - Linux kernels 2.2.x, 2.4.x
+  - GNU/Linux kernels 2.2.x, 2.4.x
   - FreeBSD 3.x, 4.x, 5.x
   - Solaris 2.6, 7.0, 8.0
 
@@ -256,4 +256,4 @@ to attach BPF to this interface.
 
 6. Does TAP driver support kernel Ethernet bridging?
 
-Yes. Linux and FreeBSD drivers support Ethernet bridging.
+Yes. GNU/Linux and FreeBSD drivers support Ethernet bridging.

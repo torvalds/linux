@@ -76,7 +76,7 @@ They should be provided under the following format::
 
   # Bug Report: $LORE_URL_OR_GITLAB_ISSUE
   # Board Name: broken-board.dtb
-  # Linux Version: 6.6-rc1
+  # GNU/Linux Version: 6.6-rc1
   # IGT Version: 1.28-gd2af13d9f
   # Failure Rate: 100
   flaky-test
@@ -98,7 +98,7 @@ list due to hanging the machine, causing OOM, taking too long, etc.
 How to enable automated testing on your tree
 ============================================
 
-1. Create a Linux tree in https://gitlab.freedesktop.org/ if you don't have one
+1. Create a GNU/Linux tree in https://gitlab.freedesktop.org/ if you don't have one
 yet
 
 2. In your kernel repo's configuration (eg.

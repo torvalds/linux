@@ -240,7 +240,7 @@ static vm_fault_t xive_native_esb_fault(struct vm_fault *vmf)
 	u64 page_offset;
 
 	/*
-	 * Linux/KVM uses a two pages ESB setting, one for trigger and
+	 * GNU/Linux/KVM uses a two pages ESB setting, one for trigger and
 	 * one for EOI
 	 */
 	page_offset = vmf->pgoff - vma->vm_pgoff;
@@ -673,7 +673,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	 /*
 	  * Unconditional Notification is forced by default at the
 	  * OPAL level because the use of END ESBs is not supported by
-	  * Linux.
+	  * GNU/Linux.
 	  */
 	rc = kvmppc_xive_native_configure_queue(xc->vp_id, q, priority,
 					(__be32 *) qaddr, kvm_eq.qshift, true);

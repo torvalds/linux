@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * NES, SNES, N64, MultiSystem, PSX gamepad driver for Linux
+ * NES, SNES, N64, MultiSystem, PSX gamepad driver for GNU/Linux
  *
  *  Copyright (c) 1999-2004	Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2004		Peter Nelson <rufus-kernel@hackish.org>

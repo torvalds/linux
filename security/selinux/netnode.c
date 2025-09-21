@@ -2,7 +2,7 @@
 /*
  * Network node table
  *
- * SELinux must keep a mapping of network nodes to labels/SIDs.  This
+ * SEGNU/Linux must keep a mapping of network nodes to labels/SIDs.  This
  * mapping is maintained as part of the normal policy but a fast cache is
  * needed to reduce the lookup overhead since most of these queries happen on
  * a per-packet basis.
@@ -231,7 +231,7 @@ static int sel_netnode_sid_slow(const void *addr, u16 family, u32 *sid)
 
 	spin_unlock_bh(&sel_netnode_lock);
 	if (unlikely(ret))
-		pr_warn("SELinux: failure in %s(), unable to determine network node label\n",
+		pr_warn("SEGNU/Linux: failure in %s(), unable to determine network node label\n",
 			__func__);
 	return ret;
 }

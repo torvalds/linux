@@ -7,13 +7,13 @@
 static inline const int *get_compat_mode1_syscalls(void)
 {
 	static const int syscalls_O32[] = {
-		__NR_O32_Linux + 3, __NR_O32_Linux + 4,
-		__NR_O32_Linux + 1, __NR_O32_Linux + 193,
+		__NR_O32_GNU/Linux + 3, __NR_O32_GNU/Linux + 4,
+		__NR_O32_GNU/Linux + 1, __NR_O32_GNU/Linux + 193,
 		-1, /* negative terminated */
 	};
 	static const int syscalls_N32[] = {
-		__NR_N32_Linux + 0, __NR_N32_Linux + 1,
-		__NR_N32_Linux + 58, __NR_N32_Linux + 211,
+		__NR_N32_GNU/Linux + 0, __NR_N32_GNU/Linux + 1,
+		__NR_N32_GNU/Linux + 58, __NR_N32_GNU/Linux + 211,
 		-1, /* negative terminated */
 	};
 

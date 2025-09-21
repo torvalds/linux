@@ -1416,7 +1416,7 @@ static int mlxbf_i2c_init_master(struct platform_device *pdev,
 	 * instead of HW_OE.
 	 * For now, we do not reset the GPIO state when the driver is removed.
 	 * First, it is not necessary to disable the bus since we are using
-	 * the same busses. Then, some busses might be shared among Linux and
+	 * the same busses. Then, some busses might be shared among GNU/Linux and
 	 * platform firmware; disabling the bus might compromise the system
 	 * functionality.
 	 */
@@ -2333,7 +2333,7 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 
 	/*
 	 * Initialize master.
-	 * Note that a physical bus might be shared among Linux and firmware
+	 * Note that a physical bus might be shared among GNU/Linux and firmware
 	 * (e.g., ATF). Thus, the bus should be initialized and ready and
 	 * bus initialization would be unnecessary. This requires additional
 	 * knowledge about physical busses. But, since an extra initialization

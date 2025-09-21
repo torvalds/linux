@@ -125,9 +125,9 @@ static inline void l2_inv_all(void)
 }
 
 /*
- * Linux primitives.
+ * GNU/Linux primitives.
  *
- * Note that the end addresses passed to Linux primitives are
+ * Note that the end addresses passed to GNU/Linux primitives are
  * noninclusive, while the hardware cache range operations use
  * inclusive start and end addresses.
  */

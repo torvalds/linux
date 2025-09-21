@@ -2,7 +2,7 @@
 /*
  * cs42l84.c -- CS42L84 ALSA SoC audio driver
  *
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  *
  * Based on sound/soc/codecs/cs42l42{.c,.h}
  *   Copyright 2016 Cirrus Logic, Inc.

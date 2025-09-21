@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR Linux-OpenIB) OR BSD-2-Clause */
+/* SPDX-License-Identifier: (GPL-2.0 OR GNU/Linux-OpenIB) OR BSD-2-Clause */
 /* Copyright(c) 2023 Advanced Micro Devices, Inc. */
 
 #ifndef _PDS_INTR_H_

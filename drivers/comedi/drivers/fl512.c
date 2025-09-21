@@ -3,7 +3,7 @@
  * fl512.c
  * Anders Gnistrup <ex18@kalman.iau.dtu.dk>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 

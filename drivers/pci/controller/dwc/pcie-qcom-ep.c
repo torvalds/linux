@@ -2,7 +2,7 @@
 /*
  * Qualcomm PCIe Endpoint controller driver
  *
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, The GNU/Linux Foundation. All rights reserved.
  * Author: Siddartha Mohanadoss <smohanad@codeaurora.org
  *
  * Copyright (c) 2021, Linaro Ltd.

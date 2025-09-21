@@ -1,11 +1,11 @@
 ==================================
-Cache and TLB Flushing Under Linux
+Cache and TLB Flushing Under GNU/Linux
 ==================================
 
 :Author: David S. Miller <davem@redhat.com>
 
 This document describes the cache/tlb flushing interfaces called
-by the Linux VM subsystem.  It enumerates over each interface,
+by the GNU/Linux VM subsystem.  It enumerates over each interface,
 describes its intended purpose, and what side effect is expected
 after the interface is invoked.
 
@@ -21,7 +21,7 @@ on a cpu (see mm_cpumask()), one need not perform a flush
 for this address space on that cpu.
 
 First, the TLB flushing interfaces, since they are the simplest.  The
-"TLB" is abstracted under Linux as something the cpu uses to cache
+"TLB" is abstracted under GNU/Linux as something the cpu uses to cache
 virtual-->physical address translations obtained from the software
 page tables.  Meaning that if the software page tables change, it is
 possible for stale translations to exist in this "TLB" cache.
@@ -74,7 +74,7 @@ changes occur:
 
 	This time we need to remove the PAGE_SIZE sized translation
 	from the TLB.  The 'vma' is the backing structure used by
-	Linux to keep track of mmap'd regions for a process, the
+	GNU/Linux to keep track of mmap'd regions for a process, the
 	address space is available via vma->vm_mm.  Also, one may
 	test (vma->vm_flags & VM_EXEC) to see if this region is
 	executable (and thus could be in the 'instruction TLB' in
@@ -105,7 +105,7 @@ changes occur:
 	translations for software managed TLB configurations.
 	The sparc64 port currently does this.
 
-Next, we have the cache flushing interfaces.  In general, when Linux
+Next, we have the cache flushing interfaces.  In general, when GNU/Linux
 is changing an existing virtual-->physical mapping to a new value,
 the sequence will be in one of the following forms::
 
@@ -180,7 +180,7 @@ Here are the routines, one by one:
 
 	This time we need to remove a PAGE_SIZE sized range
 	from the cache.  The 'vma' is the backing structure used by
-	Linux to keep track of mmap'd regions for a process, the
+	GNU/Linux to keep track of mmap'd regions for a process, the
 	address space is available via vma->vm_mm.  Also, one may
 	test (vma->vm_flags & VM_EXEC) to see if this region is
 	executable (and thus could be in the 'instruction cache' in

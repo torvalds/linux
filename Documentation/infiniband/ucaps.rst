@@ -4,7 +4,7 @@ Infiniband Userspace Capabilities
 
    User CAPabilities (UCAPs) provide fine-grained control over specific
    firmware features in Infiniband (IB) devices. This approach offers
-   more granular capabilities than the existing Linux capabilities,
+   more granular capabilities than the existing GNU/Linux capabilities,
    which may be too generic for certain FW features.
 
    Each user capability is represented as a character device with root

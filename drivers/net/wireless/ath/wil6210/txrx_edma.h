@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: ISC */
 /*
- * Copyright (c) 2012-2016,2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016,2018-2019, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef WIL6210_TXRX_EDMA_H

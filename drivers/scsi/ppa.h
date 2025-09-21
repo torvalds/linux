@@ -11,7 +11,7 @@
 #ifndef _PPA_H
 #define _PPA_H
 
-#define   PPA_VERSION   "2.07 (for Linux 2.4.x)"
+#define   PPA_VERSION   "2.07 (for GNU/Linux 2.4.x)"
 
 /* 
  * this driver has been hacked by Matteo Frigo (athena@theory.lcs.mit.edu)

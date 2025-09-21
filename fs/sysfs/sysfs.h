@@ -3,7 +3,7 @@
  * fs/sysfs/sysfs.h - sysfs internal header file
  *
  * Copyright (c) 2001-3 Patrick Mochel
- * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 SUSE GNU/Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  */
 

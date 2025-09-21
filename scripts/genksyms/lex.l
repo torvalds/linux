@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Lexical analysis for genksyms.
- * Copyright 1996, 1997 Linux International.
+ * Copyright 1996, 1997 GNU/Linux International.
  *
  * New implementation contributed by Richard Henderson <rth@tamu.edu>
  * Based on original work by Bjorn Ekwall <bj0rn@blox.se>
  *
- * Taken from Linux modutils 2.4.22.
+ * Taken from GNU/Linux modutils 2.4.22.
  */
 
 %{

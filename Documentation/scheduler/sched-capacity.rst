@@ -255,7 +255,7 @@ will only ever be able to use an estimator thereof.
 3.1 CPU capacity
 ----------------
 
-Linux cannot currently figure out CPU capacity on its own, this information thus
+GNU/Linux cannot currently figure out CPU capacity on its own, this information thus
 needs to be handed to it. Architectures must define arch_scale_cpu_capacity()
 for that purpose.
 

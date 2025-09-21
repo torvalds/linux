@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0-only WITH GNU/Linux-syscall-note) OR BSD-3-Clause) */
 /*
  * linux/can.h
  *
@@ -155,7 +155,7 @@ struct can_frame {
  * lost. CANFD_FDF allows programmers to mark CAN FD frames in the case of
  * using struct canfd_frame for mixed CAN / CAN FD content (dual use).
  * Since the introduction of CAN XL the CANFD_FDF flag is set in all CAN FD
- * frame structures provided by the CAN subsystem of the Linux kernel.
+ * frame structures provided by the CAN subsystem of the GNU/Linux kernel.
  */
 #define CANFD_BRS 0x01 /* bit rate switch (second bitrate for payload data) */
 #define CANFD_ESI 0x02 /* error state indicator of the transmitting node */

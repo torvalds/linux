@@ -1,5 +1,5 @@
 ======================
-Linux Kernel Selftests
+GNU/Linux Kernel Selftests
 ======================
 
 The kernel contains a set of "self tests" under the tools/testing/selftests/

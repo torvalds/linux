@@ -1,5 +1,5 @@
 /*
- * Atari Keyboard driver for 680x0 Linux
+ * Atari Keyboard driver for 680x0 GNU/Linux
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -223,7 +223,7 @@ repeat:
 
 					set_bit(scancode, broken_keys);
 					self_test_last_rcv = jiffies;
-					/* new Linux scancodes; approx. */
+					/* new GNU/Linux scancodes; approx. */
 					keyval = scancode;
 					keytyp = KTYP(keyval) - 0xf0;
 					keyval = KVAL(keyval);
@@ -277,7 +277,7 @@ repeat:
 			if (kb_state.len == 6) {
 				kb_state.state = KEYBOARD;
 				/* wake up someone waiting for this.
-				   But will this ever be used, as Linux keeps its own time.
+				   But will this ever be used, as GNU/Linux keeps its own time.
 				   Perhaps for synchronization purposes? */
 				/* wake_up_interruptible(&clock_wait); */
 			}

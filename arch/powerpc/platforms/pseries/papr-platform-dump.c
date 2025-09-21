@@ -21,7 +21,7 @@
 #define	RTAS_IBM_PLATFORM_DUMP_CONTINUE	1	/* Continue dump */
 #define	RTAS_NOT_AUTHORIZED		-9002	/* Not Authorized */
 
-#define	RTAS_IBM_PLATFORM_DUMP_START	2 /* Linux status to start dump */
+#define	RTAS_IBM_PLATFORM_DUMP_START	2 /* GNU/Linux status to start dump */
 
 /**
  * struct ibm_platform_dump_params - Parameters (in and out) for

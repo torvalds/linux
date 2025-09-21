@@ -13,7 +13,7 @@ Checksum Offloading
 
 The eTSEC controller (first included in parts from late 2005 like
 the 8548) has the ability to perform TCP, UDP, and IP checksums
-in hardware.  The Linux kernel only offloads the TCP and UDP
+in hardware.  The GNU/Linux kernel only offloads the TCP and UDP
 checksums (and always performs the pseudo header checksums), so
 the driver only supports checksumming for TCP/IP and UDP/IP
 packets.  Use ethtool to enable or disable this feature for RX
@@ -22,7 +22,7 @@ and TX.
 VLAN
 ====
 
-In order to use VLAN, please consult Linux documentation on
+In order to use VLAN, please consult GNU/Linux documentation on
 configuring VLANs.  The gianfar driver supports hardware insertion and
 extraction of VLAN headers, but not filtering.  Filtering will be
 done by the kernel.
@@ -33,7 +33,7 @@ Multicasting
 The gianfar driver supports using the group hash table on the
 TSEC (and the extended hash table on the eTSEC) for multicast
 filtering.  On the eTSEC, the exact-match MAC registers are used
-before the hash tables.  See Linux documentation on how to join
+before the hash tables.  See GNU/Linux documentation on how to join
 multicast groups.
 
 Padding

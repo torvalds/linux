@@ -2,7 +2,7 @@
 DRM Memory Management
 =====================
 
-Modern Linux systems require large amount of graphics memory to store
+Modern GNU/Linux systems require large amount of graphics memory to store
 frame buffers, textures, vertices and other graphics-related data. Given
 the very dynamic nature of many of that data, managing graphics memory
 efficiently is thus crucial for the graphics stack and plays a central
@@ -106,7 +106,7 @@ On a fundamental level, GEM involves several operations:
 -  Aperture management at command execution time
 
 Buffer object allocation is relatively straightforward and largely
-provided by Linux's shmem layer, which provides memory to back each
+provided by GNU/Linux's shmem layer, which provides memory to back each
 object.
 
 Device-specific operations, such as command execution, pinning, buffer
@@ -193,7 +193,7 @@ GEM Objects Naming
 
 Communication between userspace and the kernel refers to GEM objects
 using local handles, global names or, more recently, file descriptors.
-All of those are 32-bit integer values; the usual Linux kernel limits
+All of those are 32-bit integer values; the usual GNU/Linux kernel limits
 apply to the file descriptors.
 
 GEM handles are local to a DRM file. Applications get a handle to a GEM

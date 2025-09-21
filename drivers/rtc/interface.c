@@ -226,9 +226,9 @@ int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	 *     day/month/year calendar data.
 	 *
 	 *   - Some hardware uses illegal values as "wildcard" match
-	 *     values, which non-Linux firmware (like a BIOS) may try
+	 *     values, which non-GNU/Linux firmware (like a BIOS) may try
 	 *     to set up as e.g. "alarm 15 minutes after each hour".
-	 *     Linux uses only oneshot alarms.
+	 *     GNU/Linux uses only oneshot alarms.
 	 *
 	 * When we see that here, we deal with it by using values from
 	 * a current RTC timestamp for any missing (-1) values.  The

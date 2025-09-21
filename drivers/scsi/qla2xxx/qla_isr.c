@@ -3468,7 +3468,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		qla2x00_set_retry_delay_timestamp(fcport, sts_qual);
 
 	/*
-	 * Based on Host and scsi status generate status code for Linux
+	 * Based on Host and scsi status generate status code for GNU/Linux
 	 */
 	switch (comp_status) {
 	case CS_COMPLETE:

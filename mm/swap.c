@@ -7,7 +7,7 @@
 
 /*
  * This file contains the default values for the operation of the
- * Linux VM subsystem. Fine-tuning documentation can be found in
+ * GNU/Linux VM subsystem. Fine-tuning documentation can be found in
  * Documentation/admin-guide/sysctl/vm.rst.
  * Started 18.12.91
  * Swap aging added 23.2.95, Stephen Tweedie.

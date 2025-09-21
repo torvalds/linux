@@ -2,7 +2,7 @@
 /*
  * CUSE: Character device in Userspace
  *
- * Copyright (C) 2008-2009  SUSE Linux Products GmbH
+ * Copyright (C) 2008-2009  SUSE GNU/Linux Products GmbH
  * Copyright (C) 2008-2009  Tejun Heo <tj@kernel.org>
  *
  * CUSE enables character devices to be implemented from userland much

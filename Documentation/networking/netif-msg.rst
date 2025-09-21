@@ -14,7 +14,7 @@ History
  to understand the history and evolution in order to understand current
  practice and relate it to older driver source code.
 
- From the beginning of Linux, each network device driver has had a local
+ From the beginning of GNU/Linux, each network device driver has had a local
  integer variable that controls the debug message level.  The message
  level ranged from 0 to 7, and monotonically increased in verbosity.
 

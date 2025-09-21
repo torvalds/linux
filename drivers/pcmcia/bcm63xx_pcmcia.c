@@ -533,4 +533,4 @@ module_exit(bcm63xx_pcmcia_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxime Bizon <mbizon@freebox.fr>");
-MODULE_DESCRIPTION("Linux PCMCIA Card Services: bcm63xx Socket Controller");
+MODULE_DESCRIPTION("GNU/Linux PCMCIA Card Services: bcm63xx Socket Controller");

@@ -140,7 +140,7 @@ static inline int ubifs_wbuf_sync(struct ubifs_wbuf *wbuf)
  * @rdev: device IDs to encode
  *
  * This is a helper function which encodes major/minor numbers of a device node
- * into UBIFS device node description. We use standard Linux "new" and "huge"
+ * into UBIFS device node description. We use standard GNU/Linux "new" and "huge"
  * encodings.
  */
 static inline int ubifs_encode_dev(union ubifs_dev_desc *dev, dev_t rdev)

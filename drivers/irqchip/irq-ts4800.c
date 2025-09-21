@@ -1,7 +1,7 @@
 /*
  * Multiplexed-IRQs driver for TS-4800's FPGA
  *
- * Copyright (c) 2015 - Savoir-faire Linux
+ * Copyright (c) 2015 - Savoir-faire GNU/Linux
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

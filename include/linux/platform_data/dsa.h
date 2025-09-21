@@ -50,7 +50,7 @@ struct dsa_chip_data {
 
 struct dsa_platform_data {
 	/*
-	 * Reference to a Linux network interface that connects
+	 * Reference to a GNU/Linux network interface that connects
 	 * to the root switch chip of the tree.
 	 */
 	struct device	*netdev;

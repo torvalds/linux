@@ -99,7 +99,7 @@ include::itrace.txt[]
 	and the time offset and time scale (multiplier) will likely be needed
 	to convert guest time stamps into host time stamps. For example, for
 	x86 the TSC Offset and Multiplier could be provided for a virtual machine
-	using Linux command line option no-kvmclock.
+	using GNU/Linux command line option no-kvmclock.
 	Currently only mmap, mmap2, comm, task, context_switch, ksymbol,
 	and text_poke events are inserted, as well as build ID information.
 	The QEMU option -name debug-threads=on is needed so that thread names

@@ -2,7 +2,7 @@
 PINCTRL (PIN CONTROL) subsystem
 ===============================
 
-This document outlines the pin control subsystem in Linux
+This document outlines the pin control subsystem in GNU/Linux
 
 This subsystem deals with:
 
@@ -697,7 +697,7 @@ Pin control interaction with the GPIO subsystem
 ===============================================
 
 Note that the following implies that the use case is to use a certain pin
-from the Linux kernel using the API in ``<linux/gpio/consumer.h>`` with gpiod_get()
+from the GNU/Linux kernel using the API in ``<linux/gpio/consumer.h>`` with gpiod_get()
 and similar functions. There are cases where you may be using something
 that your datasheet calls "GPIO mode", but actually is just an electrical
 configuration for a certain device. See the section below named
@@ -844,7 +844,7 @@ module rather than the GPIO HW module.
 Electrical properties of the pin such as biasing and drive strength
 may be placed at some pin-specific register in all cases or as part
 of the GPIO register in case (B) especially. This doesn't mean that such
-properties necessarily pertain to what the Linux kernel calls "GPIO".
+properties necessarily pertain to what the GNU/Linux kernel calls "GPIO".
 
 Example: a pin is usually muxed in to be used as a UART TX line. But during
 system sleep, we need to put this pin into "GPIO mode" and ground it.
@@ -927,7 +927,7 @@ GPIO subsystem. It is just an electrical configuration used by that device
 when going to sleep, it might imply that the pin is set into something the
 datasheet calls "GPIO mode", but that is not the point: it is still used
 by that UART device to control the pins that pertain to that very UART
-driver, putting them into modes needed by the UART. GPIO in the Linux
+driver, putting them into modes needed by the UART. GPIO in the GNU/Linux
 kernel sense are just some 1-bit line, and is a different use case.
 
 How the registers are poked to attain the push or pull, and output low

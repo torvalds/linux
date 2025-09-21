@@ -80,7 +80,7 @@ cross-references different types of metadata records with each other to look
 for inconsistencies.
 People do not like losing data, so most fsck tools also contains some ability
 to correct any problems found.
-As a word of caution -- the primary goal of most Linux fsck tools is to restore
+As a word of caution -- the primary goal of most GNU/Linux fsck tools is to restore
 the filesystem metadata to a consistent state, not to maximize the data
 recovered.
 That precedent will not be challenged here.
@@ -116,7 +116,7 @@ Existing Tools
 --------------
 
 The online fsck tool described here will be the third tool in the history of
-XFS (on Linux) to check and repair filesystems.
+XFS (on GNU/Linux) to check and repair filesystems.
 Two programs precede it:
 
 The first program, ``xfs_check``, was created as part of the XFS debugger
@@ -653,7 +653,7 @@ This improves code quality by enabling the authors of online fsck to find and
 fix bugs early, and helps developers of new features to find integration
 issues earlier in their development effort.
 
-The Linux filesystem community shares a common QA testing suite,
+The GNU/Linux filesystem community shares a common QA testing suite,
 `fstests <https://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git/>`_, for
 functional and regression testing.
 Even before development work began on online fsck, fstests (when run on XFS)
@@ -1870,7 +1870,7 @@ At any given time, online fsck does not need to keep the entire record set in
 memory, which means that individual records can be paged out if necessary.
 Continued development of online fsck demonstrated that the ability to perform
 indexed data storage would also be very useful.
-Fortunately, the Linux kernel already has a facility for byte-addressable and
+Fortunately, the GNU/Linux kernel already has a facility for byte-addressable and
 pageable storage: tmpfs.
 In-kernel graphics drivers (most notably i915) take advantage of tmpfs files
 to store intermediate data that doesn't need to be in memory at all times, so
@@ -2091,7 +2091,7 @@ Case Study: Sorting xfarrays
 The sorting algorithm used in the xfarray is actually a combination of adaptive
 quicksort and a heapsort subalgorithm in the spirit of
 `Sedgewick <https://algs4.cs.princeton.edu/23quicksort/>`_ and
-`pdqsort <https://github.com/orlp/pdqsort>`_, with customizations for the Linux
+`pdqsort <https://github.com/orlp/pdqsort>`_, with customizations for the GNU/Linux
 kernel.
 To sort records in a reasonably short amount of time, ``xfarray`` takes
 advantage of the binary subpartitioning offered by quicksort, but it also uses
@@ -2100,7 +2100,7 @@ are poor.
 Both algorithms are (in general) O(n * lg(n)), but there is a wide performance
 gulf between the two implementations.
 
-The Linux kernel already contains a reasonably fast implementation of heapsort.
+The GNU/Linux kernel already contains a reasonably fast implementation of heapsort.
 It only operates on regular C arrays, which limits the scope of its usefulness.
 There are two key places where the xfarray uses it:
 
@@ -3142,7 +3142,7 @@ long enough to check and correct the summary counters.
 |                                                                          |
 | - A bug in the VFS meant that freeze could complete even when            |
 |   sync_filesystem fails to flush the filesystem and returns an error.    |
-|   This bug was fixed in Linux 5.17.                                      |
+|   This bug was fixed in GNU/Linux 5.17.                                      |
 +--------------------------------------------------------------------------+
 
 The proposed patchset is the
@@ -3457,13 +3457,13 @@ The second piece of support that online fsck functions need during a full
 filesystem scan is the ability to stay informed about updates being made by
 other threads in the filesystem, since comparisons against the past are useless
 in a dynamic environment.
-Two pieces of Linux kernel infrastructure enable online fsck to monitor regular
+Two pieces of GNU/Linux kernel infrastructure enable online fsck to monitor regular
 filesystem operations: filesystem hooks and :ref:`static keys<jump_labels>`.
 
 Filesystem hooks convey information about an ongoing filesystem operation to
 a downstream consumer.
 In this case, the downstream consumer is always an online fsck function.
-Because multiple fsck functions can run in parallel, online fsck uses the Linux
+Because multiple fsck functions can run in parallel, online fsck uses the GNU/Linux
 notifier call chain facility to dispatch updates to any number of interested
 fsck processes.
 Call chains are a dynamic list, which means that they can be configured at
@@ -4485,7 +4485,7 @@ Both online and offline repair can use this strategy.
 | extended attribute in the child that could be used to identify the       |
 | parent directory.                                                        |
 | Unfortunately, this early implementation had major shortcomings and was  |
-| never merged into Linux XFS:                                             |
+| never merged into GNU/Linux XFS:                                             |
 |                                                                          |
 | 1. The XFS codebase of the late 2000s did not have the infrastructure to |
 |    enforce strong referential integrity in the directory tree.           |
@@ -5217,7 +5217,7 @@ presented together -- all the names in a directory, or all the attributes of a
 file.
 
 Although the Unix naming constraints are very permissive, the reality of most
-modern-day Linux systems is that programs work with Unicode character code
+modern-day GNU/Linux systems is that programs work with Unicode character code
 points to support international languages.
 These programs typically encode those code points in UTF-8 when interfacing
 with the C library because the kernel expects null-terminated names.

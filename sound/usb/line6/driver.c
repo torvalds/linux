@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Line 6 Linux USB driver
+ * Line 6 GNU/Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (line6@grabner-graz.at)
  */

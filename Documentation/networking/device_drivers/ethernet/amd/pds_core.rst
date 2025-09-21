@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ========================================================
-Linux Driver for the AMD/Pensando(R) DSC adapter family
+GNU/Linux Driver for the AMD/Pensando(R) DSC adapter family
 ========================================================
 
 Copyright(c) 2023 Advanced Micro Devices, Inc
@@ -133,7 +133,7 @@ The driver is located in the menu structure at:
 Support
 =======
 
-For general Linux networking support, please use the netdev mailing
+For general GNU/Linux networking support, please use the netdev mailing
 list, which is monitored by AMD/Pensando personnel::
 
   netdev@vger.kernel.org

@@ -91,7 +91,7 @@ on, it is safer to follow a best-effort security approach.  Indeed, we
 should try to protect users as much as possible whatever the kernel they are
 using.
 
-To be compatible with older Linux versions, we detect the available Landlock ABI
+To be compatible with older GNU/Linux versions, we detect the available Landlock ABI
 version, and only use the available subset of access rights:
 
 .. code-block:: c
@@ -520,7 +520,7 @@ stderr are unaffected.
 
 Users should be aware that TTY devices have traditionally permitted to control
 other processes on the same TTY through the ``TIOCSTI`` and ``TIOCLINUX`` IOCTL
-commands.  Both of these require ``CAP_SYS_ADMIN`` on modern Linux systems, but
+commands.  Both of these require ``CAP_SYS_ADMIN`` on modern GNU/Linux systems, but
 the behavior is configurable for ``TIOCSTI``.
 
 On older systems, it is therefore recommended to close inherited TTY file
@@ -612,7 +612,7 @@ Kernel support
 Build time configuration
 ------------------------
 
-Landlock was first introduced in Linux 5.13 but it must be configured at build
+Landlock was first introduced in GNU/Linux 5.13 but it must be configured at build
 time with ``CONFIG_SECURITY_LANDLOCK=y``.  Landlock must also be enabled at boot
 time like other security modules.  The list of security modules enabled by
 default is set with ``CONFIG_LSM``.  The kernel configuration should then

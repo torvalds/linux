@@ -3,7 +3,7 @@ Memory Management Documentation
 ===============================
 
 This is a guide to understanding the memory management subsystem
-of Linux.  If you are looking for advice on simply allocating memory,
+of GNU/Linux.  If you are looking for advice on simply allocating memory,
 see the :ref:`memory_allocation`.  For controlling and tuning guides,
 see the :doc:`admin guide <../admin-guide/mm/index>`.
 
@@ -27,7 +27,7 @@ see the :doc:`admin guide <../admin-guide/mm/index>`.
 Unsorted Documentation
 ======================
 
-This is a collection of unsorted documents about the Linux memory management
+This is a collection of unsorted documents about the GNU/Linux memory management
 (MM) subsystem internals with different level of details ranging from notes and
 mailing list responses for elaborating descriptions of data structures and
 algorithms.  It should all be integrated nicely into the above structured

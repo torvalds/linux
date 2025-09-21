@@ -3,7 +3,7 @@
  * sys_ia32.c: Conversion between 32bit and 64bit native syscalls. Based on
  *             sys_sparc32
  *
- * Copyright (C) 2000		VA Linux Co
+ * Copyright (C) 2000		VA GNU/Linux Co
  * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
  * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
  * Copyright (C) 1997,1998	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
@@ -206,7 +206,7 @@ COMPAT_SYSCALL_DEFINE4(ia32_fstatat64, unsigned int, dfd,
 }
 
 /*
- * Linux/i386 didn't use to be able to handle more than
+ * GNU/Linux/i386 didn't use to be able to handle more than
  * 4 system call parameters, so these system calls used a memory
  * block for parameter passing..
  */

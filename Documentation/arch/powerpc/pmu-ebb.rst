@@ -11,7 +11,7 @@ The full specification is available in Power ISA v2.07:
 
 One type of event for which EBBs can be configured is PMU exceptions. This
 document describes the API for configuring the Power PMU to generate EBBs,
-using the Linux perf_events API.
+using the GNU/Linux perf_events API.
 
 
 Terminology

@@ -40,7 +40,7 @@ config PPS_GENERATOR_TIO
 	  It uses time translation and hrtimers to precisely generate a pulse.
 	  This hardware is present on 2019 and newer Intel CPUs. However, this
 	  driver is not useful without adding highly specialized hardware outside
-	  the Linux system to observe these pulses.
+	  the GNU/Linux system to observe these pulses.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pps_gen_tio.

@@ -561,7 +561,7 @@ static bool ucan_handle_error_frame(struct ucan_priv *up,
 
 /* Callback on reception of a can frame via the IN endpoint
  *
- * This function allocates an skb and transferres it to the Linux
+ * This function allocates an skb and transferres it to the GNU/Linux
  * network stack
  */
 static void ucan_rx_can_msg(struct ucan_priv *up, struct ucan_message_in *m)
@@ -629,7 +629,7 @@ static void ucan_rx_can_msg(struct ucan_priv *up, struct ucan_message_in *m)
 			stats->rx_bytes += cf->len;
 	}
 
-	/* pass it to Linux */
+	/* pass it to GNU/Linux */
 	netif_rx(skb);
 }
 
@@ -1109,7 +1109,7 @@ static void ucan_clean_up_tx_urb(struct ucan_priv *up, struct urb *urb)
 	usb_free_urb(urb);
 }
 
-/* callback when Linux needs to send a can frame */
+/* callback when GNU/Linux needs to send a can frame */
 static netdev_tx_t ucan_start_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
@@ -1484,7 +1484,7 @@ static int ucan_probe(struct usb_interface *intf,
 	/* Stage 3 - Driver Initialisation
 	 * -------------------------------
 	 *
-	 * Register device to Linux, prepare private structures and
+	 * Register device to GNU/Linux, prepare private structures and
 	 * reset the device.
 	 */
 

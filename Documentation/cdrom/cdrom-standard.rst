@@ -1,5 +1,5 @@
 =======================
-A Linux CD-ROM standard
+A GNU/Linux CD-ROM standard
 =======================
 
 :Author: David van Leeuwen <david@ElseWare.cistron.nl>
@@ -11,33 +11,33 @@ A Linux CD-ROM standard
 Introduction
 ============
 
-Linux is probably the Unix-like operating system that supports
+GNU/Linux is probably the Unix-like operating system that supports
 the widest variety of hardware devices. The reasons for this are
 presumably
 
 - The large list of hardware devices available for the many platforms
-  that Linux now supports (i.e., i386-PCs, Sparc Suns, etc.)
+  that GNU/Linux now supports (i.e., i386-PCs, Sparc Suns, etc.)
 - The open design of the operating system, such that anybody can write a
-  driver for Linux.
+  driver for GNU/Linux.
 - There is plenty of source code around as examples of how to write a driver.
 
-The openness of Linux, and the many different types of available
-hardware has allowed Linux to support many different hardware devices.
-Unfortunately, the very openness that has allowed Linux to support
+The openness of GNU/Linux, and the many different types of available
+hardware has allowed GNU/Linux to support many different hardware devices.
+Unfortunately, the very openness that has allowed GNU/Linux to support
 all these different devices has also allowed the behavior of each
 device driver to differ significantly from one device to another.
 This divergence of behavior has been very significant for CD-ROM
 devices; the way a particular drive reacts to a `standard` *ioctl()*
 call varies greatly from one device driver to another. To avoid making
-their drivers totally inconsistent, the writers of Linux CD-ROM
+their drivers totally inconsistent, the writers of GNU/Linux CD-ROM
 drivers generally created new device drivers by understanding, copying,
 and then changing an existing one. Unfortunately, this practice did not
-maintain uniform behavior across all the Linux CD-ROM drivers.
+maintain uniform behavior across all the GNU/Linux CD-ROM drivers.
 
 This document describes an effort to establish Uniform behavior across
-all the different CD-ROM device drivers for Linux. This document also
+all the different CD-ROM device drivers for GNU/Linux. This document also
 defines the various *ioctl()'s*, and how the low-level CD-ROM device
-drivers should implement them. Currently (as of the Linux 2.1.\ *x*
+drivers should implement them. Currently (as of the GNU/Linux 2.1.\ *x*
 development kernels) several low-level CD-ROM device drivers, including
 both IDE/ATAPI and SCSI, now use this Uniform interface.
 
@@ -77,9 +77,9 @@ behavior was usually different.
    presumably 1.2.13 and 1.3.34 --- the latest kernel that I was
    indirectly involved in.
 
-I decided to start a discussion on how to make all the Linux CD-ROM
+I decided to start a discussion on how to make all the GNU/Linux CD-ROM
 drivers behave more uniformly. I began by contacting the developers of
-the many CD-ROM drivers found in the Linux kernel. Their reactions
+the many CD-ROM drivers found in the GNU/Linux kernel. Their reactions
 encouraged me to write the Uniform CD-ROM Driver which this document is
 intended to describe. The implementation of the Uniform CD-ROM Driver is
 in the file `cdrom.c`. This driver is intended to be an additional software
@@ -91,9 +91,9 @@ hardware will allow).
 The goal of the Uniform CD-ROM Driver is **not** to alienate driver developers
 whohave not yet taken steps to support this effort. The goal of Uniform CD-ROM
 Driver is simply to give people writing application programs for CD-ROM drives
-**one** Linux CD-ROM interface with consistent behavior for all
+**one** GNU/Linux CD-ROM interface with consistent behavior for all
 CD-ROM devices. In addition, this also provides a consistent interface
-between the low-level device driver code and the Linux kernel. Care
+between the low-level device driver code and the GNU/Linux kernel. Care
 is taken that 100% compatibility exists with the data structures and
 programmer's interface defined in `cdrom.h`. This guide was written to
 help CD-ROM driver developers adapt their code to use the Uniform CD-ROM
@@ -105,7 +105,7 @@ of hardware drop continuously, it is also likely that people may have
 more than one CD-ROM drive, possibly of mixed types. It is important
 that these drives behave in the same way. In December 1994, one of the
 cheapest CD-ROM drives was a Philips cm206, a double-speed proprietary
-drive. In the months that I was busy writing a Linux driver for it,
+drive. In the months that I was busy writing a GNU/Linux driver for it,
 proprietary drives became obsolete and IDE/ATAPI drives became the
 standard. At the time of the last update to this document (November
 1997) it is becoming difficult to even **find** anything less than a
@@ -570,7 +570,7 @@ Options
 A final flag register controls the **behavior** of the CD-ROM
 drives, in order to satisfy different users' wishes, hopefully
 independently of the ideas of the respective author who happened to
-have made the drive's support available to the Linux community. The
+have made the drive's support available to the GNU/Linux community. The
 current behavior options are::
 
 	CDO_AUTO_CLOSE	/* try to close tray upon device open() */
@@ -659,7 +659,7 @@ And what about standards?
 -------------------------
 
 You might hesitate to accept this proposal as it comes from the
-Linux community, and not from some standardizing institute. What
+GNU/Linux community, and not from some standardizing institute. What
 about SUN, SGI, HP and all those other Unix and hardware vendors?
 Well, these companies are in the lucky position that they generally
 control both the hardware and software of their supported products,
@@ -678,16 +678,16 @@ configurations\ [#f3]_.
    mounted at the similar location, i. e., no matter in which particular
    machine you insert a CD-ROM, it will always appear at the same
    position in the directory tree, on every system. When I wanted to
-   implement such a user-program for Linux, I came across the
+   implement such a user-program for GNU/Linux, I came across the
    differences in behavior of the various drivers, and the need for an
    *ioctl* informing about media changes.
 
 We believe that using *O_NONBLOCK* to indicate that a device is being opened
-for *ioctl* commands only can be easily introduced in the Linux
+for *ioctl* commands only can be easily introduced in the GNU/Linux
 community. All the CD-player authors will have to be informed, we can
 even send in our own patches to the programs. The use of *O_NONBLOCK*
 has most likely no influence on the behavior of the CD-players on
-other operating systems than Linux. Finally, a user can always revert
+other operating systems than GNU/Linux. Finally, a user can always revert
 to old behavior by a call to
 *ioctl(file_descriptor, CDROM_CLEAR_OPTIONS, CDO_USE_FFLAGS)*.
 
@@ -1041,7 +1041,7 @@ Gerd Knorr, who were the first to implement this interface for SCSI
 and IDE-CD drivers and added many ideas for extension of the data
 structures relative to kernel~2.0. Further thanks to Heiko Eißfeldt,
 Thomas Quinot, Jon Tombs, Ken Pizzini, Eberhard Mönkeberg and Andrew Kroll,
-the Linux CD-ROM device driver developers who were kind
+the GNU/Linux CD-ROM device driver developers who were kind
 enough to give suggestions and criticisms during the writing. Finally
 of course, I want to thank Linus Torvalds for making this possible in
 the first place.

@@ -11,11 +11,11 @@
 
 /*
  * This exposes a device side "USB gadget" API, driven by requests to a
- * Linux-USB host controller driver.  USB traffic is simulated; there's
+ * GNU/Linux-USB host controller driver.  USB traffic is simulated; there's
  * no need for USB hardware.  Use this with two other drivers:
  *
  *  - Gadget driver, responding to requests (device);
- *  - Host-side device driver, as already familiar in Linux.
+ *  - Host-side device driver, as already familiar in GNU/Linux.
  *
  * Having this all in one kernel can help some stages of development,
  * bypassing some hardware (and driver) issues.  UML could help too.

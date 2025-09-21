@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2023 Intel Corporation. All rights reserved.
- * Intel Visual Sensing Controller ACE Linux driver
+ * Intel Visual Sensing Controller ACE GNU/Linux driver
  */
 
 /*

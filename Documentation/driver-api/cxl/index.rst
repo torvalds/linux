@@ -33,7 +33,7 @@ that have impacts on each other.  The docs here break up configurations steps.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Linux Kernel Configuration
+   :caption: GNU/Linux Kernel Configuration
 
    linux/overview
    linux/early-boot

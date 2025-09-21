@@ -7,13 +7,13 @@ Introduction
 
 The tracer hwlat_detector is a special purpose tracer that is used to
 detect large system latencies induced by the behavior of certain underlying
-hardware or firmware, independent of Linux itself. The code was developed
+hardware or firmware, independent of GNU/Linux itself. The code was developed
 originally to detect SMIs (System Management Interrupts) on x86 systems,
 however there is nothing x86 specific about this patchset. It was
 originally written for use by the "RT" patch since the Real Time
 kernel is highly latency sensitive.
 
-SMIs are not serviced by the Linux kernel, which means that it does not
+SMIs are not serviced by the GNU/Linux kernel, which means that it does not
 even know that they are occurring. SMIs are instead set up by BIOS code
 and are serviced by BIOS code, usually for "critical" events such as
 management of thermal sensors and fans. Sometimes though, SMIs are used for

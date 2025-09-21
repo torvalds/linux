@@ -2,7 +2,7 @@
 /*
  *  Bluetooth supports for Qualcomm Atheros ROME chips
  *
- *  Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ *  Copyright (c) 2015 The GNU/Linux Foundation. All rights reserved.
  */
 
 #define EDL_PATCH_CMD_OPCODE		0xFC00

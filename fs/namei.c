@@ -86,7 +86,7 @@
  * "old" one. Personally, I think the new semantics is much more logical.
  * Note that "ln old new" where "new" is a symlink pointing to a non-existing
  * file does succeed in both HP-UX and SunOs, but not in Solaris
- * and in the old Linux semantics.
+ * and in the old GNU/Linux semantics.
  */
 
 /* [16-Dec-97 Kevin Buhr] For security reasons, we change some symlink

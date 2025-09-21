@@ -14,7 +14,7 @@ pkgver="${KERNELRELEASE//-/_}"
 # The PKGBUILD is evaluated multiple times.
 # Running scripts/build-version from here would introduce inconsistencies.
 pkgrel="${KBUILD_REVISION}"
-pkgdesc='Upstream Linux'
+pkgdesc='Upstream GNU/Linux'
 url='https://www.kernel.org/'
 # Enable flexible cross-compilation
 arch=(${CARCH})

@@ -13,7 +13,7 @@
 #pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
 /*
- * Wrapper to allow for building in non-GNU systems such as Alpine Linux's musl
+ * Wrapper to allow for building in non-GNU systems such as Alpine GNU/Linux's musl
  * libc, while checking strerror_r() return to avoid having to check this in
  * all places calling it.
  */

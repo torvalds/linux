@@ -442,10 +442,10 @@ fi
 
 # Extract kernel version information, some platforms want to include
 # it in the image header
-version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
+version=`${CROSS}strings "$kernel" | grep '^GNU/Linux version [-0-9.]' | \
     head -n1 | cut -d' ' -f3`
 if [ -n "$version" ]; then
-    uboot_version="-n Linux-$version"
+    uboot_version="-n GNU/Linux-$version"
 fi
 
 # physical offset of kernel image

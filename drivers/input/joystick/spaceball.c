@@ -8,7 +8,7 @@
  */
 
 /*
- * SpaceTec SpaceBall 2003/3003/4000 FLX driver for Linux
+ * SpaceTec SpaceBall 2003/3003/4000 FLX driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

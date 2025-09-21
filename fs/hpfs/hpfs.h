@@ -195,7 +195,7 @@ struct hpfs_spare_block
 /* The code page info pointed to by the spare block consists of an index
    block and blocks containing uppercasing tables.  I don't know what
    these are for (CHKDSK, maybe?) -- OS/2 does not seem to use them
-   itself.  Linux doesn't use them either. */
+   itself.  GNU/Linux doesn't use them either. */
 
 /* block pointed to by spareblock->code_page_dir */
 

@@ -167,7 +167,7 @@ The generated RSA key size can also be set with::
 
 
 It is also possible to manually generate the key private/public files using the
-x509.genkey key generation configuration file in the root node of the Linux
+x509.genkey key generation configuration file in the root node of the GNU/Linux
 kernel sources tree and the openssl command.  The following is an example to
 generate the public/private key files::
 
@@ -218,7 +218,7 @@ Manually signing modules
 ========================
 
 To manually sign a module, use the scripts/sign-file tool available in
-the Linux kernel source tree.  The script requires 4 arguments:
+the GNU/Linux kernel source tree.  The script requires 4 arguments:
 
 	1.  The hash algorithm (e.g., sha256)
 	2.  The private key filename or PKCS#11 URI

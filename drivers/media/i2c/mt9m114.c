@@ -5,7 +5,7 @@
  * Copyright (c) 2020-2023 Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  * Copyright (c) 2012 Analog Devices Inc.
  *
- * Almost complete rewrite of work by Scott Jiang <Scott.Jiang.Linux@gmail.com>
+ * Almost complete rewrite of work by Scott Jiang <Scott.Jiang.GNU/Linux@gmail.com>
  * itself based on work from Andrew Chew <achew@nvidia.com>.
  */
 

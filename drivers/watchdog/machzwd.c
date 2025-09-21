@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  MachZ ZF-Logic Watchdog Timer driver for Linux
+ *  MachZ ZF-Logic Watchdog Timer driver for GNU/Linux
  *
  *  The author does NOT admit liability nor provide warranty for
  *  any of this software. This material is provided "AS-IS" in

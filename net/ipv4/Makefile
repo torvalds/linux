@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux TCP/IP (INET) layer.
+# Makefile for the GNU/Linux TCP/IP (INET) layer.
 #
 
 obj-y     := route.o inetpeer.o protocol.o \

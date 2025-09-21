@@ -3,7 +3,7 @@
  *  Copyright (C) 2002 ARM Ltd.
  *  All Rights Reserved
  *  Copyright (c) 2010, Code Aurora Forum. All rights reserved.
- *  Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ *  Copyright (c) 2014 The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/init.h>

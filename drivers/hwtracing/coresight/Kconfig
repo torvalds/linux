@@ -254,7 +254,7 @@ config CORESIGHT_DUMMY
 	help
 	  Enables support for dummy driver. Dummy driver can be used for
 	  CoreSight sources/sinks that are owned and configured by some
-	  other subsystem and use Linux drivers to configure rest of trace
+	  other subsystem and use GNU/Linux drivers to configure rest of trace
 	  path.
 
 	  To compile this driver as a module, choose M here: the module will be

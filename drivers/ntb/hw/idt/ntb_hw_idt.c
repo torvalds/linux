@@ -33,7 +33,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * IDT PCIe-switch NTB Linux driver
+ * IDT PCIe-switch NTB GNU/Linux driver
  *
  * Contact Information:
  * Serge Semin <fancer.lancer@gmail.com>, <Sergey.Semin@t-platforms.ru>
@@ -972,7 +972,7 @@ static int idt_ntb_link_disable(struct ntb_dev *ntb)
  * a scanning algorithm to have all the possible memory windows configuration
  * covered.
  *
- * NOTE 1 BAR setup must be done before Linux kernel enumerated NT-function
+ * NOTE 1 BAR setup must be done before GNU/Linux kernel enumerated NT-function
  * of any port, so this driver would have memory windows configurations fixed.
  * In this way all initializations must be performed either by platform BIOS
  * or using EEPROM connected to IDT PCIe-switch master SMBus.

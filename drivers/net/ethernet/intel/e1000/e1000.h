@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 1999 - 2006 Intel Corporation. */
 
-/* Linux PRO/1000 Ethernet Driver main header file */
+/* GNU/Linux PRO/1000 Ethernet Driver main header file */
 
 #ifndef _E1000_H_
 #define _E1000_H_

@@ -1,5 +1,5 @@
 #
-# gdb helper commands and functions for Linux kernel debugging
+# gdb helper commands and functions for GNU/Linux kernel debugging
 #
 #  load kernel and module symbols
 #
@@ -109,7 +109,7 @@ def skip_decompressor():
 
 
 class LxSymbols(gdb.Command):
-    """(Re-)load symbols of Linux kernel and currently loaded modules.
+    """(Re-)load symbols of GNU/Linux kernel and currently loaded modules.
 
 The kernel (vmlinux) is taken from the current working directly. Modules (.ko)
 are scanned recursively, starting in the same directory. Optionally, the module

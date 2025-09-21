@@ -2,7 +2,7 @@
 
 /*
 
-  Linux Driver for BusLogic MultiMaster and FlashPoint SCSI Host Adapters
+  GNU/Linux Driver for BusLogic MultiMaster and FlashPoint SCSI Host Adapters
 
   Copyright 1995-1998 by Leonard N. Zubkoff <lnz@dandelion.com>
 
@@ -11,7 +11,7 @@
   sent directly to him for evaluation and testing.
 
   Special thanks to Wayne Yen, Jin-Lon Hon, and Alex Win of BusLogic, whose
-  advice has been invaluable, to David Gentzel, for writing the original Linux
+  advice has been invaluable, to David Gentzel, for writing the original GNU/Linux
   BusLogic driver, and to Paul Gortmaker, for being such a dedicated test site.
 
   Finally, special thanks to Mylex/BusLogic for making the FlashPoint SCCB
@@ -58,7 +58,7 @@ static const struct scsi_host_template blogic_template;
 
 /*
   blogic_drvr_options_count is a count of the number of BusLogic Driver
-  Options specifications provided via the Linux Kernel Command Line or via
+  Options specifications provided via the GNU/Linux Kernel Command Line or via
   the Loadable Kernel Module Installation Facility.
 */
 
@@ -67,7 +67,7 @@ static int blogic_drvr_options_count;
 
 /*
   blogic_drvr_options is an array of Driver Options structures representing
-  BusLogic Driver Options specifications provided via the Linux Kernel Command
+  BusLogic Driver Options specifications provided via the GNU/Linux Kernel Command
   Line or via the Loadable Kernel Module Installation Facility.
 */
 
@@ -3502,7 +3502,7 @@ static bool __init blogic_parse(char **str, char *keyword)
   blogic_parseopts handles processing of BusLogic Driver Options
   specifications.
 
-  BusLogic Driver Options may be specified either via the Linux Kernel Command
+  BusLogic Driver Options may be specified either via the GNU/Linux Kernel Command
   Line or via the Loadable Kernel Module Installation Facility.  Driver Options
   for multiple host adapters may be specified either by separating the option
   strings by a semicolon, or by specifying multiple "BusLogic=" strings on the

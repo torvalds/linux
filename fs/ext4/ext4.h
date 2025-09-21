@@ -1883,7 +1883,7 @@ static inline bool ext4_simulate_fail(struct super_block *sb,
 /*
  * Error number codes for s_{first,last}_error_errno
  *
- * Linux errno numbers are architecture specific, so we need to translate
+ * GNU/Linux errno numbers are architecture specific, so we need to translate
  * them into something which is architecture independent.   We don't define
  * codes for all errno's; just the ones which are most likely to be the cause
  * of an ext4_error() call.

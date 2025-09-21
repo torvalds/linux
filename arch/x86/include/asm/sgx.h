@@ -11,7 +11,7 @@
 #include <linux/types.h>
 
 /*
- * This file contains both data structures defined by SGX architecture and Linux
+ * This file contains both data structures defined by SGX architecture and GNU/Linux
  * defined software data structures and functions.  The two should not be mixed
  * together for better readability.  The architectural definitions come first.
  */

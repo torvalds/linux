@@ -1616,7 +1616,7 @@ config GPIO_TPS65219
 	  Select this option to enable GPIO driver for the TPS65219 chip
 	  family.
 	  GPIO0 is statically configured as either input or output prior to
-	  Linux boot. It is used for MULTI_DEVICE_ENABLE function. This setting
+	  GNU/Linux boot. It is used for MULTI_DEVICE_ENABLE function. This setting
 	  is statically configured by NVM. GPIO0 can't be used as a generic
 	  GPIO. It's either a GPO when MULTI_DEVICE_EN=0 or a GPI when
 	  MULTI_DEVICE_EN=1.

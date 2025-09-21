@@ -5,7 +5,7 @@ libbpf Overview
 ===============
 
 libbpf is a C-based library containing a BPF loader that takes compiled BPF
-object files and prepares and loads them into the Linux kernel. libbpf takes the
+object files and prepares and loads them into the GNU/Linux kernel. libbpf takes the
 heavy lifting of loading, verifying, and attaching BPF programs to various
 kernel hooks, allowing BPF application developers to focus only on BPF program
 correctness and performance.

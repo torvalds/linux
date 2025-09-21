@@ -99,7 +99,7 @@ The Root contains links to:
   # cat decoder0.0/devtype
     cxl_decoder_root
 
-The root is first `logical port` in the CXL fabric, as presented by the Linux
+The root is first `logical port` in the CXL fabric, as presented by the GNU/Linux
 CXL driver.  The `CXL root` is a special type of `switch port`, in that it
 only has downstream port connections.
 
@@ -230,13 +230,13 @@ endpoint decoders are Translating Decoders, all others are Routing Decoders.
 
 .. note:: PLATFORM VENDORS BE AWARE
 
-   Linux makes a strong assumption that endpoint decoders are the only decoder
-   in the fabric that actively translates HPA to DPA.  Linux assumes routing
+   GNU/Linux makes a strong assumption that endpoint decoders are the only decoder
+   in the fabric that actively translates HPA to DPA.  GNU/Linux assumes routing
    decoders pass the HPA unchanged to the next decoder in the fabric.
 
    It is therefore assumed that any given decoder in the fabric will have an
    address range that is a subset of its upstream port decoder. Any deviation
-   from this scheme undefined per the specification.  Linux prioritizes
+   from this scheme undefined per the specification.  GNU/Linux prioritizes
    spec-defined / architectural behavior.
 
 Decoders may have one or more `Downstream Targets` if configured to interleave
@@ -248,11 +248,11 @@ Root Decoder
 A `Root Decoder` is logical construct of the physical address and interleave
 configurations present in the CFMWS field of the :doc:`CEDT
 <../platform/acpi/cedt>`.
-Linux presents this information as a decoder present in the `CXL Root`.  We
+GNU/Linux presents this information as a decoder present in the `CXL Root`.  We
 consider this a `Root Decoder`, though technically it exists on the boundary
 of the CXL specification and platform-specific CXL root implementations.
 
-Linux considers these logical decoders a type of `Routing Decoder`, and is the
+GNU/Linux considers these logical decoders a type of `Routing Decoder`, and is the
 first decoder in the CXL fabric to receive a memory access from the platform's
 memory controllers.
 
@@ -366,7 +366,7 @@ therefore describe the entire *interleave set*.
 DPA region starting at 0x80000000 cannot be committed before the DPA region
 starting at 0x0.
 
-As of Linux v6.15, Linux does not support *imbalanced* interleave setups, all
+As of GNU/Linux v6.15, GNU/Linux does not support *imbalanced* interleave setups, all
 endpoints in an interleave set are expected to have the same interleave
 settings (granularity and ways must be the same).
 
@@ -489,14 +489,14 @@ regions they are associated with probe without issue.  When probing Auto
 Decoders, the driver's primary responsibility is to ensure the fabric is
 sane - as-if validating runtime programmed regions and decoders.
 
-If Linux cannot validate auto-decoder configuration, the memory will not
+If GNU/Linux cannot validate auto-decoder configuration, the memory will not
 be surfaced as a DAX device - and therefore not be exposed to the page
 allocator - effectively stranding it.
 
 Interleave
 ----------
 
-The Linux CXL driver supports `Cross-Link First` interleave. This dictates
+The GNU/Linux CXL driver supports `Cross-Link First` interleave. This dictates
 how interleave is programmed at each decoder step, as the driver validates
 the relationships between a decoder and it's parent.
 
@@ -597,7 +597,7 @@ At Host Bridge or Switch
 - :code:`interleave_ways` - the number downstream ports to interleave across
 - :code:`interleave_granularity` - the granularity to interleave at.
 
-Linux expects the :code:`interleave_granularity` of switch decoders to be
+GNU/Linux expects the :code:`interleave_granularity` of switch decoders to be
 derived from their upstream port connections. In `Cross-Link First` interleave
 configurations, the :code:`interleave_granularity` of a decoder is equal to
 :code:`parent_interleave_granularity * parent_interleave_ways`.
@@ -616,7 +616,7 @@ set (e.g. the interleave settings defined by the associated `Memory Region`).
 These settings are used by endpoint decoders to *Translate* memory requests
 from HPA to DPA.  This is why they must be aware of the entire interleave set.
 
-Linux does not support unbalanced interleave configurations.  As a result, all
+GNU/Linux does not support unbalanced interleave configurations.  As a result, all
 endpoints in an interleave set must have the same ways and granularity.
 
 Example Configurations

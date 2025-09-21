@@ -6,7 +6,7 @@
  *		draft-ietf-forces-interfelfb-03
  *		and
  *		netdev01 paper:
- *		"Distributing Linux Traffic Control Classifier-Action
+ *		"Distributing GNU/Linux Traffic Control Classifier-Action
  *		Subsystem"
  *		Authors: Jamal Hadi Salim and Damascene M. Joachimpillai
  *

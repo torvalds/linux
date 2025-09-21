@@ -1,8 +1,8 @@
 ===============================================
-Guarded Control Stack support for AArch64 Linux
+Guarded Control Stack support for AArch64 GNU/Linux
 ===============================================
 
-This document outlines briefly the interface provided to userspace by Linux in
+This document outlines briefly the interface provided to userspace by GNU/Linux in
 order to support use of the ARM Guarded Control Stack (GCS) feature.
 
 This is an outline of the most important features and issues only and not
@@ -54,7 +54,7 @@ intended to be exhaustive.
 
 * The architecture supports enabling GCS without verifying that return values
   in LR match those in the GCS, the LR will be ignored.  This is not supported
-  by Linux.
+  by GNU/Linux.
 
 
 

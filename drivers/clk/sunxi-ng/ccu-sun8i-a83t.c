@@ -26,7 +26,7 @@
 /*
  * The CPU PLLs are actually NP clocks, with P being /1 or /4. However
  * P should only be used for output frequencies lower than 228 MHz.
- * Neither mainline Linux, U-boot, nor the vendor BSPs use these.
+ * Neither mainline GNU/Linux, U-boot, nor the vendor BSPs use these.
  *
  * For now we can just model it as a multiplier clock, and force P to /1.
  */

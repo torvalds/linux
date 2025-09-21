@@ -9,7 +9,7 @@ title: Freescale Fast Ethernet Controller (FEC)
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>
   - Wei Fang <wei.fang@nxp.com>
-  - NXP Linux Team <linux-imx@nxp.com>
+  - NXP GNU/Linux Team <linux-imx@nxp.com>
 
 allOf:
   - $ref: ethernet-controller.yaml#

@@ -28,7 +28,7 @@ The tip tree contains the following subsystems:
 
      Note, that ``x86@kernel.org`` is not a mailing list. It is merely a
      mail alias which distributes mails to the x86 top-level maintainer
-     team. Please always Cc the Linux Kernel mailing list (LKML)
+     team. Please always Cc the GNU/Linux Kernel mailing list (LKML)
      ``linux-kernel@vger.kernel.org``, otherwise your mail ends up only in
      the private inboxes of the maintainers.
 

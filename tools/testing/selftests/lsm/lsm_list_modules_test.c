@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux Security Module infrastructure tests
+ * GNU/Linux Security Module infrastructure tests
  * Tests for the lsm_list_modules system call
  *
  * Copyright © 2022 Casey Schaufler <casey@schaufler-ca.com>

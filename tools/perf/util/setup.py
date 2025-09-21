@@ -18,7 +18,7 @@ else:
 cc_is_clang = b"clang version" in Popen([cc, "-v"], stderr=PIPE).stderr.readline()
 
 srctree = getenv('srctree')
-assert srctree, "Environment variable srctree, for the Linux sources, not set"
+assert srctree, "Environment variable srctree, for the GNU/Linux sources, not set"
 src_feature_tests  = f'{srctree}/tools/build/feature'
 
 def clang_has_option(option):
@@ -89,7 +89,7 @@ perf = Extension('perf',
 
 setup(name='perf',
       version='0.1',
-      description='Interface with the Linux profiling infrastructure',
+      description='Interface with the GNU/Linux profiling infrastructure',
       author='Arnaldo Carvalho de Melo',
       author_email='acme@redhat.com',
       license='GPLv2',

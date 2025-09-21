@@ -207,7 +207,7 @@ static void memzero(void *buf, size_t size)
 #endif
 
 #ifndef memmove
-/* Not static to avoid a conflict with the prototype in the Linux headers. */
+/* Not static to avoid a conflict with the prototype in the GNU/Linux headers. */
 void *memmove(void *dest, const void *src, size_t size)
 {
 	uint8_t *d = dest;

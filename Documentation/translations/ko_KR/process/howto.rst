@@ -142,7 +142,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     "The Perfect Patch"
         https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
-    "Linux kernel patch submission format"
+    "GNU/Linux kernel patch submission format"
         https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
    :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
@@ -204,7 +204,7 @@ ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된�
 커널 개발자가 되는 것
 ---------------------
 
-여러분이 리눅스 커널 개발에 관하여 아무것도 모른다면 Linux KernelNewbies
+여러분이 리눅스 커널 개발에 관하여 아무것도 모른다면 GNU/Linux KernelNewbies
 프로젝트를 봐야 한다.
 
     https://kernelnewbies.org
@@ -234,7 +234,7 @@ ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된�
 동작하는지 이해하고 있어야 한다. 코드를 분석하기 위하여 특정한 툴의
 도움을 빌려서라도 코드를 직접 읽는 것보다 좋은 것은 없다(대부분의
 자잘한 부분들은 잘 코멘트되어 있다). 그런 툴들 중에 특히 추천할만한
-것은 Linux Cross-Reference project이며 그것은 자기 참조 방식이며
+것은 GNU/Linux Cross-Reference project이며 그것은 자기 참조 방식이며
 소스코드를 인덱스된 웹 페이지들의 형태로 보여준다. 최신의 멋진 커널
 코드 저장소는 다음을 통하여 참조할 수 있다.
 

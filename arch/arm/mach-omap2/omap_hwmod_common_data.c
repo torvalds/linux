@@ -10,7 +10,7 @@
  * Paul Walmsley
  *
  * This data/structures are to be used while defining OMAP on-chip module
- * data and their integration with other OMAP modules and Linux.
+ * data and their integration with other OMAP modules and GNU/Linux.
  */
 
 #include <linux/types.h>

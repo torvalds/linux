@@ -7,7 +7,7 @@
  */
 
 /*
- *  Linux VFS file operations.
+ *  GNU/Linux VFS file operations.
  */
 
 #include "protocol.h"

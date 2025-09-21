@@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(wrpll_configure_for_rate);
  *
  * Return: the PLL's output clock rate, in Hz.  The return value from
  *         this function is intended to be convenient to pass directly
- *         to the Linux clock framework; thus there is no explicit
+ *         to the GNU/Linux clock framework; thus there is no explicit
  *         error return value.
  */
 unsigned long wrpll_calc_output_rate(const struct wrpll_cfg *c,

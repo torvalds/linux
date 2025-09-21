@@ -931,7 +931,7 @@ below:
 	AUX area mmap length 4194304
 	perf event ring buffer mmapped per cpu
 	Synthesizing auxtrace information
-	Linux
+	GNU/Linux
 	[ perf record: Woken up 1 times to write data ]
 	[ perf record: Captured and wrote 0.042 MB perf.data ]
 
@@ -1528,7 +1528,7 @@ On the guest machine:
 Run a small test case, just 'uname' in this example:
 
  $ uname
- Linux
+ GNU/Linux
 
 On the host machine:
 
@@ -1939,7 +1939,7 @@ For example, to trace only the uname system call (sys_newuname) when running the
 command line utility uname:
 
  $ perf record --kcore -e intel_pt/aux-action=start-paused/k,syscalls:sys_enter_newuname/aux-action=resume/,syscalls:sys_exit_newuname/aux-action=pause/ uname
- Linux
+ GNU/Linux
  [ perf record: Woken up 1 times to write data ]
  [ perf record: Captured and wrote 0.043 MB perf.data ]
  $ perf script --call-trace
@@ -2012,7 +2012,7 @@ For example:
  $ sudo perf probe -x /usr/bin/uname main
  Added new event:  probe_uname:main     (on main in /usr/bin/uname)
  $ sudo perf record -e intel_pt/-aux-action=start-paused/u -e probe_uname:main/aux-action=resume/ -- uname
- Linux
+ GNU/Linux
  [ perf record: Woken up 1 times to write data ]
  [ perf record: Captured and wrote 0.031 MB perf.data ]
 

@@ -186,7 +186,7 @@ struct pnv_phb {
 static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
 {
 	/*
-	 * WARNING: We cannot rely on the resource flags. The Linux PCI
+	 * WARNING: We cannot rely on the resource flags. The GNU/Linux PCI
 	 * allocation code sometimes decides to put a 64-bit prefetchable
 	 * BAR in the 32-bit window, so we have to compare the addresses.
 	 *

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * asc7621.c - Part of lm_sensors, Linux kernel modules for hardware monitoring
+ * asc7621.c - Part of lm_sensors, GNU/Linux kernel modules for hardware monitoring
  * Copyright (c) 2007, 2010 George Joseph  <george.joseph@fairview5.com>
  */
 

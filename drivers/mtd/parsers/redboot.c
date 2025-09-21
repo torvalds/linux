@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Parse RedBoot-style Flash Image System (FIS) tables and
- * produce a Linux partition array to match.
+ * produce a GNU/Linux partition array to match.
  *
  * Copyright © 2001      Red Hat UK Limited
  * Copyright © 2001-2010 David Woodhouse <dwmw2@infradead.org>

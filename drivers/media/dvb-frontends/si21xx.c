@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* DVB compliant Linux driver for the DVB-S si2109/2110 demodulator
+/* DVB compliant GNU/Linux driver for the DVB-S si2109/2110 demodulator
 *
 * Copyright (C) 2008 Igor M. Liplianin (liplianin@me.by)
 */

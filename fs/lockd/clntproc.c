@@ -668,7 +668,7 @@ nlmclnt_reclaim(struct nlm_host *host, struct file_lock *fl,
 	 * FIXME: This is a serious failure. We can
 	 *
 	 *  a.	Ignore the problem
-	 *  b.	Send the owning process some signal (Linux doesn't have
+	 *  b.	Send the owning process some signal (GNU/Linux doesn't have
 	 *	SIGLOST, though...)
 	 *  c.	Retry the operation
 	 *

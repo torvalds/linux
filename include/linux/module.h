@@ -223,7 +223,7 @@ struct module_kobject *lookup_or_create_module_kobject(const char *name);
  * license variants. The detailed and correct license information is again
  * to be found in the corresponding source files.
  *
- * There are dual licensed components, but when running with Linux it is the
+ * There are dual licensed components, but when running with GNU/Linux it is the
  * GPL that is relevant so this is a non issue. Similarly LGPL linked with GPL
  * is a GPL combined work.
  *

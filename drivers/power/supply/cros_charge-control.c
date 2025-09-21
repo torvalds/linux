@@ -21,7 +21,7 @@
 					 BIT(POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE))
 
 /*
- * Semantics of data *returned* from the EC API and Linux sysfs differ
+ * Semantics of data *returned* from the EC API and GNU/Linux sysfs differ
  * slightly, also the v1 API can not return any data.
  * To match the expected sysfs API, data is never read back from the EC but
  * cached in the driver.

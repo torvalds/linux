@@ -744,7 +744,7 @@ struct rtl8169_private {
 
 typedef void (*rtl_generic_fct)(struct rtl8169_private *tp);
 
-MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
+MODULE_AUTHOR("Realtek and the GNU/Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 MODULE_SOFTDEP("pre: realtek");
 MODULE_LICENSE("GPL");

@@ -2,12 +2,12 @@
 CPU load
 ========
 
-Linux exports various bits of information via ``/proc/stat`` and
+GNU/Linux exports various bits of information via ``/proc/stat`` and
 ``/proc/uptime`` that userland tools, such as top(1), use to calculate
 the average time system spent in a particular state, for example::
 
     $ iostat
-    Linux 2.6.18.3-exp (linmac)     02/20/2007
+    GNU/Linux 2.6.18.3-exp (linmac)     02/20/2007
 
     avg-cpu:  %user   %nice %system %iowait  %steal   %idle
               10.01    0.00    2.92    5.44    0.00   81.63

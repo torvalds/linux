@@ -5,7 +5,7 @@
 #
 # . scripts/parseargs.sh
 #
-# Include into other Linux kernel tools/memory-model scripts.
+# Include into other GNU/Linux kernel tools/memory-model scripts.
 #
 # Copyright IBM Corporation, 2018
 #

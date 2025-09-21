@@ -62,7 +62,7 @@ LM. The LMM protocol provides commands to:
   SCMI firmware will send notification to LM 'X').
 
 'Graceful' means asking LM itself to shutdown/reset/etc (e.g. sending
-notification to Linux, Then Linux reboots or powers down itself). It is async
+notification to GNU/Linux, Then GNU/Linux reboots or powers down itself). It is async
 command that the SUCCESS of the command just means the command successfully
 return, not means reboot/reset successfully finished.
 
@@ -957,7 +957,7 @@ Cortex-M cores).
 Note:
  - For cores in AP cluster, PSCI should be used and PSCI firmware will use CPU
    protocol to handle them. For cores in non-AP cluster, Operating System(e.g.
-   Linux OS) could use CPU protocols to control Cortex-M7 cores.
+   GNU/Linux OS) could use CPU protocols to control Cortex-M7 cores.
  - CPU indicates the core and its auxiliary peripherals(e.g. TCM) inside
    i.MX SoC
 

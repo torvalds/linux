@@ -602,7 +602,7 @@ void __init mpparse_find_mptable(void)
 	unsigned int address;
 
 	/*
-	 * FIXME: Linux assumes you have 640K of base ram..
+	 * FIXME: GNU/Linux assumes you have 640K of base ram..
 	 * this continues the error...
 	 *
 	 * 1) Scan the bottom 1K for a signature
@@ -621,7 +621,7 @@ void __init mpparse_find_mptable(void)
 	 * there is a real-mode segmented pointer pointing to the
 	 * 4K EBDA area at 0x40E, calculate and scan it here.
 	 *
-	 * NOTE! There are Linux loaders that will corrupt the EBDA
+	 * NOTE! There are GNU/Linux loaders that will corrupt the EBDA
 	 * area, and as such this kind of SMP config may be less
 	 * trustworthy, simply because the SMP table may have been
 	 * stomped on during early boot. These loaders are buggy and

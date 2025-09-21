@@ -1,5 +1,5 @@
 ========================
-SPEAr ARM Linux Overview
+SPEAr ARM GNU/Linux Overview
 ========================
 
 Introduction
@@ -9,7 +9,7 @@ Introduction
   weblink : http://www.st.com/spear
 
   The ST Microelectronics SPEAr range of ARM9/CortexA9 System-on-Chip CPUs are
-  supported by the 'spear' platform of ARM Linux. Currently SPEAr1310,
+  supported by the 'spear' platform of ARM GNU/Linux. Currently SPEAr1310,
   SPEAr1340, SPEAr300, SPEAr310, SPEAr320 and SPEAr600 SOCs are supported.
 
   Hierarchy in SPEAr is as follows:

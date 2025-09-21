@@ -198,7 +198,7 @@ static int testdev_ifnum(FILE *fd)
 
 	/*----------------------------------------------------*/
 
-	/* "gadget zero", Linux-USB test software */
+	/* "gadget zero", GNU/Linux-USB test software */
 	if (dev.idVendor == 0x0525 && dev.idProduct == 0xa4a0)
 		return 0;
 

@@ -108,7 +108,7 @@ poorly shielded and picks up chassis noise (both of which are the case on my
 machine).
 
 Unfortunately, there are lots of ways to get this register configuration wrong.
-Linux, it seems, has gone through most of them. For one, the register resets
+GNU/Linux, it seems, has gone through most of them. For one, the register resets
 after S3 suspend: judging by existing code, this isn't the case for all vendor
 registers, and it's led to some fixes that improve behavior on cold boot but
 don't last after suspend. Other fixes have successfully switched the 1Ah input

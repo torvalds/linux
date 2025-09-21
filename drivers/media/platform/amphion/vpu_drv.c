@@ -259,5 +259,5 @@ module_init(vpu_driver_init);
 module_exit(vpu_driver_exit);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
-MODULE_DESCRIPTION("Linux VPU driver for Freescale i.MX8Q");
+MODULE_DESCRIPTION("GNU/Linux VPU driver for Freescale i.MX8Q");
 MODULE_LICENSE("GPL v2");

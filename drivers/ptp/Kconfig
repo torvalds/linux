@@ -234,9 +234,9 @@ config PTP_DFL_TOD
 	help
 	  The DFL (Device Feature List) device driver for the Intel ToD
 	  (Time-of-Day) device in FPGA card. The ToD IP within the FPGA
-	  is exposed as PTP Hardware Clock (PHC) device to the Linux PTP
+	  is exposed as PTP Hardware Clock (PHC) device to the GNU/Linux PTP
 	  stack to synchronize the system clock to its ToD information
-	  using phc2sys utility of the Linux PTP stack.
+	  using phc2sys utility of the GNU/Linux PTP stack.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_dfl_tod.

@@ -59,7 +59,7 @@
 ============
 
 我们特意决定不使用 VMA 信息，以避免依赖于 MM 状态（除了有限的 “struct page” 信息）。页表检查
-独立于 Linux-MM 状态机，它验证用户可访问的页面不会被错误地共享。
+独立于 GNU/Linux-MM 状态机，它验证用户可访问的页面不会被错误地共享。
 
 PAGE_TABLE_CHECK 依赖于 EXCLUSIVE_SYSTEM_RAM。原因在于，若没有 EXCLUSIVE_SYSTEM_RAM，
 用户被允许通过 /dev/mem 将任意物理内存区域映射到用户空间。同时，页面可能在映射到用户空间期间

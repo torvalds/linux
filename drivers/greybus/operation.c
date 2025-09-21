@@ -400,7 +400,7 @@ static void gb_operation_message_free(struct gb_message *message)
 
 /*
  * Map an enum gb_operation_status value (which is represented in a
- * message as a single byte) to an appropriate Linux negative errno.
+ * message as a single byte) to an appropriate GNU/Linux negative errno.
  */
 static int gb_operation_status_map(u8 status)
 {
@@ -432,7 +432,7 @@ static int gb_operation_status_map(u8 status)
 }
 
 /*
- * Map a Linux errno value (from operation->errno) into the value
+ * Map a GNU/Linux errno value (from operation->errno) into the value
  * that should represent it in a response message status sent
  * over the wire.  Returns an enum gb_operation_status value (which
  * is represented in a message as a single byte).

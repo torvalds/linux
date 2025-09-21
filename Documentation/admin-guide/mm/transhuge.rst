@@ -40,7 +40,7 @@ components:
 2) a single TLB entry will be mapping a much larger amount of virtual
    memory in turn reducing the number of TLB misses. With
    virtualization and nested pagetables the TLB can be mapped of
-   larger size only if both KVM and the Linux guest are using
+   larger size only if both KVM and the GNU/Linux guest are using
    hugepages but a significant speedup already happens if only one of
    the two is using hugepages just because of the fact the TLB miss is
    going to run faster.

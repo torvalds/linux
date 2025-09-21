@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(nvmf_get_address);
  * Return:
  *	0: successful read
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: GNU/Linux errno error code
  */
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 {
@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(nvmf_reg_read32);
  * Return:
  *	0: successful read
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: GNU/Linux errno error code
  */
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 {
@@ -257,7 +257,7 @@ EXPORT_SYMBOL_GPL(nvmf_reg_read64);
  * Return:
  *	0: successful write
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: GNU/Linux errno error code
  */
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 {
@@ -520,7 +520,7 @@ EXPORT_SYMBOL_GPL(nvmf_connect_admin_queue);
  * Return:
  *	0: success
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: GNU/Linux errno error code
  */
 int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 {

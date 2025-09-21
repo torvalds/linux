@@ -1,5 +1,5 @@
 /*
- * An implementation of key value pair (KVP) functionality for Linux.
+ * An implementation of key value pair (KVP) functionality for GNU/Linux.
  *
  *
  * Copyright (C) 2010, Novell, Inc.

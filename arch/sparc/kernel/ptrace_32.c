@@ -6,7 +6,7 @@
  * Based upon code written by Ross Biro, Linus Torvalds, Bob Manson,
  * and David Mosberger.
  *
- * Added Linux support -miguel (weird, eh?, the original code was meant
+ * Added GNU/Linux support -miguel (weird, eh?, the original code was meant
  * to emulate SunOS).
  */
 

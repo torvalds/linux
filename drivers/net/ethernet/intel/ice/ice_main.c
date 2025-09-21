@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018-2023, Intel Corporation. */
 
-/* Intel(R) Ethernet Connection E800 Series Linux Driver */
+/* Intel(R) Ethernet Connection E800 Series GNU/Linux Driver */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -28,7 +28,7 @@
 #include "ice_vsi_vlan_ops.h"
 #include <net/xdp_sock_drv.h>
 
-#define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
+#define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series GNU/Linux Driver"
 static const char ice_driver_string[] = DRV_SUMMARY;
 static const char ice_copyright[] = "Copyright (c) 2018, Intel Corporation.";
 

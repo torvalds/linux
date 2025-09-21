@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Cyclades PC300 synchronous serial card driver for Linux
+ * Cyclades PC300 synchronous serial card driver for GNU/Linux
  *
  * Copyright (C) 2000-2008 Krzysztof Halasa <khc@pm.waw.pl>
  *
@@ -8,7 +8,7 @@
  *
  * Sources of information:
  *    Hitachi HD64572 SCA-II User's Manual
- *    Original Cyclades PC300 Linux driver
+ *    Original Cyclades PC300 GNU/Linux driver
  *
  * This driver currently supports only PC300/RSV (V.24/V.35) and
  * PC300/X21 cards.

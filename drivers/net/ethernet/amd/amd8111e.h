@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Advanced  Micro Devices Inc. AMD8111E Linux Network Driver
+ * Advanced  Micro Devices Inc. AMD8111E GNU/Linux Network Driver
  * Copyright (C) 2003 Advanced Micro Devices
  *
 

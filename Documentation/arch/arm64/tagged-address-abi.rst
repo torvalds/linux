@@ -8,7 +8,7 @@ Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
 Date: 21 August 2019
 
 This document describes the usage and semantics of the Tagged Address
-ABI on AArch64 Linux.
+ABI on AArch64 GNU/Linux.
 
 1. Introduction
 ---------------

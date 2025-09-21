@@ -37,7 +37,7 @@
  *  o better configuration options including multiple display support
  *
  * Note: existing fbif can be used together with displif running at the
- * same time, e.g. on Linux one provides framebuffer and another DRM/KMS
+ * same time, e.g. on GNU/Linux one provides framebuffer and another DRM/KMS
  *
  * Note: display resolution (XenStore's "resolution" property) defines
  * visible area of the virtual display. At the same time resolution of

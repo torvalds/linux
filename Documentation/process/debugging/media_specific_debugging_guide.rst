@@ -135,7 +135,7 @@ The availability of events and metrics depends on the system you are running.
 Error checking & panic analysis
 -------------------------------
 
-Various Kernel configuration options to enhance error detection of the Linux
+Various Kernel configuration options to enhance error detection of the GNU/Linux
 Kernel with the cost of lowering performance.
 
 For general advice see the

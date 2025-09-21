@@ -1,6 +1,6 @@
 .. _magicnumbers:
 
-Linux magic numbers
+GNU/Linux magic numbers
 ===================
 
 This file is a registry of magic numbers which are in use.  When you
@@ -35,13 +35,13 @@ Changelog::
 					Theodore Ts'o
 					31 Mar 94
 
-  The magic table is current to Linux 2.1.55.
+  The magic table is current to GNU/Linux 2.1.55.
 
 					Michael Chastain
 					<mailto:mec@shout.net>
 					22 Sep 1997
 
-  Now it should be up to date with Linux 2.1.112. Because
+  Now it should be up to date with GNU/Linux 2.1.112. Because
   we are in feature freeze time it is very unlikely that
   something will change before 2.2.x. The entries are
   sorted by number field.
@@ -50,7 +50,7 @@ Changelog::
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
-  Updated the magic table to Linux 2.5.45. Right over the feature freeze,
+  Updated the magic table to GNU/Linux 2.5.45. Right over the feature freeze,
   but it is possible that some new magic numbers will sneak into the
   kernel before 2.6.x yet.
 
@@ -58,7 +58,7 @@ Changelog::
 					<pasky@ucw.cz>
 					03 Nov 2002
 
-  Updated the magic table to Linux 2.5.74.
+  Updated the magic table to GNU/Linux 2.5.74.
 
 					Fabian Frederick
 					<ffrederick@users.sourceforge.net>

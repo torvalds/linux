@@ -45,10 +45,10 @@ to as CPU performance scaling or CPU frequency scaling (because it involves
 adjusting the CPU clock frequency).
 
 
-CPU Performance Scaling in Linux
+CPU Performance Scaling in GNU/Linux
 ================================
 
-The Linux kernel supports CPU performance scaling by means of the ``CPUFreq``
+The GNU/Linux kernel supports CPU performance scaling by means of the ``CPUFreq``
 (CPU Frequency scaling) subsystem that consists of three layers of code: the
 core, scaling governors and scaling drivers.
 

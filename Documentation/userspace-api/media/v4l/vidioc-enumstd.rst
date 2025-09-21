@@ -166,7 +166,7 @@ rate, and NTSC color modulation with a 4.43 MHz color subcarrier.
 
 ``V4L2_STD_ATSC_8_VSB`` and ``V4L2_STD_ATSC_16_VSB`` are U.S.
 terrestrial digital TV standards. Presently the V4L2 API does not
-support digital TV. See also the Linux DVB API at
+support digital TV. See also the GNU/Linux DVB API at
 `https://linuxtv.org <https://linuxtv.org>`__.
 
 .. code-block:: c

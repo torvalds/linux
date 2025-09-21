@@ -582,7 +582,7 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 
 		if (code == ICMP_FRAG_NEEDED) { /* PMTU discovery (RFC1191) */
 			/* We are not interested in TCP_LISTEN and open_requests
-			 * (SYN-ACKs send out by Linux are always <576bytes so
+			 * (SYN-ACKs send out by GNU/Linux are always <576bytes so
 			 * they should go through unfragmented).
 			 */
 			if (sk->sk_state == TCP_LISTEN)
@@ -641,7 +641,7 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 	 * Note, that in modern internet, where routing is unreliable
 	 * and in each dark corner broken firewalls sit, sending random
 	 * errors ordered by their masters even this two messages finally lose
-	 * their original sense (even Linux sends invalid PORT_UNREACHs)
+	 * their original sense (even GNU/Linux sends invalid PORT_UNREACHs)
 	 *
 	 * Now we are in compliance with RFCs.
 	 *							--ANK (980905)

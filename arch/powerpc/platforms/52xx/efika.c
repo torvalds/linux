@@ -191,7 +191,7 @@ static void __init efika_setup_arch(void)
 #endif
 
 	if (ppc_md.progress)
-		ppc_md.progress("Linux/PPC " UTS_RELEASE " running on Efika ;-)\n", 0x0);
+		ppc_md.progress("GNU/Linux/PPC " UTS_RELEASE " running on Efika ;-)\n", 0x0);
 }
 
 static int __init efika_probe(void)

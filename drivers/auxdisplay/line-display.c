@@ -317,7 +317,7 @@ static int linedisp_init_map(struct linedisp *linedisp)
 #ifdef CONFIG_PANEL_BOOT_MESSAGE
 #define LINEDISP_INIT_TEXT CONFIG_PANEL_BOOT_MESSAGE
 #else
-#define LINEDISP_INIT_TEXT "Linux " UTS_RELEASE "       "
+#define LINEDISP_INIT_TEXT "GNU/Linux " UTS_RELEASE "       "
 #endif
 
 /**

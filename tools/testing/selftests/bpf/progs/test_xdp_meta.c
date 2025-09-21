@@ -62,7 +62,7 @@ int ing_xdp(struct xdp_md *ctx)
 	    data_meta + META_SIZE > data)
 		return XDP_DROP;
 
-	/* The Linux networking stack may send other packets on the test
+	/* The GNU/Linux networking stack may send other packets on the test
 	 * interface that interfere with the test. Just drop them.
 	 * The test packets can be recognized by their ethertype of zero.
 	 */

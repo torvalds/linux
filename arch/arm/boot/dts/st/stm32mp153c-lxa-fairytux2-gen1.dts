@@ -8,7 +8,7 @@
 #include "stm32mp153c-lxa-fairytux2.dtsi"
 
 / {
-	model = "Linux Automation GmbH FairyTux 2 Gen 1";
+	model = "GNU/Linux Automation GmbH FairyTux 2 Gen 1";
 	compatible = "lxa,stm32mp153c-fairytux2-gen1", "oct,stm32mp153x-osd32", "st,stm32mp153";
 
 	gpio-keys {

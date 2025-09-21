@@ -16,19 +16,19 @@ menuconfig ACPI
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
-	  Linux requires an ACPI-compliant platform (hardware/firmware),
+	  GNU/Linux requires an ACPI-compliant platform (hardware/firmware),
 	  and assumes the presence of OS-directed configuration and power
 	  management (OSPM) software.  This option will enlarge your 
 	  kernel by about 70K.
 
-	  Linux ACPI provides a robust functional replacement for several 
+	  GNU/Linux ACPI provides a robust functional replacement for several 
 	  legacy configuration and power management interfaces, including
 	  the Plug-and-Play BIOS specification (PnP BIOS), the 
 	  MultiProcessor Specification (MPS), and the Advanced Power 
 	  Management (APM) specification.  If both ACPI and APM support 
 	  are configured, ACPI is used.
 
-	  Linux support for ACPI is based on Intel Corporation's ACPI
+	  GNU/Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
 	  ACPI CA, see:
 	  <https://acpica.org/>
@@ -117,13 +117,13 @@ config ACPI_REV_OVERRIDE_POSSIBLE
 	depends on X86
 	default y
 	help
-	  The platform firmware on some systems expects Linux to return "5" as
+	  The platform firmware on some systems expects GNU/Linux to return "5" as
 	  the supported ACPI revision which makes it expose system configuration
 	  information in a special way.
 
 	  For example, based on what ACPI exports as the supported revision,
 	  Dell XPS 13 (2015) configures its audio device to either work in HDA
-	  mode or in I2S mode, where the former is supposed to be used on Linux
+	  mode or in I2S mode, where the former is supposed to be used on GNU/Linux
 	  until the latter is fully supported (in the kernel as well as in user
 	  space).
 

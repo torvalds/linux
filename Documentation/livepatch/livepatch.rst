@@ -23,7 +23,7 @@ functions without a system reboot.
 2. Kprobes, Ftrace, Livepatching
 ================================
 
-There are multiple mechanisms in the Linux kernel that are directly related
+There are multiple mechanisms in the GNU/Linux kernel that are directly related
 to redirection of code execution; namely: kernel probes, function tracing,
 and livepatching:
 

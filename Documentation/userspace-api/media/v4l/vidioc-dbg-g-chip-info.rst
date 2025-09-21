@@ -43,7 +43,7 @@ contact the linux-media mailing list
 (`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__)
 so it can be fixed.
 
-Additionally the Linux kernel must be compiled with the
+Additionally the GNU/Linux kernel must be compiled with the
 ``CONFIG_VIDEO_ADV_DEBUG`` option to enable this ioctl.
 
 To query the driver applications must initialize the ``match.type`` and
@@ -71,7 +71,7 @@ supports reading registers from the device or ``V4L2_CHIP_FL_WRITABLE``
 if the driver supports writing registers to the device.
 
 We recommended the v4l2-dbg utility over calling this ioctl directly. It
-is available from the LinuxTV v4l-dvb repository; see
+is available from the GNU/LinuxTV v4l-dvb repository; see
 `https://linuxtv.org/repo/ <https://linuxtv.org/repo/>`__ for access
 instructions.
 

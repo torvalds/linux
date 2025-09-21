@@ -19,4 +19,4 @@ config SFC_FALCON_MTD
 	help
 	  This exposes the on-board flash and/or EEPROM as MTD devices
 	  (e.g. /dev/mtd1).  This is required to update the boot
-	  configuration under Linux.
+	  configuration under GNU/Linux.

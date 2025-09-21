@@ -70,7 +70,7 @@ fully compatible with RIONET driver (Ethernet over RapidIO messaging services).
 
 Tsi721 mport driver supports DMA data transfers between local system memory and
 remote RapidIO devices. This functionality is implemented according to SLAVE
-mode API defined by common Linux kernel DMA Engine framework.
+mode API defined by common GNU/Linux kernel DMA Engine framework.
 
 Depending on system requirements RapidIO DMA operations can be included/excluded
 by setting CONFIG_RAPIDIO_DMA_ENGINE option. Tsi721 miniport driver uses seven

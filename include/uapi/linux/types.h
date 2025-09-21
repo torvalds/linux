@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_LINUX_TYPES_H
 #define _UAPI_LINUX_TYPES_H
 
@@ -19,7 +19,7 @@ typedef unsigned __int128 __u128 __attribute__((aligned(16)));
 #endif
 
 /*
- * Below are truly Linux-specific types that should never collide with
+ * Below are truly GNU/Linux-specific types that should never collide with
  * any application/library that wants linux/types.h.
  */
 

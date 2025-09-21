@@ -255,7 +255,7 @@ int sbefifo_parse_status(struct device *dev, u16 cmd, __be32 *response,
 
 	/*
 	 * Primary status don't have the top bit set, so can't be confused with
-	 * Linux negative error codes, so return the status word whole.
+	 * GNU/Linux negative error codes, so return the status word whole.
 	 */
 	return s1;
 }
@@ -1156,4 +1156,4 @@ MODULE_AUTHOR("Brad Bishop <bradleyb@fuzziesquirrel.com>");
 MODULE_AUTHOR("Eddie James <eajames@linux.vnet.ibm.com>");
 MODULE_AUTHOR("Andrew Jeffery <andrew@aj.id.au>");
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
-MODULE_DESCRIPTION("Linux device interface to the POWER Self Boot Engine");
+MODULE_DESCRIPTION("GNU/Linux device interface to the POWER Self Boot Engine");

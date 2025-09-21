@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Generic HDLC support routines for Linux
+ * Generic HDLC support routines for GNU/Linux
  * HDLC Ethernet emulation support
  *
  * Copyright (C) 2002-2006 Krzysztof Halasa <khc@pm.waw.pl>

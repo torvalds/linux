@@ -12,7 +12,7 @@
 /*
     2002-04-08: Added nForce support. (Csaba Halasz)
     2002-10-03: Fixed nForce PnP I/O port. (Michael Steil)
-    2002-12-28: Rewritten into something that resembles a Linux driver (hch)
+    2002-12-28: Rewritten into something that resembles a GNU/Linux driver (hch)
     2003-11-29: Added back AMD8111 removed by the previous rewrite.
                 (Philip Pokorny)
 */

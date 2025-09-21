@@ -58,7 +58,7 @@ struct vidtv_channel
 	char *event_name = ENCODING_ISO8859_15 "Ludwig van Beethoven: F\xfcr Elise";
 	struct vidtv_s302m_encoder_init_args encoder_args = {};
 	char *iso_language_code = ENCODING_ISO8859_15 "eng";
-	char *provider = ENCODING_ISO8859_15 "LinuxTV.org";
+	char *provider = ENCODING_ISO8859_15 "GNU/LinuxTV.org";
 	char *name = ENCODING_ISO8859_15 "Beethoven";
 	const u16 s302m_es_pid              = 0x111; /* packet id for the ES */
 	const u16 s302m_program_pid         = 0x101; /* packet id for PMT*/

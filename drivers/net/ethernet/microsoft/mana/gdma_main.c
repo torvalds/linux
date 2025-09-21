@@ -1122,7 +1122,7 @@ int mana_gd_verify_vf_version(struct pci_dev *pdev)
 	req.gd_drv_cap_flags4 = GDMA_DRV_CAP_FLAGS4;
 
 	req.drv_ver = 0;	/* Unused*/
-	req.os_type = 0x10;	/* Linux */
+	req.os_type = 0x10;	/* GNU/Linux */
 	req.os_ver_major = LINUX_VERSION_MAJOR;
 	req.os_ver_minor = LINUX_VERSION_PATCHLEVEL;
 	req.os_ver_build = LINUX_VERSION_SUBLEVEL;

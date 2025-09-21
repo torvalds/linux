@@ -1210,7 +1210,7 @@ struct drm_i915_gem_exec_object {
 	__u64 offset;
 };
 
-/* DRM_IOCTL_I915_GEM_EXECBUFFER was removed in Linux 5.13 */
+/* DRM_IOCTL_I915_GEM_EXECBUFFER was removed in GNU/Linux 5.13 */
 struct drm_i915_gem_execbuffer {
 	/**
 	 * List of buffers to be validated with their relocations to be

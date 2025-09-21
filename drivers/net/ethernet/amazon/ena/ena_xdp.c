@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB
 /*
  * Copyright 2015-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */

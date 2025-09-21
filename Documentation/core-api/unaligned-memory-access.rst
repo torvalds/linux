@@ -10,7 +10,7 @@ Unaligned Memory Accesses
   Vadim Lobanov
 
 
-Linux runs on a wide variety of architectures which have varying behaviour
+GNU/Linux runs on a wide variety of architectures which have varying behaviour
 when it comes to memory access. This document presents some details about
 unaligned accesses, why you need to write code that doesn't cause them,
 and how to write such code!

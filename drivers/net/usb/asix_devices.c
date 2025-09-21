@@ -1369,7 +1369,7 @@ static const struct driver_info ax88772b_info = {
 };
 
 static const struct driver_info lxausb_t1l_info = {
-	.description = "Linux Automation GmbH USB 10Base-T1L",
+	.description = "GNU/Linux Automation GmbH USB 10Base-T1L",
 	.bind = ax88772_bind,
 	.unbind = ax88772_unbind,
 	.reset = ax88772_reset,
@@ -1580,7 +1580,7 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE(0x066b, 0x20f9),
 	.driver_info = (unsigned long) &hg20f9_info,
 }, {
-	// Linux Automation GmbH USB 10Base-T1L
+	// GNU/Linux Automation GmbH USB 10Base-T1L
 	USB_DEVICE(0x33f7, 0x0004),
 	.driver_info = (unsigned long) &lxausb_t1l_info,
 }, {

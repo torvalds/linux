@@ -533,7 +533,7 @@ static void atl1e_setup_pcicmd(struct pci_dev *pdev)
 
 	/*
 	 * some motherboards BIOS(PXE/EFI) driver may set PME
-	 * while they transfer control to OS (Windows/Linux)
+	 * while they transfer control to OS (Windows/GNU/Linux)
 	 * so we should clear this bit before NIC work normally
 	 */
 	pci_write_config_dword(pdev, REG_PM_CTRLSTAT, 0);

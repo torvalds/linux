@@ -1,5 +1,5 @@
 /*
- * Audio support data for ISDN4Linux.
+ * Audio support data for ISDN4GNU/Linux.
  *
  * Copyright Andreas Eversberg (jolly@eversberg.eu)
  *

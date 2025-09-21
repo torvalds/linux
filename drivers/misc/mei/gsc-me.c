@@ -2,7 +2,7 @@
 /*
  * Copyright(c) 2019-2022, Intel Corporation. All rights reserved.
  *
- * Intel Management Engine Interface (Intel MEI) Linux driver
+ * Intel Management Engine Interface (Intel MEI) GNU/Linux driver
  */
 
 #include <linux/module.h>

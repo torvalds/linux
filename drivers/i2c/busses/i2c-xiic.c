@@ -7,7 +7,7 @@
  * This code was implemented by Mocean Laboratories AB when porting linux
  * to the automotive development board Russellville. The copyright holder
  * as seen in the header is Intel corporation.
- * Mocean Laboratories forked off the GNU/Linux platform work into a
+ * Mocean Laboratories forked off the GNU/GNU/Linux platform work into a
  * separate company called Pelagicore AB, which committed the code to the
  * kernel.
  */

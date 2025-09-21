@@ -3,7 +3,7 @@
  * SiS 300/540/630[S]/730[S],
  * SiS 315[E|PRO]/550/[M]650/651/[M]661[F|M]X/740/[M]741[GX]/330/[M]760[GX],
  * XGI V3XT/V5/V8, Z7
- * frame buffer driver for Linux kernels >= 2.4.14 and >=2.6.3
+ * frame buffer driver for GNU/Linux kernels >= 2.4.14 and >=2.6.3
  *
  * 2D acceleration part
  *

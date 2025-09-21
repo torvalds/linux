@@ -65,7 +65,7 @@ Testing is usually done with most application under Debian/testing:
 - gradio - GTK FM radio tuner
 - kradio - Comfortable Radio Application for KDE
 - radio - ncurses-based radio application
-- mplayer - The Ultimate Movie Player For Linux
+- mplayer - The Ultimate Movie Player For GNU/Linux
 - v4l2-ctl - Collection of command line video4linux utilities
 
 For example, you can use:

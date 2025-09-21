@@ -212,7 +212,7 @@ config ARC_CACHE_LINE_SHIFT
 	  Starting with ARC700 4.9, Cache line length is configurable,
 	  This option specifies "N", with Line-len = 2 power N
 	  So line lengths of 32, 64, 128 are specified by 5,6,7, respectively
-	  Linux only supports same line lengths for I and D caches.
+	  GNU/Linux only supports same line lengths for I and D caches.
 
 config ARC_HAS_ICACHE
 	bool "Use Instruction Cache"
@@ -448,10 +448,10 @@ config LINUX_LINK_BASE
 	  ARC700 divides the 32 bit phy address space into two equal halves
 	  -Lower 2G (0 - 0x7FFF_FFFF ) is user virtual, translated by MMU
 	  -Upper 2G (0x8000_0000 onwards) is untranslated, for kernel
-	  Typically Linux kernel is linked at the start of untransalted addr,
+	  Typically GNU/Linux kernel is linked at the start of untransalted addr,
 	  hence the default value of 0x8zs.
 	  However some customers have peripherals mapped at this addr, so
-	  Linux needs to be scooted a bit.
+	  GNU/Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
 	  This needs to match memory start address specified in Device Tree
 
@@ -459,8 +459,8 @@ config LINUX_RAM_BASE
 	hex "RAM base address"
 	default LINUX_LINK_BASE
 	help
-	  By default Linux is linked at base of RAM. However in some special
-	  cases (such as HSDK), Linux can't be linked at start of DDR, hence
+	  By default GNU/Linux is linked at base of RAM. However in some special
+	  cases (such as HSDK), GNU/Linux can't be linked at start of DDR, hence
 	  this option.
 
 config HIGHMEM
@@ -518,9 +518,9 @@ config HZ
 config ARC_METAWARE_HLINK
 	bool "Support for Metaware debugger assisted Host access"
 	help
-	  This options allows a Linux userland apps to directly access
+	  This options allows a GNU/Linux userland apps to directly access
 	  host file system (open/creat/read/write etc) with help from
-	  Metaware Debugger. This can come in handy for Linux-host communication
+	  Metaware Debugger. This can come in handy for GNU/Linux-host communication
 	  when there is no real usable peripheral such as EMAC.
 
 menuconfig ARC_DBG

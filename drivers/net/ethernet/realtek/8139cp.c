@@ -1,4 +1,4 @@
-/* 8139cp.c: A Linux PCI Ethernet driver for the RealTek 8139C+ chips. */
+/* 8139cp.c: A GNU/Linux PCI Ethernet driver for the RealTek 8139C+ chips. */
 /*
 	Copyright 2001-2004 Jeff Garzik <jgarzik@pobox.com>
 

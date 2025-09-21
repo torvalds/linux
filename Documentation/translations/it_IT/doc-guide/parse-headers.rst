@@ -74,7 +74,7 @@ Il file generato sarà disponibile in (OUT_FILE).
 Il programma è capace di identificare *define*, funzioni, strutture,
 tipi di dato, enumerati e valori di enumerati, e di creare i riferimenti
 per ognuno di loro. Inoltre, esso è capace di distinguere le #define
-utilizzate per specificare i comandi ioctl di Linux.
+utilizzate per specificare i comandi ioctl di GNU/Linux.
 
 Il file EXCEPTIONS_FILE contiene due tipi di dichiarazioni:
 \ **ignore**\  o \ **replace**\ .

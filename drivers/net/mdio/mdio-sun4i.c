@@ -5,7 +5,7 @@
  * Copyright 2012-2013 Stefan Roese <sr@denx.de>
  * Copyright 2013 Maxime Ripard <maxime.ripard@free-electrons.com>
  *
- * Based on the Linux driver provided by Allwinner:
+ * Based on the GNU/Linux driver provided by Allwinner:
  * Copyright (C) 1997  Sten Wang
  */
 

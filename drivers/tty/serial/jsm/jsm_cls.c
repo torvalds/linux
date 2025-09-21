@@ -6,11 +6,11 @@
  *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *	This is shared code between Digi's CVS archive and the
- *	Linux Kernel sources.
+ *	GNU/Linux Kernel sources.
  *	Changing the source just for reformatting needlessly breaks
  *	our CVS diff history.
  *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
+ *	Send any bug fixes/changes to:  Eng.GNU/Linux at digi dot com.
  *	Thank you.
  *
  */

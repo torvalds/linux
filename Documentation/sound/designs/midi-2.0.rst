@@ -1,5 +1,5 @@
 =================
-MIDI 2.0 on Linux
+MIDI 2.0 on GNU/Linux
 =================
 
 General
@@ -27,11 +27,11 @@ MIDI-CI is a high-level protocol that can talk with the MIDI device
 for the flexible profiles and configurations.  It's represented in the
 form of special SysEx.
 
-For Linux implementations, the kernel supports the UMP transport and
+For GNU/Linux implementations, the kernel supports the UMP transport and
 the encoding/decoding of MIDI protocols on UMP, while MIDI-CI is
 supported in user-space over the standard SysEx.
 
-As of this writing, only USB MIDI device supports the UMP and Linux
+As of this writing, only USB MIDI device supports the UMP and GNU/Linux
 2.0 natively.  The UMP support itself is pretty generic, hence it
 could be used by other transport layers, although it could be
 implemented differently (e.g. as a ALSA sequencer client), too.

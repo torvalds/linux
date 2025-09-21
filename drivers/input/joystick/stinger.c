@@ -5,7 +5,7 @@
  */
 
 /*
- * Gravis Stinger gamepad driver for Linux
+ * Gravis Stinger gamepad driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

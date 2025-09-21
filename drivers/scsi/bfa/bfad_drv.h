@@ -5,7 +5,7 @@
  * All rights reserved
  * www.qlogic.com
  *
- * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
+ * GNU/Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  */
 
 /*
@@ -13,7 +13,7 @@
  */
 
 /*
- *  bfa_drv.h Linux driver data structures.
+ *  bfa_drv.h GNU/Linux driver data structures.
  */
 
 #ifndef __BFAD_DRV_H__

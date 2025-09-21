@@ -12,7 +12,7 @@
 
 .. _tw_admin-guide_sysrq:
 
-Linux 魔法系統請求鍵駭客
+GNU/Linux 魔法系統請求鍵駭客
 ========================
 
 針對 sysrq.c 的文檔說明

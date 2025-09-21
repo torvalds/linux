@@ -23,7 +23,7 @@ Documentation/arch/arm/booting.rst 的中文翻译
 以下为正文
 ---------------------------------------------------------------------
 
-			启动 ARM Linux
+			启动 ARM GNU/Linux
 			==============
 
 作者：Russell King
@@ -31,9 +31,9 @@ Documentation/arch/arm/booting.rst 的中文翻译
 
 以下文档适用于 2.4.18-rmk6 及以上版本。
 
-为了启动 ARM Linux，你需要一个引导装载程序（boot loader），
+为了启动 ARM GNU/Linux，你需要一个引导装载程序（boot loader），
 它是一个在主内核启动前运行的一个小程序。引导装载程序需要初始化各种
-设备，并最终调用 Linux 内核，将信息传递给内核。
+设备，并最终调用 GNU/Linux 内核，将信息传递给内核。
 
 从本质上讲，引导装载程序应提供（至少）以下功能：
 

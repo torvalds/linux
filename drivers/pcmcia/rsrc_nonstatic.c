@@ -65,7 +65,7 @@ struct socket_data {
 
 /*======================================================================
 
-    Linux resource management extensions
+    GNU/Linux resource management extensions
 
 ======================================================================*/
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * etrap.S: Sparc trap window preparation for entry into the
- *          Linux kernel.
+ *          GNU/Linux kernel.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */

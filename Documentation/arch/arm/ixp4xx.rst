@@ -1,5 +1,5 @@
 ===========================================================
-Release Notes for Linux on Intel's IXP4xx Network Processor
+Release Notes for GNU/Linux on Intel's IXP4xx Network Processor
 ===========================================================
 
 Maintained by Deepak Saxena <dsaxena@plexity.net>
@@ -23,9 +23,9 @@ For more information on the various versions of the CPU, see:
 Intel also made the IXCP1100 CPU for sometime which is an IXP4xx
 stripped of much of the network intelligence.
 
-2. Linux Support
+2. GNU/Linux Support
 
-Linux currently supports the following features on the IXP4xx chips:
+GNU/Linux currently supports the following features on the IXP4xx chips:
 
 - Dual serial ports
 - PCI interface
@@ -35,7 +35,7 @@ Linux currently supports the following features on the IXP4xx chips:
   See arch/arm/mach-ixp4xx/include/mach/platform.h for access functions.
 - Timers (watchdog, OS)
 
-The following components of the chips are not supported by Linux and
+The following components of the chips are not supported by GNU/Linux and
 require the use of Intel's proprietary CSR software:
 
 - USB device interface
@@ -57,7 +57,7 @@ Intel's software:
      Open Source Developer's Guide for using uClinux and the Intel libraries
 
    - http://gatewaymaker.sourceforge.net/
-     Simple one page summary of building a gateway using an IXP425 and Linux
+     Simple one page summary of building a gateway using an IXP425 and GNU/Linux
 
    - http://ixp425.sourceforge.net/
      ATM device driver for IXP425 that relies on Intel's libraries
@@ -107,7 +107,7 @@ http://www.adiengineering.com/productsCoyote.html
    small residential/office gateways. One NPE is connected to a 10/100
    interface, one to 4-port 10/100 switch, and the third to and ADSL
    interface. In addition, it also supports to POTs interfaces connected
-   via SLICs. Note that those are not supported by Linux ATM. Finally,
+   via SLICs. Note that those are not supported by GNU/Linux ATM. Finally,
    the platform has two mini-PCI slots used for 802.11[bga] cards.
    Finally, there is an IDE port hanging off the expansion bus.
 
@@ -146,7 +146,7 @@ http://www.fountainsys.com
    The PrPMC1100 is based on the IXCP1100 and is meant to plug into
    and IXP2400/2800 system to act as the system controller. It simply
    contains a CPU and 16MB of flash on the board and needs to be
-   plugged into a carrier board to function. Currently Linux only
+   plugged into a carrier board to function. Currently GNU/Linux only
    supports the Motorola PrPMC carrier board for this platform.
 
 5. TODO LIST

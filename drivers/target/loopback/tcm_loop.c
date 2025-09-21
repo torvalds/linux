@@ -1,11 +1,11 @@
 /*******************************************************************************
  *
- * This file contains the Linux/SCSI LLD virtual SCSI initiator driver
+ * This file contains the GNU/Linux/SCSI LLD virtual SCSI initiator driver
  * for emulated SAS initiator ports
  *
  * © Copyright 2011-2013 Datera, Inc.
  *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * Licensed to the GNU/Linux Foundation under the General Public License (GPL) version 2.
  *
  * Author: Nicholas A. Bellinger <nab@risingtidesystems.com>
  *
@@ -497,7 +497,7 @@ static int tcm_loop_get_cmd_state(struct se_cmd *se_cmd)
 static int tcm_loop_write_pending(struct se_cmd *se_cmd)
 {
 	/*
-	 * Since Linux/SCSI has already sent down a struct scsi_cmnd
+	 * Since GNU/Linux/SCSI has already sent down a struct scsi_cmnd
 	 * sc->sc_data_direction of DMA_TO_DEVICE with struct scatterlist array
 	 * memory, and memory has already been mapped to struct se_cmd->t_mem_list
 	 * format with transport_generic_map_mem_to_cmd().
@@ -589,7 +589,7 @@ static int tcm_loop_port_link(
 
 	atomic_inc_mb(&tl_tpg->tl_tpg_port_count);
 	/*
-	 * Add Linux/SCSI struct scsi_device by HCTL
+	 * Add GNU/Linux/SCSI struct scsi_device by HCTL
 	 */
 	scsi_add_device(tl_hba->sh, 0, tl_tpg->tl_tpgt, lun->unpacked_lun);
 
@@ -616,7 +616,7 @@ static void tcm_loop_port_unlink(
 		return;
 	}
 	/*
-	 * Remove Linux/SCSI struct scsi_device by HCTL
+	 * Remove GNU/Linux/SCSI struct scsi_device by HCTL
 	 */
 	scsi_remove_device(sd);
 	scsi_device_put(sd);
@@ -1029,7 +1029,7 @@ check_len:
 
 	/*
 	 * Call device_register(tl_hba->dev) to register the emulated
-	 * Linux/SCSI LLD of type struct Scsi_Host at tl_hba->sh after
+	 * GNU/Linux/SCSI LLD of type struct Scsi_Host at tl_hba->sh after
 	 * device_register() callbacks in tcm_loop_driver_probe()
 	 */
 	ret = tcm_loop_setup_hba_bus(tl_hba, tcm_loop_hba_no_cnt);
@@ -1038,7 +1038,7 @@ check_len:
 
 	sh = tl_hba->sh;
 	tcm_loop_hba_no_cnt++;
-	pr_debug("TCM_Loop_ConfigFS: Allocated emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
+	pr_debug("TCM_Loop_ConfigFS: Allocated emulated Target %s Address: %s at GNU/Linux/SCSI Host ID: %d\n",
 		 tcm_loop_dump_proto_id(tl_hba), name, sh->host_no);
 	return &tl_hba->tl_hba_wwn;
 out:
@@ -1052,7 +1052,7 @@ static void tcm_loop_drop_scsi_hba(
 	struct tcm_loop_hba *tl_hba = container_of(wwn,
 				struct tcm_loop_hba, tl_hba_wwn);
 
-	pr_debug("TCM_Loop_ConfigFS: Deallocating emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
+	pr_debug("TCM_Loop_ConfigFS: Deallocating emulated Target %s Address: %s at GNU/Linux/SCSI Host ID: %d\n",
 		 tcm_loop_dump_proto_id(tl_hba), tl_hba->tl_wwn_address,
 		 tl_hba->sh->host_no);
 	/*
@@ -1145,7 +1145,7 @@ static void __exit tcm_loop_fabric_exit(void)
 	kmem_cache_destroy(tcm_loop_cmd_cache);
 }
 
-MODULE_DESCRIPTION("TCM loopback virtual Linux/SCSI fabric module");
+MODULE_DESCRIPTION("TCM loopback virtual GNU/Linux/SCSI fabric module");
 MODULE_AUTHOR("Nicholas A. Bellinger <nab@risingtidesystems.com>");
 MODULE_LICENSE("GPL");
 module_init(tcm_loop_fabric_init);

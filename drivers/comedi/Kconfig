@@ -3,7 +3,7 @@ menuconfig COMEDI
 	tristate "Data acquisition support (comedi)"
 	help
 	  Enable support for a wide range of data acquisition devices
-	  for Linux.
+	  for GNU/Linux.
 
 if COMEDI
 

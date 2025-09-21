@@ -9,7 +9,7 @@ Changes
   driver on freecode (http://freecode.com/projects/3mtouchscreendriver)
 - Amended for linux-2.4.18, then 2.4.19
 
-- 0.5 - Complete rewrite using Linux Input in 2.6.3
+- 0.5 - Complete rewrite using GNU/Linux Input in 2.6.3
   Unfortunately no calibration support at this time
 
 - 1.4 - Multiple changes to support the EXII 5000UC and house cleaning
@@ -40,14 +40,14 @@ Supported Hardware
 Driver Notes
 ============
 
-Installation is simple, you only need to add Linux Input, Linux USB, and the
+Installation is simple, you only need to add GNU/Linux Input, GNU/Linux USB, and the
 driver to the kernel.  The driver can also be optionally built as a module.
 
-This driver appears to be one of possible 2 Linux USB Input Touchscreen
+This driver appears to be one of possible 2 GNU/Linux USB Input Touchscreen
 drivers.  Although 3M produces a binary only driver available for
 download, I persist in updating this driver since I would like to use the
 touchscreen for embedded apps using QTEmbedded, DirectFB, etc. So I feel the
-logical choice is to use Linux Input.
+logical choice is to use GNU/Linux Input.
 
 Currently there is no way to calibrate the device via this driver.  Even if
 the device could be calibrated, the driver pulls to raw coordinate data from

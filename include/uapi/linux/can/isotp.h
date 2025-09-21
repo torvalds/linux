@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0-only WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0-only WITH GNU/Linux-syscall-note) OR BSD-3-Clause) */
 /*
  * linux/can/isotp.h
  *
@@ -152,7 +152,7 @@ struct can_isotp_ll_options {
 /*
  * Remark on CAN_ISOTP_DEFAULT_RECV_* values:
  *
- * We can strongly assume, that the Linux Kernel implementation of
+ * We can strongly assume, that the GNU/Linux Kernel implementation of
  * CAN_ISOTP is capable to run with BS=0, STmin=0 and WFTmax=0.
  * But as we like to be able to behave as a commonly available ECU,
  * these default settings can be changed via sockopts.

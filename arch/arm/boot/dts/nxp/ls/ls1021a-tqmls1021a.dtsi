@@ -95,7 +95,7 @@
 			};
 
 			linux@100000 {
-				label = "Linux";
+				label = "GNU/Linux";
 				reg = <0x100000 0x700000>;
 			};
 

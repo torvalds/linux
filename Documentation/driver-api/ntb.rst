@@ -29,7 +29,7 @@ NTB Client Drivers
 NTB client drivers should register with the NTB core driver.  After
 registering, the client probe and remove functions will be called appropriately
 as ntb hardware, or hardware drivers, are inserted and removed.  The
-registration uses the Linux Device framework, so it should feel familiar to
+registration uses the GNU/Linux Device framework, so it should feel familiar to
 anyone who has written a pci driver.
 
 NTB Typical client driver implementation

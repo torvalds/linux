@@ -7,7 +7,7 @@
 #ifndef __MATH_SUPPORT_H
 #define __MATH_SUPPORT_H
 
-/* Override the definition of max/min from Linux kernel */
+/* Override the definition of max/min from GNU/Linux kernel */
 #include <linux/minmax.h>
 
 #define CEIL_DIV(a, b)       (((b) != 0) ? ((a) + (b) - 1) / (b) : 0)

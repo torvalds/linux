@@ -1000,7 +1000,7 @@ void gic_migrate_target(unsigned int new_cpu_id)
 	 * Now let's migrate and clear any potential SGIs that might be
 	 * pending for us (cur_cpu_id).  Since GIC_DIST_SGI_PENDING_SET
 	 * is a banked register, we can only forward the SGI using
-	 * GIC_DIST_SOFTINT.  The original SGI source is lost but Linux
+	 * GIC_DIST_SOFTINT.  The original SGI source is lost but GNU/Linux
 	 * doesn't use that information anyway.
 	 *
 	 * For the same reason we do not adjust SGI source information

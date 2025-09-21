@@ -1,7 +1,7 @@
 Parport
 +++++++
 
-The ``parport`` code provides parallel-port support under Linux.  This
+The ``parport`` code provides parallel-port support under GNU/Linux.  This
 includes the ability to share one port between multiple device
 drivers.
 

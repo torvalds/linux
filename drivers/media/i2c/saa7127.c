@@ -13,7 +13,7 @@
  *
  * Copyright (C) 1999 Nathan Laredo <laredo@gnu.org>
  *
- * This driver is designed for the Hauppauge 250/350 Linux driver
+ * This driver is designed for the Hauppauge 250/350 GNU/Linux driver
  * from the ivtv Project
  *
  * Copyright (C) 2003 Kevin Thayer <nufan_wfk@yahoo.com>

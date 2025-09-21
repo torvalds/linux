@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ===========================================================================
-Linux Base Driver for the Intel(R) Ethernet 10 Gigabit PCI Express Adapters
+GNU/Linux Base Driver for the Intel(R) Ethernet 10 Gigabit PCI Express Adapters
 ===========================================================================
 
-Intel 10 Gigabit Linux driver.
+Intel 10 Gigabit GNU/Linux driver.
 Copyright(c) 1999-2018 Intel Corporation.
 
 Contents
@@ -449,7 +449,7 @@ command to enable advertising NBASE-T speeds on devices which support it::
 
   ethtool -s eth? advertise 0x1800000001028
 
-On Linux systems with INTERFACES(5), this can be specified as a pre-up command
+On GNU/Linux systems with INTERFACES(5), this can be specified as a pre-up command
 in /etc/network/interfaces so that the interface is always brought up with
 NBASE-T support, e.g.::
 
@@ -537,7 +537,7 @@ Known Issues/Troubleshooting
 
 Enabling SR-IOV in a 64-bit Microsoft Windows Server 2012/R2 guest OS
 ---------------------------------------------------------------------
-Linux KVM Hypervisor/VMM supports direct assignment of a PCIe device to a VM.
+GNU/Linux KVM Hypervisor/VMM supports direct assignment of a PCIe device to a VM.
 This includes traditional PCIe devices, as well as SR-IOV-capable devices based
 on the Intel Ethernet Controller XL710.
 

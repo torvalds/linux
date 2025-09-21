@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Linux eCryptfs
+# Makefile for the GNU/Linux eCryptfs
 #
 
 obj-$(CONFIG_ECRYPT_FS) += ecryptfs.o

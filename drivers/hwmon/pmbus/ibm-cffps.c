@@ -108,7 +108,7 @@ static ssize_t ibm_cffps_debugfs_read_input_history(struct file *file, char __us
 
 		/*
 		 * Use a raw i2c transfer, since we need more bytes
-		 * than Linux I2C supports through smbus xfr (only 32).
+		 * than GNU/Linux I2C supports through smbus xfr (only 32).
 		 */
 		rc = i2c_transfer(psu->client->adapter, msg, 2);
 		pmbus_unlock(psu->client);

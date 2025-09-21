@@ -5,7 +5,7 @@
 Chelsio N210 10Gb Ethernet Network Controller
 =============================================
 
-Driver Release Notes for Linux
+Driver Release Notes for GNU/Linux
 
 Version 2.1.1
 
@@ -24,7 +24,7 @@ June 20, 2005
 Introduction
 ============
 
- This document describes the Linux driver for Chelsio 10Gb Ethernet Network
+ This document describes the GNU/Linux driver for Chelsio 10Gb Ethernet Network
  Controller. This driver supports the Chelsio N210 NIC and is backward
  compatible with the Chelsio N110 model 10Gb NICs.
 
@@ -234,7 +234,7 @@ Known Issues
 
  These issues have been identified during testing. The following information
  is provided as a workaround to the problem. In some cases, this problem is
- inherent to Linux or to a particular Linux Distribution and/or hardware
+ inherent to GNU/Linux or to a particular GNU/Linux Distribution and/or hardware
  platform.
 
   1. Large number of TCP retransmits on a multiprocessor (SMP) system.
@@ -261,7 +261,7 @@ Known Issues
 
 	  chkconfig --level 2345 irqbalance off
 
-      By default, some Linux distributions enable the kernel feature,
+      By default, some GNU/Linux distributions enable the kernel feature,
       irqbalance, which performs the same function as the daemon. To disable
       this feature, add the following line to your bootloader::
 
@@ -269,7 +269,7 @@ Known Issues
 
 	  Example using the Grub bootloader::
 
-	      title Red Hat Enterprise Linux AS (2.4.21-27.ELsmp)
+	      title Red Hat Enterprise GNU/Linux AS (2.4.21-27.ELsmp)
 	      root (hd0,0)
 	      kernel /vmlinuz-2.4.21-27.ELsmp ro root=/dev/hda3 noirqbalance
 	      initrd /initrd-2.4.21-27.ELsmp.img
@@ -277,7 +277,7 @@ Known Issues
   2. After running insmod, the driver is loaded and the incorrect network
      interface is brought up without running ifup.
 
-      When using 2.4.x kernels, including RHEL kernels, the Linux kernel
+      When using 2.4.x kernels, including RHEL kernels, the GNU/Linux kernel
       invokes a script named "hotplug". This script is primarily used to
       automatically bring up USB devices when they are plugged in, however,
       the script also attempts to automatically bring up a network interface

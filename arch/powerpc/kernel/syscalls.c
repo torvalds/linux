@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Implementation of various system calls for Linux/PowerPC
+ *  Implementation of various system calls for GNU/Linux/PowerPC
  *
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
@@ -10,7 +10,7 @@
  * and Paul Mackerras (paulus@cs.anu.edu.au).
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/PPC
+ * have a non-standard calling sequence on the GNU/Linux/PPC
  * platform.
  */
 

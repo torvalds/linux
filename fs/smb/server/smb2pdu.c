@@ -5608,7 +5608,7 @@ static int smb2_get_info_filesystem(struct ksmbd_work *work,
 		 * TODO : The current implementation is based on
 		 * test result with win7(NTFS) server. It's need to
 		 * modify this to get valid Quota values
-		 * from Linux kernel
+		 * from GNU/Linux kernel
 		 */
 		struct smb2_fs_control_info *info;
 

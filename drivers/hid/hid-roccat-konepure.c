@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Roccat KonePure driver for Linux
+ * Roccat KonePure driver for GNU/Linux
  *
  * Copyright (c) 2012 Stefan Achatz <erazor_de@users.sourceforge.net>
  */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * via686a.c - Part of lm_sensors, Linux kernel modules
+ * via686a.c - Part of lm_sensors, GNU/Linux kernel modules
  *	       for hardware monitoring
  *
  * Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,

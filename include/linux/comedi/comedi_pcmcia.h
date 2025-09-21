@@ -3,7 +3,7 @@
  * comedi_pcmcia.h
  * header file for Comedi PCMCIA drivers
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
  */
 

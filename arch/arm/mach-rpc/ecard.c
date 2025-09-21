@@ -15,7 +15,7 @@
  *			- cards can now register their own routine to control
  *			interrupts (recommended).
  *  29-Sep-1997	RMK	Expansion card interrupt hardware not being re-enabled
- *			on reset from Linux. (Caused cards not to respond
+ *			on reset from GNU/Linux. (Caused cards not to respond
  *			under RiscOS without hard reset).
  *  15-Feb-1998	RMK	Added DMA support
  *  12-Sep-1998	RMK	Added EASI support
@@ -111,7 +111,7 @@ static inline ecard_t *slot_to_ecard(unsigned int slot)
  * environment up, and pass requests to this task as and when we
  * need to.
  *
- * This should allow 99% of loaders to be called from Linux.
+ * This should allow 99% of loaders to be called from GNU/Linux.
  *
  * From a security standpoint, we trust the card vendors.  This
  * may be a misplaced trust.

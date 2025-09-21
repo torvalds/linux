@@ -4,8 +4,8 @@
  *
  * HEST describes error sources in detail; communicates operational
  * parameters (i.e. severity levels, masking bits, and threshold
- * values) to Linux as necessary. It also allows the BIOS to report
- * non-standard error sources to Linux (for example, chipset-specific
+ * values) to GNU/Linux as necessary. It also allows the BIOS to report
+ * non-standard error sources to GNU/Linux (for example, chipset-specific
  * error registers).
  *
  * For more information about HEST, please refer to ACPI Specification

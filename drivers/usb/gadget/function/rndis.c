@@ -15,7 +15,7 @@
  *		Fixed rndis_rm_hdr length bug.
  *
  * Copyright (C) 2004 by David Brownell
- *		updates to merge with Linux 2.6, better match RNDIS spec
+ *		updates to merge with GNU/Linux 2.6, better match RNDIS spec
  */
 
 #include <linux/module.h>

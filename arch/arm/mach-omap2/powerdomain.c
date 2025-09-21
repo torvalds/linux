@@ -382,7 +382,7 @@ int pwrdm_complete_init(void)
 }
 
 /**
- * pwrdm_lock - acquire a Linux spinlock on a powerdomain
+ * pwrdm_lock - acquire a GNU/Linux spinlock on a powerdomain
  * @pwrdm: struct powerdomain * to lock
  *
  * Acquire the powerdomain spinlock on @pwrdm.  No return value.
@@ -394,7 +394,7 @@ void pwrdm_lock(struct powerdomain *pwrdm)
 }
 
 /**
- * pwrdm_unlock - release a Linux spinlock on a powerdomain
+ * pwrdm_unlock - release a GNU/Linux spinlock on a powerdomain
  * @pwrdm: struct powerdomain * to unlock
  *
  * Release the powerdomain spinlock on @pwrdm.  No return value.

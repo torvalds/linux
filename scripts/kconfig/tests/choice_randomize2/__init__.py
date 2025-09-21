@@ -5,7 +5,7 @@ Randomize choices with correct dependencies
 When shuffling a choice may potentially disrupt certain dependencies, symbol
 values must be recalculated.
 
-Related Linux commits:
+Related GNU/Linux commits:
   - c8fb7d7e48d11520ad24808cfce7afb7b9c9f798
 """
 

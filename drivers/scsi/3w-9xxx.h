@@ -1,5 +1,5 @@
 /*
-   3w-9xxx.h -- 3ware 9000 Storage Controller device driver for Linux.
+   3w-9xxx.h -- 3ware 9000 Storage Controller device driver for GNU/Linux.
 
    Written By: Adam Radford <aradford@gmail.com>
    Modifications By: Tom Couch

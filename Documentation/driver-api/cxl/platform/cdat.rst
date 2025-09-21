@@ -24,7 +24,7 @@ Device Scoped Memory Affinity Structure (DSMAS)
 The DSMAS contains information such as DSMADHandle, the DPA Base, and DPA
 Length.
 
-This table is used by Linux in conjunction with the Device Scoped Latency and
+This table is used by GNU/Linux in conjunction with the Device Scoped Latency and
 Bandwidth Information Structure (DSLBIS) to determine the performance
 attributes of the CXL device itself.
 
@@ -44,7 +44,7 @@ Example ::
 Device Scoped Latency and Bandwidth Information Structure (DSLBIS)
 ==================================================================
 
-This table is used by Linux in conjunction with DSMAS to determine the
+This table is used by GNU/Linux in conjunction with DSMAS to determine the
 performance attributes of a CXL device.  The DSLBIS contains latency
 and bandwidth information based on DSMADHandle matching.
 
@@ -77,7 +77,7 @@ Switch Scoped Latency and Bandwidth Information Structure (SSLBIS)
 
 The SSLBIS contains information about the latency and bandwidth of a switch.
 
-The table is used by Linux to compute the performance coordinates of a CXL path
+The table is used by GNU/Linux to compute the performance coordinates of a CXL path
 from the device to the root port where a switch is part of the path.
 
 Example ::

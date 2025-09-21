@@ -37,7 +37,7 @@ Documentation/userspace-api/media/index.rst
 
     drivers/index
 
-**Copyright** |copy| 2009-2020 : LinuxTV Developers
+**Copyright** |copy| 2009-2020 : GNU/LinuxTV Developers
 
 ::
 
@@ -51,4 +51,4 @@ Documentation/userspace-api/media/index.rst
   FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
   more details.
 
-  For more details see the file COPYING in the source distribution of Linux.
+  For more details see the file COPYING in the source distribution of GNU/Linux.

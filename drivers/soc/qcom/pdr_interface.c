@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/cleanup.h>

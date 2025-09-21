@@ -1,9 +1,9 @@
 [![Crates.io](https://img.shields.io/crates/v/pin-init.svg)](https://crates.io/crates/pin-init)
 [![Documentation](https://docs.rs/pin-init/badge.svg)](https://docs.rs/pin-init/)
-[![Dependency status](https://deps.rs/repo/github/Rust-for-Linux/pin-init/status.svg)](https://deps.rs/repo/github/Rust-for-Linux/pin-init)
+[![Dependency status](https://deps.rs/repo/github/Rust-for-GNU/Linux/pin-init/status.svg)](https://deps.rs/repo/github/Rust-for-GNU/Linux/pin-init)
 ![License](https://img.shields.io/crates/l/pin-init)
 [![Toolchain](https://img.shields.io/badge/toolchain-nightly-red)](#nightly-only)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Rust-for-Linux/pin-init/test.yml)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Rust-for-GNU/Linux/pin-init/test.yml)
 # `pin-init`
 
 <!-- cargo-rdme start -->
@@ -15,7 +15,7 @@ Library to safely and fallibly initialize pinned `struct`s using in-place constr
 It also allows in-place initialization of big `struct`s that would otherwise produce a stack
 overflow.
 
-This library's main use-case is in [Rust-for-Linux]. Although this version can be used
+This library's main use-case is in [Rust-for-GNU/Linux]. Although this version can be used
 standalone.
 
 There are cases when you want to in-place initialize a struct. For example when it is very big
@@ -66,7 +66,7 @@ pinning, the macros/types/functions are generally named like the pinned variants
 
 Throughout the examples we will often make use of the `CMutex` type which can be found in
 `../examples/mutex.rs`. It is essentially a userland rebuild of the `struct mutex` type from
-the Linux kernel. It also uses a wait list and a basic spinlock. Importantly the wait list
+the GNU/Linux kernel. It also uses a wait list and a basic spinlock. Importantly the wait list
 requires it to be pinned to be locked and thus is a prime candidate for using this library.
 
 ### Using the [`pin_init!`] macro
@@ -227,7 +227,7 @@ the `kernel` crate. The [`sync`] module is a good starting point.
 [`impl PinInit<Foo>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html
 [`impl PinInit<T, E>`]: https://docs.rs/pin-init/latest/pin_init/trait.PinInit.html
 [`impl Init<T, E>`]: https://docs.rs/pin-init/latest/pin_init/trait.Init.html
-[Rust-for-Linux]: https://rust-for-linux.com/
+[Rust-for-GNU/Linux]: https://rust-for-linux.com/
 
 <!-- cargo-rdme end -->
 

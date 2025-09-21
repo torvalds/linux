@@ -8,7 +8,7 @@ The High level CI API
    This documentation is outdated.
 
 This document describes the high level CI API as in accordance to the
-Linux DVB API.
+GNU/Linux DVB API.
 
 
 With the High Level CI approach any new card with almost any random
@@ -18,7 +18,7 @@ eliminating the need for any additional ioctls.
 
 The disadvantage is that the driver/hardware has to manage the rest. For
 the application programmer it would be as simple as sending/receiving an
-array to/from the CI ioctls as defined in the Linux DVB API. No changes
+array to/from the CI ioctls as defined in the GNU/Linux DVB API. No changes
 have been made in the API to accommodate this feature.
 
 

@@ -185,8 +185,8 @@ int cvmx_bootmem_init(void *mem_desc_ptr)
 	 * it up to be directly usable by the application.  It is set
 	 * up as follows for the various runtime/ABI combinations:
 	 *
-	 * Linux 64 bit: Set XKPHYS bit
-	 * Linux 32 bit: use mmap to create mapping, use virtual address
+	 * GNU/Linux 64 bit: Set XKPHYS bit
+	 * GNU/Linux 32 bit: use mmap to create mapping, use virtual address
 	 * CVMX 64 bit:	 use physical address directly
 	 * CVMX 32 bit:	 use physical address directly
 	 *

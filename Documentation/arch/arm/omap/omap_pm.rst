@@ -6,14 +6,14 @@ This document describes the temporary OMAP PM interface.  Driver
 authors use these functions to communicate minimum latency or
 throughput constraints to the kernel power management code.
 Over time, the intention is to merge features from the OMAP PM
-interface into the Linux PM QoS code.
+interface into the GNU/Linux PM QoS code.
 
 Drivers need to express PM parameters which:
 
 - support the range of power management parameters present in the TI SRF;
 
 - separate the drivers from the underlying PM parameter
-  implementation, whether it is the TI SRF or Linux PM QoS or Linux
+  implementation, whether it is the TI SRF or GNU/Linux PM QoS or GNU/Linux
   latency framework or something else;
 
 - specify PM parameters in terms of fundamental units, such as
@@ -59,10 +59,10 @@ found in arch/arm/plat-omap/include/mach/omap-pm.h.
 The OMAP PM layer is intended to be temporary
 ---------------------------------------------
 
-The intention is that eventually the Linux PM QoS layer should support
+The intention is that eventually the GNU/Linux PM QoS layer should support
 the range of power management features present in OMAP3.  As this
 happens, existing drivers using the OMAP PM interface can be modified
-to use the Linux PM QoS code; and the OMAP PM interface can disappear.
+to use the GNU/Linux PM QoS code; and the OMAP PM interface can disappear.
 
 
 Driver usage of the OMAP PM functions

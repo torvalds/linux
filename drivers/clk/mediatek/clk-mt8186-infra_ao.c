@@ -101,7 +101,7 @@ static const struct mtk_gate infra_ao_clks[] = {
 	GATE_INFRA_AO1(CLK_INFRA_AO_MSDC0, "infra_ao_msdc0", "top_msdc5hclk", 2),
 	GATE_INFRA_AO1(CLK_INFRA_AO_MSDCFDE, "infra_ao_msdcfde", "top_aes_msdcfde", 3),
 	GATE_INFRA_AO1(CLK_INFRA_AO_MSDC1, "infra_ao_msdc1", "top_axi", 4),
-	/* infra_ao_dvfsrc is for internal DVFS usage, should not be handled by Linux */
+	/* infra_ao_dvfsrc is for internal DVFS usage, should not be handled by GNU/Linux */
 	GATE_INFRA_AO1_FLAGS(CLK_INFRA_AO_DVFSRC,
 			     "infra_ao_dvfsrc", "top_dvfsrc", 7, CLK_IS_CRITICAL),
 	GATE_INFRA_AO1(CLK_INFRA_AO_GCPU, "infra_ao_gcpu", "top_axi", 8),
@@ -141,7 +141,7 @@ static const struct mtk_gate infra_ao_clks[] = {
 	GATE_INFRA_AO2(CLK_INFRA_AO_SSUSB_TOP_P1_REF, "infra_ao_ssusb_p1_ref", "clk26m", 13),
 	GATE_INFRA_AO2(CLK_INFRA_AO_SSUSB_TOP_P1_XHCI,
 		       "infra_ao_ssusb_p1_xhci", "top_ssusb_xhci_1p", 14),
-	/* infra_ao_sspm is main clock in co-processor, should not be closed in Linux. */
+	/* infra_ao_sspm is main clock in co-processor, should not be closed in GNU/Linux. */
 	GATE_INFRA_AO2_FLAGS(CLK_INFRA_AO_SSPM, "infra_ao_sspm", "top_sspm", 15, CLK_IS_CRITICAL),
 	GATE_INFRA_AO2(CLK_INFRA_AO_SSUSB_TOP_P1_SYS,
 		       "infra_ao_ssusb_p1_sys", "top_ssusb_1p", 16),
@@ -161,7 +161,7 @@ static const struct mtk_gate infra_ao_clks[] = {
 	GATE_INFRA_AO3(CLK_INFRA_AO_SPINOR, "infra_ao_spinor", "top_spinor", 1),
 	/*
 	 * infra_ao_sspm_26m/infra_ao_sspm_32k are main clocks in co-processor,
-	 * should not be closed in Linux.
+	 * should not be closed in GNU/Linux.
 	 */
 	GATE_INFRA_AO3_FLAGS(CLK_INFRA_AO_SSPM_26M_SELF, "infra_ao_sspm_26m", "clk26m", 3,
 			     CLK_IS_CRITICAL),

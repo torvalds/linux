@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IP6 tables REJECT target module
- * Linux INET6 implementation
+ * GNU/Linux INET6 implementation
  *
  * Copyright (C)2003 USAGI/WIDE Project
  *

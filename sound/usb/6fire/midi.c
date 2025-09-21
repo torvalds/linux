@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux driver for TerraTec DMX 6Fire USB
+ * GNU/Linux driver for TerraTec DMX 6Fire USB
  *
  * Rawmidi driver
  *

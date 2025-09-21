@@ -1,5 +1,5 @@
 /*
-** asm/setup.h -- Definition of the Linux/m68k setup information
+** asm/setup.h -- Definition of the GNU/Linux/m68k setup information
 **
 ** Copyright 1992 by Greg Harp
 **

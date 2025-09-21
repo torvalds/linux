@@ -5,10 +5,10 @@
 .. _v4l-drivers_uapi:
 
 ################################################
-Video4Linux (V4L)  driver-specific documentation
+Video4GNU/Linux (V4L)  driver-specific documentation
 ################################################
 
-**Copyright** |copy| 1999-2016 : LinuxTV Developers
+**Copyright** |copy| 1999-2016 : GNU/LinuxTV Developers
 
 This documentation is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 more details.
 
-For more details see the file COPYING in the source distribution of Linux.
+For more details see the file COPYING in the source distribution of GNU/Linux.
 
 .. toctree::
 	:caption: Table of Contents

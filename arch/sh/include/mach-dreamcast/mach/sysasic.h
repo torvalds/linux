@@ -7,7 +7,7 @@
  * Copyright (c) 2001 M. R. Brown <mrbrown@linuxdc.org>
  * Copyright (C) 2003 Paul Mundt <lethal@linux-sh.org>
  *
- * This file is part of the LinuxDC project (www.linuxdc.org)
+ * This file is part of the GNU/LinuxDC project (www.linuxdc.org)
  */
 #ifndef __ASM_SH_DREAMCAST_SYSASIC_H
 #define __ASM_SH_DREAMCAST_SYSASIC_H

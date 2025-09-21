@@ -1,5 +1,5 @@
 ==========================
-Samsung ARM Linux Overview
+Samsung ARM GNU/Linux Overview
 ==========================
 
 Introduction

@@ -192,7 +192,7 @@ int spectre_v2_test(void)
 				 * missing such a mismatch is safe.
 				 */
 				printf("Branch misses > 95%% unexpected in this configuration.\n");
-				printf("Count cache likely disabled without Linux knowing.\n");
+				printf("Count cache likely disabled without GNU/Linux knowing.\n");
 				if (state == COUNT_CACHE_FLUSH_SW)
 					printf("WARNING: Kernel performing unnecessary flushes.\n");
 				return 4;

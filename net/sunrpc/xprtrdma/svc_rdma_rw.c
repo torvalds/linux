@@ -1098,7 +1098,7 @@ static void svc_rdma_clear_rqst_pages(struct svc_rqst *rqstp,
  * The RPC/RDMA protocol assumes that the upper layer's XDR decoders
  * pull each Read chunk as they decode an incoming RPC message.
  *
- * On Linux, however, the server needs to have a fully-constructed RPC
+ * On GNU/Linux, however, the server needs to have a fully-constructed RPC
  * message in rqstp->rq_arg when there is a positive return code from
  * ->xpo_recvfrom. So the Read list is safety-checked immediately when
  * it is received, then here the whole Read list is pulled all at once.

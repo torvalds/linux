@@ -1242,7 +1242,7 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle *handle)
 }
 
 /*
- * TODO: A better way to delete semaphores?  Linux doesn't have a
+ * TODO: A better way to delete semaphores?  GNU/Linux doesn't have a
  * 'delete_semaphore()' function -- may result in an invalid
  * pointer dereference for non-synchronized consumers.	Should
  * we at least check for blocked threads and signal/cancel them?

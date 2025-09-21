@@ -202,14 +202,14 @@ int cfpkt_iterate(struct cfpkt *pkt,
 		u16 (*iter_func)(u16 chks, void *buf, u16 len),
 		u16 data);
 
-/* Map from a "native" packet (e.g. Linux Socket Buffer) to a CAIF packet.
+/* Map from a "native" packet (e.g. GNU/Linux Socket Buffer) to a CAIF packet.
  *  dir - Direction indicating whether this packet is to be sent or received.
  *  nativepkt  - The native packet to be transformed to a CAIF packet
  *  @return The mapped CAIF Packet CFPKT.
  */
 struct cfpkt *cfpkt_fromnative(enum caif_direction dir, void *nativepkt);
 
-/* Map from a CAIF packet to a "native" packet (e.g. Linux Socket Buffer).
+/* Map from a CAIF packet to a "native" packet (e.g. GNU/Linux Socket Buffer).
  *  pkt  - The CAIF packet to be transformed into a "native" packet.
  *  @return The native packet transformed from a CAIF packet.
  */

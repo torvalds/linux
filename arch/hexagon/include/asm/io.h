@@ -2,7 +2,7 @@
 /*
  * IO definitions for the Hexagon architecture
  *
- * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _ASM_IO_H

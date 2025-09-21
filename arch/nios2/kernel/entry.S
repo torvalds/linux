@@ -16,7 +16,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Linux/m68k support by Hamish Macdonald
+ * GNU/Linux/m68k support by Hamish Macdonald
  *
  * 68060 fixes by Jesper Skov
  * ColdFire support by Greg Ungerer (gerg@snapgear.com)

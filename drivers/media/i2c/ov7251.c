@@ -2,7 +2,7 @@
 /*
  * Driver for the OV7251 camera sensor.
  *
- * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2017-2018, Linaro Ltd.
  */
 

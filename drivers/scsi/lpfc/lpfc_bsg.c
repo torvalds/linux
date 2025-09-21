@@ -1,5 +1,5 @@
 /*******************************************************************
- * This file is part of the Emulex Linux Device Driver for         *
+ * This file is part of the Emulex GNU/Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
@@ -3104,7 +3104,7 @@ lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 		/*
 		 * Allocate memory for ioctl data. If buffer is bigger than 64k,
 		 * then we allocate 64k and re-use that buffer over and over to
-		 * xfer the whole block. This is because Linux kernel has a
+		 * xfer the whole block. This is because GNU/Linux kernel has a
 		 * problem allocating more than 120k of kernel space memory. Saw
 		 * problem with GET_FCPTARGETMAPPING...
 		 */

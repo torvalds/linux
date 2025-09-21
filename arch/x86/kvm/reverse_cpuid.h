@@ -92,7 +92,7 @@ static const struct cpuid_reg reverse_cpuid[] = {
 /*
  * Reverse CPUID and its derivatives can only be used for hardware-defined
  * feature words, i.e. words whose bits directly correspond to a CPUID leaf.
- * Retrieving a feature bit or masking guest CPUID from a Linux-defined word
+ * Retrieving a feature bit or masking guest CPUID from a GNU/Linux-defined word
  * is nonsensical as the bit number/mask is an arbitrary software-defined value
  * and can't be used by KVM to query/control guest capabilities.  And obviously
  * the leaf being queried must have an entry in the lookup table.

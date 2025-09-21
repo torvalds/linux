@@ -4,7 +4,7 @@ OSNOISE Tracer
 
 In the context of high-performance computing (HPC), the Operating System
 Noise (*osnoise*) refers to the interference experienced by an application
-due to activities inside the operating system. In the context of Linux,
+due to activities inside the operating system. In the context of GNU/Linux,
 NMIs, IRQs, SoftIRQs, and any other system thread can cause noise to the
 system. Moreover, hardware-related jobs can also cause noise, for example,
 via SMIs.
@@ -177,4 +177,4 @@ Running osnoise tracer without workload
 
 By enabling the osnoise tracer with the NO_OSNOISE_WORKLOAD option set,
 the osnoise: tracepoints serve to measure the execution time of
-any type of Linux task, free from the interference of other tasks.
+any type of GNU/Linux task, free from the interference of other tasks.

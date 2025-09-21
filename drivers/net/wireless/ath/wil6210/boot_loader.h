@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: ISC */
 /* Copyright (c) 2015 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018, The GNU/Linux Foundation. All rights reserved.
  */
 
 /* This file contains the definitions for the boot loader

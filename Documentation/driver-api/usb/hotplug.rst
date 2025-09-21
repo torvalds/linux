@@ -1,7 +1,7 @@
 USB hotplugging
 ~~~~~~~~~~~~~~~
 
-Linux Hotplugging
+GNU/Linux Hotplugging
 =================
 
 

@@ -136,7 +136,7 @@ otherwise not be effective.
 ::
 
   ====  =======  ===  =========================  =====================
-  MTRR  Non-PAT  PAT  Linux ioremap value        Effective memory type
+  MTRR  Non-PAT  PAT  GNU/Linux ioremap value        Effective memory type
   ====  =======  ===  =========================  =====================
         PAT                                        Non-PAT |  PAT
         |PCD                                               |
@@ -206,7 +206,7 @@ PAT Initialization
 ==================
 
 The following table describes how PAT is initialized under various
-configurations. The PAT MSR must be updated by Linux in order to support WC
+configurations. The PAT MSR must be updated by GNU/Linux in order to support WC
 and WT attributes. Otherwise, the PAT MSR has the value programmed in it
 by the firmware. Note, Xen enables WC attribute in the PAT MSR for guests.
 

@@ -189,7 +189,7 @@ static int v9fs_mapped_dotl_flags(int flags)
 }
 
 /**
- * v9fs_open_to_dotl_flags- convert Linux specific open flags to
+ * v9fs_open_to_dotl_flags- convert GNU/Linux specific open flags to
  * plan 9 open flag.
  * @flags: flags to convert
  */

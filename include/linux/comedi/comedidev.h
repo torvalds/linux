@@ -3,7 +3,7 @@
  * comedidev.h
  * header file for kernel-only structures, variables, and constants
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
  */
 

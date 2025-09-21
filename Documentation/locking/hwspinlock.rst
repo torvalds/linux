@@ -11,7 +11,7 @@ under a single, shared operating system.
 
 For example, OMAP4 has dual Cortex-A9, dual Cortex-M3 and a C64x+ DSP,
 each of which is running a different Operating System (the master, A9,
-is usually running Linux and the slave processors, the M3 and the DSP,
+is usually running GNU/Linux and the slave processors, the M3 and the DSP,
 are running some flavor of RTOS).
 
 A generic hwspinlock framework allows platform-independent drivers to use

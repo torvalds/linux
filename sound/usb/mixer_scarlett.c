@@ -19,7 +19,7 @@
  * Rewritten and extended to support more models, e.g. Scarlett 18i8.
  *
  * Auto-detection via UAC2 is not feasible to properly discover the vast
- * majority of features. It's related to both Linux/ALSA's UAC2 as well as
+ * majority of features. It's related to both GNU/Linux/ALSA's UAC2 as well as
  * Focusrite's implementation of it. Eventually quirks may be sufficient but
  * right now it's a major headache to work around these things.
  *

@@ -2,7 +2,7 @@
 /*
  * Qualcomm Technologies HIDMA Management common header
  *
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, The GNU/Linux Foundation. All rights reserved.
  */
 
 struct hidma_mgmt_dev {

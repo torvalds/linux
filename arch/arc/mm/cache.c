@@ -936,7 +936,7 @@ static noinline void __init arc_ioc_setup(void)
 
 	/*
 	 * If IOC was already enabled (due to bootloader) it technically needs to
-	 * be reconfigured with aperture base,size corresponding to Linux memory map
+	 * be reconfigured with aperture base,size corresponding to GNU/Linux memory map
 	 * which will certainly be different than uboot's. But disabling and
 	 * reenabling IOC when DMA might be potentially active is tricky business.
 	 * To avoid random memory issues later, just panic here and ask user to

@@ -69,7 +69,7 @@
 
 struct at24_data {
 	/*
-	 * Lock protects against activities from other Linux tasks,
+	 * Lock protects against activities from other GNU/Linux tasks,
 	 * but not from changes by other I2C masters.
 	 */
 	struct mutex lock;

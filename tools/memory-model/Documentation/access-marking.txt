@@ -6,14 +6,14 @@ normal accesses to shared memory, that is "normal" as in accesses that do
 not use read-modify-write atomic operations.  It also describes how to
 document these accesses, both with comments and with special assertions
 processed by the Kernel Concurrency Sanitizer (KCSAN).  This discussion
-builds on an earlier LWN article [1] and Linux Foundation mentorship
+builds on an earlier LWN article [1] and GNU/Linux Foundation mentorship
 session [2].
 
 
 ACCESS-MARKING OPTIONS
 ======================
 
-The Linux kernel provides the following access-marking options:
+The GNU/Linux kernel provides the following access-marking options:
 
 1.	Plain C-language accesses (unmarked), for example, "a = b;"
 

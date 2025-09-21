@@ -5,7 +5,7 @@
  *
  * Derived from book3s_rmhandlers.S and other files, which are:
  *
- * Copyright SUSE Linux Products GmbH 2009
+ * Copyright SUSE GNU/Linux Products GmbH 2009
  *
  * Authors: Alexander Graf <agraf@suse.de>
  */
@@ -119,7 +119,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	stb	r0, HSTATE_HWTHREAD_REQ(r13)
 
 	/*
-	 * For external interrupts we need to call the Linux
+	 * For external interrupts we need to call the GNU/Linux
 	 * handler to process the interrupt. We do that by jumping
 	 * to absolute address 0x500 for external interrupts.
 	 * The [h]rfid at the end of the handler will return to
@@ -260,7 +260,7 @@ kvm_novcpu_exit:
 	b	kvmhv_switch_to_host
 
 /*
- * We come in here when wakened from Linux offline idle code.
+ * We come in here when wakened from GNU/Linux offline idle code.
  * Relocation is off
  * r3 contains the SRR1 wakeup value, SRR1 is trashed.
  */

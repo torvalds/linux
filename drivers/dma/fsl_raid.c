@@ -44,12 +44,12 @@
  * General capabilities:
  *	RAID Engine (RE) block is capable of offloading XOR, memcpy and P/Q
  *	calculations required in RAID5 and RAID6 operations. RE driver
- *	registers with Linux's ASYNC layer as dma driver. RE hardware
+ *	registers with GNU/Linux's ASYNC layer as dma driver. RE hardware
  *	maintains strict ordering of the requests through chained
  *	command queueing.
  *
  * Data flow:
- *	Software RAID layer of Linux (MD layer) maintains RAID partitions,
+ *	Software RAID layer of GNU/Linux (MD layer) maintains RAID partitions,
  *	strips, stripes etc. It sends requests to the underlying ASYNC layer
  *	which further passes it to RE driver. ASYNC layer decides which request
  *	goes to which job ring of RE hardware. For every request processed by
@@ -443,7 +443,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_pq(
 	}
 
 	/*
-	 * During RAID6 array creation, Linux's MD layer gets P and Q
+	 * During RAID6 array creation, GNU/Linux's MD layer gets P and Q
 	 * calculated separately in two steps. But our RAID Engine has
 	 * the capability to calculate both P and Q with a single command
 	 * Hence to merge well with MD layer, we need to provide a hook
@@ -520,7 +520,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_pq(
 /*
  * Prep function for memcpy. In RAID Engine, memcpy is done through MOVE
  * command. Logic of this function will need to be modified once multipage
- * support is added in Linux's MD/ASYNC Layer
+ * support is added in GNU/Linux's MD/ASYNC Layer
  */
 static struct dma_async_tx_descriptor *fsl_re_prep_dma_memcpy(
 		struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,

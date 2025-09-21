@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This file was based upon code in Powertweak Linux (http://powertweak.sf.net)
+ *  This file was based upon code in Powertweak GNU/Linux (http://powertweak.sf.net)
  *  (C) 2000-2003  Dave Jones, Arjan van de Ven, Janne Pänkälä,
  *                 Dominik Brodowski.
  *

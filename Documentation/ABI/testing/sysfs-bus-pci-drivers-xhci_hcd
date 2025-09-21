@@ -34,7 +34,7 @@ Description:
 		Value can only be changed while debug capability (DbC) is in
 		disabled state to prevent USB device descriptor change while
 		connected to a USB host.
-		The default value is 0x1d6b (Linux Foundation).
+		The default value is 0x1d6b (GNU/Linux Foundation).
 		It can be any 16-bit integer.
 
 What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_idProduct

@@ -47,13 +47,13 @@
 /**
  * struct tpmi_cpu_info - Mapping information for a CPU
  * @hnode: Used to add mapping information to hash list
- * @linux_cpu:	Linux CPU number
+ * @linux_cpu:	GNU/Linux CPU number
  * @pkg_id: Package ID of this CPU
  * @punit_thread_id: Punit thread id of this CPU
  * @punit_core_id: Punit core id
  * @punit_domain_id: Power domain id from Punit
  *
- * Structure to store mapping information for a Linux CPU
+ * Structure to store mapping information for a GNU/Linux CPU
  * to a Punit core, thread and power domain.
  */
 struct tpmi_cpu_info {

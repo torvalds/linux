@@ -16,7 +16,7 @@ description: |
   However, there is no specified way of knowing if the sent data has been read
   by the remote. This driver assumes the sender polls STAT register and the
   remote clears it after having read the data.  The last channel is specified to
-  be a 'Secure' resource, hence can't be used by Linux running NS.
+  be a 'Secure' resource, hence can't be used by GNU/Linux running NS.
 
   The MHU hardware also allows operations in doorbell mode. The MHU drives the
   interrupt signal using a 32-bit register, with all 32-bits logically ORed

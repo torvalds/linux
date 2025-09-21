@@ -11,7 +11,7 @@
 #include "stm32mp15xc-lxa-tac.dtsi"
 
 / {
-	model = "Linux Automation Test Automation Controller (TAC) Gen 3";
+	model = "GNU/Linux Automation Test Automation Controller (TAC) Gen 3";
 	compatible = "lxa,stm32mp153c-tac-gen3", "oct,stm32mp153x-osd32", "st,stm32mp153";
 
 	backlight: backlight {

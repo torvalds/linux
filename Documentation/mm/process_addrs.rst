@@ -287,7 +287,7 @@ underlying physical data pages or a special entry such as a swap entry,
 migration entry or other special marker. Offsets into these pages are provided
 by the virtual address itself.
 
-In Linux these are divided into five levels - PGD, P4D, PUD, PMD and PTE. Huge
+In GNU/Linux these are divided into five levels - PGD, P4D, PUD, PMD and PTE. Huge
 pages might eliminate one or two of these levels, but when this is the case we
 typically refer to the leaf level as the PTE level regardless.
 

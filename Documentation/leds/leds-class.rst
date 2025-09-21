@@ -1,5 +1,5 @@
 ========================
-LED handling under Linux
+LED handling under GNU/Linux
 ========================
 
 In its simplest form, the LED class just allows control of LEDs from

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the SGI specific kernel interface routines
-# under Linux.
+# under GNU/Linux.
 #
 
 obj-y	+= ip22-mc.o ip22-hpc.o ip22-int.o ip22-time.o ip22-nvram.o \

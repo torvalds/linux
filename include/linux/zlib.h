@@ -36,7 +36,7 @@
 /* zlib inflate based on ZLIB_VERSION "1.2.3" */
 
 /*
-  This is a modified version of zlib for use inside the Linux kernel.
+  This is a modified version of zlib for use inside the GNU/Linux kernel.
   The main changes are to perform all memory allocation in advance.
 
   Inflation Changes:

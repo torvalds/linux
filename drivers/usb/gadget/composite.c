@@ -339,7 +339,7 @@ int usb_add_function(struct usb_configuration *config,
 		value = 0;
 
 	/* We allow configurations that don't work at both speeds.
-	 * If we run into a lowspeed Linux system, treat it the same
+	 * If we run into a lowspeed GNU/Linux system, treat it the same
 	 * as full speed ... it's the function drivers that will need
 	 * to avoid bulk and ISO transfers.
 	 */

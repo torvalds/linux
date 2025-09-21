@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===============================
-Linux Drivers for Baycom Modems
+GNU/Linux Drivers for Baycom Modems
 ===============================
 
 Thomas M. Sailer, HB9JNX/AE4WA, <sailer@ife.ee.ethz.ch>
@@ -10,7 +10,7 @@ The drivers for the baycom modems have been split into
 separate drivers as they did not share any code, and the driver
 and device names have changed.
 
-This document describes the Linux Kernel Drivers for simple Baycom style
+This document describes the GNU/Linux Kernel Drivers for simple Baycom style
 amateur radio modems.
 
 The following drivers are available:
@@ -150,7 +150,7 @@ picpar  the picpar modem features a builtin DCD hardware, which is highly
 
 
 
-Compatibility with the rest of the Linux kernel
+Compatibility with the rest of the GNU/Linux kernel
 ===============================================
 
 The serial driver and the baycom serial drivers compete

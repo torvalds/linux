@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/SuperH kernel.
+# Makefile for the GNU/Linux/SuperH kernel.
 #
 
 always-$(KBUILD_BUILTIN)	:= vmlinux.lds

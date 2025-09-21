@@ -248,7 +248,7 @@ static int radio_tea5777_update_read_reg(struct radio_tea5777 *tea, int wait)
 }
 
 /*
- * Linux Video interface
+ * GNU/Linux Video interface
  */
 
 static int vidioc_querycap(struct file *file, void  *priv,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* radio-trust.c - Trust FM Radio card driver for Linux 2.2
+/* radio-trust.c - Trust FM Radio card driver for GNU/Linux 2.2
  * by Eric Lammerts <eric@scintilla.utwente.nl>
  *
  * Based on radio-aztech.c. Original notes:
  *
- * Adapted to support the Video for Linux API by
+ * Adapted to support the Video for GNU/Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:
  *
  * Quay Ly

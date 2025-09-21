@@ -10,7 +10,7 @@
  * The following resources/projects were referenced for this driver:
  *   https://github.com/dekuNukem/Nintendo_Switch_Reverse_Engineering
  *   https://gitlab.com/pjranki/joycon-linux-kernel (Peter Rankin)
- *   https://github.com/FrotBot/SwitchProConLinuxUSB
+ *   https://github.com/FrotBot/SwitchProConGNU/LinuxUSB
  *   https://github.com/MTCKC/ProconXInput
  *   https://github.com/Davidobot/BetterJoyForCemu
  *   hid-wiimote kernel hid driver
@@ -2664,7 +2664,7 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	/*
 	 * Patch the hw version of pro controller/joycons, so applications can
 	 * distinguish between the default HID mappings and the mappings defined
-	 * by the Linux game controller spec. This is important for the SDL2
+	 * by the GNU/Linux game controller spec. This is important for the SDL2
 	 * library, which has a game controller database, which uses device ids
 	 * in combination with version as a key.
 	 */

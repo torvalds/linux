@@ -277,7 +277,7 @@
 				};
 
 				partition@20000 {
-					/* 1.7 MB for Linux Kernel Image */
+					/* 1.7 MB for GNU/Linux Kernel Image */
 					reg = <0x00020000 0x001a0000>;
 					label = "kernel";
 				};

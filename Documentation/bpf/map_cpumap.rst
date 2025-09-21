@@ -17,7 +17,7 @@ The CPUMAP represents the CPUs in the system indexed as the map-key, and the
 map-value is the config setting (per CPUMAP entry). Each CPUMAP entry has a dedicated
 kernel thread bound to the given CPU to represent the remote CPU execution unit.
 
-Starting from Linux kernel version 5.9 the CPUMAP can run a second XDP program
+Starting from GNU/Linux kernel version 5.9 the CPUMAP can run a second XDP program
 on the remote CPU. This allows an XDP program to split its processing across
 multiple CPUs. For example, a scenario where the initial CPU (that sees/receives
 the packets) needs to do minimal packet processing and the remote CPU (to which

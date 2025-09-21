@@ -1,6 +1,6 @@
 .. _serial_console:
 
-Linux Serial Console
+GNU/Linux Serial Console
 ====================
 
 To use a serial port as console you need to compile the support into your

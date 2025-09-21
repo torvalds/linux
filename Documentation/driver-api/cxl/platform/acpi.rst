@@ -26,7 +26,7 @@ The SRAT table may also contain generic port/initiator content that is intended
 to describe the generic port, but not information about the rest of the path to
 the endpoint.
 
-Linux uses these tables to configure kernel resources for statically configured
+GNU/Linux uses these tables to configure kernel resources for statically configured
 (by BIOS/EFI) CXL devices, such as:
 
 - NUMA nodes

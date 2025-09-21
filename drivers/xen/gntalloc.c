@@ -15,9 +15,9 @@
  */
 
 /*
- * This driver exists to allow userspace programs in Linux to allocate kernel
+ * This driver exists to allow userspace programs in GNU/Linux to allocate kernel
  * memory that will later be shared with another domain.  Without this device,
- * Linux userspace programs cannot create grant references.
+ * GNU/Linux userspace programs cannot create grant references.
  *
  * How this stuff works:
  *   X -> granting a page to Y

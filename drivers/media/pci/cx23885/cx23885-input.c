@@ -9,7 +9,7 @@
  *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  *
  *  However, the cx23885_input_{init,fini} functions contained herein are
- *  derived from Linux kernel files linux/media/video/.../...-input.c marked as:
+ *  derived from GNU/Linux kernel files linux/media/video/.../...-input.c marked as:
  *
  *  Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
  *  Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH GNU/Linux-syscall-note */
 /*
  *  User API methods for ACPI-WMI mapping driver
  *

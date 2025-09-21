@@ -1208,7 +1208,7 @@ static int snd_pcm_oss_capture_position_fixup(struct snd_pcm_substream *substrea
 		runtime = substream->runtime;
 		if (*delay <= (snd_pcm_sframes_t)runtime->buffer_size)
 			break;
-		/* in case of overrun, skip whole periods like OSS/Linux driver does */
+		/* in case of overrun, skip whole periods like OSS/GNU/Linux driver does */
 		/* until avail(delay) <= buffer_size */
 		frames = (*delay - runtime->buffer_size) + runtime->period_size - 1;
 		frames /= runtime->period_size;

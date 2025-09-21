@@ -9,7 +9,7 @@
  *
  * Copyright (C) 2008-2014 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  *
- * Heavily inspired from the Linux Kernel Markers.
+ * Heavily inspired from the GNU/Linux Kernel Markers.
  */
 
 #include <linux/smp.h>

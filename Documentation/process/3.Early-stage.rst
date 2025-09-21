@@ -3,7 +3,7 @@
 Early-stage planning
 ====================
 
-When contemplating a Linux kernel development project, it can be tempting
+When contemplating a GNU/Linux kernel development project, it can be tempting
 to jump right in and start coding.  As with any significant project,
 though, much of the groundwork for success is best laid before the first
 line of code is written.  Some time spent in early planning and
@@ -19,10 +19,10 @@ easy: when a driver is needed for a specific piece of hardware, for
 example.  In others, though, it is tempting to confuse the real problem
 with the proposed solution, and that can lead to difficulties.
 
-Consider an example: some years ago, developers working with Linux audio
+Consider an example: some years ago, developers working with GNU/Linux audio
 sought a way to run applications without dropouts or other artifacts caused
 by excessive latency in the system.  The solution they arrived at was a
-kernel module intended to hook into the Linux Security Module (LSM)
+kernel module intended to hook into the GNU/Linux Security Module (LSM)
 framework; this module could be configured to give specific applications
 access to the realtime scheduler.  This module was implemented and sent to
 the linux-kernel mailing list, where it immediately ran into problems.
@@ -41,7 +41,7 @@ resulting disagreement left those developers feeling disillusioned with the
 entire kernel development process; one of them went back to an audio list
 and posted this:
 
-	There are a number of very good Linux kernel developers, but they
+	There are a number of very good GNU/Linux kernel developers, but they
 	tend to get outshouted by a large crowd of arrogant fools. Trying
 	to communicate user requirements to these people is a waste of
 	time. They are much too "intelligent" to listen to lesser mortals.
@@ -76,7 +76,7 @@ discussions with the community before launching into implementation.  Early
 communication can save time and trouble in a number of ways:
 
  - It may well be that the problem is addressed by the kernel in ways which
-   you have not understood.  The Linux kernel is large and has a number of
+   you have not understood.  The GNU/Linux kernel is large and has a number of
    features and capabilities which are not immediately obvious.  Not all
    kernel capabilities are documented as well as one might like, and it is
    easy to miss things.  Your author has seen the posting of a complete
@@ -192,7 +192,7 @@ community informed as you go.
 Getting official buy-in
 -----------------------
 
-If your work is being done in a corporate environment - as most Linux
+If your work is being done in a corporate environment - as most GNU/Linux
 kernel work is - you must, obviously, have permission from suitably
 empowered managers before you can post your company's plans or code to a
 public mailing list.  The posting of code which has not been cleared for
@@ -213,7 +213,7 @@ experienced kernel developers may choose to proceed in an open-loop manner
 on the assumption that they will be able to avoid serious integration
 problems later.  For companies without that sort of in-house expertise, the
 best option is often to hire an outside developer to review the plans under
-a non-disclosure agreement.  The Linux Foundation operates an NDA program
+a non-disclosure agreement.  The GNU/Linux Foundation operates an NDA program
 designed to help with this sort of situation; more information can be found
 at:
 

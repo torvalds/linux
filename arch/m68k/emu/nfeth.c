@@ -1,5 +1,5 @@
 /*
- * atari_nfeth.c - ARAnyM ethernet card driver for GNU/Linux
+ * atari_nfeth.c - ARAnyM ethernet card driver for GNU/GNU/Linux
  *
  * Copyright (c) 2005 Milan Jurik, Petr Stehlik of ARAnyM dev team
  *

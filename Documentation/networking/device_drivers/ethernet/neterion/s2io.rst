@@ -17,7 +17,7 @@ Release notes for Neterion's (Formerly S2io) Xframe I/II PCI-X 10GbE driver.
 
 1. Introduction
 ===============
-This Linux driver supports Neterion's Xframe I PCI-X 1.0 and
+This GNU/Linux driver supports Neterion's Xframe I PCI-X 1.0 and
 Xframe II PCI-X 2.0 adapters. It supports several features
 such as jumbo frames, MSI/MSI-X, checksum offloads, TSO, UFO and so on.
 See below for complete list of features.

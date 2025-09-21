@@ -1,5 +1,5 @@
 /*
- * Linux ARCnet driver - "cap mode" packet encapsulation.
+ * GNU/Linux ARCnet driver - "cap mode" packet encapsulation.
  * It adds sequence numbers to packets for communicating between a user space
  * application and the driver. After a transmit it sends a packet with protocol
  * byte 0 back up to the userspace containing the sequence number of the packet

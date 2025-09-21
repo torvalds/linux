@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /*
- *  Linux logo to be displayed on boot
+ *  GNU/Linux logo to be displayed on boot
  *
  *  Copyright (C) 1996 Larry Ewing (lewing@isc.tamu.edu)
  *  Copyright (C) 1996,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
@@ -50,54 +50,54 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 
 	if (depth >= 1) {
 #ifdef CONFIG_LOGO_LINUX_MONO
-		/* Generic Linux logo */
+		/* Generic GNU/Linux logo */
 		logo = &logo_linux_mono;
 #endif
 #ifdef CONFIG_LOGO_SUPERH_MONO
-		/* SuperH Linux logo */
+		/* SuperH GNU/Linux logo */
 		logo = &logo_superh_mono;
 #endif
 	}
 	
 	if (depth >= 4) {
 #ifdef CONFIG_LOGO_LINUX_VGA16
-		/* Generic Linux logo */
+		/* Generic GNU/Linux logo */
 		logo = &logo_linux_vga16;
 #endif
 #ifdef CONFIG_LOGO_SUPERH_VGA16
-		/* SuperH Linux logo */
+		/* SuperH GNU/Linux logo */
 		logo = &logo_superh_vga16;
 #endif
 	}
 	
 	if (depth >= 8) {
 #ifdef CONFIG_LOGO_LINUX_CLUT224
-		/* Generic Linux logo */
+		/* Generic GNU/Linux logo */
 		logo = &logo_linux_clut224;
 #endif
 #ifdef CONFIG_LOGO_DEC_CLUT224
-		/* DEC Linux logo on MIPS/MIPS64 or ALPHA */
+		/* DEC GNU/Linux logo on MIPS/MIPS64 or ALPHA */
 		logo = &logo_dec_clut224;
 #endif
 #ifdef CONFIG_LOGO_MAC_CLUT224
-		/* Macintosh Linux logo on m68k */
+		/* Macintosh GNU/Linux logo on m68k */
 		if (MACH_IS_MAC)
 			logo = &logo_mac_clut224;
 #endif
 #ifdef CONFIG_LOGO_PARISC_CLUT224
-		/* PA-RISC Linux logo */
+		/* PA-RISC GNU/Linux logo */
 		logo = &logo_parisc_clut224;
 #endif
 #ifdef CONFIG_LOGO_SGI_CLUT224
-		/* SGI Linux logo on MIPS/MIPS64 */
+		/* SGI GNU/Linux logo on MIPS/MIPS64 */
 		logo = &logo_sgi_clut224;
 #endif
 #ifdef CONFIG_LOGO_SUN_CLUT224
-		/* Sun Linux logo */
+		/* Sun GNU/Linux logo */
 		logo = &logo_sun_clut224;
 #endif
 #ifdef CONFIG_LOGO_SUPERH_CLUT224
-		/* SuperH Linux logo */
+		/* SuperH GNU/Linux logo */
 		logo = &logo_superh_clut224;
 #endif
 	}

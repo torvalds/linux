@@ -360,7 +360,7 @@ static const unsigned int buzz_keymap[] = {
 /* The Navigation controller is a partial DS3 and uses the same HID report
  * and hence the same keymap indices, however not all axes/buttons
  * are physically present. We use the same axis and button mapping as
- * the DS3, which uses the Linux gamepad spec.
+ * the DS3, which uses the GNU/Linux gamepad spec.
  */
 static const unsigned int navigation_absmap[] = {
 	[0x30] = ABS_X,
@@ -2093,7 +2093,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	/* Patch the hw version on DS3 compatible devices, so applications can
 	 * distinguish between the default HID mappings and the mappings defined
-	 * by the Linux game controller spec. This is important for the SDL2
+	 * by the GNU/Linux game controller spec. This is important for the SDL2
 	 * library, which has a game controller database, which uses device ids
 	 * in combination with version as a key.
 	 */

@@ -11,7 +11,7 @@
  *
  *	Thanks to Intel for making available several different Pentium,
  *	Pentium Pro and Pentium-II/Xeon MP machines.
- *	Original development of Linux SMP code supported by Caldera.
+ *	Original development of GNU/Linux SMP code supported by Caldera.
  *
  *	Fixes
  *		Felix Koop	:	NR_CPUS used properly

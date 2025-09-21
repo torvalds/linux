@@ -65,7 +65,7 @@
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
-MODULE_DESCRIPTION("USB Mass Storage driver for Linux");
+MODULE_DESCRIPTION("USB Mass Storage driver for GNU/Linux");
 MODULE_LICENSE("GPL");
 
 static unsigned int delay_use = 1 * MSEC_PER_SEC;

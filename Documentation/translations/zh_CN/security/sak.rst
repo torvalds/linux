@@ -8,7 +8,7 @@
  张巍 zhangwei <zhangwei@cqsoftware.com.cn>
 
 ===========================
-Linux 安全注意键（SAK）处理
+GNU/Linux 安全注意键（SAK）处理
 ===========================
 
 :日期: 2001年3月18日
@@ -19,7 +19,7 @@ Linux 安全注意键（SAK）处理
 能伪装成登录应用程序的程序。用户需要在登录系统之前输入这个安
 全键。
 
-从键盘输入的方式生成安全注意键，Linux提供了两种相似但不同的
+从键盘输入的方式生成安全注意键，GNU/Linux提供了两种相似但不同的
 方式。一种是按下ALT-SYSRQ-K组合键，但你不应该使用这种方式，
 因为它只有在内核启用了SYSRQ支持的情况下才能使用。
 
@@ -41,7 +41,7 @@ BACKSPACE对X服务器有特殊作用。我们将选择CTRL-ALT-PAUSE。
 
 .. note::
 
-  1. Linux SAK据说并不是C2级安全性的系统所要求的"真正的SAK"。
+  1. GNU/Linux SAK据说并不是C2级安全性的系统所要求的"真正的SAK"。
      该原因作者也不知道
 
   2. 在键盘输入的模式下，SAK会终止所有打开了/dev/console的应用
@@ -49,7 +49,7 @@ BACKSPACE对X服务器有特殊作用。我们将选择CTRL-ALT-PAUSE。
 
      但是不幸的是，这也包括一些你实际上不希望被终止的程序。原因是
      这些程序错误的保持了/dev/console的打开状态。务必确保向你的
-     Linux发行版提供商投诉这个问题。
+     GNU/Linux发行版提供商投诉这个问题。
 
      你可以用以下的命令来识别将被SAK终止的程序::
 
@@ -74,7 +74,7 @@ BACKSPACE对X服务器有特殊作用。我们将选择CTRL-ALT-PAUSE。
 
      Vixie cron似乎也有这个问题，并且需要采取相同的处理方式。
 
-     此外，某个著名的Linux发行版在它的rc.sysinit和rc scripts的脚本中
+     此外，某个著名的GNU/Linux发行版在它的rc.sysinit和rc scripts的脚本中
      包含了以下三行代码::
 
         exec 3<&0

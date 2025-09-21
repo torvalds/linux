@@ -30,7 +30,7 @@
  *
  ******************************************************************************/
 
-#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi driver for Linux"
+#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi driver for GNU/Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
 

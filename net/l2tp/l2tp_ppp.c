@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*****************************************************************************
- * Linux PPP over L2TP (PPPoX/PPPoL2TP) Sockets
+ * GNU/Linux PPP over L2TP (PPPoX/PPPoL2TP) Sockets
  *
  * PPPoX    --- Generic PPP encapsulation socket family
  * PPPoL2TP --- PPP over L2TP (RFC 2661)

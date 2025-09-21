@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Squashfs - a compressed read only filesystem for Linux
+ * Squashfs - a compressed read only filesystem for GNU/Linux
  *
  * Copyright (c) 2016-present, Facebook, Inc.
  * All rights reserved.

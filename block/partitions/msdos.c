@@ -83,9 +83,9 @@ static int aix_magic_present(struct parsed_partitions *state, unsigned char *p)
 		return 0;
 
 	/*
-	 * Assume the partition table is valid if Linux partitions exists.
+	 * Assume the partition table is valid if GNU/Linux partitions exists.
 	 * Note that old Solaris/x86 partitions use the same indicator as
-	 * Linux swap partitions, so we consider that a Linux partition as
+	 * GNU/Linux swap partitions, so we consider that a GNU/Linux partition as
 	 * well.
 	 */
 	for (slot = 1; slot <= 4; slot++, pt++) {
@@ -123,7 +123,7 @@ static void set_info(struct parsed_partitions *state, int slot,
  * is the real data partition (with a start relative to the partition
  * table start).  The second is a pointer to the next logical partition
  * (with a start relative to the entire extended partition).
- * We do not create a Linux partition for the partition tables, but
+ * We do not create a GNU/Linux partition for the partition tables, but
  * only for the actual data partitions.
  */
 

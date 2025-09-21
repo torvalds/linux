@@ -495,7 +495,7 @@ struct device_physical_location {
  * @driver:	Which driver has allocated this
  * @platform_data: Platform data specific to the device.
  * 		Example: For devices on custom boards, as typical of embedded
- * 		and SOC based hardware, Linux often uses platform_data to point
+ * 		and SOC based hardware, GNU/Linux often uses platform_data to point
  * 		to board-specific structures describing devices and how they
  * 		are wired.  That can include what ports are available, chip
  * 		variants, which GPIO pins act in what additional roles, and so
@@ -571,7 +571,7 @@ struct device_physical_location {
  * @dma_iommu: Device is using default IOMMU implementation for DMA and
  *		doesn't rely on dma_ops structure.
  *
- * At the lowest level, every device in a Linux system is represented by an
+ * At the lowest level, every device in a GNU/Linux system is represented by an
  * instance of struct device. The device structure contains the information
  * that the device model core needs to model the system. Most subsystems,
  * however, track additional information about the devices they host. As a

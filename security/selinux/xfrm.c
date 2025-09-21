@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Security-Enhanced Linux (SELinux) security module
+ *  Security-Enhanced GNU/Linux (SEGNU/Linux) security module
  *
- *  This file contains the SELinux XFRM hook function implementations.
+ *  This file contains the SEGNU/Linux XFRM hook function implementations.
  *
  *  Authors:  Serge Hallyn <sergeh@us.ibm.com>
  *	      Trent Jaeger <jaegert@us.ibm.com>
@@ -50,7 +50,7 @@
 atomic_t selinux_xfrm_refcount __read_mostly = ATOMIC_INIT(0);
 
 /*
- * Returns true if the context is an LSM/SELinux context.
+ * Returns true if the context is an LSM/SEGNU/Linux context.
  */
 static inline int selinux_authorizable_ctx(struct xfrm_sec_ctx *ctx)
 {
@@ -60,7 +60,7 @@ static inline int selinux_authorizable_ctx(struct xfrm_sec_ctx *ctx)
 }
 
 /*
- * Returns true if the xfrm contains a security blob for SELinux.
+ * Returns true if the xfrm contains a security blob for SEGNU/Linux.
  */
 static inline int selinux_authorizable_xfrm(struct xfrm_state *x)
 {
@@ -187,7 +187,7 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			return 0;
 		else
 			if (!selinux_authorizable_xfrm(x))
-				/* Not a SELinux-labeled SA */
+				/* Not a SEGNU/Linux-labeled SA */
 				return 0;
 
 	state_sid = x->security->ctx_sid;

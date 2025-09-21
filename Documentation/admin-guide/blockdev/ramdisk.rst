@@ -1,5 +1,5 @@
 ==========================================
-Using the RAM disk block device with Linux
+Using the RAM disk block device with GNU/Linux
 ==========================================
 
 .. Contents:
@@ -63,7 +63,7 @@ default is 4096 (4 MB).
 ---------------
 
 "rdev" is an obsolete, deprecated, antiquated utility that could be used
-to set the boot device in a Linux kernel image.
+to set the boot device in a GNU/Linux kernel image.
 
 Instead of using rdev, just place the boot device information on the
 kernel command line and pass it to the kernel from the bootloader.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Acorn RiscPC mouse driver for Linux/ARM
+ *  Acorn RiscPC mouse driver for GNU/Linux/ARM
  *
  *  Copyright (c) 2000-2002 Vojtech Pavlik
  *  Copyright (C) 1996-2002 Russell King

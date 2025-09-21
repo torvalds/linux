@@ -19,7 +19,7 @@ grep -E "^[0-9A-Fa-fXx]+[[:space:]]+${my_abis}" "$in" | sort -n | (
 		nxt=$((nr+1))
 	done
 
-	printf "#define __NR_%s_Linux_syscalls\t%s\n" "${prefix}" "${nxt}"
+	printf "#define __NR_%s_GNU/Linux_syscalls\t%s\n" "${prefix}" "${nxt}"
 	printf "\n"
 	printf "#endif /* %s */" "${fileguard}"
 	printf "\n"

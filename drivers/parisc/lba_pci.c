@@ -1408,7 +1408,7 @@ lba_hw_init(struct lba_device *d)
 	 * In SoftFail mode "~0L" is returned as a result of a timeout on the
 	 * pci bus. This is like how PCI busses on x86 and most other
 	 * architectures behave.  In order to increase compatibility with
-	 * existing (x86) PCI hardware and existing Linux drivers we enable
+	 * existing (x86) PCI hardware and existing GNU/Linux drivers we enable
 	 * Soft Faul mode on PA-RISC now too.
 	 */
         stat = READ_REG32(d->hba.base_addr + LBA_STAT_CTL);

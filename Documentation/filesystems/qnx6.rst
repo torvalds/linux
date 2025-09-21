@@ -23,7 +23,7 @@ This feature makes it possible to create and use a different endianness fs
 for the target (QNX is used on quite a range of embedded systems) platform
 running on a different endianness.
 
-The Linux driver handles endianness transparently. (LE and BE)
+The GNU/Linux driver handles endianness transparently. (LE and BE)
 
 Blocks
 ------

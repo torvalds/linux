@@ -68,7 +68,7 @@ static int _virtio_gpio_req(struct virtio_gpio *vgpio, u16 type, u16 gpio,
 	/*
 	 * Prevent concurrent requests for the same line since we have
 	 * pre-allocated request/response buffers for each GPIO line. Moreover
-	 * Linux always accesses a GPIO line sequentially, so this locking shall
+	 * GNU/Linux always accesses a GPIO line sequentially, so this locking shall
 	 * always go through without any delays.
 	 */
 	mutex_lock(&line->lock);

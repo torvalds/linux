@@ -7,13 +7,13 @@ INTRODUCTION
 ============
 
 This directory contains the memory consistency model (memory model, for
-short) of the Linux kernel, written in the "cat" language and executable
+short) of the GNU/Linux kernel, written in the "cat" language and executable
 by the externally provided "herd7" simulator, which exhaustively explores
 the state space of small litmus tests.
 
 In addition, the "klitmus7" tool (also externally provided) may be used
-to convert a litmus test to a Linux kernel module, which in turn allows
-that litmus test to be exercised within the Linux kernel.
+to convert a litmus test to a GNU/Linux kernel module, which in turn allows
+that litmus test to be exercised within the GNU/Linux kernel.
 
 
 ============
@@ -32,7 +32,7 @@ this is not absolutely guaranteed.
 
 For example, a future version of herd7 might not work with the model
 in this release.  A compatible model will likely be made available in
-a later release of Linux kernel.
+a later release of GNU/Linux kernel.
 
 If you absolutely need to run the model in this particular release,
 please try using the exact version called out above.
@@ -49,7 +49,7 @@ klitmus7 Compatibility Table
 ----------------------------
 
 	============  ==========
-	target Linux  herdtools7
+	target GNU/Linux  herdtools7
 	------------  ----------
 	     -- 4.14  7.48 --
 	4.15 -- 4.19  7.49 --
@@ -68,7 +68,7 @@ explore the state space of small litmus tests.  Documentation describing
 the format, features, capabilities and limitations of these litmus
 tests is available in tools/memory-model/Documentation/litmus-tests.txt.
 
-Example litmus tests may be found in the Linux-kernel source tree:
+Example litmus tests may be found in the GNU/Linux-kernel source tree:
 
 	tools/memory-model/litmus-tests/
 	Documentation/litmus-tests/
@@ -121,7 +121,7 @@ people focusing on writing, understanding, and running LKMM litmus tests.
 BASIC USAGE: KLITMUS7
 =====================
 
-The "klitmus7" tool converts a litmus test into a Linux kernel module,
+The "klitmus7" tool converts a litmus test into a GNU/Linux kernel module,
 which may then be loaded and run.
 
 For example, to run SB+fencembonceonces.litmus against hardware:

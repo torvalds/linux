@@ -80,7 +80,7 @@ typedef unsigned short u16;
 #endif
 
 /*
- * In principle, this test can run on Linux emulation layers (e.g.
+ * In principle, this test can run on GNU/Linux emulation layers (e.g.
  * Illumos "LX branded zones").  Solaris-based kernels reserve LDT
  * entries 0-5 for their own internal purposes, so start our LDT
  * allocations above that reservation.  (The tests don't pass on LX
@@ -378,7 +378,7 @@ static void validate_signal_ss(int sig, ucontext_t *ctx)
 		nerrs++;
 
 		/*
-		 * This happens on Linux 4.1.  The rest will fail, too, so
+		 * This happens on GNU/Linux 4.1.  The rest will fail, too, so
 		 * return now to reduce the noise.
 		 */
 		return;
@@ -776,7 +776,7 @@ int main()
 
 	if (gdt_data16_idx) {
 		/*
-		 * For performance reasons, Linux skips espfix if SS points
+		 * For performance reasons, GNU/Linux skips espfix if SS points
 		 * to the GDT.  If we were able to allocate a 16-bit SS in
 		 * the GDT, see if it leaks parts of the kernel stack pointer.
 		 *
@@ -829,9 +829,9 @@ int main()
 	 * This will cause IRET to fail with #SS on the espfix stack.  This
 	 * exercises CVE-2014-9322.
 	 *
-	 * Note that, if espfix is enabled, 64-bit Linux will lose track
+	 * Note that, if espfix is enabled, 64-bit GNU/Linux will lose track
 	 * of the actual cause of failure and report #GP(0) instead.
-	 * This would be very difficult for Linux to avoid, because
+	 * This would be very difficult for GNU/Linux to avoid, because
 	 * espfix64 causes IRET failures to be promoted to #DF, so the
 	 * original exception frame is never pushed onto the stack.
 	 */

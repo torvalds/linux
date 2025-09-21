@@ -31,7 +31,7 @@
 /*
  * "Blacklisting" of certain devices:
  * Device numbers given in the commandline as cio_ignore=... won't be known
- * to Linux.
+ * to GNU/Linux.
  *
  * These can be single devices or ranges of devices
  */

@@ -88,7 +88,7 @@ t_bad88:BAD_TRAP(0x88)                      /* Slowaris System Call          */
 t_bad89:BAD_TRAP(0x89)                      /* Net-B.S. System Call          */
 t_bad8a:BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c) BAD_TRAP(0x8d) BAD_TRAP(0x8e)
 t_bad8f:BAD_TRAP(0x8f)
-t_linux:LINUX_SYSCALL_TRAP                  /* Linux System Call             */
+t_linux:LINUX_SYSCALL_TRAP                  /* GNU/Linux System Call             */
 t_bad91:BAD_TRAP(0x91) BAD_TRAP(0x92) BAD_TRAP(0x93) BAD_TRAP(0x94) BAD_TRAP(0x95)
 t_bad96:BAD_TRAP(0x96) BAD_TRAP(0x97) BAD_TRAP(0x98) BAD_TRAP(0x99) BAD_TRAP(0x9a)
 t_bad9b:BAD_TRAP(0x9b) BAD_TRAP(0x9c) BAD_TRAP(0x9d) BAD_TRAP(0x9e) BAD_TRAP(0x9f)

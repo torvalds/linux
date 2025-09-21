@@ -14,13 +14,13 @@ This version is an almost complete rewrite of the code written by Geert
 Uytterhoeven, which was based on the original TGA console code written by
 Jay Estabrook.
 
-Major new features since Linux 2.0.x:
+Major new features since GNU/Linux 2.0.x:
 
  * Support for multiple resolutions
  * Support for fixed-frequency and other oddball monitors
    (by allowing the video mode to be set at boot time)
 
-User-visible changes since Linux 2.2.x:
+User-visible changes since GNU/Linux 2.2.x:
 
  * Sync-on-green is now handled properly
  * More useful information is printed on bootup

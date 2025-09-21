@@ -91,7 +91,7 @@ Written by Gerard Roudier <groudier@free.fr>
 1. Introduction
 ===============
 
-The initial Linux ncr53c8xx driver has been a port of the ncr driver from
+The initial GNU/Linux ncr53c8xx driver has been a port of the ncr driver from
 FreeBSD that has been achieved in November 1995 by:
 
 	- Gerard Roudier              <groudier@free.fr>
@@ -135,7 +135,7 @@ This short documentation describes the features of the generic and enhanced
 drivers, configuration parameters and control commands available through
 the proc SCSI file system read / write operations.
 
-This driver has been tested OK with linux/i386, Linux/Alpha and Linux/PPC.
+This driver has been tested OK with linux/i386, GNU/Linux/Alpha and GNU/Linux/PPC.
 
 Latest driver version and patches are available at:
 
@@ -633,7 +633,7 @@ CONFIG_SCSI_NCR53C8XX_IOMAPPED       (default answer: n)
     Answer "y" if you suspect your mother board to not allow memory mapped I/O.
 
     May slow down performance a little.  This option is required by
-    Linux/PPC and is used no matter what you select here.  Linux/PPC
+    GNU/Linux/PPC and is used no matter what you select here.  GNU/Linux/PPC
     suffers no performance loss with this option since all IO is memory
     mapped anyway.
 
@@ -1204,7 +1204,7 @@ will not attach controllers set to OFF in the NVRAM.
 The ncr53c8xx always tries to attach all the controllers. Option 0x80 has
 not been added to the ncr53c8xx driver, since it has been reported to
 confuse users who use this driver since a long time. If you desire a
-controller not to be attached by the ncr53c8xx driver at Linux boot, you
+controller not to be attached by the ncr53c8xx driver at GNU/Linux boot, you
 must use the 'excl' driver boot option.
 
 10.6 SCSI BUS checking boot option.
@@ -1354,7 +1354,7 @@ SCSI_NCR_CMD_PER_LUN		(default: SCSI_NCR_MAX_TAGS)
 	Max number of commands queued to a host for a device.
 
 SCSI_NCR_SG_TABLESIZE		(default: SCSI_NCR_MAX_SCATTER-1)
-	Max size of the Linux scatter/gather list.
+	Max size of the GNU/Linux scatter/gather list.
 
 SCSI_NCR_MAX_LUN	(default: 8)
 	Max number of LUNs per target.
@@ -1464,9 +1464,9 @@ least on Pentium systems.
 
 But the conditions of this bug can be met when a SCSI read command is
 performed using a buffer that is 4 DWORDS but not cache-line aligned.
-This cannot happen under Linux when scatter/gather lists are used since
+This cannot happen under GNU/Linux when scatter/gather lists are used since
 they only refer to system buffers that are well aligned. So, a work around
-may only be needed under Linux when a scatter/gather list is not used and
+may only be needed under GNU/Linux when a scatter/gather list is not used and
 when the SCSI DATA IN phase is reentered after a phase mismatch.
 
 15. SCSI problem troubleshooting
@@ -2156,7 +2156,7 @@ In order to support NCR chips on a Big Endian architecture the driver has to
 perform byte reordering each time it is needed. This feature has been
 added to the driver by Cort <cort@cs.nmt.edu> and is available in driver
 version 2.5 and later ones. For the moment Big Endian support has only
-been tested on Linux/PPC (PowerPC).
+been tested on GNU/Linux/PPC (PowerPC).
 
 18.2 NCR chip in Big Endian mode of operations
 ----------------------------------------------

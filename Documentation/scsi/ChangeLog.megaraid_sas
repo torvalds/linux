@@ -303,7 +303,7 @@ Old Version     : 00.00.04.31-rc1
 1.	Add the Tape drive fix to the driver: If the command is for
 	the tape device, set the pthru timeout to the os layer timeout value.
 
-2.	Add Poll_wait mechanism to Gen-2 Linux driv.
+2.	Add Poll_wait mechanism to Gen-2 GNU/Linux driv.
 		In the aen handler, driver needs to wakeup poll handler similar to
 		the way it raises SIGIO.
 
@@ -335,7 +335,7 @@ Old Version     : 00.00.04.31-rc1
 3 Older Version   : 00.00.03.20
 
 1. Add shutdown DCMD cmd to the shutdown routine to make FW shutdown proper.
-2. Unexpected interrupt occurs in HWR Linux driver, add the dumy readl pci flush will fix this issue.
+2. Unexpected interrupt occurs in HWR GNU/Linux driver, add the dumy readl pci flush will fix this issue.
 
 1 Release Date    : Mon. March 10 11:02:31 PDT 2008 -
 			(emaild-id:megaraidlinux@lsi.com)

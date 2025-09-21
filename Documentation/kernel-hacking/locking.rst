@@ -10,11 +10,11 @@ Introduction
 ============
 
 Welcome, to Rusty's Remarkably Unreliable Guide to Kernel Locking
-issues. This document describes the locking systems in the Linux Kernel
+issues. This document describes the locking systems in the GNU/Linux Kernel
 in 2.6.
 
 With the wide availability of HyperThreading, and preemption in the
-Linux Kernel, everyone hacking on the kernel needs to know the
+GNU/Linux Kernel, everyone hacking on the kernel needs to know the
 fundamentals of concurrency and locking for SMP.
 
 The Problem With Concurrency
@@ -77,7 +77,7 @@ Race Conditions and Critical Regions
 This overlap, where the result depends on the relative timing of
 multiple tasks, is called a race condition. The piece of code containing
 the concurrency issue is called a critical region. And especially since
-Linux starting running on SMP machines, they became one of the major
+GNU/Linux starting running on SMP machines, they became one of the major
 issues in kernel design and implementation.
 
 Preemption can have the same effect, even if there is only one CPU: by
@@ -87,11 +87,11 @@ critical region itself.
 
 The solution is to recognize when these simultaneous accesses occur, and
 use locks to make sure that only one instance can enter the critical
-region at any time. There are many friendly primitives in the Linux
+region at any time. There are many friendly primitives in the GNU/Linux
 kernel to help you do this. And then there are the unfriendly
 primitives, but I'll pretend they don't exist.
 
-Locking in the Linux Kernel
+Locking in the GNU/Linux Kernel
 ===========================
 
 If I could give you one piece of advice on locking: **keep it simple**.
@@ -876,7 +876,7 @@ Deadlock: Simple and Advanced
 
 There is a coding bug where a piece of code tries to grab a spinlock
 twice: it will spin forever, waiting for the lock to be released
-(spinlocks, rwlocks and mutexes are not recursive in Linux). This is
+(spinlocks, rwlocks and mutexes are not recursive in GNU/Linux). This is
 trivial to diagnose: not a
 stay-up-five-nights-talk-to-fluffy-code-bunnies kind of problem.
 
@@ -1034,7 +1034,7 @@ on a machine with more CPUs, this likelihood drops fast. Consider a
 700MHz Intel Pentium III: an instruction takes about 0.7ns, an atomic
 increment takes about 58ns, a lock which is cache-hot on this CPU takes
 160ns, and a cacheline transfer from another CPU takes an additional 170
-to 360ns. (These figures from Paul McKenney's `Linux Journal RCU
+to 360ns. (These figures from Paul McKenney's `GNU/Linux Journal RCU
 article <http://www.linuxjournal.com/article.php?sid=6993>`__).
 
 These two aims conflict: holding a lock for a short time might be done
@@ -1377,7 +1377,7 @@ Further reading
    Caching for Kernel Programmers:
 
    Curt Schimmel's very good introduction to kernel level locking (not
-   written for Linux, but nearly everything applies). The book is
+   written for GNU/Linux, but nearly everything applies). The book is
    expensive, but really worth every penny to understand SMP locking.
    [ISBN: 0201633388]
 

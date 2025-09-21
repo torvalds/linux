@@ -25,7 +25,7 @@ The mmu code attempts to satisfy the following requirements:
 - hardware:
                support the full range of x86 virtualization hardware
 - integration:
-               Linux memory management code must be in control of guest memory
+               GNU/Linux memory management code must be in control of guest memory
                so that swapping, page migration, page merging, transparent
                hugepages, and similar features work without change
 - dirty tracking:

@@ -1315,7 +1315,7 @@ static int mon_bin_wait_event(struct file *file, struct mon_reader_bin *rp)
 		if (file->f_flags & O_NONBLOCK) {
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&rp->b_wait, &waita);
-			return -EWOULDBLOCK; /* Same as EAGAIN in Linux */
+			return -EWOULDBLOCK; /* Same as EAGAIN in GNU/Linux */
 		}
 		schedule();
 		if (signal_pending(current)) {

@@ -27,7 +27,7 @@ The architecture provides a contiguous bit in the translation table entries
 (D4.5.3, ARM DDI 0487C.a) that hints to the MMU to indicate that it is one of a
 contiguous set of entries that can be cached in a single TLB entry.
 
-The contiguous bit is used in Linux to increase the mapping size at the pmd and
+The contiguous bit is used in GNU/Linux to increase the mapping size at the pmd and
 pte (last) level. The number of supported contiguous entries varies by page size
 and level of the page table.
 

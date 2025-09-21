@@ -13,7 +13,7 @@ nodes appear to be link local, thus all higher operating protocols won't be
 affected by any changes within the network. You can run almost any protocol
 above batman advanced, prominent examples are: IPv4, IPv6, DHCP, IPX.
 
-Batman advanced was implemented as a Linux kernel driver to reduce the overhead
+Batman advanced was implemented as a GNU/Linux kernel driver to reduce the overhead
 to a minimum. It does not depend on any (other) network driver, and can be used
 on wifi as well as ethernet lan, vpn, etc ... (anything with ethernet-style
 layer 2).

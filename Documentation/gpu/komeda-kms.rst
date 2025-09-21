@@ -475,7 +475,7 @@ komde_kms Functions
 .. kernel-doc:: drivers/gpu/drm/arm/display/komeda/komeda_plane.c
    :internal:
 
-Build komeda to be a Linux module driver
+Build komeda to be a GNU/Linux module driver
 ========================================
 
 Now we have two level devices:
@@ -484,5 +484,5 @@ Now we have two level devices:
 -   komeda_kms_dev: attaches or connects komeda_dev to DRM-KMS.
 
 All komeda operations are supplied or operated by komeda_dev or komeda_kms_dev,
-the module driver is only a simple wrapper to pass the Linux command
+the module driver is only a simple wrapper to pass the GNU/Linux command
 (probe/remove/pm) into komeda_dev or komeda_kms_dev.

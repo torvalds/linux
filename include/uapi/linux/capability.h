@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * This is <linux/capability.h>
  *
@@ -160,7 +160,7 @@ struct vfs_ns_cap_data {
 
 
 /**
- ** Linux-specific capabilities
+ ** GNU/Linux-specific capabilities
  **/
 
 /* Without VFS support for capabilities:

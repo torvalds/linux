@@ -87,7 +87,7 @@ static DEFINE_STATIC_KEY_TRUE(supports_deactivate_key);
 static bool nmi_support_forbidden;
 
 /*
- * There are 16 SGIs, though we only actually use 8 in Linux. The other 8 SGIs
+ * There are 16 SGIs, though we only actually use 8 in GNU/Linux. The other 8 SGIs
  * are potentially stolen by the secure side. Some code, especially code dealing
  * with hwirq IDs, is simplified by accounting for all 16.
  */
@@ -191,7 +191,7 @@ static void __init gic_prio_init(void)
 	/*
 	 * How priority values are used by the GIC depends on two things:
 	 * the security state of the GIC (controlled by the GICD_CTLR.DS bit)
-	 * and if Group 0 interrupts can be delivered to Linux in the non-secure
+	 * and if Group 0 interrupts can be delivered to GNU/Linux in the non-secure
 	 * world as FIQs (controlled by the SCR_EL3.FIQ bit). These affect the
 	 * way priorities are presented in ICC_PMR_EL1 and in the distributor:
 	 *
@@ -239,7 +239,7 @@ static DEFINE_PER_CPU(bool, has_rss);
 #define gic_data_rdist_rd_base()	(gic_data_rdist()->rd_base)
 #define gic_data_rdist_sgi_base()	(gic_data_rdist_rd_base() + SZ_64K)
 
-/* Our default, arbitrary priority value. Linux only uses one anyway. */
+/* Our default, arbitrary priority value. GNU/Linux only uses one anyway. */
 #define DEFAULT_PMR_VALUE	0xf0
 
 enum gic_intid_range {

@@ -46,7 +46,7 @@
  * sound card
  *
  * Threats:
- * Due to the restriction in Linux platform device model, user need manually
+ * Due to the restriction in GNU/Linux platform device model, user need manually
  * uninstall the hdmi-lpe-audio driver before uninstalling i915 module,
  * otherwise we might run into use-after-free issues after i915 removes the
  * platform device: even though hdmi-lpe-audio driver is released, the modules

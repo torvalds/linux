@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Video capture interface for Linux version 2
+ * Video capture interface for GNU/Linux version 2
  *
  *	A generic video device interface for the LINUX operating system
  *	using a set of device structures/vectors for low level operations.
@@ -1210,7 +1210,7 @@ static int __init videodev_init(void)
 	dev_t dev = MKDEV(VIDEO_MAJOR, 0);
 	int ret;
 
-	pr_info("Linux video capture interface: v2.00\n");
+	pr_info("GNU/Linux video capture interface: v2.00\n");
 	ret = register_chrdev_region(dev, VIDEO_NUM_DEVICES, VIDEO_NAME);
 	if (ret < 0) {
 		pr_warn("videodev: unable to get major %d\n",
@@ -1242,6 +1242,6 @@ subsys_initcall(videodev_init);
 module_exit(videodev_exit)
 
 MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@kernel.org>, Bill Dirks, Justin Schoeman, Gerd Knorr");
-MODULE_DESCRIPTION("Video4Linux2 core driver");
+MODULE_DESCRIPTION("Video4GNU/Linux2 core driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(VIDEO_MAJOR);

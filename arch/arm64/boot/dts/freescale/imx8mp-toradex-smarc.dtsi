@@ -718,7 +718,7 @@
 	};
 };
 
-/* SMARC SER1, used as the Linux Console */
+/* SMARC SER1, used as the GNU/Linux Console */
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;

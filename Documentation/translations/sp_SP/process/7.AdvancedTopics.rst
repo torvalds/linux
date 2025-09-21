@@ -12,7 +12,7 @@ Llegados a este punto, con suerte, tiene una idea de cómo funciona el
 proceso de desarrollo. Sin embargo, ¡todavía hay más que aprender! Esta
 sección cubrirá varios temas que pueden ser útiles para los desarrolladores
 que desean convertirse en una parte regular del proceso de desarrollo del
-kernel Linux.
+kernel GNU/Linux.
 
 Gestionar parches con git
 -------------------------

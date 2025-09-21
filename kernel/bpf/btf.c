@@ -8851,7 +8851,7 @@ static int btf_check_dtor_kfuncs(struct btf *btf, const struct btf_id_dtor_kfunc
 			return -EINVAL;
 		args = btf_params(dtor_func_proto);
 		t = btf_type_by_id(btf, args[0].type);
-		/* Allow any pointer type, as width on targets Linux supports
+		/* Allow any pointer type, as width on targets GNU/Linux supports
 		 * will be same for all pointer types (i.e. sizeof(void *))
 		 */
 		if (!t || !btf_type_is_ptr(t))

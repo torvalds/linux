@@ -1,5 +1,5 @@
 /*
-** amigaints.h -- Amiga Linux interrupt handling structs and prototypes
+** amigaints.h -- Amiga GNU/Linux interrupt handling structs and prototypes
 **
 ** Copyright 1992 by Greg Harp
 **

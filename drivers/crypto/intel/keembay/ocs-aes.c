@@ -879,7 +879,7 @@ static void ocs_aes_gcm_write_j0(const struct ocs_aes_dev *aes_dev,
 	const u32 *j0 = (u32 *)iv;
 
 	/*
-	 * IV must be 12 bytes; Other sizes not supported as Linux crypto API
+	 * IV must be 12 bytes; Other sizes not supported as GNU/Linux crypto API
 	 * does only expects/allows 12 byte IV for GCM
 	 */
 	iowrite32(0x00000001, aes_dev->base_reg + AES_IV_0_OFFSET);

@@ -5,7 +5,7 @@
 
 .. _sp_magicnumbers:
 
-Números mágicos de Linux
+Números mágicos de GNU/Linux
 ========================
 
 Este archivo es un registro de los números mágicos que están en uso. Cuando
@@ -41,13 +41,13 @@ Changelog::
 					Theodore Ts'o
 					31 Mar 94
 
-  La tabla mágica ha sido actualizada para Linux 2.1.55.
+  La tabla mágica ha sido actualizada para GNU/Linux 2.1.55.
 
 					Michael Chastain
 					<mailto:mec@shout.net>
 					22 Sep 1997
 
-  Ahora debería estar actualizada con Linux 2.1.112. Porque
+  Ahora debería estar actualizada con GNU/Linux 2.1.112. Porque
   estamos en fase de "feature freeze", es muy poco probable que
   algo cambiará antes de 2.2.x. Las entradas son
   ordenados por campo numérico.
@@ -56,7 +56,7 @@ Changelog::
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
-  Se actualizó la tabla mágica a Linux 2.5.45. Justo sobre el feature
+  Se actualizó la tabla mágica a GNU/Linux 2.5.45. Justo sobre el feature
   freeze, pero es posible que algunos nuevos números mágicos se cuelen en
   el kernel antes de 2.6.x todavía.
 
@@ -64,7 +64,7 @@ Changelog::
 					<pasky@ucw.cz>
 					03 Nov 2002
 
-  La tabla mágica ha sido actualizada para Linux 2.5.74.
+  La tabla mágica ha sido actualizada para GNU/Linux 2.5.74.
 
 					Fabian Frederick
 					<ffrederick@users.sourceforge.net>

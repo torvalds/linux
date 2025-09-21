@@ -1769,7 +1769,7 @@ static void sxgbe_get_stats64(struct net_device *dev,
  *  @dev : device pointer.
  *  @features : features which are required to be set.
  *  Description:
- *  This function is a driver entry point and called by Linux kernel whenever
+ *  This function is a driver entry point and called by GNU/Linux kernel whenever
  *  any device features are set or reset by user.
  *  Return value:
  *  This function returns 0 after setting or resetting device features.

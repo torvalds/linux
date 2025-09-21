@@ -4,7 +4,7 @@ PCI Power Management
 
 Copyright (c) 2010 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
 
-An overview of concepts and the Linux kernel's interfaces related to PCI power
+An overview of concepts and the GNU/Linux kernel's interfaces related to PCI power
 management.  Based on previous work by Patrick Mochel <mochel@transmeta.com>
 (and others).
 
@@ -95,7 +95,7 @@ to program a PCI device to go into D3cold, although there may be a programmable
 interface for putting the bus the device is on into a state in which Vcc is
 removed from all devices on the bus.
 
-PCI bus power management, however, is not supported by the Linux kernel at the
+PCI bus power management, however, is not supported by the GNU/Linux kernel at the
 time of this writing and therefore it is not covered by this document.
 
 Note that every PCI device can be in the full-power state (D0) or in D3cold,

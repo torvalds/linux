@@ -17,12 +17,12 @@ when these devices are trying to be accessed by different userspace clients
 ideally, being a userspace application, it is not the role of the X server to
 control bus resources. Therefore an arbitration scheme outside of the X server
 is needed to control the sharing of these resources. This document introduces
-the operation of the VGA arbiter implemented for the Linux kernel.
+the operation of the VGA arbiter implemented for the GNU/Linux kernel.
 
 vgaarb kernel/userspace ABI
 ---------------------------
 
-The vgaarb is a module of the Linux Kernel. When it is initially loaded, it
+The vgaarb is a module of the GNU/Linux Kernel. When it is initially loaded, it
 scans all PCI devices and adds the VGA ones inside the arbitration. The
 arbiter then enables/disables the decoding on different devices of the VGA
 legacy instructions. Devices which do not want/need to use the arbiter may

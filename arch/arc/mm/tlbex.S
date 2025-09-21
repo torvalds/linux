@@ -222,7 +222,7 @@ ex_saved_reg1:
 .endm
 
 ;-----------------------------------------------------------------
-; Convert Linux PTE entry into TLB entry
+; Convert GNU/Linux PTE entry into TLB entry
 ; A one-word PTE entry is programmed as two-word TLB Entry [PD0:PD1] in mmu
 ;    (for PAE40, two-words PTE, while three-word TLB Entry [PD0:PD1:PD1HI])
 ; IN: r0 = PTE, r1 = ptr to PTE
@@ -294,7 +294,7 @@ ENTRY(EV_TLBMissI)
 	xor.f   r3, r3, r2  ; check ( ( pte & flags_test ) == flags_test )
 	bnz     do_slow_path_pf
 
-	; Let Linux VM know that the page was accessed
+	; Let GNU/Linux VM know that the page was accessed
 	or      r0, r0, _PAGE_ACCESSED  ; set Accessed Bit
 	st_s    r0, [r1]                ; Write back PTE
 
@@ -326,7 +326,7 @@ ENTRY(EV_TLBMissD)
 	mov_s   r2, _PAGE_PRESENT	; common bit for K/U PTE
 	or.hs	r2, r2, _PAGE_GLOBAL	; kernel PTE only
 
-	; Linux PTE [RWX] bits are semantically overloaded:
+	; GNU/Linux PTE [RWX] bits are semantically overloaded:
 	; -If PAGE_GLOBAL set, they refer to kernel-only flags (vmalloc)
 	; -Otherwise they are user-mode permissions, and those are exactly
 	;  same for kernel mode as well (e.g. copy_(to|from)_user)
@@ -343,7 +343,7 @@ ENTRY(EV_TLBMissD)
 	brne.d  r3, r2, do_slow_path_pf ; is ((pte & flags_test) == flags_test)
 
 	;----------------------------------------------------------------
-	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
+	; UPDATE_PTE: Let GNU/Linux VM know that page was accessed/dirty
 	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
 	or.nz   r0, r0, _PAGE_DIRTY           ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE
@@ -355,7 +355,7 @@ ENTRY(EV_TLBMissD)
 EV_TLBMissD_fast_ret:	; additional label for VDK OS-kit instrumentation
 	rtie
 
-;-------- Common routine to call Linux Page Fault Handler -----------
+;-------- Common routine to call GNU/Linux Page Fault Handler -----------
 do_slow_path_pf:
 
 #ifdef CONFIG_ISA_ARCV2

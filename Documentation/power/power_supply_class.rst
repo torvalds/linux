@@ -1,5 +1,5 @@
 ========================
-Linux power supply class
+GNU/Linux power supply class
 ========================
 
 Synopsis
@@ -17,7 +17,7 @@ power supply, specific monitoring hardware may not be able to provide them
 all, so any of them may be skipped.
 
 Power supply class is extensible, and allows to define drivers own attributes.
-The core attribute set is subject to the standard Linux evolution (i.e.
+The core attribute set is subject to the standard GNU/Linux evolution (i.e.
 if it will be found that some attribute is applicable to many power supply
 types or their drivers, it can be added to the core set).
 

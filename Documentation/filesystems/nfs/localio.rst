@@ -5,7 +5,7 @@ NFS LOCALIO
 Overview
 ========
 
-The LOCALIO auxiliary RPC protocol allows the Linux NFS client and
+The LOCALIO auxiliary RPC protocol allows the GNU/Linux NFS client and
 server to reliably handshake to determine if they are on the same
 host. Select "NFS client and server support for LOCALIO auxiliary
 protocol" in menuconfig to enable CONFIG_NFS_LOCALIO in the kernel
@@ -159,10 +159,10 @@ RPC
 ===
 
 The LOCALIO auxiliary RPC protocol consists of a single "UUID_IS_LOCAL"
-RPC method that allows the Linux NFS client to verify the local Linux
+RPC method that allows the GNU/Linux NFS client to verify the local GNU/Linux
 NFS server can see the nonce (single-use UUID) the client generated and
 made available in nfs_common. This protocol isn't part of an IETF
-standard, nor does it need to be considering it is Linux-to-Linux
+standard, nor does it need to be considering it is GNU/Linux-to-GNU/Linux
 auxiliary RPC protocol that amounts to an implementation detail.
 
 The UUID_IS_LOCAL method encodes the client generated uuid_t in terms of
@@ -172,7 +172,7 @@ methods.
 
 The RPC program number for the NFS_LOCALIO_PROGRAM is 400122 (as assigned
 by IANA, see https://www.iana.org/assignments/rpc-program-numbers/ ):
-Linux Kernel Organization       400122  nfslocalio
+GNU/Linux Kernel Organization       400122  nfslocalio
 
 The LOCALIO protocol spec in rpcgen syntax is::
 

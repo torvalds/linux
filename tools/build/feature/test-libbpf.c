@@ -2,7 +2,7 @@
 #include <bpf/libbpf.h>
 
 #if !defined(LIBBPF_MAJOR_VERSION) || (LIBBPF_MAJOR_VERSION < 1)
-#error At least libbpf 1.0 is required for Linux tools.
+#error At least libbpf 1.0 is required for GNU/Linux tools.
 #endif
 
 int main(void)

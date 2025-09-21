@@ -33,7 +33,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * IDT PCIe-switch NTB Linux driver
+ * IDT PCIe-switch NTB GNU/Linux driver
  *
  * Contact Information:
  * Serge Semin <fancer.lancer@gmail.com>, <Sergey.Semin@t-platforms.ru>
@@ -1091,7 +1091,7 @@ struct idt_ntb_peer {
 
 /*
  * Description structure of local IDT NT-function:
- * @ntb:		Linux NTB-device description structure
+ * @ntb:		GNU/Linux NTB-device description structure
  * @swcfg:		Pointer to the structure of local IDT PCIe-switch
  *			specific cofnfigurations
  *

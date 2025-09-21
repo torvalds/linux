@@ -25,13 +25,13 @@
 
 	configurations {
 		pcb110 {
-			description = "Jaguar2 Linux kernel";
+			description = "Jaguar2 GNU/Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-jaguar2_pcb110";
 			ramdisk = "ramdisk";
 		};
 		pcb111 {
-			description = "Jaguar2 Linux kernel";
+			description = "Jaguar2 GNU/Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-jaguar2_pcb111";
 			ramdisk = "ramdisk";

@@ -9,7 +9,7 @@ interface to bind the function driver to the controller driver.
 Introduction
 ============
 
-Linux has a comprehensive PCI subsystem to support PCI controllers that
+GNU/Linux has a comprehensive PCI subsystem to support PCI controllers that
 operates in Root Complex mode. The subsystem has capability to scan PCI bus,
 assign memory resources and IRQ resources, load PCI driver (based on
 vendor ID, device ID), support other services like hot-plug, power management,
@@ -17,7 +17,7 @@ advanced error reporting and virtual channels.
 
 However the PCI controller IP integrated in some SoCs is capable of operating
 either in Root Complex mode or Endpoint mode. PCI Endpoint Framework will
-add endpoint mode support in Linux. This will help to run Linux in an
+add endpoint mode support in GNU/Linux. This will help to run GNU/Linux in an
 EP system which can have a wide variety of use cases from testing or
 validation, co-processor accelerator, etc.
 

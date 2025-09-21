@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2009 - 2018 Intel Corporation. */
 
-/* Linux PRO/1000 Ethernet Driver main header file */
+/* GNU/Linux PRO/1000 Ethernet Driver main header file */
 
 #ifndef _IGBVF_H_
 #define _IGBVF_H_

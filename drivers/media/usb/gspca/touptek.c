@@ -70,7 +70,7 @@ MODULE_LICENSE("GPL");
  *
  * However, V4L expects a main gain channel + R and B balance
  * To keep things simple for now saturate the values of balance is too high/low
- * This isn't really ideal but easy way to fit the Linux model
+ * This isn't really ideal but easy way to fit the GNU/Linux model
  *
  * Converted using gain model turns out to be quite linear:
  * Gain, GTOP, B, R, GBOT

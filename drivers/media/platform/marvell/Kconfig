@@ -30,7 +30,7 @@ config VIDEO_MMP_CAMERA
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_DMA_SG
 	help
-	  This is a Video4Linux2 driver for the integrated camera
+	  This is a Video4GNU/Linux2 driver for the integrated camera
 	  controller found on Marvell Armada 610 application
 	  processors (and likely beyond).  This is the controller found
 	  in OLPC XO 1.75 systems.

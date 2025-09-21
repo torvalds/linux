@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Hexagon configuration
-comment "Linux Kernel Configuration for Hexagon"
+comment "GNU/Linux Kernel Configuration for Hexagon"
 
 config HEXAGON
 	def_bool y

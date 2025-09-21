@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008, 2005	IBM Corporation.
  * Copyright (C) 2008, 2005	Rusty Russell rusty@rustcorp.com.au
- * Copyright (C) 2010		SUSE Linux Products GmbH
+ * Copyright (C) 2010		SUSE GNU/Linux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
  */
 #include <linux/compiler.h>

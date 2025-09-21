@@ -80,7 +80,7 @@ static int test_power_get_battery_property(struct power_supply *psy,
 		val->strval = "Test battery";
 		break;
 	case POWER_SUPPLY_PROP_MANUFACTURER:
-		val->strval = "Linux";
+		val->strval = "GNU/Linux";
 		break;
 	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
 		val->strval = UTS_RELEASE;

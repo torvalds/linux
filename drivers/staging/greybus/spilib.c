@@ -406,7 +406,7 @@ static void gb_spi_cleanup(struct spi_device *spi)
 /* Routines to get controller information */
 
 /*
- * Map Greybus spi mode bits/flags/bpw into Linux ones.
+ * Map Greybus spi mode bits/flags/bpw into GNU/Linux ones.
  * All bits are same for now and so these macro's return same values.
  */
 #define gb_spi_mode_map(mode) mode

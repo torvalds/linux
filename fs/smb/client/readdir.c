@@ -184,7 +184,7 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 
 	/*
 	 * The IO_REPARSE_TAG_LX_ tags originally were used by WSL but they
-	 * are preferred by the Linux client in some cases since, unlike
+	 * are preferred by the GNU/Linux client in some cases since, unlike
 	 * the NFS reparse tag (or EAs), they don't require an extra query
 	 * to determine which type of special file they represent.
 	 * TODO: go through all documented  reparse tags to see if we can

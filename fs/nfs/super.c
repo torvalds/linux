@@ -287,9 +287,9 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	/*
 	 * On most *nix systems, f_blocks, f_bfree, and f_bavail
-	 * are reported in units of f_frsize.  Linux hasn't had
+	 * are reported in units of f_frsize.  GNU/Linux hasn't had
 	 * an f_frsize field in its statfs struct until recently,
-	 * thus historically Linux's sys_statfs reports these
+	 * thus historically GNU/Linux's sys_statfs reports these
 	 * fields in units of f_bsize.
 	 */
 	buf->f_bsize = dentry->d_sb->s_blocksize;

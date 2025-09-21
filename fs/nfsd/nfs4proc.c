@@ -508,7 +508,7 @@ do_open_fhandle(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, str
 	 * should let it succeed now if possible.
 	 *
 	 * In the case of a CLAIM_FH open, on the other hand, the client
-	 * may be counting on us to enforce permissions (the Linux 4.1
+	 * may be counting on us to enforce permissions (the GNU/Linux 4.1
 	 * client uses this for normal opens, for example).
 	 */
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEG_CUR_FH)

@@ -1,4 +1,4 @@
-Linux version 5.1.0-rc7-00061-g04652f1cb4aa0 (brendanhiggins@mactruck.svl.corp.google.com) (gcc version 7.3.0 (Debian 7.3.0-18)) #163 Wed May 8 16:18:20 PDT 2019
+GNU/Linux version 5.1.0-rc7-00061-g04652f1cb4aa0 (brendanhiggins@mactruck.svl.corp.google.com) (gcc version 7.3.0 (Debian 7.3.0-18)) #163 Wed May 8 16:18:20 PDT 2019
 Built 1 zonelists, mobility grouping on.  Total pages: 69906
 Kernel command line: mem=256M root=98:0
 Dentry cache hash table entries: 65536 (order: 7, 524288 bytes)

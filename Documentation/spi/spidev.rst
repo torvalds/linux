@@ -17,7 +17,7 @@ full duplex transfers and device I/O configuration are also available.
 Some reasons you might want to use this programming interface include:
 
  * Prototyping in an environment that's not crash-prone; stray pointers
-   in userspace won't normally bring down any Linux system.
+   in userspace won't normally bring down any GNU/Linux system.
 
  * Developing simple protocols used to talk to microcontrollers acting
    as SPI slaves, which you may need to change quite often.
@@ -53,7 +53,7 @@ post a patch for spidev to the linux-spi@vger.kernel.org mailing list.
 
 It used to be supported to define an SPI device using the "spidev" name.
 For example, as .modalias = "spidev" or compatible = "spidev".  But this
-is no longer supported by the Linux kernel and instead a real SPI device
+is no longer supported by the GNU/Linux kernel and instead a real SPI device
 name as listed in one of the tables must be used.
 
 Not having a real SPI device name will lead to an error being printed and
@@ -98,7 +98,7 @@ module, which will affect all devices using this driver.  You can also unbind
 by having kernel code remove the SPI device, probably by removing the driver
 for its SPI controller (so its spi_master vanishes).
 
-Since this is a standard Linux device driver -- even though it just happens
+Since this is a standard GNU/Linux device driver -- even though it just happens
 to expose a low level API to userspace -- it can be associated with any number
 of devices at a time.  Just provide one spi_board_info record for each such
 SPI device, and you'll get a /dev device node for each device.

@@ -96,7 +96,7 @@ in the first place.
 Abstraction layers which hide access to hardware - often to allow the bulk
 of a driver to be used with multiple operating systems - are especially
 frowned upon.  Such layers obscure the code and may impose a performance
-penalty; they do not belong in the Linux kernel.
+penalty; they do not belong in the GNU/Linux kernel.
 
 On the other hand, if you find yourself copying significant amounts of code
 from another kernel subsystem, it is time to ask whether it would, in fact,
@@ -163,7 +163,7 @@ Locking
 In May, 2006, the "Devicescape" networking stack was, with great
 fanfare, released under the GPL and made available for inclusion in the
 mainline kernel.  This donation was welcome news; support for wireless
-networking in Linux was considered substandard at best, and the Devicescape
+networking in GNU/Linux was considered substandard at best, and the Devicescape
 stack offered the promise of fixing that situation.  Yet, this code did not
 actually make it into the mainline until June, 2007 (2.6.22).  What
 happened?
@@ -174,7 +174,7 @@ designed to work on multiprocessor systems.  Before this networking stack
 (now called mac80211) could be merged, a locking scheme needed to be
 retrofitted onto it.
 
-Once upon a time, Linux kernel code could be developed without thinking
+Once upon a time, GNU/Linux kernel code could be developed without thinking
 about the concurrency issues presented by multiprocessor systems.  Now,
 however, this document is being written on a dual-core laptop.  Even on
 single-processor systems, work being done to improve responsiveness will

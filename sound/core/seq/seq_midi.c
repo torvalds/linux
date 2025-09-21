@@ -26,7 +26,7 @@ Possible options for midisynth module:
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Frank van de Pol <fvdpol@coil.demon.nl>, Jaroslav Kysela <perex@perex.cz>");
-MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer MIDI synth.");
+MODULE_DESCRIPTION("Advanced GNU/Linux Sound Architecture sequencer MIDI synth.");
 MODULE_LICENSE("GPL");
 static int output_buffer_size = PAGE_SIZE;
 module_param(output_buffer_size, int, 0644);

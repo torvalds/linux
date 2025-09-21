@@ -37,7 +37,7 @@
 
 /*
  * Each interrupt source has a priority register associated with it.
- * We always hardwire it to one in Linux.
+ * We always hardwire it to one in GNU/Linux.
  */
 #define PRIORITY_BASE			0
 #define     PRIORITY_PER_ID		4

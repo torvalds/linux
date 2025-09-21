@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  *  Copyright IBM Corp. 2022, 2024
  *  Author(s): Steffen Eiden <seiden@linux.ibm.com>

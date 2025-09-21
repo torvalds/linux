@@ -131,7 +131,7 @@
  *       0x14,   PCM PORT1, DSP-B
  *       0xFF,   Use default
  *
- * This is not used in Linux (defined by topology) and in
+ * This is not used in GNU/Linux (defined by topology) and in
  * Windows it's always DSP-A
  */
 
@@ -151,7 +151,7 @@
  * BIT[3:0] 0 for I2S0, 1 for IS21, 2 for I2S2.
  *
  * On Intel platforms this refers to SSP0..2. This information
- * is not really useful for Linux, the information is already
+ * is not really useful for GNU/Linux, the information is already
  * inferred from NHLT but can be used to double-check NHLT
  */
 
@@ -329,7 +329,7 @@
 #define ADC_ALC_NGTHLD_m31_5db			0x1e /* Threshold = -31.5db */
 #define ADC_ALC_NGTHLD_m30db			0x1f /* Threshold = -30db   */
 
-/* Headphone dummy - Windows Specific flag, not needed for Linux */
+/* Headphone dummy - Windows Specific flag, not needed for GNU/Linux */
 
 /* HPMIX HIGAIN and VOLUME */
 #define DAC_HPMIX_HIGAIN_0db			0x00 /* gain =  0db      */
@@ -358,7 +358,7 @@
 #define DAC_AUTOMUTE_DIGITAL			0x01 /* digital mute */
 #define DAC_AUTOMUTE_ANALOG			0x02 /* analog mute  */
 
-/* Mono - Windows specific, on Linux the information comes from DAI/topology */
+/* Mono - Windows specific, on GNU/Linux the information comes from DAI/topology */
 #define HEADPHONE_MONO                          0x01 /* on channel */
 #define HEADPHONE_STEREO                        0x00 /* stereo */
 

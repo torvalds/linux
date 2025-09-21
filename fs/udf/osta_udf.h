@@ -55,7 +55,7 @@
 /* OS2EA (UDF 1.50 3.3.4.5.3.1) */
 /* MacUniqueIDTable (UDF 1.50 3.3.4.5.4.3) */
 /* MacResourceFork (UDF 1.50 3.3.4.5.4.4) */
-#define UDF_ID_DEVELOPER		"*Linux UDFFS"
+#define UDF_ID_DEVELOPER		"*GNU/Linux UDFFS"
 #define	UDF_ID_COMPLIANT		"*OSTA UDF Compliant"
 #define UDF_ID_LV_INFO			"*UDF LV Info"
 #define UDF_ID_FREE_EA			"*UDF FreeEASpace"

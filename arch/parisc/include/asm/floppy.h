@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*    Architecture specific parts of the Floppy driver
  *
- *    Linux/PA-RISC Project (http://www.parisc-linux.org/)
+ *    GNU/Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *    Copyright (C) 2000 Matthew Wilcox (willy a debian . org)
  *    Copyright (C) 2000 Dave Kennedy
  */

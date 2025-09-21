@@ -55,7 +55,7 @@
 #include <asm/irq.h>
 
 /*
- * PCI device identifiers for "new style" Linux PCI Device Drivers
+ * PCI device identifiers for "new style" GNU/Linux PCI Device Drivers
  */
 static const struct pci_device_id pcnet32_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_LANCE_HOME), },

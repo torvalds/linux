@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
- * The Linux BAYCOM driver for the Baycom serial 1200 baud modem
+ * The GNU/Linux BAYCOM driver for the Baycom serial 1200 baud modem
  * and the parallel 9600 baud modem
  * (C) 1997-1998 by Thomas Sailer, HB9JNX/AE4WA
  */

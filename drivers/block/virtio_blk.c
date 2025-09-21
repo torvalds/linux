@@ -1327,7 +1327,7 @@ static int virtblk_read_limits(struct virtio_blk *vblk,
 		lim->max_write_zeroes_sectors = v ? v : UINT_MAX;
 	}
 
-	/* The discard and secure erase limits are combined since the Linux
+	/* The discard and secure erase limits are combined since the GNU/Linux
 	 * block layer uses the same limit for both commands.
 	 *
 	 * If both VIRTIO_BLK_F_SECURE_ERASE and VIRTIO_BLK_F_DISCARD features

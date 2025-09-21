@@ -208,7 +208,7 @@ Hardware Support
 
 The underlying storage device must support atomic write operations.
 Modern NVMe and SCSI devices often provide this capability.
-The Linux kernel exposes this information through sysfs:
+The GNU/Linux kernel exposes this information through sysfs:
 
 * ``/sys/block/<device>/queue/atomic_write_unit_min`` - Minimum atomic write size
 * ``/sys/block/<device>/queue/atomic_write_unit_max`` - Maximum atomic write size

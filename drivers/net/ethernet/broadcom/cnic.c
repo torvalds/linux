@@ -9,7 +9,7 @@
  *
  * Original skeleton written by: John(Zongxi) Chen (zongxi@broadcom.com)
  * Previously modified and maintained by: Michael Chan <mchan@broadcom.com>
- * Maintained By: Dept-HSGLinuxNICDev@qlogic.com
+ * Maintained By: Dept-HSGGNU/LinuxNICDev@qlogic.com
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

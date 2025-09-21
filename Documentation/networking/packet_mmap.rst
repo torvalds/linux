@@ -1075,7 +1075,7 @@ for more information on hardware timestamps.
 Miscellaneous bits
 ==================
 
-- Packet sockets work well together with Linux socket filters, thus you also
+- Packet sockets work well together with GNU/Linux socket filters, thus you also
   might want to have a look at Documentation/networking/filter.rst
 
 THANKS

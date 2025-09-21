@@ -4,7 +4,7 @@ VME Device Drivers
 Driver registration
 -------------------
 
-As with other subsystems within the Linux kernel, VME device drivers register
+As with other subsystems within the GNU/Linux kernel, VME device drivers register
 with the VME subsystem, typically called from the devices init routine.  This is
 achieved via a call to :c:func:`vme_register_driver`.
 

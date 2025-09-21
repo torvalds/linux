@@ -171,7 +171,7 @@ int usb_choose_configuration(struct usb_device *udev)
 
 		/* From the remaining configs, choose the first one whose
 		 * first interface is for a non-vendor-specific class.
-		 * Reason: Linux is more likely to have a class driver
+		 * Reason: GNU/Linux is more likely to have a class driver
 		 * than a vendor-specific driver. */
 		else if (udev->descriptor.bDeviceClass !=
 						USB_CLASS_VENDOR_SPEC &&

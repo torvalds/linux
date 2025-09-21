@@ -46,7 +46,7 @@
 static const struct mtk_pll_data plls[] = {
 	/*
 	 * armpll_ll/armpll_bl/ccipll are main clock source of AP MCU,
-	 * should not be closed in Linux world.
+	 * should not be closed in GNU/Linux world.
 	 */
 	PLL(CLK_APMIXED_ARMPLL_LL, "armpll_ll", 0x0204, 0x0210, 0,
 	    PLL_AO, 0, 22, 0x0208, 24, 0, 0, 0, 0x0208),

@@ -2,7 +2,7 @@
 /*
  * Handling of a single switch chip, part of a switch fabric
  *
- * Copyright (c) 2017 Savoir-faire Linux Inc.
+ * Copyright (c) 2017 Savoir-faire GNU/Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  */
 

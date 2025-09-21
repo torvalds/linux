@@ -34,7 +34,7 @@
  *
  * Gen 1 VMs also support direct using VM's physical memory for framebuffer.
  * It could improve the efficiency and performance for framebuffer and VM.
- * This requires to allocate contiguous physical memory from Linux kernel's
+ * This requires to allocate contiguous physical memory from GNU/Linux kernel's
  * CMA memory allocator. To enable this, supply a kernel parameter to give
  * enough memory space to CMA allocator for framebuffer. For example:
  *    cma=130m
@@ -1053,7 +1053,7 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 
 	/*
 	 * Map the VRAM cacheable for performance. This is also required for
-	 * VM Connect to display properly for ARM64 Linux VM, as the host also
+	 * VM Connect to display properly for ARM64 GNU/Linux VM, as the host also
 	 * maps the VRAM cacheable.
 	 */
 	fb_virt = ioremap_cache(par->mem->start, screen_fb_size);

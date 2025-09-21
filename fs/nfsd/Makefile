@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux nfs server
+# Makefile for the GNU/Linux nfs server
 #
 
 ccflags-y += -I$(src)			# needed for trace events

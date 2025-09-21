@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2015 The GNU/Linux Foundation. All rights reserved.
  *
  * A call to __dcc_getchar() or __dcc_putchar() is typically followed by
  * a call to __dcc_getstatus().  We want to make sure that the CPU does

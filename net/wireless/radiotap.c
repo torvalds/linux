@@ -103,7 +103,7 @@ int ieee80211_radiotap_iterator_init(
 	if (max_length < sizeof(struct ieee80211_radiotap_header))
 		return -EINVAL;
 
-	/* Linux only supports version 0 radiotap format */
+	/* GNU/Linux only supports version 0 radiotap format */
 	if (radiotap_header->it_version)
 		return -EINVAL;
 

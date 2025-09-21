@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Hardware-accelerated CRC-32 variants for Linux on z Systems
+ * Hardware-accelerated CRC-32 variants for GNU/Linux on z Systems
  *
  * Use the z/Architecture Vector Extension Facility to accelerate the
  * computing of CRC-32 checksums.

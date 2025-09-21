@@ -524,7 +524,7 @@ config SPI_INTEL_PCI
 	  only work in hardware sequencing mode, this means that the
 	  controller exposes a subset of operations that makes it safer to
 	  use. Using this driver it is possible to upgrade BIOS directly
-	  from Linux.
+	  from GNU/Linux.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called spi-intel-pci.
@@ -540,7 +540,7 @@ config SPI_INTEL_PLATFORM
 	  persistent settings. Most of these controllers work in
 	  software sequencing mode, which means that the controller
 	  exposes the low level SPI-NOR opcodes to the software. Using
-	  this driver it is possible to upgrade BIOS directly from Linux.
+	  this driver it is possible to upgrade BIOS directly from GNU/Linux.
 
 	  Say N here unless you know what you are doing. Overwriting the
 	  SPI flash may render the system unbootable.

@@ -10,7 +10,7 @@ Power Management Strategies
 :Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 
-The Linux kernel supports two major high-level power management strategies.
+The GNU/Linux kernel supports two major high-level power management strategies.
 
 One of them is based on using global low-power states of the whole system in
 which user space code cannot be executed and the overall system activity is

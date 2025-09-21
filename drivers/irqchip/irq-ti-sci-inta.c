@@ -62,7 +62,7 @@ struct ti_sci_inta_event_desc {
  * @list:		List entry for the vint list
  * @event_map:		Bitmap to manage the allocation of events to vint.
  * @events:		Array of event descriptors assigned to this vint.
- * @parent_virq:	Linux IRQ number that gets attached to parent
+ * @parent_virq:	GNU/Linux IRQ number that gets attached to parent
  * @vint_id:		TISCI vint ID
  */
 struct ti_sci_inta_vint_desc {
@@ -559,7 +559,7 @@ static void ti_sci_inta_irq_domain_free(struct irq_domain *domain,
 /**
  * ti_sci_inta_irq_domain_alloc() - Allocate Interrupt aggregator IRQs
  * @domain:	Point to the interrupt aggregator IRQ domain
- * @virq:	Corresponding Linux virtual IRQ number
+ * @virq:	Corresponding GNU/Linux virtual IRQ number
  * @nr_irqs:	Continuous irqs to be allocated
  * @data:	Pointer to firmware specifier
  *

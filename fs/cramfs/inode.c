@@ -1,5 +1,5 @@
 /*
- * Compressed rom filesystem for Linux.
+ * Compressed rom filesystem for GNU/Linux.
  *
  * Copyright (C) 1999 Linus Torvalds.
  *

@@ -9,16 +9,16 @@
  吳想成 Wu XiangCheng <bobwxc@email.cn>
  胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
-Linux內核6.x版本 <http://kernel.org/>
+GNU/Linux內核6.x版本 <http://kernel.org/>
 =========================================
 
-以下是Linux版本6的發行註記。仔細閱讀它們，
+以下是GNU/Linux版本6的發行註記。仔細閱讀它們，
 它們會告訴你這些都是什麼，解釋如何安裝內核，以及遇到問題時該如何做。
 
-什麼是Linux？
+什麼是GNU/Linux？
 ---------------
 
-  Linux是Unix操作系統的克隆版本，由Linus Torvalds在一個鬆散的網絡黑客
+  GNU/Linux是Unix操作系統的克隆版本，由Linus Torvalds在一個鬆散的網絡黑客
   （Hacker，無貶義）團隊的幫助下從頭開始編寫。它旨在實現兼容POSIX和
   單一UNIX規範。
 
@@ -26,31 +26,31 @@ Linux內核6.x版本 <http://kernel.org/>
   共享庫、按需加載、共享的寫時拷貝（COW）可執行文件、恰當的內存管理以及包括
   IPv4和IPv6在內的複合網絡棧。
 
-  Linux在GNU通用公共許可證，版本2（GNU GPLv2）下分發，詳見隨附的COPYING文件。
+  GNU/Linux在GNU通用公共許可證，版本2（GNU GPLv2）下分發，詳見隨附的COPYING文件。
 
 它能在什麼樣的硬件上運行？
 -----------------------------
 
-  雖然Linux最初是爲32位的x86 PC機（386或更高版本）開發的，但今天它也能運行在
+  雖然GNU/Linux最初是爲32位的x86 PC機（386或更高版本）開發的，但今天它也能運行在
   （至少）Compaq Alpha AXP、Sun SPARC與UltraSPARC、Motorola 68000、PowerPC、
   PowerPC64、ARM、Hitachi SuperH、Cell、IBM S/390、MIPS、HP PA-RISC、Intel 
   IA-64、DEC VAX、AMD x86-64 Xtensa和ARC架構上。
 
-  Linux很容易移植到大多數通用的32位或64位體系架構，只要它們有一個分頁內存管理
+  GNU/Linux很容易移植到大多數通用的32位或64位體系架構，只要它們有一個分頁內存管理
   單元（PMMU）和一個移植的GNU C編譯器（gcc；GNU Compiler Collection，GCC的一
-  部分）。Linux也被移植到許多沒有PMMU的體系架構中，儘管功能顯然受到了一定的
+  部分）。GNU/Linux也被移植到許多沒有PMMU的體系架構中，儘管功能顯然受到了一定的
   限制。
-  Linux也被移植到了其自己上。現在可以將內核作爲用戶空間應用程序運行——這被
-  稱爲用戶模式Linux（UML）。
+  GNU/Linux也被移植到了其自己上。現在可以將內核作爲用戶空間應用程序運行——這被
+  稱爲用戶模式GNU/Linux（UML）。
 
 文檔
 -----
-因特網上和書籍上都有大量的電子文檔，既有Linux專屬文檔，也有與一般UNIX問題相關
-的文檔。我建議在任何Linux FTP站點上查找LDP（Linux文檔項目）書籍的文檔子目錄。
+因特網上和書籍上都有大量的電子文檔，既有GNU/Linux專屬文檔，也有與一般UNIX問題相關
+的文檔。我建議在任何GNU/Linux FTP站點上查找LDP（GNU/Linux文檔項目）書籍的文檔子目錄。
 本自述文件並不是關於系統的文檔：有更好的可用資源。
 
- - 因特網上和書籍上都有大量的（電子）文檔，既有Linux專屬文檔，也有與普通
-   UNIX問題相關的文檔。我建議在任何有LDP（Linux文檔項目）書籍的Linux FTP
+ - 因特網上和書籍上都有大量的（電子）文檔，既有GNU/Linux專屬文檔，也有與普通
+   UNIX問題相關的文檔。我建議在任何有LDP（GNU/Linux文檔項目）書籍的GNU/Linux FTP
    站點上查找文檔子目錄。本自述文件並不是關於系統的文檔：有更好的可用資源。
 
  - 文檔/子目錄中有各種自述文件：例如，這些文件通常包含一些特定驅動程序的
@@ -207,7 +207,7 @@ Linux內核6.x版本 <http://kernel.org/>
 
      "make tinyconfig"  配置儘可能小的內核。
 
-   更多關於使用Linux內核配置工具的信息，見文檔
+   更多關於使用GNU/Linux內核配置工具的信息，見文檔
    Documentation/kbuild/kconfig.rst。
 
  - ``make config`` 注意事項:
@@ -262,7 +262,7 @@ Linux內核6.x版本 <http://kernel.org/>
 
  - 不再支持在沒有LILO等啓動裝載程序幫助的情況下直接從軟盤引導內核。
 
-   如果從硬盤引導Linux，很可能使用LILO，它使用/etc/lilo.conf文件中
+   如果從硬盤引導GNU/Linux，很可能使用LILO，它使用/etc/lilo.conf文件中
    指定的內核映像文件。內核映像文件通常是/vmlinuz、/boot/vmlinuz、
    /bzImage或/boot/bzImage。使用新內核前，請保存舊映像的副本，並複製
    新映像覆蓋舊映像。然後您【必須重新運行LILO】來更新加載映射！否則，

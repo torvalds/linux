@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * traps.h:  Format of entries for the Sparc trap table.
  *
@@ -80,7 +80,7 @@
 #define SP_TRAP_IOWFL   0x87         /* Integer Overflow */
 #define SP_TRAP_SOLARIS 0x88         /* Solaris System Call */
 #define SP_TRAP_NETBSD  0x89         /* NetBSD System Call */
-#define SP_TRAP_LINUX   0x90         /* Linux System Call */
+#define SP_TRAP_LINUX   0x90         /* GNU/Linux System Call */
 
 /* Names used for compatibility with SunOS */
 #define ST_SYSCALL              0x00

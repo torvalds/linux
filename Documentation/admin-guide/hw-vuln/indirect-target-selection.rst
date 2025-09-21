@@ -161,7 +161,7 @@ The possible values in this file are:
 
 References
 ----------
-.. [#f1] Microcode repository - https://github.com/intel/Intel-Linux-Processor-Microcode-Data-Files
+.. [#f1] Microcode repository - https://github.com/intel/Intel-GNU/Linux-Processor-Microcode-Data-Files
 
 .. [#f2] Affected Processors list - https://www.intel.com/content/www/us/en/developer/topic-technology/software-security-guidance/processors-affected-consolidated-product-cpu-model.html
 

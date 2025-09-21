@@ -1,10 +1,10 @@
 ===================================
-Command Line Options for Linux/m68k
+Command Line Options for GNU/Linux/m68k
 ===================================
 
 Last Update: 2 May 1999
 
-Linux/m68k version: 2.2.6
+GNU/Linux/m68k version: 2.2.6
 
 Author: Roman.Hodek@informatik.uni-erlangen.de (Roman Hodek)
 
@@ -13,7 +13,7 @@ Update: jds@kom.auc.dk (Jes Sorensen) and faq@linux-m68k.org (Chris Lawrence)
 0) Introduction
 ===============
 
-Often I've been asked which command line options the Linux/m68k
+Often I've been asked which command line options the GNU/Linux/m68k
 kernel understands, or how the exact syntax for the ... option is, or
 ... about the option ... . I hope, this document supplies all the
 answers...
@@ -40,7 +40,7 @@ argument contains an '=', it is of class 2, and the definition is put
 into init's environment. All other arguments are passed to init as
 command line options.
 
-This document describes the valid kernel options for Linux/m68k in
+This document describes the valid kernel options for GNU/Linux/m68k in
 the version mentioned at the start of this file. Later revisions may
 add new such options, and some may be missing in older versions.
 
@@ -250,14 +250,14 @@ drive (with "root=").
 :Syntax: ether=[<irq>[,<base_addr>[,<mem_start>[,<mem_end>]]]],<dev-name>
 
 <dev-name> is the name of a net driver, as specified in
-drivers/net/Space.c in the Linux source. Most prominent are eth0, ...
+drivers/net/Space.c in the GNU/Linux source. Most prominent are eth0, ...
 eth3, sl0, ... sl3, ppp0, ..., ppp3, dummy, and lo.
 
 The non-ethernet drivers (sl, ppp, dummy, lo) obviously ignore the
 settings by this options. Also, the existing ethernet drivers for
-Linux/m68k (ariadne, a2065, hydra) don't use them because Zorro boards
+GNU/Linux/m68k (ariadne, a2065, hydra) don't use them because Zorro boards
 are really Plug-'n-Play, so the "ether=" option is useless altogether
-for Linux/m68k.
+for GNU/Linux/m68k.
 
 
 3.2) hd=
@@ -302,7 +302,7 @@ buffers allocated for all tape devices.
 
 :Syntax: dmasound=[<buffers>,<buffer-size>[,<catch-radius>]]
 
-This option controls some configurations of the Linux/m68k DMA sound
+This option controls some configurations of the GNU/Linux/m68k DMA sound
 driver (Amiga and Atari): <buffers> is the number of buffers you want
 to use (minimum 4, default 4), <buffer-size> is the size of each
 buffer in kilobytes (minimum 4, default 32) and <catch-radius> says
@@ -340,7 +340,7 @@ NBB:
 -----------------
 
 This sub-option may be any of the predefined video modes, as listed
-in atari/atafb.c in the Linux/m68k source tree. The kernel will
+in atari/atafb.c in the GNU/Linux/m68k source tree. The kernel will
 activate the given video mode at boot time and make it the default
 mode, if the hardware allows. Currently defined names are:
 
@@ -428,11 +428,11 @@ For this, see the "sw_*" options below.
 
 This is probably the most complicated parameter... It specifies that
 you have some external video hardware (a graphics board), and how to
-use it under Linux/m68k. The kernel cannot know more about the hardware
+use it under GNU/Linux/m68k. The kernel cannot know more about the hardware
 than you tell it here! The kernel also is unable to set or change any
 video modes, since it doesn't know about any board internal. So, you
-have to switch to that video mode before you start Linux, and cannot
-switch to another mode once Linux has started.
+have to switch to that video mode before you start GNU/Linux, and cannot
+switch to another mode once GNU/Linux has started.
 
 The first 3 parameters of this sub-option should be obvious: <xres>,
 <yres> and <depth> give the dimensions of the screen and the number of
@@ -484,7 +484,7 @@ writing two consecutive semicolons, if you want to give a <vgabase>
 
 The <vgabase> parameter is optional. If it is not given, the kernel
 cannot read or write any color registers of the video hardware, and
-thus you have to set appropriate colors before you start Linux. But if
+thus you have to set appropriate colors before you start GNU/Linux. But if
 your card is somehow VGA compatible, you can tell the kernel the base
 address of the VGA register set, so it can change the color lookup
 table. You have to look up this address in your board's documentation.
@@ -890,13 +890,13 @@ possible.
 The earlier versions of the GVP driver did not handle DMA
 address-mask settings correctly which made it necessary for some
 people to use this option, in order to get their GVP controller
-running under Linux. These problems have hopefully been solved and the
+running under GNU/Linux. These problems have hopefully been solved and the
 use of this option is now highly unrecommended!
 
 Incorrect use can lead to unpredictable behavior, so please only use
 this option if you *know* what you are doing and have a reason to do
 so. In any case if you experience problems and need to use this
-option, please inform us about it by mailing to the Linux/68k kernel
+option, please inform us about it by mailing to the GNU/Linux/68k kernel
 mailing list.
 
 The address mask set by this option specifies which addresses are

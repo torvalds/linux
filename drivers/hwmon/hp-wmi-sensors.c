@@ -12,7 +12,7 @@
  * [2] Hewlett-Packard Development Company, L.P.,
  *     "HP Retail Manageability", 2012. [Online].
  *     Available: http://h10032.www1.hp.com/ctg/Manual/c03291135.pdf
- * [3] Linux Hardware Project, A. Ponomarenko et al.,
+ * [3] GNU/Linux Hardware Project, A. Ponomarenko et al.,
  *     "linuxhw/ACPI - Collect ACPI table dumps", 2018. [Online].
  *     Available: https://github.com/linuxhw/ACPI
  * [4] P. Rohár, "bmfdec - Decompile binary MOF file (BMF) from WMI buffer",

@@ -1,4 +1,4 @@
-/* natsemi.c: A Linux PCI Ethernet driver for the NatSemi DP8381x series. */
+/* natsemi.c: A GNU/Linux PCI Ethernet driver for the NatSemi DP8381x series. */
 /*
 	Written/copyright 1999-2001 by Donald Becker.
 	Portions copyright (c) 2001,2002 Sun Microsystems (thockin@sun.com)

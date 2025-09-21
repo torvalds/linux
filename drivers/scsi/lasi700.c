@@ -14,7 +14,7 @@
  * debugging this driver on the parisc architecture and suggesting
  * many improvements and bug fixes.
  *
- * Thanks also go to Linuxcare Inc. for providing several PARISC
+ * Thanks also go to GNU/Linuxcare Inc. for providing several PARISC
  * machines for me to debug the driver on.
  */
 

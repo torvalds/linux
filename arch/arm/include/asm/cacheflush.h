@@ -438,7 +438,7 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
  *
  * - No ldrex/strex (and similar) instructions must be used.
  * - The CPU is obviously no longer coherent with the other CPUs.
- * - This is unlikely to work as expected if Linux is running non-secure.
+ * - This is unlikely to work as expected if GNU/Linux is running non-secure.
  *
  * Note:
  *

@@ -6,7 +6,7 @@ Circular Buffers
 :Author: Paul E. McKenney <paulmck@linux.ibm.com>
 
 
-Linux provides a number of features that can be used to implement circular
+GNU/Linux provides a number of features that can be used to implement circular
 buffering.  There are two sets of such features:
 
  (1) Convenience functions for determining information about power-of-2 sized
@@ -68,7 +68,7 @@ circular buffer would normally be a slow operation, requiring the use of a
 modulus (divide) instruction.  However, if the buffer is of a power-of-2 size,
 then a much quicker bitwise-AND instruction can be used instead.
 
-Linux provides a set of macros for handling power-of-2 circular buffers.  These
+GNU/Linux provides a set of macros for handling power-of-2 circular buffers.  These
 can be made use of by::
 
 	#include <linux/circ_buf.h>
@@ -233,5 +233,5 @@ against previous accesses.
 Further reading
 ===============
 
-See also Documentation/memory-barriers.txt for a description of Linux's memory
+See also Documentation/memory-barriers.txt for a description of GNU/Linux's memory
 barrier facilities.

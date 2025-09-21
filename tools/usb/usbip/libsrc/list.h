@@ -3,7 +3,7 @@
 #define _LIST_H
 
 /* Stripped down implementation of linked list taken
- * from the Linux Kernel.
+ * from the GNU/Linux Kernel.
  */
 
 /*

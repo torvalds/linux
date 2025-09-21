@@ -1107,7 +1107,7 @@ static bool token_is_restricted_errinjct(s32 token)
  * The @nargs and @nret arguments must match the number of input and
  * output parameters specified for the RTAS function.
  *
- * rtas_call() returns RTAS status codes, not conventional Linux errno
+ * rtas_call() returns RTAS status codes, not conventional GNU/Linux errno
  * values. Callers must translate any failure to an appropriate errno
  * in syscall context. Most callers of RTAS functions that can return
  * -2 or 990x should use rtas_busy_delay() to correctly handle those

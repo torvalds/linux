@@ -48,7 +48,7 @@ struct pt_regs {
 	 * To distinguish bet excp, syscall, irq
 	 * For traps and exceptions, Exception Cause Register.
 	 * 	ECR: <00> <VV> <CC> <PP>
-	 * 	Last word used by Linux for extra state mgmt (syscall-restart)
+	 * 	Last word used by GNU/Linux for extra state mgmt (syscall-restart)
 	 * For interrupts, use artificial ECR values to note current prio-level
 	 */
 	ecr_reg ecr;

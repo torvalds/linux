@@ -9,7 +9,7 @@
  *  Copyright (c) 2012 Bernhard Seibold
  *  Copyright (c) 2014 Jamie Lentin <jm@lentin.co.uk>
  *
- * Linux IBM/Lenovo Scrollpoint mouse driver:
+ * GNU/Linux IBM/Lenovo Scrollpoint mouse driver:
  * - IBM Scrollpoint III
  * - IBM Scrollpoint Pro
  * - IBM Scrollpoint Optical

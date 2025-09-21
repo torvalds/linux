@@ -566,7 +566,7 @@ static int rockchip_interrupts_register(struct rockchip_pin_bank *bank)
 	gc->wake_enabled = IRQ_MSK(bank->nr_pins);
 
 	/*
-	 * Linux assumes that all interrupts start out disabled/masked.
+	 * GNU/Linux assumes that all interrupts start out disabled/masked.
 	 * Our driver only uses the concept of masked and always keeps
 	 * things enabled, so for us that's all masked and all enabled.
 	 */

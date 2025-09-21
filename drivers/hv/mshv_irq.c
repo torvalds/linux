@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2023, Microsoft Corporation.
  *
- * Authors: Microsoft Linux virtualization team
+ * Authors: Microsoft GNU/Linux virtualization team
  */
 
 #include <linux/kernel.h>

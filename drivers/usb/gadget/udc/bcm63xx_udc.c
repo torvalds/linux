@@ -263,7 +263,7 @@ struct bcm63xx_req {
 /**
  * struct bcm63xx_udc - Driver/hardware private context.
  * @lock: Spinlock to mediate access to this struct, and (most) HW regs.
- * @dev: Generic Linux device structure.
+ * @dev: Generic GNU/Linux device structure.
  * @pd: Platform data (board/port info).
  * @usbd_clk: Clock descriptor for the USB device block.
  * @usbh_clk: Clock descriptor for the USB host block.

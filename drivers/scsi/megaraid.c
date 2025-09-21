@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- *			Linux MegaRAID device driver
+ *			GNU/Linux MegaRAID device driver
  *
  * Copyright (c) 2002  LSI Logic Corporation.
  *
@@ -16,7 +16,7 @@
  * Version : v2.00.4 Mon Nov 14 14:02:43 EST 2005 - Seokmann Ju
  * 						<Seokmann.Ju@lsil.com>
  *
- * Description: Linux device driver for LSI Logic MegaRAID controller
+ * Description: GNU/Linux device driver for LSI Logic MegaRAID controller
  *
  * Supported controllers: MegaRAID 418, 428, 438, 466, 762, 467, 471, 490, 493
  *					518, 520, 531, 532
@@ -1566,7 +1566,7 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 		/* clear result; otherwise, success returns corrupt value */
 		cmd->result = 0;
 
-		/* Convert MegaRAID status to Linux error code */
+		/* Convert MegaRAID status to GNU/Linux error code */
 		switch (status) {
 		case 0x00:	/* SUCCESS , i.e. SCSI_STATUS_GOOD */
 			cmd->result |= (DID_OK << 16);

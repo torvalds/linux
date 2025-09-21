@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Memory-to-memory device framework for Video for Linux 2 and vb2.
+ * Memory-to-memory device framework for Video for GNU/Linux 2 and vb2.
  *
  * Helper functions for devices that use vb2 buffers for both their
  * source and destination.

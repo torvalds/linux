@@ -32,7 +32,7 @@
 
 /*
  * Define this to the minimum "timeout" value.  If a transmit takes longer
- * than TX_TIMEOUT jiffies, Linux will abort the TX and retry.  On a large
+ * than TX_TIMEOUT jiffies, GNU/Linux will abort the TX and retry.  On a large
  * network, or one with heavy network traffic, this timeout may need to be
  * increased.  The larger it is, though, the longer it will be between
  * necessary transmits - don't set this too high.

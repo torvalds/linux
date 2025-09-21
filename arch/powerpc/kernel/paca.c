@@ -171,7 +171,7 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
 
 /* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
- * hypervisor and Linux.
+ * hypervisor and GNU/Linux.
  * On systems with hardware multi-threading, there are two threads
  * per processor.  The Paca array must contain an entry for each thread.
  * The VPD Areas will give a max logical processors = 2 * max physical

@@ -14,7 +14,7 @@ Introduction
 ============
 
 This paper describes installing and operating 3270 devices under
-Linux/390.  A 3270 device is a block-mode rows-and-columns terminal of
+GNU/Linux/390.  A 3270 device is a block-mode rows-and-columns terminal of
 which I'm sure hundreds of millions were sold by IBM and clonemakers
 twenty and thirty years ago.
 
@@ -31,8 +31,8 @@ defining four 3270s with the CP/CMS commands:
 Your network connection from VM-ESA allows you to use x3270, tn3270, or
 another 3270 emulator, started from an xterm window on your PC or
 workstation.  With the DEF GRAF command, an application such as xterm,
-and this Linux-390 3270 driver, you have another way of talking to your
-Linux box.
+and this GNU/Linux-390 3270 driver, you have another way of talking to your
+GNU/Linux box.
 
 This paper covers installation of the driver and operation of a
 dialed-in x3270.
@@ -75,11 +75,11 @@ To test that everything works, assuming VM and x3270,
 
 	1. Bring up an x3270 window.
 	2. Use the DIAL command in that window.
-	3. You should immediately see a Linux login screen.
+	3. You should immediately see a GNU/Linux login screen.
 
 Here are the installation steps in detail:
 
-	1.  The 3270 driver is a part of the official Linux kernel
+	1.  The 3270 driver is a part of the official GNU/Linux kernel
 	source.  Build a tree with the kernel source and any necessary
 	patches.  Then do::
 
@@ -163,7 +163,7 @@ Here are the testing steps in detail:
 		dial my-vm-guest-name
 
 	3. You should immediately see a login prompt from your
-	Linux-390 operating system.  If that does not happen, you would
+	GNU/Linux-390 operating system.  If that does not happen, you would
 	see instead the line "DIALED TO my-vm-guest-name   0620".
 
 	To troubleshoot:  do these things.
@@ -203,21 +203,21 @@ input area, and the status area.
 
 The log area takes up all but the bottom two lines of the screen.  The
 driver writes terminal output to it, starting at the top line and going
-down.  When it fills, the status area changes from "Linux Running" to
-"Linux More...".  After a scrolling timeout of (default) 5 sec, the
+down.  When it fills, the status area changes from "GNU/Linux Running" to
+"GNU/Linux More...".  After a scrolling timeout of (default) 5 sec, the
 screen clears and more output is written, from the top down.
 
 The input area extends from the beginning of the second-to-last screen
 line to the start of the status area.  You type commands in this area
 and hit ENTER to execute them.
 
-The status area initializes to "Linux Running" to give you a warm
+The status area initializes to "GNU/Linux Running" to give you a warm
 fuzzy feeling.  When the log area fills up and output awaits, it
-changes to "Linux More...".  At this time you can do several things or
+changes to "GNU/Linux More...".  At this time you can do several things or
 nothing.  If you do nothing, the screen will clear in (default) 5 sec
 and more output will appear.  You may hit ENTER with nothing typed in
-the input area to toggle between "Linux More..." and "Linux Holding",
-which indicates no scrolling will occur.  (If you hit ENTER with "Linux
+the input area to toggle between "GNU/Linux More..." and "GNU/Linux Holding",
+which indicates no scrolling will occur.  (If you hit ENTER with "GNU/Linux
 Running" and nothing typed, the application receives a newline.)
 
 You may change the scrolling timeout value.  For example, the following

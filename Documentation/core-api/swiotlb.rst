@@ -4,7 +4,7 @@
 DMA and swiotlb
 ===============
 
-swiotlb is a memory buffer allocator used by the Linux kernel DMA layer. It is
+swiotlb is a memory buffer allocator used by the GNU/Linux kernel DMA layer. It is
 typically used when a device doing DMA can't directly access the target memory
 buffer because of hardware limitations or other requirements. In such a case,
 the DMA layer calls swiotlb to allocate a temporary memory buffer that conforms
@@ -40,7 +40,7 @@ and VMM. For the host to do I/O on behalf of the guest, the I/O must be
 directed to guest memory that is unencrypted. CoCo VMs set a kernel-wide option
 to force all DMA I/O to use bounce buffers, and the bounce buffer memory is set
 up as unencrypted. The host does DMA I/O to/from the bounce buffer memory, and
-the Linux kernel DMA layer does "sync" operations to cause the CPU to copy the
+the GNU/Linux kernel DMA layer does "sync" operations to cause the CPU to copy the
 data to/from the original target memory buffer. The CPU copying bridges between
 the unencrypted and the encrypted memory. This use of bounce buffers allows
 device drivers to "just work" in a CoCo VM, with no modifications

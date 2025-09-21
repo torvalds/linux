@@ -3,7 +3,7 @@
  * Slabinfo: Tool to get reports about slabs
  *
  * (C) 2007 sgi, Christoph Lameter
- * (C) 2011 Linux Foundation, Christoph Lameter
+ * (C) 2011 GNU/Linux Foundation, Christoph Lameter
  *
  * Compile with:
  *
@@ -110,7 +110,7 @@ static void fatal(const char *x, ...)
 
 static void usage(void)
 {
-	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
+	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 GNU/Linux Foundation.\n\n"
 		"slabinfo [-aABDefhilLnoPrsStTUvXz1] [N=K] [-dafzput] [slab-regexp]\n"
 		"-a|--aliases           Show aliases\n"
 		"-A|--activity          Most active slabs first\n"

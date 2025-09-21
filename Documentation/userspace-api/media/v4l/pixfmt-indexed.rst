@@ -9,7 +9,7 @@ Indexed Format
 In this format each pixel is represented by an 8 bit index into a 256
 entry ARGB palette. It is intended for
 :ref:`Video Output Overlays <osd>` only. There are no ioctls to access
-the palette, this must be done with ioctls of the Linux framebuffer API.
+the palette, this must be done with ioctls of the GNU/Linux framebuffer API.
 
 
 

@@ -54,7 +54,7 @@
 
 enum gaudi2_fw_status {
 	GAUDI2_PID_STATUS_UP = 0x1,	/* PID on ARC0 is up */
-	GAUDI2_ARM_STATUS_UP = 0x2,	/* ARM Linux Boot complete */
+	GAUDI2_ARM_STATUS_UP = 0x2,	/* ARM GNU/Linux Boot complete */
 	GAUDI2_MGMT_STATUS_UP = 0x3,	/* ARC1 Mgmt is up */
 	GAUDI2_STATUS_LAST = 0xFF
 };

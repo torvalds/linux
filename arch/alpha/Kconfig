@@ -43,7 +43,7 @@ config ALPHA
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
-	  now Hewlett-Packard.  The Alpha Linux project has a home page at
+	  now Hewlett-Packard.  The Alpha GNU/Linux project has a home page at
 	  <http://www.alphalinux.org/>.
 
 config 64BIT
@@ -87,7 +87,7 @@ choice
 	  kernel for your specific system, it will be faster and smaller.
 
 	  To find out what type of Alpha system you have, you may want to
-	  check out the Linux/Alpha FAQ, accessible on the WWW from
+	  check out the GNU/Linux/Alpha FAQ, accessible on the WWW from
 	  <http://www.alphalinux.org/>. In summary:
 
 	  Alcor/Alpha-XLT     AS 600, AS 500, XL-300, XL-366
@@ -144,7 +144,7 @@ config ALPHA_LX164
 	bool "LX164"
 	help
 	  A technical overview of this board is available at
-	  <http://www.unix-ag.org/Linux-Alpha/Architectures/LX164.html>.
+	  <http://www.unix-ag.org/GNU/Linux-Alpha/Architectures/LX164.html>.
 
 config ALPHA_MARVEL
 	bool "Marvel"
@@ -331,18 +331,18 @@ config ALPHA_SRM
 	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow
-	  keys. Details about the Linux/Alpha booting process are contained in
-	  the Linux/Alpha FAQ, accessible on the WWW from
+	  keys. Details about the GNU/Linux/Alpha booting process are contained in
+	  the GNU/Linux/Alpha FAQ, accessible on the WWW from
 	  <http://www.alphalinux.org/>.
 
-	  The usual way to load Linux on an Alpha machine is to use MILO
+	  The usual way to load GNU/Linux on an Alpha machine is to use MILO
 	  (a bootloader that lets you pass command line parameters to the
 	  kernel just like lilo does for the x86 architecture) which can be
 	  loaded either from ARC or can be installed directly as a permanent
 	  firmware replacement from floppy (which requires changing a certain
 	  jumper on the motherboard). If you want to do either of these, say N
 	  here. If MILO doesn't work on your system (true for Jensen
-	  motherboards), you can bypass it altogether and boot Linux directly
+	  motherboards), you can bypass it altogether and boot GNU/Linux directly
 	  from an SRM console; say Y here in order to do that. Note that you
 	  won't be able to boot from an IDE disk using SRM.
 

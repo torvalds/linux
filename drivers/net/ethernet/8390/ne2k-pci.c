@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-1.0+
-/* A Linux device driver for PCI NE2000 clones.
+/* A GNU/Linux device driver for PCI NE2000 clones.
  *
  * Authors and other copyright holders:
  * 1992-2000 by Donald Becker, NE2000 core and various modifications.

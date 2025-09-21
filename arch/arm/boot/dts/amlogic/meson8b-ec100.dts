@@ -390,7 +390,7 @@
 };
 
 &gpio_ao {
-	gpio-line-names = "Linux_TX", "Linux_RX",
+	gpio-line-names = "GNU/Linux_TX", "GNU/Linux_RX",
 			  "SLP_S5_N", "USB2_OC_FLAG#",
 			  "HUB_RST", "USB_PWR_EN",
 			  "I2S_IN", "SLP_S1_N",

@@ -1,5 +1,5 @@
 ==================================================
-ARM TCM (Tightly-Coupled Memory) handling in Linux
+ARM TCM (Tightly-Coupled Memory) handling in GNU/Linux
 ==================================================
 
 Written by Linus Walleij <linus.walleij@stericsson.com>
@@ -35,9 +35,9 @@ the TCM.
 
 The TCM memory can then be remapped to another address again using
 the MMU, but notice that the TCM is often used in situations where
-the MMU is turned off. To avoid confusion the current Linux
+the MMU is turned off. To avoid confusion the current GNU/Linux
 implementation will map the TCM 1 to 1 from physical to virtual
-memory in the location specified by the kernel. Currently Linux
+memory in the location specified by the kernel. Currently GNU/Linux
 will map ITCM to 0xfffe0000 and on, and DTCM to 0xfffe8000 and
 on, supporting a maximum of 32KiB of ITCM and 32KiB of DTCM.
 

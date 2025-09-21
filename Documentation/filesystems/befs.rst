@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================
-BeOS filesystem for Linux
+BeOS filesystem for GNU/Linux
 =========================
 
 Document last updated: Dec 6, 2001
@@ -45,7 +45,7 @@ Which is it, BFS or BEFS?
 =========================
 Be, Inc said, "BeOS Filesystem is officially called BFS, not BeFS".
 But Unixware Boot Filesystem is called bfs, too. And they are already in
-the kernel. Because of this naming conflict, on Linux the BeOS
+the kernel. Because of this naming conflict, on GNU/Linux the BeOS
 filesystem is called befs.
 
 How to Install
@@ -122,7 +122,7 @@ Special Thanks
 ==============
 Dominic Giampalo ... Writing "Practical file system design with Be filesystem"
 
-Hiroyuki Yamada  ... Testing LinuxPPC.
+Hiroyuki Yamada  ... Testing GNU/LinuxPPC.
 
 
 

@@ -12,7 +12,7 @@ provides an example tuning based on the guide.
 Setup
 =====
 
-For below example, DAMON of Linux kernel v6.11 and `damo
+For below example, DAMON of GNU/Linux kernel v6.11 and `damo
 <https://github.com/damonitor/damo>`_ (DAMON user-space tool) v2.5.9 was used to
 monitor and visualize access patterns on the physical address space of a system
 running a real-world server workload.

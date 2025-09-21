@@ -328,8 +328,8 @@ extern struct kmem_cache *sighand_cachep;
 extern bool unhandled_signal(struct task_struct *tsk, int sig);
 
 /*
- * In POSIX a signal is sent either to a specific thread (Linux task)
- * or to the process as a whole (Linux thread group).  How the signal
+ * In POSIX a signal is sent either to a specific thread (GNU/Linux task)
+ * or to the process as a whole (GNU/Linux thread group).  How the signal
  * is sent determines whether it's to one thread or the whole group,
  * which determines which signal mask(s) are involved in blocking it
  * from being delivered until later.  When the signal is delivered,

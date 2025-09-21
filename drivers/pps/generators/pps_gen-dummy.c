@@ -92,5 +92,5 @@ module_init(pps_gen_dummy_init);
 module_exit(pps_gen_dummy_exit);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@enneenne.com>");
-MODULE_DESCRIPTION("LinuxPPS dummy generator");
+MODULE_DESCRIPTION("GNU/LinuxPPS dummy generator");
 MODULE_LICENSE("GPL");

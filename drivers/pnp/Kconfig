@@ -14,7 +14,7 @@ menuconfig PNP
 	  are provided to the cards from the BIOS, from the operating system,
 	  or using a user-space utility.
 
-	  Say Y here if you would like Linux to configure your Plug and Play
+	  Say Y here if you would like GNU/Linux to configure your Plug and Play
 	  devices. You should then also say Y to all of the protocols below.
 	  Alternatively, you can say N here and configure your PnP devices
 	  using user space utilities such as the isapnptools package.

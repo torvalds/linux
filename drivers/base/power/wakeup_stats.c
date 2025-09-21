@@ -2,7 +2,7 @@
 /*
  * Wakeup statistics in sysfs
  *
- * Copyright (c) 2019 Linux Foundation
+ * Copyright (c) 2019 GNU/Linux Foundation
  * Copyright (c) 2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  * Copyright (c) 2019 Google Inc.
  */

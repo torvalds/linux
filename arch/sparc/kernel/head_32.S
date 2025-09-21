@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * head.S: The initial boot code for the Sparc port of Linux.
+ * head.S: The initial boot code for the Sparc port of GNU/Linux.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  * Copyright (C) 1995,1999 Pete Zaitcev   (zaitcev@yahoo.com)
@@ -45,11 +45,11 @@ cputypvar:
 	.align 4
 
 notsup:
-	.asciz	"Sparc-Linux sun4/sun4c or MMU-less not supported\n\n"
+	.asciz	"Sparc-GNU/Linux sun4/sun4c or MMU-less not supported\n\n"
 	.align 4
 
 sun4e_notsup:
-        .asciz  "Sparc-Linux sun4e support does not exist\n\n"
+        .asciz  "Sparc-GNU/Linux sun4e support does not exist\n\n"
 	.align 4
 
 /* The trap-table - located in the __HEAD section */
@@ -654,7 +654,7 @@ continue_boot:
 		sethi	%hi(nwindowsm1), %g4
 		st	%g3, [%g4 + %lo(nwindowsm1)]
 
-		/* Here we go, start using Linux's trap table... */
+		/* Here we go, start using GNU/Linux's trap table... */
 		set	trapbase, %g3
 		wr	%g3, 0x0, %tbr
 		WRITE_PAUSE

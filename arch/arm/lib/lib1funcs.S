@@ -3,7 +3,7 @@
  *
  * Author: Nicolas Pitre <nico@fluxnic.net>
  *   - contributed to gcc-3.4 on Sep 30, 2003
- *   - adapted for the Linux kernel on Oct 2, 2003
+ *   - adapted for the GNU/Linux kernel on Oct 2, 2003
  */
 
 /* Copyright 1995, 1996, 1998, 1999, 2000, 2003 Free Software Foundation, Inc.

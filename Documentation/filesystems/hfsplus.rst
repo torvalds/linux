@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ======================================
-Macintosh HFSPlus Filesystem for Linux
+Macintosh HFSPlus Filesystem for GNU/Linux
 ======================================
 
 HFSPlus is a filesystem first introduced in MacOS 8.1.
@@ -35,7 +35,7 @@ When mounting an HFSPlus filesystem, the following options are accepted:
 
   part=n
 	Select partition number n from the devices.  This option only makes
-	sense for CDROMs because they can't be partitioned under Linux.
+	sense for CDROMs because they can't be partitioned under GNU/Linux.
 	For disk devices the generic partition parsing code does this
 	for us.  Defaults to not parsing the partition table at all.
 

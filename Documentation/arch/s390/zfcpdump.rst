@@ -4,16 +4,16 @@ The s390 SCSI dump tool (zfcpdump)
 
 System z machines (z900 or higher) provide hardware support for creating system
 dumps on SCSI disks. The dump process is initiated by booting a dump tool, which
-has to create a dump of the current (probably crashed) Linux image. In order to
-not overwrite memory of the crashed Linux with data of the dump tool, the
+has to create a dump of the current (probably crashed) GNU/Linux image. In order to
+not overwrite memory of the crashed GNU/Linux with data of the dump tool, the
 hardware saves some memory plus the register sets of the boot CPU before the
 dump tool is loaded. There exists an SCLP hardware interface to obtain the saved
 memory afterwards. Currently 32 MB are saved.
 
-This zfcpdump implementation consists of a Linux dump kernel together with
+This zfcpdump implementation consists of a GNU/Linux dump kernel together with
 a user space dump tool, which are loaded together into the saved memory region
 below 32 MB. zfcpdump is installed on a SCSI disk using zipl (as contained in
-the s390-tools package) to make the device bootable. The operator of a Linux
+the s390-tools package) to make the device bootable. The operator of a GNU/Linux
 system can then trigger a SCSI dump by booting the SCSI disk, where zfcpdump
 resides on.
 

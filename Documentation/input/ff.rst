@@ -1,5 +1,5 @@
 ========================
-Force feedback for Linux
+Force feedback for GNU/Linux
 ========================
 
 :Author: Johann Deneux <johann.deneux@gmail.com> on 2001/04/22.
@@ -11,11 +11,11 @@ interactive.svg as well.
 Introduction
 ~~~~~~~~~~~~
 
-This document describes how to use force feedback devices under Linux. The
+This document describes how to use force feedback devices under GNU/Linux. The
 goal is not to support these devices as if they were simple input-only devices
 (as it is already the case), but to really enable the rendering of force
 effects.
-This document only describes the force feedback part of the Linux input
+This document only describes the force feedback part of the GNU/Linux input
 interface. Please read joydev/joystick.rst and input.rst before reading further
 this document.
 

@@ -23,7 +23,7 @@ menuconfig BT
 	  that typically extends up to 10 meters.  More information about
 	  Bluetooth can be found at <https://www.bluetooth.com/>.
 
-	  Linux Bluetooth subsystem consist of several layers:
+	  GNU/Linux Bluetooth subsystem consist of several layers:
 	     Bluetooth Core
 		HCI device and connection manager, scheduler
 		SCO audio links
@@ -39,7 +39,7 @@ menuconfig BT
 	  Say Y here to compile Bluetooth support into the kernel or say M to
 	  compile it as module (bluetooth).
 
-	  To use Linux Bluetooth subsystem, you will need several user-space
+	  To use GNU/Linux Bluetooth subsystem, you will need several user-space
 	  utilities like hciconfig and bluetoothd.  These utilities and updates
 	  to Bluetooth kernel modules are provided in the BlueZ packages.  For
 	  more information, see <http://www.bluez.org/>.

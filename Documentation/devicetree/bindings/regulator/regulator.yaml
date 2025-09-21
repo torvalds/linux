@@ -251,7 +251,7 @@ patternProperties:
     type: object
     description:
       sub-nodes for regulator state in Standby, Suspend-to-RAM, and
-      Suspend-to-DISK modes. Equivalent with standby, mem, and disk Linux
+      Suspend-to-DISK modes. Equivalent with standby, mem, and disk GNU/Linux
       sleep states.
 
     properties:

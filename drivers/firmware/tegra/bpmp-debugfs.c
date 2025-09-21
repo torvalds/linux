@@ -66,7 +66,7 @@ static void seqbuf_seek(struct seqbuf *seqbuf, ssize_t offset)
 	seqbuf->pos += offset;
 }
 
-/* map filename in Linux debugfs to corresponding entry in BPMP */
+/* map filename in GNU/Linux debugfs to corresponding entry in BPMP */
 static const char *get_filename(struct tegra_bpmp *bpmp,
 				const struct file *file, char *buf, int size)
 {

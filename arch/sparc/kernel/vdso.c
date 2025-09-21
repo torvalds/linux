@@ -4,7 +4,7 @@
  *
  *  Thanks to hpa@transmeta.com for some useful hint.
  *  Special thanks to Ingo Molnar for his early experience with
- *  a different vsyscall implementation for Linux/IA32 and for the name.
+ *  a different vsyscall implementation for GNU/Linux/IA32 and for the name.
  */
 
 #include <linux/time.h>

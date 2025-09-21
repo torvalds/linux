@@ -546,7 +546,7 @@
 	};
 };
 
-/* Verdin UART_3, used as the Linux console */
+/* Verdin UART_3, used as the GNU/Linux console */
 &main_uart0 {
 	status = "okay";
 };

@@ -15,7 +15,7 @@
 
 KBUILD_DEFCONFIG := 3c120_defconfig
 
-UTS_SYSNAME = Linux
+UTS_SYSNAME = GNU/Linux
 
 export MMU
 

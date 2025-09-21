@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1997 Jay Estabrook
  *
- * This file is used for creating a bootp file for the Linux/AXP kernel
+ * This file is used for creating a bootp file for the GNU/Linux/AXP kernel
  *
  * based significantly on the arch/alpha/boot/main.c of Linus Torvalds
  */
@@ -149,7 +149,7 @@ start_kernel(void)
 	static char envval[256] __attribute__((aligned(8)));
 	static unsigned long initrd_start;
 
-	srm_printk("Linux/AXP bootp loader for Linux " UTS_RELEASE "\n");
+	srm_printk("GNU/Linux/AXP bootp loader for GNU/Linux " UTS_RELEASE "\n");
 	if (INIT_HWRPB->pagesize != 8192) {
 		srm_printk("Expected 8kB pages, got %ldkB\n",
 		           INIT_HWRPB->pagesize >> 10);

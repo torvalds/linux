@@ -145,7 +145,7 @@ struct typhoon_interface {
  * addrHi:	hi bytes of DMA address for this part of the packet
  * processFlags: must be zero
  *
- * TYPHOON_DESC_VALID is not mentioned in their docs, but their Linux
+ * TYPHOON_DESC_VALID is not mentioned in their docs, but their GNU/Linux
  * driver uses it.
  */
 struct tx_desc {

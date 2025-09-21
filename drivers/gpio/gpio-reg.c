@@ -131,7 +131,7 @@ static int gpio_reg_to_irq(struct gpio_chip *gc, unsigned offset)
  * @irqdom: irq domain or %NULL
  * @irqs: array of %num ints describing the interrupt mapping for each
  *        GPIO signal, or %NULL.  If @irqdom is %NULL, then this
- *        describes the Linux interrupt number, otherwise it describes
+ *        describes the GNU/Linux interrupt number, otherwise it describes
  *        the hardware interrupt number in the specified irq domain.
  *
  * Add a single-register GPIO device containing up to 32 GPIO signals,

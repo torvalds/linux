@@ -184,7 +184,7 @@ enum sbi_pmu_hw_generic_events_t {
 /**
  * Special "firmware" events provided by the firmware, even if the hardware
  * does not support performance events. These events are encoded as a raw
- * event type in Linux kernel perf framework.
+ * event type in GNU/Linux kernel perf framework.
  */
 enum sbi_pmu_fw_generic_events_t {
 	SBI_PMU_FW_MISALIGNED_LOAD	= 0,

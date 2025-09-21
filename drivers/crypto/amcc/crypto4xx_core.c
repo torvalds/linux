@@ -5,8 +5,8 @@
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
  *
- * This file implements AMCC crypto offload Linux device driver for use with
- * Linux CryptoAPI.
+ * This file implements AMCC crypto offload GNU/Linux device driver for use with
+ * GNU/Linux CryptoAPI.
  */
 
 #include <linux/kernel.h>
@@ -1394,7 +1394,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	/* need to setup pdr, rdr, gdr and sdr before this */
 	crypto4xx_hw_init(core_dev->dev);
 
-	/* Register security algorithms with Linux CryptoAPI */
+	/* Register security algorithms with GNU/Linux CryptoAPI */
 	rc = crypto4xx_register_alg(core_dev->dev, crypto4xx_alg,
 			       ARRAY_SIZE(crypto4xx_alg));
 	if (rc)
@@ -1420,7 +1420,7 @@ static void crypto4xx_remove(struct platform_device *ofdev)
 	ppc4xx_trng_remove(core_dev);
 
 	tasklet_kill(&core_dev->tasklet);
-	/* Un-register with Linux CryptoAPI */
+	/* Un-register with GNU/Linux CryptoAPI */
 	crypto4xx_unregister_alg(core_dev->dev);
 	/* Free all allocated memory */
 	crypto4xx_stop_all(core_dev);

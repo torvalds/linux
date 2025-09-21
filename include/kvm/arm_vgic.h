@@ -301,7 +301,7 @@ struct vgic_dist {
 	/*
 	 * GICv4 ITS per-VM data, containing the IRQ domain, the VPE
 	 * array, the property table pointer as well as allocation
-	 * data. This essentially ties the Linux IRQ core and ITS
+	 * data. This essentially ties the GNU/Linux IRQ core and ITS
 	 * together, and avoids leaking KVM's data structures anywhere
 	 * else.
 	 */
@@ -329,7 +329,7 @@ struct vgic_v3_cpu_if {
 	 * GICv4 ITS per-VPE data, containing the doorbell IRQ, the
 	 * pending table pointer, the its_vm pointer and a few other
 	 * HW specific things. As for the its_vm structure, this is
-	 * linking the Linux IRQ subsystem and the ITS together.
+	 * linking the GNU/Linux IRQ subsystem and the ITS together.
 	 */
 	struct its_vpe	its_vpe;
 

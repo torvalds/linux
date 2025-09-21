@@ -6,7 +6,7 @@ BPF Instruction Set Architecture (ISA)
 ======================================
 
 eBPF, also commonly
-referred to as BPF, is a technology with origins in the Linux kernel
+referred to as BPF, is a technology with origins in the GNU/Linux kernel
 that can run untrusted programs in a privileged context such as an
 operating system kernel. This document specifies the BPF instruction
 set architecture (ISA).
@@ -558,14 +558,14 @@ Historically, each helper function was identified by a static ID
 encoded in the 'imm' field.  Further documentation of helper functions
 is outside the scope of this document and standardization is left for
 future work, but use is widely deployed and more information can be
-found in platform-specific documentation (e.g., Linux kernel documentation).
+found in platform-specific documentation (e.g., GNU/Linux kernel documentation).
 
 Platforms that support the BPF Type Format (BTF) support identifying
 a helper function by a BTF ID encoded in the 'imm' field, where the BTF ID
 identifies the helper name and type.  Further documentation of BTF
 is outside the scope of this document and standardization is left for
 future work, but use is widely deployed and more information can be
-found in platform-specific documentation (e.g., Linux kernel documentation).
+found in platform-specific documentation (e.g., GNU/Linux kernel documentation).
 
 Program-local functions
 ~~~~~~~~~~~~~~~~~~~~~~~

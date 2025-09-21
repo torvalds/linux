@@ -91,7 +91,7 @@ struct ieee802154_local {
 
 	struct sk_buff *tx_skb;
 	struct work_struct sync_tx_work;
-	/* A negative Linux error code or a null/positive MLME error status */
+	/* A negative GNU/Linux error code or a null/positive MLME error status */
 	int tx_result;
 };
 

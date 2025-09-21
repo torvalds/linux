@@ -128,7 +128,7 @@ the file.  It must be initialized as follows:
 - ``hash_algorithm`` must be the identifier for the hash algorithm to
   use for the Merkle tree, such as FS_VERITY_HASH_ALG_SHA256.  See
   ``include/uapi/linux/fsverity.h`` for the list of possible values.
-- ``block_size`` is the Merkle tree block size, in bytes.  In Linux
+- ``block_size`` is the Merkle tree block size, in bytes.  In GNU/Linux
   v6.3 and later, this can be any power of 2 between (inclusively)
   1024 and the minimum of the system page size and the filesystem
   block size.  In earlier versions, the page size was the only allowed
@@ -245,7 +245,7 @@ FS_IOC_READ_VERITY_METADATA
 ---------------------------
 
 The FS_IOC_READ_VERITY_METADATA ioctl reads verity metadata from a
-verity file.  This ioctl is available since Linux v5.12.
+verity file.  This ioctl is available since GNU/Linux v5.12.
 
 This ioctl is useful for cases where the verity verification should be
 performed somewhere other than the currently running kernel.
@@ -336,7 +336,7 @@ FS_IOC_ENABLE_VERITY instead, since parameters must be provided.
 statx
 -----
 
-Since Linux v5.5, the statx() system call sets STATX_ATTR_VERITY if
+Since GNU/Linux v5.5, the statx() system call sets STATX_ATTR_VERITY if
 the file has fs-verity enabled.  This can perform better than
 FS_IOC_GETFLAGS and FS_IOC_MEASURE_VERITY because it doesn't require
 opening the file, and opening verity files can be expensive.
@@ -581,7 +581,7 @@ pages have been read into the pagecache.  (See `Verifying data`_.)
 ext4
 ----
 
-ext4 supports fs-verity since Linux v5.4 and e2fsprogs v1.45.2.
+ext4 supports fs-verity since GNU/Linux v5.4 and e2fsprogs v1.45.2.
 
 To create verity files on an ext4 filesystem, the filesystem must have
 been formatted with ``-O verity`` or had ``tune2fs -O verity`` run on
@@ -591,7 +591,7 @@ versions of e2fsck will be unable to check the filesystem.
 
 Originally, an ext4 filesystem with the "verity" feature could only be
 mounted when its block size was equal to the system page size
-(typically 4096 bytes).  In Linux v6.3, this limitation was removed.
+(typically 4096 bytes).  In GNU/Linux v6.3, this limitation was removed.
 
 ext4 sets the EXT4_VERITY_FL on-disk inode flag on verity files.  It
 can only be set by `FS_IOC_ENABLE_VERITY`_, and it cannot be cleared.
@@ -617,7 +617,7 @@ ext4 only allows verity on extent-based files.
 f2fs
 ----
 
-f2fs supports fs-verity since Linux v5.4 and f2fs-tools v1.11.0.
+f2fs supports fs-verity since GNU/Linux v5.4 and f2fs-tools v1.11.0.
 
 To create verity files on an f2fs filesystem, the filesystem must have
 been formatted with ``-O verity``.
@@ -638,7 +638,7 @@ atomic or volatile writes pending.
 btrfs
 -----
 
-btrfs supports fs-verity since Linux v5.15.  Verity-enabled inodes are
+btrfs supports fs-verity since GNU/Linux v5.15.  Verity-enabled inodes are
 marked with a RO_COMPAT inode flag, and the verity metadata is stored
 in separate btree items.
 
@@ -657,7 +657,7 @@ already verified).  Below, we describe how filesystems implement this.
 Pagecache
 ~~~~~~~~~
 
-For filesystems using Linux's pagecache, the ``->read_folio()`` and
+For filesystems using GNU/Linux's pagecache, the ``->read_folio()`` and
 ``->readahead()`` methods must be modified to verify folios before
 they are marked Uptodate.  Merely hooking ``->read_iter()`` would be
 insufficient, since ``->read_iter()`` is not used for memory maps.
@@ -671,7 +671,7 @@ hash blocks via fsverity_operations::read_merkle_tree_page().
 
 fsverity_verify_blocks() returns false if verification failed; in this
 case, the filesystem must not set the folio Uptodate.  Following this,
-as per the usual Linux pagecache behavior, attempts by userspace to
+as per the usual GNU/Linux pagecache behavior, attempts by userspace to
 read() from the part of the file containing the folio will fail with
 EIO, and accesses to the folio within a memory map will raise SIGBUS.
 
@@ -691,7 +691,7 @@ reading a previous data block.  However, random reads perform worse.
 Block device based filesystems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Block device based filesystems (e.g. ext4 and f2fs) in Linux also use
+Block device based filesystems (e.g. ext4 and f2fs) in GNU/Linux also use
 the pagecache, so the above subsection applies too.  However, they
 also usually read many data blocks from a file at once, grouped into a
 structure called a "bio".  To make it easier for these types of
@@ -861,7 +861,7 @@ weren't already directly answered in other parts of this document.
 
 :Q: Why does the API use ioctls instead of setxattr() and getxattr()?
 :A: Abusing the xattr interface for basically arbitrary syscalls is
-    heavily frowned upon by most of the Linux filesystem developers.
+    heavily frowned upon by most of the GNU/Linux filesystem developers.
     An xattr should really just be an xattr on-disk, not an API to
     e.g. magically trigger construction of a Merkle tree.
 
@@ -873,7 +873,7 @@ weren't already directly answered in other parts of this document.
     options of where to store the verity metadata; one possibility is
     to store it past the end of the file and "hide" it from userspace
     by manipulating i_size.  The data verification functions provided
-    by ``fs/verity/`` also assume that the filesystem uses the Linux
+    by ``fs/verity/`` also assume that the filesystem uses the GNU/Linux
     pagecache, but both local and remote filesystems normally do so.
 
 :Q: Why is anything filesystem-specific at all?  Shouldn't fs-verity

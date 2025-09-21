@@ -2,7 +2,7 @@
 /*
  * scsi_logging.c
  *
- * Copyright (C) 2014 SUSE Linux Products GmbH
+ * Copyright (C) 2014 SUSE GNU/Linux Products GmbH
  * Copyright (C) 2014 Hannes Reinecke <hare@suse.de>
  */
 

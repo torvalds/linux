@@ -22,7 +22,7 @@ config ARM_ETHER1
 	depends on ARM && ARCH_ACORN
 	help
 	  If you have an Acorn system with one of these (AKA25) network cards,
-	  you should say Y to this option if you wish to use it with Linux.
+	  you should say Y to this option if you wish to use it with GNU/Linux.
 
 config BVME6000_NET
 	tristate "BVME6000 Ethernet support"

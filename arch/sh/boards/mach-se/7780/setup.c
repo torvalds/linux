@@ -71,7 +71,7 @@ device_initcall(se7780_devices_setup);
 
 static void __init se7780_setup(char **cmdline_p)
 {
-	/* "SH-Linux" on LED Display */
+	/* "SH-GNU/Linux" on LED Display */
 	__raw_writew( 'S' , PA_LED_DISP + (DISP_SEL0_ADDR << 1) );
 	__raw_writew( 'H' , PA_LED_DISP + (DISP_SEL1_ADDR << 1) );
 	__raw_writew( '-' , PA_LED_DISP + (DISP_SEL2_ADDR << 1) );

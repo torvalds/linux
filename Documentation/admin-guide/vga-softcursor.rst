@@ -4,7 +4,7 @@ Software cursor for VGA
 by Pavel Machek <pavel@atrey.karlin.mff.cuni.cz>
 and Martin Mares <mj@atrey.karlin.mff.cuni.cz>
 
-Linux now has some ability to manipulate cursor appearance.  Normally,
+GNU/Linux now has some ability to manipulate cursor appearance.  Normally,
 you can set the size of hardware cursor.  You can now play a few new
 tricks: you can make your cursor look like a non-blinking red block,
 make it inverse background of the character it's over or to highlight

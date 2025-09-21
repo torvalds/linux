@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * mmap based event notifications for SELinux
+ * mmap based event notifications for SEGNU/Linux
  *
  * Author: KaiGai Kohei <kaigai@ak.jp.nec.com>
  *

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Yama Linux Security Module
+ * Yama GNU/Linux Security Module
  *
  * Author: Kees Cook <keescook@chromium.org>
  *

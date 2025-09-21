@@ -78,7 +78,7 @@ Idle CPUs
 ---------
 
 Logical CPUs, simply referred to as "CPUs" in what follows, are regarded as
-*idle* by the Linux kernel when there are no tasks to run on them except for the
+*idle* by the GNU/Linux kernel when there are no tasks to run on them except for the
 special "idle" task.
 
 Tasks are the CPU scheduler's representation of work.  Each task consists of a
@@ -100,7 +100,7 @@ to allow them to make some progress over time.]
 
 The special "idle" task becomes runnable if there are no other runnable tasks
 assigned to the given CPU and the CPU is then regarded as idle.  In other words,
-in Linux idle CPUs run the code of the "idle" task called *the idle loop*.  That
+in GNU/Linux idle CPUs run the code of the "idle" task called *the idle loop*.  That
 code may cause the processor to be put into one of its idle states, if they are
 supported, in order to save energy, but if the processor does not support any
 idle states, or there is not enough time to spend in an idle state before the
@@ -128,7 +128,7 @@ the platform or the processor architecture and organized in a one-dimensional
 (linear) array.  That array has to be prepared and supplied by the ``CPUIdle``
 driver matching the platform the kernel is running on at the initialization
 time.  This allows ``CPUIdle`` governors to be independent of the underlying
-hardware and to work with any platforms that the Linux kernel can run on.
+hardware and to work with any platforms that the GNU/Linux kernel can run on.
 
 Each idle state present in that array is characterized by two parameters to be
 taken into account by the governor, the *target residency* and the (worst-case)
@@ -509,7 +509,7 @@ was entered successfully or rejected, respectively.
 Power Management Quality of Service for CPUs
 ============================================
 
-The power management quality of service (PM QoS) framework in the Linux kernel
+The power management quality of service (PM QoS) framework in the GNU/Linux kernel
 allows kernel code and user space processes to set constraints on various
 energy-efficiency features of the kernel to prevent performance from dropping
 below a required level.

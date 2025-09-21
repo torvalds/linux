@@ -1634,11 +1634,11 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 		}
 
 		/*
-		 * On i.MX8MM, we are running Dual Linux OS, with 1st Linux using SD Card
-		 * as rootfs storage, 2nd Linux using eMMC as rootfs storage. We let
-		 * the 1st linux configure power/clock for the 2nd Linux.
+		 * On i.MX8MM, we are running Dual GNU/Linux OS, with 1st GNU/Linux using SD Card
+		 * as rootfs storage, 2nd GNU/Linux using eMMC as rootfs storage. We let
+		 * the 1st linux configure power/clock for the 2nd GNU/Linux.
 		 *
-		 * When the 2nd Linux is booting into rootfs stage, we let the 1st Linux
+		 * When the 2nd GNU/Linux is booting into rootfs stage, we let the 1st GNU/Linux
 		 * to destroy the 2nd linux, then restart the 2nd linux, we met SDHCI dump.
 		 * After we clear the pending interrupt and halt CQCTL, issue gone.
 		 */

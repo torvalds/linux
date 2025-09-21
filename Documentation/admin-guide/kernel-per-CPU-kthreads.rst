@@ -2,7 +2,7 @@
 Reducing OS jitter due to per-cpu kthreads
 ==========================================
 
-This document lists per-CPU kthreads in the Linux kernel and presents
+This document lists per-CPU kthreads in the GNU/Linux kernel and presents
 options to control their OS jitter.  Note that non-per-CPU kthreads are
 not listed here.  To reduce OS jitter from non-per-CPU kthreads, bind
 them to a "housekeeping" CPU dedicated to such work.

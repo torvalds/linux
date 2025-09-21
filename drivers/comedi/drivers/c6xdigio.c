@@ -4,7 +4,7 @@
  * Hardware driver for Mechatronic Systems Inc. C6x_DIGIO DSP daughter card.
  * http://web.archive.org/web/%2A/http://robot0.ge.uiuc.edu/~spong/mecha/
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1999 Dan Block
  */
 

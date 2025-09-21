@@ -32,7 +32,7 @@ hardware descriptions such as device tree or ACPI:
 
 - pwm-gpio: drivers/pwm/pwm-gpio.c is used to toggle a GPIO with a high
   resolution timer producing a PWM waveform on the GPIO line, as well as
-  Linux high resolution timers can do.
+  GNU/Linux high resolution timers can do.
 
 - extcon-gpio: drivers/extcon/extcon-gpio.c is used when you need to read an
   external connector status, such as a headset line for an audio driver or an

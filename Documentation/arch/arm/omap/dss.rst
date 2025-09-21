@@ -39,7 +39,7 @@ Tested boards include:
 omapdss driver
 --------------
 
-The DSS driver does not itself have any support for Linux framebuffer, V4L or
+The DSS driver does not itself have any support for GNU/Linux framebuffer, V4L or
 such like the current ones, but it has an internal kernel API that upper level
 drivers can use.
 

@@ -76,7 +76,7 @@ enum dvb_device_type {
 struct dvb_frontend;
 
 /**
- * struct dvb_adapter - represents a Digital TV adapter using Linux DVB API
+ * struct dvb_adapter - represents a Digital TV adapter using GNU/Linux DVB API
  *
  * @num:		Number of the adapter
  * @list_head:		List with the DVB adapters

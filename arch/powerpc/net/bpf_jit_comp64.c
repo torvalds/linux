@@ -991,7 +991,7 @@ emit_clear:
 			 * Enforce full ordering for operations with BPF_FETCH by emitting a 'sync'
 			 * before and after the operation.
 			 *
-			 * This is a requirement in the Linux Kernel Memory Model.
+			 * This is a requirement in the GNU/Linux Kernel Memory Model.
 			 * See __cmpxchg_u64() in asm/cmpxchg.h as an example.
 			 */
 			if ((imm & BPF_FETCH) && IS_ENABLED(CONFIG_SMP))

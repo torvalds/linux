@@ -9,7 +9,7 @@
  司延腾 Yanteng Si <siyanteng@loongson.cn>
 
 ====================
-启动 Linux/LoongArch
+启动 GNU/Linux/LoongArch
 ====================
 
 :作者: 司延腾 <siyanteng@loongson.cn>
@@ -31,7 +31,7 @@ LoongArch支持ACPI和FDT启动，需要传递给内核的信息包括memmap、i
       - a2 = systemtable: `systemtable` 指向EFI的系统表，在这个阶段涉及的所有
         指针都是物理地址。
 
-Linux/LoongArch内核镜像文件头
+GNU/Linux/LoongArch内核镜像文件头
 =============================
 
 内核镜像是EFI镜像。作为PE文件，它们有一个64字节的头部结构体，如下所示::

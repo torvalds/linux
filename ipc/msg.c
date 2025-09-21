@@ -582,7 +582,7 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 		err = 0;
 	} else {
 		/*
-		 * MSG_STAT and MSG_STAT_ANY (both Linux specific)
+		 * MSG_STAT and MSG_STAT_ANY (both GNU/Linux specific)
 		 * Return the full id, including the sequence number
 		 */
 		err = msq->q_perm.id;

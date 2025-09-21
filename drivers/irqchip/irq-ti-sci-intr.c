@@ -102,7 +102,7 @@ static int ti_sci_intr_xlate_irq(struct ti_sci_intr_irq_domain *intr, u32 irq)
 /**
  * ti_sci_intr_irq_domain_free() - Free the specified IRQs from the domain.
  * @domain:	Domain to which the irqs belong
- * @virq:	Linux virtual IRQ to be freed.
+ * @virq:	GNU/Linux virtual IRQ to be freed.
  * @nr_irqs:	Number of continuous irqs to be freed
  */
 static void ti_sci_intr_irq_domain_free(struct irq_domain *domain,
@@ -126,7 +126,7 @@ static void ti_sci_intr_irq_domain_free(struct irq_domain *domain,
 /**
  * ti_sci_intr_alloc_parent_irq() - Allocate parent IRQ
  * @domain:	Pointer to the interrupt router IRQ domain
- * @virq:	Corresponding Linux virtual IRQ number
+ * @virq:	Corresponding GNU/Linux virtual IRQ number
  * @hwirq:	Corresponding hwirq for the IRQ within this IRQ domain
  *
  * Returns intr output irq if all went well else appropriate error pointer.
@@ -185,7 +185,7 @@ err_irqs:
 /**
  * ti_sci_intr_irq_domain_alloc() - Allocate Interrupt router IRQs
  * @domain:	Point to the interrupt router IRQ domain
- * @virq:	Corresponding Linux virtual IRQ number
+ * @virq:	Corresponding GNU/Linux virtual IRQ number
  * @nr_irqs:	Continuous irqs to be allocated
  * @data:	Pointer to firmware specifier
  *

@@ -217,7 +217,7 @@ config POWER_RESET_RESTART
 	help
 	  Some boards don't actually have the ability to power off.
 	  Instead they restart, and u-boot holds the SoC until the
-	  user presses a key. u-boot then boots into Linux.
+	  user presses a key. u-boot then boots into GNU/Linux.
 
 config POWER_RESET_ST
 	bool "ST restart driver"

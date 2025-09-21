@@ -7,7 +7,7 @@
  *
  *  https://www.dmtf.org/sites/default/files/standards/documents/DSP0253_1.0.0.pdf
  *
- * This driver provides DSP0253-type MCTP-over-serial transport using a Linux
+ * This driver provides DSP0253-type MCTP-over-serial transport using a GNU/Linux
  * tty device, by setting the N_MCTP line discipline on the tty.
  *
  * Copyright (c) 2021 Code Construct

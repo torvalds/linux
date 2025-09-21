@@ -2,7 +2,7 @@
 /*
  * OpenRISC sys_call_table.c
  *
- * Linux architectural port borrowing liberally from similar works of
+ * GNU/Linux architectural port borrowing liberally from similar works of
  * others.  All original copyrights apply as per the original source
  * declaration.
  *

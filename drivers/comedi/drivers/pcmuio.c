@@ -3,7 +3,7 @@
  * pcmuio.c
  * Comedi driver for Winsystems PC-104 based 48/96-channel DIO boards.
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2006 Calin A. Culianu <calin@ajvar.org>
  */
 

@@ -436,7 +436,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp, 
 		if (pmc > 6)
 			return -1;
 
-		/* Ignore Linux defined bits when checking event below */
+		/* Ignore GNU/Linux defined bits when checking event below */
 		base_event = event & ~EVENT_LINUX_MASK;
 
 		if (pmc >= 5 && base_event != 0x500fa &&

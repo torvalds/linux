@@ -842,8 +842,8 @@ static void optee_handle_rpc(struct tee_context *ctx,
 	case OPTEE_SMC_RPC_FUNC_FOREIGN_INTR:
 		/*
 		 * A foreign interrupt was raised while secure world was
-		 * executing, since they are handled in Linux a dummy RPC is
-		 * performed to let Linux take the interrupt through the normal
+		 * executing, since they are handled in GNU/Linux a dummy RPC is
+		 * performed to let GNU/Linux take the interrupt through the normal
 		 * vector.
 		 */
 		break;

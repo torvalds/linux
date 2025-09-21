@@ -35,7 +35,7 @@ The Arm TPM Service Command Response Buffer Interface Over FF-A [3]_
 specification defines FF-A messages that can be used by a client to signal
 when updates have been made to the CRB.
 
-How the Linux CRB driver interacts with FF-A is summarized below:
+How the GNU/Linux CRB driver interacts with FF-A is summarized below:
 
 - The tpm_crb_ffa driver registers with the FF-A subsystem in the kernel
   with an architected TPM service UUID defined in the CRB over FF-A spec.
@@ -43,7 +43,7 @@ How the Linux CRB driver interacts with FF-A is summarized below:
 - If a TPM service is discovered by FF-A, the probe() function in the
   tpm_crb_ffa driver runs, and the driver initializes.
 
-- The probing and initialization of the Linux CRB driver is triggered
+- The probing and initialization of the GNU/Linux CRB driver is triggered
   by the discovery of a TPM advertised via ACPI.  The CRB driver can
   detect the type of TPM through the ACPI 'start' method.  The start
   method for Arm FF-A was defined in TCG ACPI v1.4 [4]_.

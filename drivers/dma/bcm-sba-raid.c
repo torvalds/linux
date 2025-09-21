@@ -1593,7 +1593,7 @@ static int sba_async_register(struct sba_device *sba)
 	INIT_LIST_HEAD(&dma_dev->channels);
 	list_add_tail(&sba->dma_chan.device_node, &dma_dev->channels);
 
-	/* Register with Linux async DMA framework*/
+	/* Register with GNU/Linux async DMA framework*/
 	ret = dma_async_device_register(dma_dev);
 	if (ret) {
 		dev_err(sba->dev, "async device register error %d", ret);
@@ -1714,7 +1714,7 @@ static int sba_probe(struct platform_device *pdev)
 
 skip_debugfs:
 
-	/* Register DMA device with Linux async framework */
+	/* Register DMA device with GNU/Linux async framework */
 	ret = sba_async_register(sba);
 	if (ret)
 		goto fail_free_resources;

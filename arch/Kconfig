@@ -771,7 +771,7 @@ config HAS_LTO_CLANG
 	depends on $(success,$(AR) --help | head -n 1 | grep -qi llvm)
 	depends on ARCH_SUPPORTS_LTO_CLANG
 	depends on !FTRACE_MCOUNT_USE_RECORDMCOUNT
-	# https://github.com/ClangBuiltLinux/linux/issues/1721
+	# https://github.com/ClangBuiltGNU/Linux/linux/issues/1721
 	depends on (!KASAN || KASAN_HW_TAGS || CLANG_VERSION >= 170000) || !DEBUG_INFO
 	depends on (!KCOV || CLANG_VERSION >= 170000) || !DEBUG_INFO
 	depends on !GCOV_KERNEL
@@ -1231,7 +1231,7 @@ config PAGE_SIZE_4KB
 	bool "4KiB pages"
 	depends on HAVE_PAGE_SIZE_4KB
 	help
-	  This option select the standard 4KiB Linux page size and the only
+	  This option select the standard 4KiB GNU/Linux page size and the only
 	  available option on many architectures. Using 4KiB page size will
 	  minimize memory consumption and is therefore recommended for low
 	  memory systems.
@@ -1263,7 +1263,7 @@ config PAGE_SIZE_32KB
 	  Using 32KiB page size will result in slightly higher performance
 	  kernel at the price of higher memory consumption compared to
 	  16KiB pages.	This option is available only on cnMIPS cores.
-	  Note that you will need a suitable Linux distribution to
+	  Note that you will need a suitable GNU/Linux distribution to
 	  support this.
 
 config PAGE_SIZE_64KB

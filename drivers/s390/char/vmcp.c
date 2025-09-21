@@ -187,7 +187,7 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 
 /*
  * These ioctls are available, as the semantics of the diagnose 8 call
- * does not fit very well into a Linux call. Diagnose X'08' is described in
+ * does not fit very well into a GNU/Linux call. Diagnose X'08' is described in
  * CP Programming Services SC24-6084-00
  *
  * VMCP_GETCODE: gives the CP return code back to user space

@@ -102,7 +102,7 @@ does, or it returns an error code.
 	and the kernel will always set this to NULL.
 	For *Video Output Overlays*
 	the driver will return a valid base address, so applications can
-	find the corresponding Linux framebuffer device (see
+	find the corresponding GNU/Linux framebuffer device (see
 	:ref:`osd`). For *Video Capture Overlays* this field will always be
 	NULL.
     * - struct

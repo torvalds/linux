@@ -11,7 +11,7 @@
  *
  * This driver supports the SCSI adapter implemented by the IBM
  * Power5 firmware.  That SCSI adapter is not a physical adapter,
- * but allows Linux SCSI peripheral drivers to directly
+ * but allows GNU/Linux SCSI peripheral drivers to directly
  * access devices in another logical partition on the physical system.
  *
  * The virtual adapter(s) are present in the open firmware device
@@ -2303,7 +2303,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		/*
 		 * Wait around max init_timeout secs for the adapter to finish
 		 * initializing. When we are done initializing, we will have a
-		 * valid request_limit.  We don't want Linux scanning before
+		 * valid request_limit.  We don't want GNU/Linux scanning before
 		 * we are ready.
 		 */
 		for (wait_switch = jiffies + (init_timeout * HZ);

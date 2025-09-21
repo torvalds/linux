@@ -6,7 +6,7 @@
  * SRAM storage.  The value returned by the RTC counter must be added with the
  * offset stored in a bias register in SRAM (on the GameCube and Wii) or in
  * /config/rtc.xml (on the Wii U).  The latter being very impractical to access
- * from Linux, this driver assumes the bootloader has read it and stored it in
+ * from GNU/Linux, this driver assumes the bootloader has read it and stored it in
  * SRAM like for the other two consoles.
  *
  * This device sits on a bus named EXI (which is similar to SPI), channel 0,
@@ -22,7 +22,7 @@
  * Copyright (C) 2021 Emmanuel Gil Peyrot <linkmauve@linkmauve.fr>
  *
  * Based on rtc-gcn.c
- * Copyright (C) 2004-2009 The GameCube Linux Team
+ * Copyright (C) 2004-2009 The GameCube GNU/Linux Team
  * Copyright (C) 2005,2008,2009 Albert Herranz
  * Based on gamecube_time.c from Torben Nielsen.
  */
@@ -260,7 +260,7 @@ static int gamecube_rtc_read_offset_from_sram(struct priv *d)
 	 * Its default location on the GameCube and on the Wii is in the SRAM,
 	 * while on the Wii U the bootloader needs to fill it with the contents
 	 * of /config/rtc.xml on the SLC (the eMMC).  We don’t do that from
-	 * Linux since it requires implementing a proprietary filesystem and do
+	 * GNU/Linux since it requires implementing a proprietary filesystem and do
 	 * file decryption, instead we require the bootloader to fill the same
 	 * SRAM address as on previous consoles.
 	 */

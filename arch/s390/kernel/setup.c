@@ -853,9 +853,9 @@ static void __init log_component_list(void)
 	if (!early_ipl_comp_list_addr)
 		return;
 	if (ipl_block.hdr.flags & IPL_PL_FLAG_SIPL)
-		pr_info("Linux is running with Secure-IPL enabled\n");
+		pr_info("GNU/Linux is running with Secure-IPL enabled\n");
 	else
-		pr_info("Linux is running with Secure-IPL disabled\n");
+		pr_info("GNU/Linux is running with Secure-IPL disabled\n");
 	ptr = __va(early_ipl_comp_list_addr);
 	end = (void *) ptr + early_ipl_comp_list_size;
 	pr_info("The IPL report contains the following components:\n");
@@ -902,14 +902,14 @@ void __init setup_arch(char **cmdline_p)
          * print what head.S has found out about the machine
          */
 	if (machine_is_vm())
-		pr_info("Linux is running as a z/VM "
+		pr_info("GNU/Linux is running as a z/VM "
 			"guest operating system in 64-bit mode\n");
 	else if (machine_is_kvm())
-		pr_info("Linux is running under KVM in 64-bit mode\n");
+		pr_info("GNU/Linux is running under KVM in 64-bit mode\n");
 	else if (machine_is_lpar())
-		pr_info("Linux is running natively in 64-bit mode\n");
+		pr_info("GNU/Linux is running natively in 64-bit mode\n");
 	else
-		pr_info("Linux is running as a guest in 64-bit mode\n");
+		pr_info("GNU/Linux is running as a guest in 64-bit mode\n");
 	/* Print decompressor messages if not already printed */
 	if (!boot_earlyprintk)
 		boot_rb_foreach(print_rb_entry);

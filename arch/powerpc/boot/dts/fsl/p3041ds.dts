@@ -259,7 +259,7 @@
 			};
 
 			partition@1a000000 {
-				label = "NAND Linux Kernel Image";
+				label = "NAND GNU/Linux Kernel Image";
 				reg = <0x1a000000 0x04000000>;
 			};
 

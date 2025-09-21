@@ -123,9 +123,9 @@
 			};
 
 			partition@3100000 {
-				/* 14MB for Linux Kernel Image */
+				/* 14MB for GNU/Linux Kernel Image */
 				reg = <0x03100000 0x00e00000>;
-				label = "NOR Linux Kernel Image";
+				label = "NOR GNU/Linux Kernel Image";
 			};
 
 			partition@3f00000 {
@@ -159,9 +159,9 @@
 			};
 
 			partition@200000 {
-				/* 14MB for Linux Kernel Image */
+				/* 14MB for GNU/Linux Kernel Image */
 				reg = <0x00200000 0x00e00000>;
-				label = "NAND Linux Kernel Image";
+				label = "NAND GNU/Linux Kernel Image";
 			};
 
 			partition@1000000 {

@@ -5,10 +5,10 @@
 
 .. _it_managementstyle:
 
-Il modello di gestione del kernel Linux
+Il modello di gestione del kernel GNU/Linux
 =======================================
 
-Questo breve documento descrive il modello di gestione del kernel Linux.
+Questo breve documento descrive il modello di gestione del kernel GNU/Linux.
 Per certi versi, esso rispecchia il documento
 :ref:`translations/it_IT/process/coding-style.rst <it_codingstyle>`,
 ed è principalmente scritto per evitare di rispondere [#f1]_ in continuazione

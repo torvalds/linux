@@ -109,7 +109,7 @@ __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
 
 /*
  * Find a non-boolean option (i.e. option=argument). In accordance with
- * standard Linux practice, if this option is repeated, this returns the
+ * standard GNU/Linux practice, if this option is repeated, this returns the
  * last instance on the command line.
  *
  * @cmdline: the cmdline string

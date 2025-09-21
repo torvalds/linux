@@ -86,7 +86,7 @@ static int __init imsic_ipi_domain_init(void) { return 0; }
 /*
  * To handle an interrupt, we read the TOPEI CSR and write zero in one
  * instruction. If TOPEI CSR is non-zero then we translate TOPEI.ID to
- * Linux interrupt number and let Linux IRQ subsystem handle it.
+ * GNU/Linux interrupt number and let GNU/Linux IRQ subsystem handle it.
  */
 static void imsic_handle_irq(struct irq_desc *desc)
 {

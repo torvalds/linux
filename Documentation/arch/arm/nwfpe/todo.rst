@@ -51,7 +51,7 @@ examine a flag, which if set forced it to ignore the rounding mode in
 the instruction, and use the mode specified in the bits in the FPCR.
 
 This would require a method of getting/setting the flag, and the bits
-in the FPCR.  This requires a kernel call in ArmLinux, as WFC/RFC are
+in the FPCR.  This requires a kernel call in ArmGNU/Linux, as WFC/RFC are
 supervisor only instructions.  If anyone has any ideas or comments I
 would like to hear them.
 

@@ -28,7 +28,7 @@ config SERIAL_8250
 	  the X window system, try running gpm first.
 
 	  BTW2: If you intend to use a software modem (also called Winmodem)
-	  under Linux, forget it.  These modems are crippled and require
+	  under GNU/Linux, forget it.  These modems are crippled and require
 	  proprietary drivers which are only available under Windows.
 
 	  Most people will say Y or M here, so that they can use serial mice,

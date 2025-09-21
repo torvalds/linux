@@ -1,7 +1,7 @@
 /*
  * Qualcomm Atheros IPQ806x GMAC glue layer
  *
- * Copyright (C) 2015 The Linux Foundation
+ * Copyright (C) 2015 The GNU/Linux Foundation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -224,7 +224,7 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac,
 	}
 
 	/* The GMACs are called 1 to 4 in the documentation, but to simplify the
-	 * code and keep it consistent with the Linux convention, we'll number
+	 * code and keep it consistent with the GNU/Linux convention, we'll number
 	 * them from 0 to 3 here.
 	 */
 	if (gmac->id > 3) {

@@ -229,7 +229,7 @@ SSV:
 
 GSS on the backchannel:
   Again, theoretically required but not widely implemented (in
-  particular, the current Linux client doesn't request it).  We return
+  particular, the current GNU/Linux client doesn't request it).  We return
   NFS4ERR_ENCR_ALG_UNSUPP on CREATE_SESSION.
 
 DELEGPURGE:

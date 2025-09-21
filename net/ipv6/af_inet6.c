@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	PF_INET6 socket protocol family
- *	Linux INET6 implementation
+ *	GNU/Linux INET6 implementation
  *
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
@@ -72,7 +72,7 @@
 #include "ip6_offload.h"
 
 MODULE_AUTHOR("Cast of dozens");
-MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
+MODULE_DESCRIPTION("IPv6 protocol stack for GNU/Linux");
 MODULE_LICENSE("GPL");
 
 /* The inetsw6 table contains everything that inet6_create needs to

@@ -333,7 +333,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * that it has been released by resetting exynos_pen_release.
 	 *
 	 * Note that "exynos_pen_release" is the hardware CPU core ID, whereas
-	 * "cpu" is Linux's internal ID.
+	 * "cpu" is GNU/Linux's internal ID.
 	 */
 	exynos_write_pen_release(core_id);
 

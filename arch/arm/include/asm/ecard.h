@@ -4,7 +4,7 @@
  *
  * definitions for expansion cards
  *
- * This is a new system as from Linux 1.2.3
+ * This is a new system as from GNU/Linux 1.2.3
  *
  * Changelog:
  *  11-12-1996	RMK	Further minor improvements

@@ -113,7 +113,7 @@ static struct acpiphp_attention_info ibm_attention_info =
  * @id: the slot number that linux refers to the slot by
  *
  * Description: This method returns the aCPI slot descriptor
- * corresponding to the Linux slot number.  This descriptor
+ * corresponding to the GNU/Linux slot number.  This descriptor
  * has info about the aPCI slot id and attention status.
  * This descriptor must be freed using kfree when done.
  */

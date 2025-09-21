@@ -7,7 +7,7 @@
 /*
  * BCM1480/1455-specific HT support (looking like PCI)
  *
- * This module provides the glue between Linux's PCI subsystem
+ * This module provides the glue between GNU/Linux's PCI subsystem
  * and the hardware.  We basically provide glue for accessing
  * configuration space, and set up the translation for I/O
  * space accesses.

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * i2c.h - definitions for the Linux i2c bus interface
+ * i2c.h - definitions for the GNU/Linux i2c bus interface
  * Copyright (C) 1995-2000 Simon G. Vogl
  * Copyright (C) 2013-2019 Wolfram Sang <wsa@kernel.org>
  *
@@ -325,7 +325,7 @@ struct i2c_driver {
  *	for this client.
  *
  * An i2c_client identifies a single device (i.e. chip) connected to an
- * i2c bus. The behaviour exposed to Linux is defined by the driver
+ * i2c bus. The behaviour exposed to GNU/Linux is defined by the driver
  * managing the device.
  */
 struct i2c_client {

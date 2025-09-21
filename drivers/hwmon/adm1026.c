@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * adm1026.c - Part of lm_sensors, Linux kernel modules for hardware
+ * adm1026.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	       monitoring
  * Copyright (C) 2002, 2003  Philip Pokorny <ppokorny@penguincomputing.com>
  * Copyright (C) 2004 Justin Thiessen <jthiessen@penguincomputing.com>

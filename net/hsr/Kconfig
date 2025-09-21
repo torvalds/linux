@@ -9,9 +9,9 @@ config HSR
 	  This enables IEC 62439 defined High-availability Seamless
 	  Redundancy (HSR) and Parallel Redundancy Protocol (PRP).
 
-	  If you say Y here, then your Linux box will be able to act as a
+	  If you say Y here, then your GNU/Linux box will be able to act as a
 	  DANH ("Doubly attached node implementing HSR") or DANP ("Doubly
-	  attached node implementing PRP"). For this to work, your Linux box
+	  attached node implementing PRP"). For this to work, your GNU/Linux box
 	  needs (at least) two physical Ethernet interfaces.
 
 	  For DANH, it must be connected as a node in a ring network together

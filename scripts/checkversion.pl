@@ -21,7 +21,7 @@ foreach my $file (@ARGV) {
 
     # Initialize variables.
     my ($fInComment, $fInString, $fUseVersion);
-    my $iLinuxVersion = 0;
+    my $iGNU/LinuxVersion = 0;
 
     while (<$f>) {
 	# Strip comments.
@@ -30,7 +30,7 @@ foreach my $file (@ARGV) {
 
 	# Pick up definitions.
 	if ( m/^\s*#/o ) {
-	    $iLinuxVersion      = $. if m/^\s*#\s*include\s*"linux\/version\.h"/o;
+	    $iGNU/LinuxVersion      = $. if m/^\s*#\s*include\s*"linux\/version\.h"/o;
 	}
 
 	# Strip strings.
@@ -39,7 +39,7 @@ foreach my $file (@ARGV) {
 
 	# Pick up definitions.
 	if ( m/^\s*#/o ) {
-	    $iLinuxVersion      = $. if m/^\s*#\s*include\s*<linux\/version\.h>/o;
+	    $iGNU/LinuxVersion      = $. if m/^\s*#\s*include\s*<linux\/version\.h>/o;
 	}
 
 	# Look for uses: LINUX_VERSION_CODE, KERNEL_VERSION,
@@ -48,26 +48,26 @@ foreach my $file (@ARGV) {
 	    ($_ =~ /LINUX_VERSION_MAJOR/) || ($_ =~ /LINUX_VERSION_PATCHLEVEL/) ||
 	    ($_ =~ /LINUX_VERSION_SUBLEVEL/)) {
 	    $fUseVersion = 1;
-            last if $iLinuxVersion;
+            last if $iGNU/LinuxVersion;
         }
     }
 
     # Report used version IDs without include?
-    if ($fUseVersion && ! $iLinuxVersion) {
+    if ($fUseVersion && ! $iGNU/LinuxVersion) {
 	print "$file: $.: need linux/version.h\n";
     }
 
     # Report superfluous includes.
-    if ($iLinuxVersion && ! $fUseVersion) {
-	print "$file: $iLinuxVersion linux/version.h not needed.\n";
+    if ($iGNU/LinuxVersion && ! $fUseVersion) {
+	print "$file: $iGNU/LinuxVersion linux/version.h not needed.\n";
     }
 
     # debug: report OK results:
     if ($debugging) {
-        if ($iLinuxVersion && $fUseVersion) {
-	    print "$file: version use is OK ($iLinuxVersion)\n";
+        if ($iGNU/LinuxVersion && $fUseVersion) {
+	    print "$file: version use is OK ($iGNU/LinuxVersion)\n";
         }
-        if (! $iLinuxVersion && ! $fUseVersion) {
+        if (! $iGNU/LinuxVersion && ! $fUseVersion) {
 	    print "$file: version use is OK (none)\n";
         }
     }

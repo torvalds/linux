@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * GHES/EDAC Linux driver
+ * GHES/EDAC GNU/Linux driver
  *
  * Copyright (c) 2013 by Mauro Carvalho Chehab
  *

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-#  Makefile for the Linux Controller Area Network USB drivers.
+#  Makefile for the GNU/Linux Controller Area Network USB drivers.
 #
 
 obj-$(CONFIG_CAN_8DEV_USB) += usb_8dev.o

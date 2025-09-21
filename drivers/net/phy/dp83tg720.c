@@ -32,7 +32,7 @@
  * observed link detection issue.
  *
  * However, in point-to-point setups where both link partners use the same
- * driver (e.g. Linux on both sides), a synchronized reset pattern may emerge.
+ * driver (e.g. GNU/Linux on both sides), a synchronized reset pattern may emerge.
  * This leads to a deadlock, where both PHYs reset at the same time and
  * continuously miss each other during auto-negotiation.
  *

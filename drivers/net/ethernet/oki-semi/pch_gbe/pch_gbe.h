@@ -3,7 +3,7 @@
  * Copyright (C) 1999 - 2010 Intel Corporation.
  * Copyright (C) 2010 OKI SEMICONDUCTOR Co., LTD.
  *
- * This code was derived from the Intel e1000e Linux driver.
+ * This code was derived from the Intel e1000e GNU/Linux driver.
  */
 
 #ifndef _PCH_GBE_H_
@@ -480,8 +480,8 @@ struct pch_gbe_rx_ring {
  * @tx_bytes:		    total bytes transmitted
  * @rx_errors:		    bad packets received
  * @tx_errors:		    packet transmit problems
- * @rx_dropped:		    no space in Linux buffers
- * @tx_dropped:		    no space available in Linux
+ * @rx_dropped:		    no space in GNU/Linux buffers
+ * @tx_dropped:		    no space available in GNU/Linux
  * @multicast:		    multicast packets received
  * @collisions:		    collisions
  * @rx_crc_errors:	    received packet with crc error

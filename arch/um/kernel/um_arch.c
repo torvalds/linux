@@ -75,7 +75,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	int i = 0;
 
 	seq_printf(m, "processor\t: %d\n", i);
-	seq_printf(m, "vendor_id\t: User Mode Linux\n");
+	seq_printf(m, "vendor_id\t: User Mode GNU/Linux\n");
 	seq_printf(m, "model name\t: UML\n");
 	seq_printf(m, "mode\t\t: skas\n");
 	seq_printf(m, "host\t\t: %s\n", host_info);
@@ -133,7 +133,7 @@ unsigned long long physmem_size = 64 * 1024 * 1024;
 EXPORT_SYMBOL(physmem_size);
 
 static const char *usage_string =
-"User Mode Linux v%s\n"
+"User Mode GNU/Linux v%s\n"
 "	available at http://user-mode-linux.sourceforge.net/\n\n";
 
 static int __init uml_version_setup(char *line, int *add)

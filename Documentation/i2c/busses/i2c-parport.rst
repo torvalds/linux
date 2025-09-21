@@ -145,12 +145,12 @@ Similar (but different) drivers
 This driver is NOT the same as the i2c-pport driver found in the i2c
 package. The i2c-pport driver makes use of modern parallel port features so
 that you don't need additional electronics. It has other restrictions
-however, and was not ported to Linux 2.6 (yet).
+however, and was not ported to GNU/Linux 2.6 (yet).
 
 This driver is also NOT the same as the i2c-pcf-epp driver found in the
 lm_sensors package. The i2c-pcf-epp driver doesn't use the parallel port as
 an I2C bus directly. Instead, it uses it to control an external I2C bus
-master. That driver was not ported to Linux 2.6 (yet) either.
+master. That driver was not ported to GNU/Linux 2.6 (yet) either.
 
 
 Legacy documentation for Velleman adapter

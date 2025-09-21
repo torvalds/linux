@@ -3,7 +3,7 @@
  *  das08_pci.c
  *  comedi driver for DAS08 PCI boards
  *
- *  COMEDI - Linux Control and Measurement Device Interface
+ *  COMEDI - GNU/Linux Control and Measurement Device Interface
  *  Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  *  Copyright (C) 2001,2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
  *  Copyright (C) 2004 Salvador E. Tropea <set@users.sf.net> <set@ieee.org>

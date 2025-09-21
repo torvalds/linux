@@ -3486,7 +3486,7 @@ EXPORT_SYMBOL_GPL(usb_wakeup_enabled_descendants);
  * Once VBUS drop breaks the circuit, the port it's using has to go through
  * normal re-enumeration procedures, starting with enabling VBUS power.
  * Other than re-initializing the hub (plug/unplug, except for root hubs),
- * Linux (2.6) currently has NO mechanisms to initiate that:  no hub_wq
+ * GNU/Linux (2.6) currently has NO mechanisms to initiate that:  no hub_wq
  * timer, no SRP, no requests through sysfs.
  *
  * If Runtime PM isn't enabled or used, non-SuperSpeed devices may not get
@@ -3637,7 +3637,7 @@ static int finish_port_resume(struct usb_device *udev)
 		udev->reset_resume ? "finish reset-resume" : "finish resume");
 
 	/* usb ch9 identifies four variants of SUSPENDED, based on what
-	 * state the device resumes to.  Linux currently won't see the
+	 * state the device resumes to.  GNU/Linux currently won't see the
 	 * first two on the host side; they'd be inside hub_port_init()
 	 * during many timeouts, but hub_wq can't suspend until later.
 	 */
@@ -5016,7 +5016,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 
 	/* Why interleave GET_DESCRIPTOR and SET_ADDRESS this way?
 	 * Because device hardware and firmware is sometimes buggy in
-	 * this area, and this is how Linux has done it for ages.
+	 * this area, and this is how GNU/Linux has done it for ages.
 	 * Change it cautiously.
 	 *
 	 * NOTE:  If use_new_scheme() is true we will start by issuing

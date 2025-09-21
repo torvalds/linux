@@ -6,21 +6,21 @@
 Directrices para Investigadores
 ++++++++++++++++++++++++++++++++
 
-La comunidad del kernel de Linux da la bienvenida a la investigación
-transparente sobre el kernel de Linux, las actividades involucradas
-en su producción, otros subproductos de su desarrollo. Linux se
+La comunidad del kernel de GNU/Linux da la bienvenida a la investigación
+transparente sobre el kernel de GNU/Linux, las actividades involucradas
+en su producción, otros subproductos de su desarrollo. GNU/Linux se
 beneficia mucho de este tipo de investigación, y la mayoría de los
-aspectos de Linux son impulsados por investigación en una forma u otra.
+aspectos de GNU/Linux son impulsados por investigación en una forma u otra.
 
 La comunidad agradece mucho si los investigadores pueden compartir
 los hallazgos preliminares antes de hacer públicos sus resultados,
 especialmente si tal investigación involucra seguridad. Involucrarse
 temprano ayuda a mejorar la calidad de investigación y la capacidad
-de Linux para mejorar a partir de ella. En cualquier caso, se recomienda
+de GNU/Linux para mejorar a partir de ella. En cualquier caso, se recomienda
 compartir copias de acceso abierto de la investigación publicada con
 la comunidad.
 
-Este documento busca clarificar lo que la comunidad del kernel de Linux
+Este documento busca clarificar lo que la comunidad del kernel de GNU/Linux
 considera practicas aceptables y no aceptables al llevar a cabo
 investigación de este tipo. Por lo menos, dicha investigación y
 actividades afines deben seguir las reglas estándar de ética de la
@@ -33,11 +33,11 @@ de desarrolladores en particular, ver:
 * `Ética de la IEEE <https://www.ieee.org/about/ethics/index.html>`_
 * `Perspectivas de Desarrolladores e Investigadores sobre la Ética de los Experimentos en Proyectos de Código Abierto <https://arxiv.org/pdf/2112.13217.pdf>`_
 
-La comunidad del kernel de Linux espera que todos los que interactúan con
-el proyecto están participando en buena fe para mejorar Linux. La
+La comunidad del kernel de GNU/Linux espera que todos los que interactúan con
+el proyecto están participando en buena fe para mejorar GNU/Linux. La
 investigación sobre cualquier artefacto disponible públicamente (incluido,
 pero no limitado a código fuente) producido por la comunidad del kernel
-de Linux es bienvenida, aunque la investigación sobre los desarrolladores
+de GNU/Linux es bienvenida, aunque la investigación sobre los desarrolladores
 debe ser claramente opcional.
 
 La investigación pasiva que se basa completamente en fuentes disponibles
@@ -63,15 +63,15 @@ el colaborador (y la organización del colaborador en conjunto), socavando
 los esfuerzos para proporcionar reacciones constructivas a los colaboradores
 y poniendo a los usuarios finales en riesgo de fallas de software.
 
-La participación en el desarrollo de Linux en sí mismo por parte de
+La participación en el desarrollo de GNU/Linux en sí mismo por parte de
 investigadores, como con cualquiera, es bienvenida y alentada. La
-investigación del código de Linux es una práctica común, especialmente
+investigación del código de GNU/Linux es una práctica común, especialmente
 cuando se trata de desarrollar o ejecutar herramientas de análisis que
 producen resultados procesables.
 
 Cuando se interactúa con la comunidad de desarrolladores, enviar un
 parche ha sido tradicionalmente la mejor manera para hacer un impacto.
-Linux ya tiene muchos errores conocidos – lo que es mucho más útil es
+GNU/Linux ya tiene muchos errores conocidos – lo que es mucho más útil es
 tener soluciones verificadas. Antes de contribuir, lea cuidadosamente
 la documentación adecuada.
 
@@ -90,7 +90,7 @@ comentario de otros desarrolladores.
 * ¿Como se encontró el problema? Incluya específicamente detalles sobre
   cualquier prueba, programas de análisis estáticos o dinámicos, y cualquier
   otra herramienta o método utilizado para realizar el trabajo.
-* ¿En qué versión de Linux se encontró el problema? Se prefiere usar la
+* ¿En qué versión de GNU/Linux se encontró el problema? Se prefiere usar la
   versión más reciente o una rama reciente de linux-next (ver
   Documentation/process/howto.rst).
 * ¿Que se cambió para solucionar el problema y por qué se cree es correcto?
@@ -138,7 +138,7 @@ si sea examinado por otros en privado antes de ser publicado en listas
 públicas. (Esto es necesario si se le ha dicho explícitamente que sus parches
 necesitan una revisión interna más cuidadosa.) Se espera que estas personas
 tengan su etiqueta “Reviewed-by” incluida en el parche resultante. Encontrar
-otro desarrollador con conocimiento de las contribuciones a Linux, especialmente
+otro desarrollador con conocimiento de las contribuciones a GNU/Linux, especialmente
 dentro de su propia organización, y tener su ayuda con las revisiones antes de
 enviarlas a las listas de correo publico tiende a mejorar significativamente la
 calidad de los parches resultantes, y reduce así la carga de otros desarrolladores.

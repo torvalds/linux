@@ -8,12 +8,12 @@
 CPU 負載
 ========
 
-Linux通過``/proc/stat``和``/proc/uptime``導出各種信息，用戶空間工具
+GNU/Linux通過``/proc/stat``和``/proc/uptime``導出各種信息，用戶空間工具
 如top(1)使用這些信息計算系統花費在某個特定狀態的平均時間。
 例如：
 
     $ iostat
-    Linux 2.6.18.3-exp (linmac)     02/20/2007
+    GNU/Linux 2.6.18.3-exp (linmac)     02/20/2007
 
     avg-cpu:  %user   %nice %system %iowait  %steal   %idle
               10.01    0.00    2.92    5.44    0.00   81.63

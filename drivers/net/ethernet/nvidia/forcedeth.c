@@ -927,7 +927,7 @@ static int phy_cross = NV_CROSSOVER_DETECTION_DISABLED;
 
 /*
  * Power down phy when interface is down (persists through reboot;
- * older Linux and other OSes may not power it up again)
+ * older GNU/Linux and other OSes may not power it up again)
  */
 static int phy_power_down;
 

@@ -3,7 +3,7 @@
  * arch/powerpc/boot/ugecon.c
  *
  * USB Gecko bootwrapper console.
- * Copyright (C) 2008-2009 The GameCube Linux Team
+ * Copyright (C) 2008-2009 The GameCube GNU/Linux Team
  * Copyright (C) 2008,2009 Albert Herranz
  */
 

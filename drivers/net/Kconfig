@@ -8,16 +8,16 @@ menuconfig NETDEVICES
 	depends on NET
 	bool "Network device support"
 	help
-	  You can say N here if you don't intend to connect your Linux box to
+	  You can say N here if you don't intend to connect your GNU/Linux box to
 	  any other computer at all.
 
 	  You'll have to say Y if your computer contains a network card that
-	  you want to use under Linux. If you are going to run SLIP or PPP over
+	  you want to use under GNU/Linux. If you are going to run SLIP or PPP over
 	  telephone line or null modem cable you need say Y here. Connecting
 	  two machines with parallel ports using PLIP needs this, as well as
 	  AX.25/KISS for sending Internet traffic over amateur radio links.
 
-	  See also "The Linux Network Administrator's Guide" by Olaf Kirch and
+	  See also "The GNU/Linux Network Administrator's Guide" by Olaf Kirch and
 	  Terry Dawson. Available at <http://www.tldp.org/guides.html>.
 
 	  If unsure, say Y.
@@ -46,7 +46,7 @@ config BONDING
 	help
 	  Say 'Y' or 'M' if you wish to be able to 'bond' multiple Ethernet
 	  Channels together. This is called 'Etherchannel' by Cisco,
-	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in Linux.
+	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in GNU/Linux.
 
 	  The driver supports multiple bonding modes to allow for both high
 	  performance and high availability operation.
@@ -139,7 +139,7 @@ config EQUALIZER
 	  lines) or PPP (a better SLIP) on them, you can make them behave like
 	  one double speed connection using this driver.  Naturally, this has
 	  to be supported at the other end as well, either with a similar EQL
-	  Linux driver or with a Livingston Portmaster 2e.
+	  GNU/Linux driver or with a Livingston Portmaster 2e.
 
 	  Say Y if you want this and read
 	  <file:Documentation/networking/eql.rst>.  You may also want to read
@@ -574,7 +574,7 @@ config XEN_NETDEV_FRONTEND
 	  devices exported by a Xen network driver domain (often
 	  domain 0).
 
-	  The corresponding Linux backend driver is enabled by the
+	  The corresponding GNU/Linux backend driver is enabled by the
 	  CONFIG_XEN_NETDEV_BACKEND option.
 
 	  If you are compiling a kernel for use as Xen guest, you
@@ -590,7 +590,7 @@ config XEN_NETDEV_BACKEND
 	  Xen domains. These devices can be accessed by any operating
 	  system that implements a compatible front end.
 
-	  The corresponding Linux frontend driver is enabled by the
+	  The corresponding GNU/Linux frontend driver is enabled by the
 	  CONFIG_XEN_NETDEV_FRONTEND configuration option.
 
 	  The backend driver presents a standard network device

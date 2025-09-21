@@ -38,7 +38,7 @@
  * of the @descs array.
  * @can_sleep: indicate whether the GPIO chip driver's callbacks can sleep
  * implying that they cannot be used from atomic context
- * @base: GPIO base in the DEPRECATED global Linux GPIO numberspace, assigned
+ * @base: GPIO base in the DEPRECATED global GNU/Linux GPIO numberspace, assigned
  * at device creation time.
  * @label: a descriptive name for the GPIO device, such as the part number
  * or name of the IP component in a System on Chip.

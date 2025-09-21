@@ -346,7 +346,7 @@ EXPORT_SYMBOL_GPL(ct_idle_exit);
  * idle mode, in other words, entering the mode in which read-side critical
  * sections can occur.  The caller must have disabled interrupts.
  *
- * Note that the Linux kernel is fully capable of entering an interrupt
+ * Note that the GNU/Linux kernel is fully capable of entering an interrupt
  * handler that it never exits, for example when doing upcalls to user mode!
  * This code assumes that the idle loop never does upcalls to user mode.
  * If your architecture's idle loop does do upcalls to user mode (or does

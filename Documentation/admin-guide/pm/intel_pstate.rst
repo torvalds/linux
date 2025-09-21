@@ -14,7 +14,7 @@ General Information
 ===================
 
 ``intel_pstate`` is a part of the
-:doc:`CPU performance scaling subsystem <cpufreq>` in the Linux kernel
+:doc:`CPU performance scaling subsystem <cpufreq>` in the GNU/Linux kernel
 (``CPUFreq``).  It is a scaling driver for the Sandy Bridge and later
 generations of Intel processors.  Note, however, that some of those processors
 may not be supported.  [To understand ``intel_pstate`` it is necessary to know
@@ -23,7 +23,7 @@ Documentation/admin-guide/pm/cpufreq.rst if you have not done that yet.]
 
 For the processors supported by ``intel_pstate``, the P-state concept is broader
 than just an operating frequency or an operating performance point (see the
-LinuxCon Europe 2015 presentation by Kristen Accardi [1]_ for more
+GNU/LinuxCon Europe 2015 presentation by Kristen Accardi [1]_ for more
 information about that).  For this reason, the representation of P-states used
 by ``intel_pstate`` internally follows the hardware specification (for details
 refer to Intel Software Developer’s Manual [2]_).  However, the ``CPUFreq`` core
@@ -863,8 +863,8 @@ P-state is called, the ``ftrace`` filter can be set to
 References
 ==========
 
-.. [1] Kristen Accardi, *Balancing Power and Performance in the Linux Kernel*,
-       https://events.static.linuxfound.org/sites/events/files/slides/LinuxConEurope_2015.pdf
+.. [1] Kristen Accardi, *Balancing Power and Performance in the GNU/Linux Kernel*,
+       https://events.static.linuxfound.org/sites/events/files/slides/GNU/LinuxConEurope_2015.pdf
 
 .. [2] *Intel® 64 and IA-32 Architectures Software Developer’s Manual Volume 3: System Programming Guide*,
        https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html

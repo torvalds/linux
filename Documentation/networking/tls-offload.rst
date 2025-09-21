@@ -7,7 +7,7 @@ Kernel TLS offload
 Kernel TLS operation
 ====================
 
-Linux kernel provides TLS connection offload infrastructure. Once a TCP
+GNU/Linux kernel provides TLS connection offload infrastructure. Once a TCP
 connection is in ``ESTABLISHED`` state user space can enable the TLS Upper
 Layer Protocol (ULP) and install the cryptographic connection state.
 For details regarding the user-facing interface refer to the TLS
@@ -29,7 +29,7 @@ documentation in :ref:`Documentation/networking/tls.rst <kernel_tls>`.
  * Full TCP NIC offload mode (``TLS_HW_RECORD``) - mode of operation where
    NIC driver and firmware replace the kernel networking stack
    with its own TCP handling, it is not usable in production environments
-   making use of the Linux networking stack for example any firewalling
+   making use of the GNU/Linux networking stack for example any firewalling
    abilities or QoS and packet scheduling (``ethtool`` flag ``tls-hw-record``).
 
 The operation mode is selected automatically based on device configuration,
@@ -385,7 +385,7 @@ had been handled successfully and authenticated or the packet has to be passed
 to the host's stack as it was on the wire (recovering original packet in the
 driver if device provides precise error is sufficient).
 
-The Linux networking stack does not provide a way of reporting per-packet
+The GNU/Linux networking stack does not provide a way of reporting per-packet
 decryption and authentication errors, packets with errors must simply not
 have the :c:member:`decrypted` mark set.
 

@@ -7,16 +7,16 @@
 Errores de seguridad
 ====================
 
-Los desarrolladores del kernel de Linux se toman la seguridad muy en
+Los desarrolladores del kernel de GNU/Linux se toman la seguridad muy en
 serio. Como tal, nos gustaría saber cuándo se encuentra un error de
 seguridad para que pueda ser corregido y divulgado lo más rápido posible.
 Por favor, informe sobre los errores de seguridad al equipo de seguridad
-del kernel de Linux.
+del kernel de GNU/Linux.
 
 Contacto
 --------
 
-El equipo de seguridad del kernel de Linux puede ser contactado por correo
+El equipo de seguridad del kernel de GNU/Linux puede ser contactado por correo
 electrónico en <security@kernel.org>. Esta es una lista privada de
 oficiales de seguridad que ayudarán a verificar el informe del error y
 desarrollarán y publicarán una corrección. Si ya tiene una corrección, por
@@ -99,5 +99,5 @@ identificador CVE.
 Acuerdos de no divulgación
 --------------------------
 
-El equipo de seguridad del kernel de Linux no es un organismo formal y,
+El equipo de seguridad del kernel de GNU/Linux no es un organismo formal y,
 por lo tanto, no puede firmar cualquier acuerdo de no divulgación.

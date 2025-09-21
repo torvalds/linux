@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015, The GNU/Linux Foundation. All rights reserved.
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>

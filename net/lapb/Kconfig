@@ -11,7 +11,7 @@ config LAPB
 	  connection service to exchange data frames with one other host, and
 	  it is used to transport higher level protocols (mostly X.25 Packet
 	  Layer, the higher part of X.25, but others are possible as well).
-	  Usually, LAPB is used with specialized X.21 network cards, but Linux
+	  Usually, LAPB is used with specialized X.21 network cards, but GNU/Linux
 	  currently supports LAPB only over Ethernet connections. If you want
 	  to use LAPB connections over Ethernet, say Y here and to "LAPB over
 	  Ethernet driver" below. Read

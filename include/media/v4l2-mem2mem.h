@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Memory-to-memory device framework for Video for Linux 2.
+ * Memory-to-memory device framework for Video for GNU/Linux 2.
  *
  * Helper functions for devices that use memory buffers for both source
  * and destination.

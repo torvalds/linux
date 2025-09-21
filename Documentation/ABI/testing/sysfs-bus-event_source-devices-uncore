@@ -1,7 +1,7 @@
 What:		/sys/bus/event_source/devices/uncore_*/alias
 Date:		June 2021
 KernelVersion:	5.15
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Read-only.  An attribute to describe the alias name of
 		the uncore PMU if an alias exists on some platforms.
 		The 'perf(1)' tool should treat both names the same.

@@ -8,7 +8,7 @@
  * and the experimental cb_pcidio driver written by:
  *	Yoshiya Matsuzaka
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 

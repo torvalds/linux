@@ -21,7 +21,7 @@ BMIPS DeviceTree Booting
          aligned on a 64 bit boundary.
 
   Legacy bootloaders do not use this convention, and they do not pass in a
-  DT block.  In this case, Linux will look for a builtin DTB, selected via
+  DT block.  In this case, GNU/Linux will look for a builtin DTB, selected via
   CONFIG_DT_*.
 
   This convention is defined for 32-bit systems only, as there are not

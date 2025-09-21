@@ -109,7 +109,7 @@ static void mcip_ipi_send(int cpu)
 
 	/*
 	 * If receiver already has a pending interrupt, elide sending this one.
-	 * Linux cross core calling works well with concurrent IPIs
+	 * GNU/Linux cross core calling works well with concurrent IPIs
 	 * coalesced into one
 	 * see arch/arc/kernel/smp.c: ipi_send_msg_one()
 	 */

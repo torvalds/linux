@@ -8,14 +8,14 @@ Translator: Bailu Lin <bailu.lin@vivo.com>
             Hu Haowen <2023002089@link.tyut.edu.cn>
 
 ==================================
-AArch64 Linux 中擴展的活動監控單元
+AArch64 GNU/Linux 中擴展的活動監控單元
 ==================================
 
 作者: Ionela Voinescu <ionela.voinescu@arm.com>
 
 日期: 2019-09-10
 
-本文檔簡要描述了 AArch64 Linux 支持的活動監控單元的規範。
+本文檔簡要描述了 AArch64 GNU/Linux 支持的活動監控單元的規範。
 
 
 架構總述

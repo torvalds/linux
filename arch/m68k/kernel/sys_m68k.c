@@ -3,7 +3,7 @@
  * linux/arch/m68k/kernel/sys_m68k.c
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/m68k
+ * have a non-standard calling sequence on the GNU/Linux/m68k
  * platform.
  */
 

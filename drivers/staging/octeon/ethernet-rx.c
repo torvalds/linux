@@ -363,7 +363,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 			 * Drop any packet received for a device that
 			 * doesn't exist.
 			 */
-			printk_ratelimited("Port %d not controlled by Linux, packet dropped\n",
+			printk_ratelimited("Port %d not controlled by GNU/Linux, packet dropped\n",
 					   port);
 			dev_kfree_skb_irq(skb);
 		}

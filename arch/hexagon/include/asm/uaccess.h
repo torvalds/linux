@@ -2,7 +2,7 @@
 /*
  * User memory access support for Hexagon
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _ASM_UACCESS_H

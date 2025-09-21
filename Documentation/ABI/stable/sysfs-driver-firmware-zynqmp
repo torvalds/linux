@@ -98,7 +98,7 @@ Description:
 		This sysfs interface allows to set the health status. If PMUFW
 		is compiled with CHECK_HEALTHY_BOOT, it will check the healthy
 		bit on FPD WDT expiration. If healthy bit is set by a user
-		application running in Linux, PMUFW will do APU only restart. If
+		application running in GNU/Linux, PMUFW will do APU only restart. If
 		healthy bit is not set during FPD WDT expiration, PMUFW will do
 		system restart.
 
@@ -126,7 +126,7 @@ Description:
 		temperature and external watchdog. Here, the external watchdog
 		is completely different than the /dev/watchdog as the external
 		watchdog is running on the firmware and it is used to monitor
-		the health of firmware not APU(Linux). Also, the external
+		the health of firmware not APU(GNU/Linux). Also, the external
 		watchdog is interfaced outside of the zynqmp soc.
 
 		The supported config ids are for the feature configuration is,
@@ -183,7 +183,7 @@ Description:
 		external watchdog. Here, the external watchdog is completely
 		different than the /dev/watchdog as the external watchdog is
 		running on the firmware and it is used to monitor the health
-		of firmware not APU(Linux). Also, the external watchdog is
+		of firmware not APU(GNU/Linux). Also, the external watchdog is
 		interfaced outside of the zynqmp soc.
 
 		By default the features are disabled in the firmware. The user

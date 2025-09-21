@@ -39,7 +39,7 @@ Description:
 		  normal operation immediately by specifying a timeout of 0.
 		- Some hard drives only comply with an earlier version of the
 		  ATA standard, but support the unload feature nonetheless.
-		  There is no safe way Linux can detect these devices, so this
+		  There is no safe way GNU/Linux can detect these devices, so this
 		  is not enabled by default. If it is known that your device
 		  does support the unload feature, then you can tell the kernel
 		  to enable it by writing -1. It can be disabled again by

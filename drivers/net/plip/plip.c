@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* $Id: plip.c,v 1.3.6.2 1997/04/16 15:07:56 phil Exp $ */
-/* PLIP: A parallel port "network" driver for Linux. */
+/* PLIP: A parallel port "network" driver for GNU/Linux. */
 /* This driver is for parallel port with 5-bit cable (LapLink (R) cable). */
 /*
  * Authors:	Donald Becker <becker@scyld.com>
@@ -37,13 +37,13 @@
  * inspired by Russ Nelson's parallel port packet driver.
  *
  * NOTE:
- *     Tanabe Hiroyasu had changed the protocol, and it was in Linux v1.0.
+ *     Tanabe Hiroyasu had changed the protocol, and it was in GNU/Linux v1.0.
  *     Because of the necessity to communicate to DOS machines with the
  *     Crynwr packet driver, Peter Bauer changed the protocol again
  *     back to original protocol.
  *
  *     This version follows original PLIP protocol.
- *     So, this PLIP can't communicate the PLIP of Linux v1.0.
+ *     So, this PLIP can't communicate the PLIP of GNU/Linux v1.0.
  */
 
 /*
@@ -538,7 +538,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
  *	PLIP fortunately has no bus architecture (its Point-to-point).
  *
  *	We can't fix the daddr thing as that quirk (more bug) is embedded
- *	in far too many old systems not all even running Linux.
+ *	in far too many old systems not all even running GNU/Linux.
  */
 
 static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)

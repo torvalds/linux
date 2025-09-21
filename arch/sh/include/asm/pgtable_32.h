@@ -3,7 +3,7 @@
 #define __ASM_SH_PGTABLE_32_H
 
 /*
- * Linux PTEL encoding.
+ * GNU/Linux PTEL encoding.
  *
  * Hardware and software bit definitions for the PTEL value (see below for
  * notes on SH-X2 MMUs and 64-bit PTEs):

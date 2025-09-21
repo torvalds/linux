@@ -55,7 +55,7 @@ enum sel_inos {
 	SEL_POLICYVERS,	/* return policy version for this kernel */
 	SEL_COMMIT_BOOLS, /* commit new boolean values */
 	SEL_MLS,	/* return if MLS policy is enabled */
-	SEL_DISABLE,	/* disable SELinux until next reboot */
+	SEL_DISABLE,	/* disable SEGNU/Linux until next reboot */
 	SEL_MEMBER,	/* compute polyinstantiation membership decision */
 	SEL_CHECKREQPROT, /* check requested protection, not kernel-applied one */
 	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
@@ -294,8 +294,8 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	length = count;
 
 	if (new_value) {
-		pr_err("SELinux: https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-runtime-disable\n");
-		pr_err("SELinux: Runtime disable is not supported, use selinux=0 on the kernel cmdline.\n");
+		pr_err("SEGNU/Linux: https://github.com/SEGNU/LinuxProject/selinux-kernel/wiki/DEPRECATE-runtime-disable\n");
+		pr_err("SEGNU/Linux: Runtime disable is not supported, use selinux=0 on the kernel cmdline.\n");
 	}
 
 out:
@@ -602,13 +602,13 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 
 	length = security_load_policy(data, count, &load_state);
 	if (length) {
-		pr_warn_ratelimited("SELinux: failed to load policy\n");
+		pr_warn_ratelimited("SEGNU/Linux: failed to load policy\n");
 		goto out;
 	}
 	fsi = file_inode(file)->i_sb->s_fs_info;
 	length = sel_make_policy_nodes(fsi, load_state.policy);
 	if (length) {
-		pr_warn_ratelimited("SELinux: failed to initialize selinuxfs\n");
+		pr_warn_ratelimited("SEGNU/Linux: failed to initialize selinuxfs\n");
 		selinux_policy_cancel(&load_state);
 		goto out;
 	}
@@ -652,7 +652,7 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
 
 	length = -ERANGE;
 	if (len > SIMPLE_TRANSACTION_LIMIT) {
-		pr_err("SELinux: %s:  context size (%u) exceeds "
+		pr_err("SEGNU/Linux: %s:  context size (%u) exceeds "
 			"payload max\n", __func__, len);
 		goto out;
 	}
@@ -709,7 +709,7 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 		char comm[sizeof(current->comm)];
 
 		strscpy(comm, current->comm);
-		pr_err("SELinux: %s (%d) set checkreqprot to 1. This is no longer supported.\n",
+		pr_err("SEGNU/Linux: %s (%d) set checkreqprot to 1. This is no longer supported.\n",
 		       comm, current->pid);
 	}
 
@@ -987,7 +987,7 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 
 	length = -ERANGE;
 	if (len > SIMPLE_TRANSACTION_LIMIT) {
-		pr_err("SELinux: %s:  context size (%u) exceeds "
+		pr_err("SEGNU/Linux: %s:  context size (%u) exceeds "
 			"payload max\n", __func__, len);
 		goto out;
 	}
@@ -1069,7 +1069,7 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	int rc;
 	u32 i, len, nsids;
 
-	pr_warn_ratelimited("SELinux: %s (%d) wrote to /sys/fs/selinux/user!"
+	pr_warn_ratelimited("SEGNU/Linux: %s (%d) wrote to /sys/fs/selinux/user!"
 		" This will not be supported in the future; please update your"
 		" userspace.\n", current->comm, current->pid);
 	ssleep(5);
@@ -1174,7 +1174,7 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 
 	length = -ERANGE;
 	if (len > SIMPLE_TRANSACTION_LIMIT) {
-		pr_err("SELinux: %s:  context size (%u) exceeds "
+		pr_err("SEGNU/Linux: %s:  context size (%u) exceeds "
 			"payload max\n", __func__, len);
 		goto out;
 	}
@@ -1395,7 +1395,7 @@ static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_
 		ret = selinux_policy_genfs_sid(newpolicy, "selinuxfs", page,
 					 SECCLASS_FILE, &sid);
 		if (ret) {
-			pr_warn_ratelimited("SELinux: no sid found, defaulting to security isid for %s\n",
+			pr_warn_ratelimited("SEGNU/Linux: no sid found, defaulting to security isid for %s\n",
 					   page);
 			sid = SECINITSID_SECURITY;
 		}
@@ -2089,13 +2089,13 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	ret = sel_make_policycap(fsi);
 	if (ret) {
-		pr_err("SELinux: failed to load policy capabilities\n");
+		pr_err("SEGNU/Linux: failed to load policy capabilities\n");
 		goto err;
 	}
 
 	return 0;
 err:
-	pr_err("SELinux: %s:  failed while creating inodes\n",
+	pr_err("SEGNU/Linux: %s:  failed while creating inodes\n",
 		__func__);
 
 	return ret;

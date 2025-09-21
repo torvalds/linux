@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Advanced Linux Sound Architecture
+ *  Advanced GNU/Linux Sound Architecture
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  */
 
@@ -25,7 +25,7 @@ EXPORT_SYMBOL(snd_major);
 static int cards_limit = 1;
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
-MODULE_DESCRIPTION("Advanced Linux Sound Architecture driver for soundcards.");
+MODULE_DESCRIPTION("Advanced GNU/Linux Sound Architecture driver for soundcards.");
 MODULE_LICENSE("GPL");
 module_param(major, int, 0444);
 MODULE_PARM_DESC(major, "Major # for sound driver.");
@@ -403,7 +403,7 @@ static int __init alsa_sound_init(void)
 	sound_debugfs_root = debugfs_create_dir("sound", NULL);
 #endif
 #ifndef MODULE
-	pr_info("Advanced Linux Sound Architecture Driver Initialized.\n");
+	pr_info("Advanced GNU/Linux Sound Architecture Driver Initialized.\n");
 #endif
 	return 0;
 }

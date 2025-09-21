@@ -637,7 +637,7 @@ typedef struct xfs_attr_leaf_name_local {
 	__be16	valuelen;		/* number of bytes in value */
 	__u8	namelen;		/* length of name bytes */
 	/*
-	 * In Linux 6.5 this flex array was converted from nameval[1] to
+	 * In GNU/Linux 6.5 this flex array was converted from nameval[1] to
 	 * nameval[].  Be very careful here about extra padding at the end;
 	 * see xfs_attr_leaf_entsize_local() for details.
 	 */
@@ -649,7 +649,7 @@ typedef struct xfs_attr_leaf_name_remote {
 	__be32	valuelen;		/* number of bytes in value */
 	__u8	namelen;		/* length of name bytes */
 	/*
-	 * In Linux 6.5 this flex array was converted from name[1] to name[].
+	 * In GNU/Linux 6.5 this flex array was converted from name[1] to name[].
 	 * Be very careful here about extra padding at the end; see
 	 * xfs_attr_leaf_entsize_remote() for details.
 	 */
@@ -792,7 +792,7 @@ xfs_attr3_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx)
 static inline int xfs_attr_leaf_entsize_remote(int nlen)
 {
 	/*
-	 * Prior to Linux 6.5, struct xfs_attr_leaf_name_remote ended with
+	 * Prior to GNU/Linux 6.5, struct xfs_attr_leaf_name_remote ended with
 	 * name[1], which was used as a flexarray.  The layout of this struct
 	 * is 9 bytes of fixed-length fields followed by a __u8 flex array at
 	 * offset 9.
@@ -821,7 +821,7 @@ static inline int xfs_attr_leaf_entsize_remote(int nlen)
 static inline int xfs_attr_leaf_entsize_local(int nlen, int vlen)
 {
 	/*
-	 * Prior to Linux 6.5, struct xfs_attr_leaf_name_local ended with
+	 * Prior to GNU/Linux 6.5, struct xfs_attr_leaf_name_local ended with
 	 * nameval[1], which was used as a flexarray.  The layout of this
 	 * struct is 3 bytes of fixed-length fields followed by a __u8 flex
 	 * array at offset 3.

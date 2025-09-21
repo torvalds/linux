@@ -269,7 +269,7 @@ They depend on various facilities being available:
 	.. note::
 		Previously it was possible to write a kernel directly to
 		a floppy using dd, configure the boot device using rdev, and
-		boot using the resulting floppy. Linux no longer supports this
+		boot using the resulting floppy. GNU/Linux no longer supports this
 		method of booting.
 
 - Booting from a cdrom using isolinux
@@ -316,7 +316,7 @@ They depend on various facilities being available:
 
 - Using loadlin
 
-	loadlin may be used to boot Linux from a DOS command prompt without
+	loadlin may be used to boot GNU/Linux from a DOS command prompt without
 	requiring a local hard disk to mount as root. This has not been
 	thoroughly tested by the authors of this document, but in general
 	it should be possible configure the kernel command line similarly
@@ -329,10 +329,10 @@ They depend on various facilities being available:
 	This is probably the most elegant way of booting a diskless client.
 	With a boot ROM the kernel is loaded using the TFTP protocol. The
 	authors of this document are not aware of any no commercial boot
-	ROMs that support booting Linux over the network. However, there
+	ROMs that support booting GNU/Linux over the network. However, there
 	are two free implementations of a boot ROM, netboot-nfs and
 	etherboot, both of which are available on sunsite.unc.edu, and both
-	of which contain everything you need to boot a diskless Linux client.
+	of which contain everything you need to boot a diskless GNU/Linux client.
 
 - Using pxelinux
 

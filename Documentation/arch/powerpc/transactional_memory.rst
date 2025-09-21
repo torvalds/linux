@@ -5,7 +5,7 @@ Transactional Memory support
 POWER kernel support for this feature is currently limited to supporting
 its use by user programs.  It is not currently used by the kernel itself.
 
-This file aims to sum up how it is supported by Linux and what behaviour you
+This file aims to sum up how it is supported by GNU/Linux and what behaviour you
 can expect from your user programs.
 
 
@@ -239,7 +239,7 @@ at some point in the future if we bring the emulation into host
 userspace context switching).
 
 POWER9C DD1.2 and above are only available with POWERVM and hence
-Linux only runs as a guest. On these systems TM is emulated like on
+GNU/Linux only runs as a guest. On these systems TM is emulated like on
 POWER9N DD2.2.
 
 Guest migration from POWER8 to POWER9 will work with POWER9N DD2.2 and
@@ -271,4 +271,4 @@ with these lines:
 
 hrfid and mtmsrd have the same quirk.
 
-The Linux kernel uses this quirk in its early exception handling.
+The GNU/Linux kernel uses this quirk in its early exception handling.

@@ -3,7 +3,7 @@
  * comedi_8255.h
  * Generic 8255 digital I/O subdevice support
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
  */
 

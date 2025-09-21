@@ -1648,7 +1648,7 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 	unsigned char buf[INQUIRY_VPD_SERIAL_LEN] = { };
 
 	/*
-	 * If Linux/SCSI subsystem_api_t plugin got a VPD Unit Serial
+	 * If GNU/Linux/SCSI subsystem_api_t plugin got a VPD Unit Serial
 	 * from the struct scsi_device level firmware, do not allow
 	 * VPD Unit Serial to be emulated.
 	 *
@@ -3800,7 +3800,7 @@ static void __exit target_core_exit_configfs(void)
 }
 
 MODULE_DESCRIPTION("Target_Core_Mod/ConfigFS");
-MODULE_AUTHOR("nab@Linux-iSCSI.org");
+MODULE_AUTHOR("nab@GNU/Linux-iSCSI.org");
 MODULE_LICENSE("GPL");
 
 module_init(target_core_init_configfs);

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =============================================================================
-Linux and the 3Com EtherLink III Series Ethercards (driver v1.18c and higher)
+GNU/Linux and the 3Com EtherLink III Series Ethercards (driver v1.18c and higher)
 =============================================================================
 
 This file contains the instructions and caveats for v1.18c and higher versions
@@ -18,7 +18,7 @@ Introduction
 ============
 
 The following are notes and information on using the 3Com EtherLink III series
-ethercards in Linux. These cards are commonly known by the most widely-used
+ethercards in GNU/Linux. These cards are commonly known by the most widely-used
 card's 3Com model number, 3c509. They are all 10mb/s ISA-bus cards and shouldn't
 be (but sometimes are) confused with the similarly-numbered PCI-bus "3c905"
 (aka "Vortex" or "Boomerang") series.  Kernel support for the 3c509 family is

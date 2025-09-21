@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2016 Linaro Ltd.
  * Copyright (C) 2014 Sony Mobile Communications AB
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -1448,7 +1448,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm, true, false,
 				qproc->mpss_phys, qproc->mpss_size);
 
-	/* Share ownership between Linux and MSS, during segment loading */
+	/* Share ownership between GNU/Linux and MSS, during segment loading */
 	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm, true, true,
 				      qproc->mpss_phys, qproc->mpss_size);
 	if (ret) {
@@ -1588,7 +1588,7 @@ static void qcom_q6v5_dump_segment(struct rproc *rproc,
 	if (!qproc->dump_mba_loaded) {
 		ret = q6v5_reload_mba(rproc);
 		if (!ret) {
-			/* Reset ownership back to Linux to copy segments */
+			/* Reset ownership back to GNU/Linux to copy segments */
 			ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm,
 						      true, false,
 						      qproc->mpss_phys,

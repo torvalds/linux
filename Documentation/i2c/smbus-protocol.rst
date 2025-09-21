@@ -231,7 +231,7 @@ alerting device's address.
 
   [S] [HostAddr] [Wr] A [DevAddr] A [DataLow] A [DataHigh] A [P]
 
-This is implemented in the following way in the Linux kernel:
+This is implemented in the following way in the GNU/Linux kernel:
 
 * I2C bus drivers which support SMBus Host Notify should report
   I2C_FUNC_SMBUS_HOST_NOTIFY.
@@ -273,7 +273,7 @@ The SMBus alert protocol allows several SMBus slave devices to share a
 single interrupt pin on the SMBus master, while still allowing the master
 to know which slave triggered the interrupt.
 
-This is implemented the following way in the Linux kernel:
+This is implemented the following way in the GNU/Linux kernel:
 
 * I2C bus drivers which support SMBus alert should call
   i2c_new_smbus_alert_device() to install SMBus alert support.

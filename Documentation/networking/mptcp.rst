@@ -15,7 +15,7 @@ multiple interfaces or prefer the one with the lowest latency. It also allows a
 fail-over if one path is down, and the traffic is seamlessly reinjected on other
 paths.
 
-For more details about Multipath TCP in the Linux kernel, please see the
+For more details about Multipath TCP in the GNU/Linux kernel, please see the
 official website: `mptcp.dev <https://www.mptcp.dev>`_.
 
 
@@ -38,7 +38,7 @@ Concepts
 ========
 
 Technically, when a new socket is created with the ``IPPROTO_MPTCP`` protocol
-(Linux-specific), a *subflow* (or *path*) is created. This *subflow* consists of
+(GNU/Linux-specific), a *subflow* (or *path*) is created. This *subflow* consists of
 a regular TCP connection that is used to transmit data through one interface.
 Additional *subflows* can be negotiated later between the hosts. For the remote
 host to be able to detect the use of MPTCP, a new field is added to the TCP
@@ -91,7 +91,7 @@ Sockets API
 Creating MPTCP sockets
 ----------------------
 
-On Linux, MPTCP can be used by selecting MPTCP instead of TCP when creating the
+On GNU/Linux, MPTCP can be used by selecting MPTCP instead of TCP when creating the
 ``socket``:
 
 .. code-block:: C

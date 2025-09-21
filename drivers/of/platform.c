@@ -143,7 +143,7 @@ EXPORT_SYMBOL(of_device_alloc);
  * @np: pointer to node to create device for
  * @bus_id: name to assign device
  * @platform_data: pointer to populate platform_data pointer with
- * @parent: Linux device model parent device.
+ * @parent: GNU/Linux device model parent device.
  *
  * Return: Pointer to created platform device, or NULL if a device was not
  * registered.  Unavailable devices will not get registered.
@@ -189,7 +189,7 @@ err_clear_flag:
  * of_platform_device_create - Alloc, initialize and register an of_device
  * @np: pointer to node to create device for
  * @bus_id: name to assign device
- * @parent: Linux device model parent device.
+ * @parent: GNU/Linux device model parent device.
  *
  * Return: Pointer to created platform device, or NULL if a device was not
  * registered.  Unavailable devices will not get registered.
@@ -270,7 +270,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 #endif /* CONFIG_ARM_AMBA */
 
 /*
- * of_dev_lookup() - Given a device node, lookup the preferred Linux name
+ * of_dev_lookup() - Given a device node, lookup the preferred GNU/Linux name
  */
 static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *lookup,
 				 struct device_node *np)

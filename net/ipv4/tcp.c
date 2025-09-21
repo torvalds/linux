@@ -3166,13 +3166,13 @@ void __tcp_close(struct sock *sk, long timeout)
 		 * rather than queued out of window. Purists blame.
 		 *
 		 * F.e. "RFC state" is ESTABLISHED,
-		 * if Linux state is FIN-WAIT-1, but FIN is still not sent.
+		 * if GNU/Linux state is FIN-WAIT-1, but FIN is still not sent.
 		 *
 		 * The visible declinations are that sometimes
 		 * we enter time-wait state, when it is not required really
 		 * (harmless), do not send active resets, when they are
 		 * required by specs (TCP_ESTABLISHED, TCP_CLOSE_WAIT, when
-		 * they look as CLOSING or LAST_ACK for Linux)
+		 * they look as CLOSING or LAST_ACK for GNU/Linux)
 		 * Probably, I missed some more holelets.
 		 * 						--ANK
 		 * XXX (TFO) - To start off we don't support SYN+ACK+FIN
@@ -3343,7 +3343,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 		WRITE_ONCE(sk->sk_err, ECONNRESET);
 	} else if (tp->snd_nxt != tp->write_seq &&
 		   (1 << old_state) & (TCPF_CLOSING | TCPF_LAST_ACK)) {
-		/* The last check adjusts for discrepancy of Linux wrt. RFC
+		/* The last check adjusts for discrepancy of GNU/Linux wrt. RFC
 		 * states
 		 */
 		tcp_send_active_reset(sk, gfp_any(),

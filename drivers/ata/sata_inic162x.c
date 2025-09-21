@@ -2,7 +2,7 @@
 /*
  * sata_inic162x.c - Driver for Initio 162x SATA controllers
  *
- * Copyright 2006  SUSE Linux Products GmbH
+ * Copyright 2006  SUSE GNU/Linux Products GmbH
  * Copyright 2006  Tejun Heo <teheo@novell.com>
  *
  * **** WARNING ****

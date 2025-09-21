@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===============================
-The Linux LAPB Module Interface
+The GNU/Linux LAPB Module Interface
 ===============================
 
 Version 1.3
@@ -11,7 +11,7 @@ Jonathan Naylor 29.12.96
 Changed (Henner Eisen, 2000-10-29): int return value for data_indication()
 
 The LAPB module will be a separately compiled module for use by any parts of
-the Linux operating system that require a LAPB service. This document
+the GNU/Linux operating system that require a LAPB service. This document
 defines the interfaces to, and the services provided by this module. The
 term module in this context does not imply that the LAPB module is a
 separately loadable module, although it may be. The term module is used in

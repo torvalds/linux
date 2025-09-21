@@ -11,7 +11,7 @@
  */
 
 /*
- * Logitech Bus Mouse Driver for Linux
+ * Logitech Bus Mouse Driver for GNU/Linux
  */
 
 #include <linux/module.h>

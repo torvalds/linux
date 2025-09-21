@@ -7,7 +7,7 @@
  */
 
 /*
- * IBM PC110 touchpad driver for Linux
+ * IBM PC110 touchpad driver for GNU/Linux
  */
 
 #include <linux/module.h>

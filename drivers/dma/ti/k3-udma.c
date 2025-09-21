@@ -4646,7 +4646,7 @@ static int udma_setup_resources(struct udma_dev *ud)
 	 */
 	bitmap_set(ud->rflow_gp_map_allocated, 0, ud->rchan_cnt);
 
-	/* by default no GP rflows are assigned to Linux */
+	/* by default no GP rflows are assigned to GNU/Linux */
 	bitmap_set(ud->rflow_gp_map, 0, ud->rflow_cnt);
 
 	/* Get resource ranges from tisci */
@@ -4730,7 +4730,7 @@ static int udma_setup_resources(struct udma_dev *ud)
 	/* GP rflow ranges */
 	rm_res = tisci_rm->rm_ranges[RM_RANGE_RFLOW];
 	if (IS_ERR(rm_res)) {
-		/* all gp flows are assigned exclusively to Linux */
+		/* all gp flows are assigned exclusively to GNU/Linux */
 		bitmap_clear(ud->rflow_gp_map, ud->rchan_cnt,
 			     ud->rflow_cnt - ud->rchan_cnt);
 	} else {
@@ -5055,7 +5055,7 @@ static int pktdma_setup_resources(struct udma_dev *ud)
 	/* rflow ranges */
 	rm_res = tisci_rm->rm_ranges[RM_RANGE_RFLOW];
 	if (IS_ERR(rm_res)) {
-		/* all rflows are assigned exclusively to Linux */
+		/* all rflows are assigned exclusively to GNU/Linux */
 		bitmap_zero(ud->rflow_in_use, ud->rflow_cnt);
 		irq_res.sets = 1;
 	} else {
@@ -5069,7 +5069,7 @@ static int pktdma_setup_resources(struct udma_dev *ud)
 	/* tflow ranges */
 	rm_res = tisci_rm->rm_ranges[RM_RANGE_TFLOW];
 	if (IS_ERR(rm_res)) {
-		/* all tflows are assigned exclusively to Linux */
+		/* all tflows are assigned exclusively to GNU/Linux */
 		bitmap_zero(ud->tflow_map, ud->tflow_cnt);
 		irq_res.sets++;
 	} else {

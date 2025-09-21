@@ -1,20 +1,20 @@
 .. SPDX-License-Identifier: 0BSD
 
 ============================
-XZ data compression in Linux
+XZ data compression in GNU/Linux
 ============================
 
 Introduction
 ============
 
 XZ is a general purpose data compression format with high compression
-ratio. The XZ decompressor in Linux is called XZ Embedded. It supports
+ratio. The XZ decompressor in GNU/Linux is called XZ Embedded. It supports
 the LZMA2 filter and optionally also Branch/Call/Jump (BCJ) filters
 for executable code. CRC32 is supported for integrity checking.
 
 See the `XZ Embedded`_ home page for the latest version which includes
-a few optional extra features that aren't required in the Linux kernel
-and information about using the code outside the Linux kernel.
+a few optional extra features that aren't required in the GNU/Linux kernel
+and information about using the code outside the GNU/Linux kernel.
 
 For userspace, `XZ Utils`_ provide a zlib-like compression library
 and a gzip-like command line tool.

@@ -405,7 +405,7 @@ retry:
 	 * we assume that all CPUs (in SMP system) is routed to the
 	 * same IRQ Controller, and for non-SMP only one IRQCTRL is
 	 * accessed anyway.
-	 * In AMP systems, Linux must run on CPU0 for the time being.
+	 * In AMP systems, GNU/Linux must run on CPU0 for the time being.
 	 */
 	icsel = LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->icsel[boot_cpu_id/8]);
 	icsel = (icsel >> ((7 - (boot_cpu_id&0x7)) * 4)) & 0xf;

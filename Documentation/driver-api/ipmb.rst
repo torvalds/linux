@@ -78,7 +78,7 @@ b) Example for device tree::
 If xmit of data to be done using raw i2c block vs smbus
 then "i2c-protocol" needs to be defined as above.
 
-2) Manually from Linux::
+2) Manually from GNU/Linux::
 
      modprobe ipmb-dev-int
 

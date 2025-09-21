@@ -38,7 +38,7 @@ pub const NSEC_PER_MSEC: i64 = bindings::NSEC_PER_MSEC as i64;
 /// The number of nanoseconds per second.
 pub const NSEC_PER_SEC: i64 = bindings::NSEC_PER_SEC as i64;
 
-/// The time unit of Linux kernel. One jiffy equals (1/HZ) second.
+/// The time unit of GNU/Linux kernel. One jiffy equals (1/HZ) second.
 pub type Jiffies = crate::ffi::c_ulong;
 
 /// The millisecond time unit.
@@ -74,7 +74,7 @@ pub trait ClockSource {
 /// A monotonically increasing clock.
 ///
 /// A nonsettable system-wide clock that represents monotonic time since as
-/// described by POSIX, "some unspecified point in the past". On Linux, that
+/// described by POSIX, "some unspecified point in the past". On GNU/Linux, that
 /// point corresponds to the number of seconds that the system has been
 /// running since it was booted.
 ///

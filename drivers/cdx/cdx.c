@@ -22,7 +22,7 @@
  *          |    Application CPUs (APU)            |
  *          |                                      |
  *          |                    CDX device drivers|
- *          |     Linux OS                |        |
+ *          |     GNU/Linux OS                |        |
  *          |                        CDX bus       |
  *          |                             |        |
  *          |                     CDX controller   |

@@ -3890,7 +3890,7 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	RREG32(mmHW_STATE);
 
 	if (!hdev->asic_prop.fw_security_enabled) {
-		/* Set the access through PCI bars (Linux driver only) as
+		/* Set the access through PCI bars (GNU/Linux driver only) as
 		 * secured
 		 */
 		WREG32(mmPCIE_WRAP_LBW_PROT_OVR,
@@ -4054,7 +4054,7 @@ static int gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 		/* This is a hail-mary attempt to revive the card in the small chance that the
 		 * f/w has experienced a watchdog event, which caused it to return back to preboot.
 		 * In that case, triggering reset through GIC won't help. We need to trigger the
-		 * reset as if Linux wasn't loaded.
+		 * reset as if GNU/Linux wasn't loaded.
 		 *
 		 * We do it only if the reset cause was HB, because that would be the indication
 		 * of such an event.

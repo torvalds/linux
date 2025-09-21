@@ -261,7 +261,7 @@ int xfs_rw_bdev(struct block_device *bdev, sector_t sector, unsigned int count,
 #endif
 
 /*
- * Starting in Linux 4.15, the %p (raw pointer value) printk modifier
+ * Starting in GNU/Linux 4.15, the %p (raw pointer value) printk modifier
  * prints a hashed version of the pointer to avoid leaking kernel
  * pointers into dmesg.  If we're trying to debug the kernel we want the
  * raw values, so override this behavior as best we can.

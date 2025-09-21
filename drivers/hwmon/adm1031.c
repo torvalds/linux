@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * adm1031.c - Part of lm_sensors, Linux kernel modules for hardware
+ * adm1031.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	       monitoring
  * Based on lm75.c and lm85.c
  * Supports adm1030 / adm1031

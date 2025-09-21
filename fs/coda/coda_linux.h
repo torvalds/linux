@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* 
- * Coda File System, Linux Kernel module
+ * Coda File System, GNU/Linux Kernel module
  * 
  * Original version, adapted from cfs_mach.c, (C) Carnegie Mellon University
- * Linux modifications (C) 1996, Peter J. Braam
- * Rewritten for Linux 2.1 (C) 1997 Carnegie Mellon University
+ * GNU/Linux modifications (C) 1996, Peter J. Braam
+ * Rewritten for GNU/Linux 2.1 (C) 1997 Carnegie Mellon University
  *
  * Carnegie Mellon University encourages users of this software to
  * contribute improvements to the Coda project.

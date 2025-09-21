@@ -1,8 +1,8 @@
 /*
- * parse_vdso.c: Linux reference vDSO parser
+ * parse_vdso.c: GNU/Linux reference vDSO parser
  * Written by Andrew Lutomirski, 2011-2014.
  *
- * This code is meant to be linked in to various programs that run on Linux.
+ * This code is meant to be linked in to various programs that run on GNU/Linux.
  * As such, it is available with as few restrictions as possible.  This file
  * is licensed under the Creative Commons Zero License, version 1.0,
  * available at http://creativecommons.org/publicdomain/zero/1.0/legalcode

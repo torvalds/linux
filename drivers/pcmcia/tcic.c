@@ -285,7 +285,7 @@ static u_int __init irq_scan(u_int mask0)
 /*======================================================================
 
     See if a card is present, powered up, in IO mode, and already
-    bound to a (non-PCMCIA) Linux driver.
+    bound to a (non-PCMCIA) GNU/Linux driver.
 
     We make an exception for cards that look like serial devices.
     

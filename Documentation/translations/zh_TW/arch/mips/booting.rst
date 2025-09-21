@@ -29,7 +29,7 @@ BMIPS設備樹引導
               0x1fffffff)的任何位置，以64位邊界對齊。
 
   傳統bootloaders不會使用這樣的約定，並且它們不傳入DT塊。
-  在這種情況下，Linux將通過選中CONFIG_DT_*查找DTB。
+  在這種情況下，GNU/Linux將通過選中CONFIG_DT_*查找DTB。
 
   以上約定只在32位系統中定義，因爲目前沒有任何64位的BMIPS實現。
 

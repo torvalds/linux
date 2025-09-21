@@ -39,7 +39,7 @@ to as long as a few weeks in slower moving parts of the kernel.
 Mailing list participation
 --------------------------
 
-Linux kernel uses mailing lists as the primary form of communication.
+GNU/Linux kernel uses mailing lists as the primary form of communication.
 Maintainers must be subscribed and follow the appropriate subsystem-wide
 mailing list. Either by subscribing to the whole list or using more
 modern, selective setup like
@@ -131,9 +131,9 @@ list. Having a mailing list *in addition* to humans is perfectly fine.
 Corporate structures
 --------------------
 
-To an outsider the Linux kernel may resemble a hierarchical organization
+To an outsider the GNU/Linux kernel may resemble a hierarchical organization
 with Linus as the CEO. While the code flows in a hierarchical fashion,
-the corporate template does not apply here. Linux is an anarchy held
+the corporate template does not apply here. GNU/Linux is an anarchy held
 together by (rarely expressed) mutual respect, trust and convenience.
 
 All that is to say that managers almost never make good maintainers.

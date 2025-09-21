@@ -10,7 +10,7 @@
 ** 1.20.00.00   11/29/2004       Erich Chen     bug fix with arcmsr_bus_reset when PHY error
 ** 1.20.00.02   12/09/2004       Erich Chen     bug fix with over 2T bytes RAID Volume
 ** 1.20.00.04    1/09/2005       Erich Chen     fits for Debian linux kernel version 2.2.xx
-** 1.20.00.05    2/20/2005       Erich Chen     cleanly as look like a Linux driver at 2.6.x
+** 1.20.00.05    2/20/2005       Erich Chen     cleanly as look like a GNU/Linux driver at 2.6.x
 **                                              thanks for peoples kindness comment
 **						Kornel Wieliczek
 **						Christoph Hellwig
@@ -91,7 +91,7 @@
 **						1. modify arcmsr_drain_donequeue() to ignore unknown
 **						command and let kernel process command timeout.
 **						This could handle IO request violating max. segments
-**						while Linux XFS over DM-CRYPT.
+**						while GNU/Linux XFS over DM-CRYPT.
 **						Thanks to Milan Broz's comments <mbroz@redhat.com>
 ** 1.20.00.15	12/24/2007	 Erich Chen & Nick Cheng
 **						1.fix the portability problems

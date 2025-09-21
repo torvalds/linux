@@ -58,7 +58,7 @@
 #include "process.h"
 
 /*
- * per-CPU TSS segments. Threads are completely 'soft' on Linux,
+ * per-CPU TSS segments. Threads are completely 'soft' on GNU/Linux,
  * no more per-task TSS's. The TSS size is kept cacheline-aligned
  * so they are allowed to end up in the .data..cacheline_aligned
  * section. Since TSS's are completely CPU-local, we want them

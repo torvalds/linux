@@ -1,5 +1,5 @@
 /*
- * This file is part of the Chelsio T4 Ethernet driver for Linux.
+ * This file is part of the Chelsio T4 Ethernet driver for GNU/Linux.
  *
  * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
@@ -4294,7 +4294,7 @@ static int adap_init0_tweaks(struct adapter *adapter)
 			 PKTSHIFT_V(rx_dma_offset));
 
 	/*
-	 * Don't include the "IP Pseudo Header" in CPL_RX_PKT checksums: Linux
+	 * Don't include the "IP Pseudo Header" in CPL_RX_PKT checksums: GNU/Linux
 	 * adds the pseudo header itself.
 	 */
 	t4_tp_wr_bits_indirect(adapter, TP_INGRESS_CONFIG_A,

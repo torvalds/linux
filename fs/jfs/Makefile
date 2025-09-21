@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux JFS filesystem routines.
+# Makefile for the GNU/Linux JFS filesystem routines.
 #
 
 obj-$(CONFIG_JFS_FS) += jfs.o

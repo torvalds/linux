@@ -2,7 +2,7 @@
 LoadPin
 =======
 
-LoadPin is a Linux Security Module that ensures all kernel-loaded files
+LoadPin is a GNU/Linux Security Module that ensures all kernel-loaded files
 (modules, firmware, etc) all originate from the same filesystem, with
 the expectation that such a filesystem is backed by a read-only device
 such as dm-verity or CDROM. This allows systems that have a verified

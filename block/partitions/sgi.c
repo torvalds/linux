@@ -64,7 +64,7 @@ int sgi_partition(struct parsed_partitions *state)
 		put_dev_sector(sect);
 		return 0;
 	}
-	/* All SGI disk labels have 16 partitions, disks under Linux only
+	/* All SGI disk labels have 16 partitions, disks under GNU/Linux only
 	 * have 15 minor's.  Luckily there are always a few zero length
 	 * partitions which we don't care about so we never overflow the
 	 * current_minor.

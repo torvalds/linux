@@ -38,7 +38,7 @@
  *
  * Version 3.38
  *
- * VIA IDE driver for Linux. Supported southbridges:
+ * VIA IDE driver for GNU/Linux. Supported southbridges:
  *
  *   vt82c576, vt82c586, vt82c586a, vt82c586b, vt82c596a, vt82c596b,
  *   vt82c686, vt82c686a, vt82c686b, vt8231, vt8233, vt8233c, vt8233a,

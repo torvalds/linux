@@ -150,7 +150,7 @@ struct dinode {
 #define ATTRSHIFT	25	/* bits to shift to move attribute
 				   specification to mode position */
 
-/* extended attributes for Linux */
+/* extended attributes for GNU/Linux */
 
 #define JFS_NOATIME_FL		0x00080000 /* do not update atime */
 

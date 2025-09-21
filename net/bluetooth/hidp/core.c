@@ -1,5 +1,5 @@
 /*
-   HIDP implementation for Linux Bluetooth stack (BlueZ).
+   HIDP implementation for GNU/Linux Bluetooth stack (BlueZ).
    Copyright (C) 2003-2004 Marcel Holtmann <marcel@holtmann.org>
    Copyright (C) 2013 David Herrmann <dh.herrmann@gmail.com>
 

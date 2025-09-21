@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux VLAN layer.
+# Makefile for the GNU/Linux VLAN layer.
 #
 obj-$(subst m,y,$(CONFIG_VLAN_8021Q))	+= vlan_core.o
 obj-$(CONFIG_VLAN_8021Q)		+= 8021q.o

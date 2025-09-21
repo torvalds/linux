@@ -14,7 +14,7 @@
 .. _cn_virt_index:
 
 ===============
-Linux虚拟化支持
+GNU/Linux虚拟化支持
 ===============
 
 .. toctree::

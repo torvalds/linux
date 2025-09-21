@@ -1,5 +1,5 @@
 /*
- * Adaptec AIC79xx device driver for Linux.
+ * Adaptec AIC79xx device driver for GNU/Linux.
  *
  * $Id: //depot/aic7xxx/linux/drivers/scsi/aic7xxx/aic79xx_osm.c#171 $
  *
@@ -376,7 +376,7 @@ void
 ahd_delay(long usec)
 {
 	/*
-	 * udelay on Linux can have problems for
+	 * udelay on GNU/Linux can have problems for
 	 * multi-millisecond waits.  Wait at most
 	 * 1024us per call.
 	 */
@@ -455,7 +455,7 @@ ahd_outsb(struct ahd_softc * ahd, long port, uint8_t *array, int count)
 	int i;
 
 	/*
-	 * There is probably a more efficient way to do this on Linux
+	 * There is probably a more efficient way to do this on GNU/Linux
 	 * but we don't use this for anything speed critical and this
 	 * should work.
 	 */
@@ -469,7 +469,7 @@ ahd_insb(struct ahd_softc * ahd, long port, uint8_t *array, int count)
 	int i;
 
 	/*
-	 * There is probably a more efficient way to do this on Linux
+	 * There is probably a more efficient way to do this on GNU/Linux
 	 * but we don't use this for anything speed critical and this
 	 * should work.
 	 */
@@ -928,8 +928,8 @@ ahd_dma_tag_create(struct ahd_softc *ahd, bus_dma_tag_t parent,
 		return (ENOMEM);
 
 	/*
-	 * Linux is very simplistic about DMA memory.  For now don't
-	 * maintain all specification information.  Once Linux supplies
+	 * GNU/Linux is very simplistic about DMA memory.  For now don't
+	 * maintain all specification information.  Once GNU/Linux supplies
 	 * better facilities for doing these operations, or the
 	 * needs of this particular driver change, we might need to do
 	 * more here.
@@ -1119,7 +1119,7 @@ ahd_parse_brace_option(char *opt_name, char *opt_arg, char *end, int depth,
 }
 
 /*
- * Handle Linux boot parameters. This routine allows for assigning a value
+ * Handle GNU/Linux boot parameters. This routine allows for assigning a value
  * to a parameter with a ':' between the parameter and the value.
  * ie. aic79xx=stpwlev:1,extended
  */
@@ -1786,7 +1786,7 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 
 	/*
 	 * Guard against stale sense data.
-	 * The Linux mid-layer assumes that sense
+	 * The GNU/Linux mid-layer assumes that sense
 	 * was retrieved anytime the first byte of
 	 * the sense buffer looks "sane".
 	 */
@@ -2029,7 +2029,7 @@ ahd_linux_queue_cmd_complete(struct ahd_softc *ahd, struct scsi_cmnd *cmd)
 	struct scsi_sense_data *sense;
 
 	/*
-	 * Map CAM error codes into Linux Error codes.  We
+	 * Map CAM error codes into GNU/Linux Error codes.  We
 	 * avoid the conversion so that the DV code has the
 	 * full error information available when making
 	 * state change decisions.

@@ -9,7 +9,7 @@ updated by Davidlohr Bueso <davidlohr@hp.com>
 What are mutexes?
 -----------------
 
-In the Linux kernel, mutexes refer to a particular locking primitive
+In the GNU/Linux kernel, mutexes refer to a particular locking primitive
 that enforces serialization on shared memory systems, and not only to
 the generic term referring to 'mutual exclusion' found in academia
 or similar theoretical text books. Mutexes are sleeping locks which

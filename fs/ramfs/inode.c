@@ -1,10 +1,10 @@
 /*
- * Resizable simple ram filesystem for Linux.
+ * Resizable simple ram filesystem for GNU/Linux.
  *
  * Copyright (C) 2000 Linus Torvalds.
  *               2000 Transmeta Corp.
  *
- * Usage limits added by David Gibson, Linuxcare Australia.
+ * Usage limits added by David Gibson, GNU/Linuxcare Australia.
  * This file is released under the GPL.
  */
 

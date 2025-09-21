@@ -1,7 +1,7 @@
 /* 
- * Linux/PA-RISC Project (http://www.parisc-linux.org/)
+ * GNU/Linux/PA-RISC Project (http://www.parisc-linux.org/)
  * 
- * System call entry code / Linux gateway page
+ * System call entry code / GNU/Linux gateway page
  * Copyright (c) Matthew Wilcox 1999 <willy@infradead.org>
  * Licensed under the GNU GPL.
  * thanks to Philipp Rumpf, Mike Shaver and various others
@@ -9,9 +9,9 @@
  */
 
 /*
-How does the Linux gateway page on PA-RISC work?
+How does the GNU/Linux gateway page on PA-RISC work?
 ------------------------------------------------
-The Linux gateway page on PA-RISC is "special".
+The GNU/Linux gateway page on PA-RISC is "special".
 It actually has PAGE_GATEWAY bits set (this is linux terminology; in parisc
 terminology it's Execute, promote to PL0) in the page map.  So anything
 executing on this page executes with kernel level privilege (there's more to it
@@ -82,7 +82,7 @@ registers).
 	.import syscall_exit,code
 	.import syscall_exit_rfi,code
 
-	/* Linux gateway page is aliased to virtual page 0 in the kernel
+	/* GNU/Linux gateway page is aliased to virtual page 0 in the kernel
 	 * address space. Since it is a gateway page it cannot be
 	 * dereferenced, so null pointers will still fault. We start
 	 * the actual entry point at 0x100. We put break instructions
@@ -251,7 +251,7 @@ linux_gateway_entry:
 #else
 	load32	sys_call_table, %r19
 #endif	
-	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
+	comiclr,>>	__NR_GNU/Linux_syscalls, %r20, %r0
 	b,n	.Lsyscall_nosys
 	
 	LDREGX  %r20(%r19), %r19
@@ -368,7 +368,7 @@ tracesys_next:
 #endif
 
 	cmpib,COND(=),n -1,%r20,tracesys_exit /* seccomp may have returned -1 */
-	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
+	comiclr,>>	__NR_GNU/Linux_syscalls, %r20, %r0
 	b,n	.Ltracesys_nosys
 
 	/* Note!  We cannot use the syscall table that is mapped

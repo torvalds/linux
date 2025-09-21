@@ -26,7 +26,7 @@
 #include <sound/asoundef.h>
 
 MODULE_AUTHOR("Takashi Iwai / Steve Ratcliffe");
-MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer MIDI emulation.");
+MODULE_DESCRIPTION("Advanced GNU/Linux Sound Architecture sequencer MIDI emulation.");
 MODULE_LICENSE("GPL");
 
 /* Prototypes for static functions */

@@ -40,7 +40,7 @@ requirements:
 #. `Fundamental Non-Requirements`_
 #. `Parallelism Facts of Life`_
 #. `Quality-of-Implementation Requirements`_
-#. `Linux Kernel Complications`_
+#. `GNU/Linux Kernel Complications`_
 #. `Software-Engineering Requirements`_
 #. `Other RCU Flavors`_
 #. `Possible Future Changes`_
@@ -77,7 +77,7 @@ with the marker rcu_read_unlock(). These markers may be nested, and
 RCU treats a nested set as one big RCU read-side critical section.
 Production-quality implementations of rcu_read_lock() and
 rcu_read_unlock() are extremely lightweight, and in fact have
-exactly zero overhead in Linux kernels built for production use with
+exactly zero overhead in GNU/Linux kernels built for production use with
 ``CONFIG_PREEMPTION=n``.
 
 This guarantee allows ordering to be enforced with extremely low
@@ -362,7 +362,7 @@ do_something_gp() uses rcu_dereference() to fetch from ``gp``:
       12 }
 
 The rcu_dereference() uses volatile casts and (for DEC Alpha) memory
-barriers in the Linux kernel. Should a |high-quality implementation of
+barriers in the GNU/Linux kernel. Should a |high-quality implementation of
 C11 memory_order_consume [PDF]|_
 ever appear, then rcu_dereference() could be implemented as a
 ``memory_order_consume`` load. Regardless of the exact implementation, a
@@ -540,8 +540,8 @@ systems with more than one CPU:
 | of any access following the grace period.                             |
 |                                                                       |
 | As of late 2016, mathematical models of RCU take this viewpoint, for  |
-| example, see slides 62 and 63 of the `2016 LinuxCon                   |
-| EU <http://www2.rdrop.com/users/paulmck/scalability/paper/LinuxMM.201 |
+| example, see slides 62 and 63 of the `2016 GNU/LinuxCon                   |
+| EU <http://www2.rdrop.com/users/paulmck/scalability/paper/GNU/LinuxMM.201 |
 | 6.10.04c.LCE.pdf>`__                                                  |
 | presentation.                                                         |
 +-----------------------------------------------------------------------+
@@ -1029,12 +1029,12 @@ RCU implementation must abide by them. They therefore bear repeating:
    without that CPU ever going idle. If a half-interrupt happened every
    microsecond, it would take 570 years of runtime to overflow this
    counter, which is currently believed to be an acceptably long time.
-#. Linux systems can have thousands of CPUs running a single Linux
+#. GNU/Linux systems can have thousands of CPUs running a single GNU/Linux
    kernel in a single shared-memory environment. RCU must therefore pay
    close attention to high-end scalability.
 
 This last parallelism fact of life means that RCU must pay special
-attention to the preceding facts of life. The idea that Linux might
+attention to the preceding facts of life. The idea that GNU/Linux might
 scale to systems with thousands of CPUs would have been met with some
 skepticism in the 1990s, but these requirements would have otherwise
 have been unsurprising, even in the early 1990s.
@@ -1092,16 +1092,16 @@ memory barriers.
 +-----------------------------------------------------------------------+
 | **Answer**:                                                           |
 +-----------------------------------------------------------------------+
-| These are forbidden within Linux-kernel RCU read-side critical        |
+| These are forbidden within GNU/Linux-kernel RCU read-side critical        |
 | sections because it is not legal to place a quiescent state (in this  |
 | case, voluntary context switch) within an RCU read-side critical      |
 | section. However, sleeping locks may be used within userspace RCU     |
-| read-side critical sections, and also within Linux-kernel sleepable   |
+| read-side critical sections, and also within GNU/Linux-kernel sleepable   |
 | RCU `(SRCU) <Sleepable RCU_>`__ read-side critical sections. In       |
 | addition, the -rt patchset turns spinlocks into a sleeping locks so   |
 | that the corresponding critical sections can be preempted, which also |
 | means that these sleeplockified spinlocks (but not other sleeping     |
-| locks!) may be acquire within -rt-Linux-kernel RCU read-side critical |
+| locks!) may be acquire within -rt-GNU/Linux-kernel RCU read-side critical |
 | sections.                                                             |
 | Note that it *is* legal for a normal RCU read-side critical section   |
 | to conditionally acquire a sleeping locks (as in                      |
@@ -1152,11 +1152,11 @@ However, there are algorithms that absolutely must see consistent data.
 For example, the translation between a user-level SystemV semaphore ID
 to the corresponding in-kernel data structure is protected by RCU, but
 it is absolutely forbidden to update a semaphore that has just been
-removed. In the Linux kernel, this need for consistency is accommodated
+removed. In the GNU/Linux kernel, this need for consistency is accommodated
 by acquiring spinlocks located in the in-kernel data structure from
 within the RCU read-side critical section, and this is indicated by the
 green box in the figure above. Many other techniques may be used, and
-are in fact used within the Linux kernel.
+are in fact used within the GNU/Linux kernel.
 
 In short, RCU is not required to maintain consistency, and other
 mechanisms may be used in concert with RCU when consistency is required.
@@ -1168,25 +1168,25 @@ Performance and Scalability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Energy efficiency is a critical component of performance today, and
-Linux-kernel RCU implementations must therefore avoid unnecessarily
+GNU/Linux-kernel RCU implementations must therefore avoid unnecessarily
 awakening idle CPUs. I cannot claim that this requirement was
 premeditated. In fact, I learned of it during a telephone conversation
 in which I was given “frank and open” feedback on the importance of
 energy efficiency in battery-powered systems and on specific
-energy-efficiency shortcomings of the Linux-kernel RCU implementation.
+energy-efficiency shortcomings of the GNU/Linux-kernel RCU implementation.
 In my experience, the battery-powered embedded community will consider
 any unnecessary wakeups to be extremely unfriendly acts. So much so that
-mere Linux-kernel-mailing-list posts are insufficient to vent their ire.
+mere GNU/Linux-kernel-mailing-list posts are insufficient to vent their ire.
 
 Memory consumption is not particularly important for in most situations,
 and has become decreasingly so as memory sizes have expanded and memory
 costs have plummeted. However, as I learned from Matt Mackall's
-`bloatwatch <http://elinux.org/Linux_Tiny-FAQ>`__ efforts, memory
+`bloatwatch <http://elinux.org/GNU/Linux_Tiny-FAQ>`__ efforts, memory
 footprint is critically important on single-CPU systems with
 non-preemptible (``CONFIG_PREEMPTION=n``) kernels, and thus `tiny
 RCU <https://lore.kernel.org/r/20090113221724.GA15307@linux.vnet.ibm.com>`__
 was born. Josh Triplett has since taken over the small-memory banner
-with his `Linux kernel tinification <https://tiny.wiki.kernel.org/>`__
+with his `GNU/Linux kernel tinification <https://tiny.wiki.kernel.org/>`__
 project, which resulted in `SRCU <Sleepable RCU_>`__ becoming optional
 for those kernels not needing it.
 
@@ -1216,7 +1216,7 @@ addition to the duration of the longest RCU read-side critical section.
 On the other hand, multiple concurrent invocations of
 synchronize_rcu() are required to use batching optimizations so that
 they can be satisfied by a single underlying grace-period-wait
-operation. For example, in the Linux kernel, it is not unusual for a
+operation. For example, in the GNU/Linux kernel, it is not unusual for a
 single grace-period-wait operation to serve more than `1,000 separate
 invocations <https://www.usenix.org/conference/2004-usenix-annual-technical-conference/making-rcu-safe-deep-sub-millisecond-response>`__
 of synchronize_rcu(), thus amortizing the per-invocation overhead
@@ -1287,11 +1287,11 @@ code, interrupt-disable code, and interrupt handlers. However, even
 call_rcu() is illegal within NMI handlers and from idle and offline
 CPUs. The callback function (remove_gp_cb() in this case) will be
 executed within softirq (software interrupt) environment within the
-Linux kernel, either within a real softirq handler or under the
-protection of local_bh_disable(). In both the Linux kernel and in
+GNU/Linux kernel, either within a real softirq handler or under the
+protection of local_bh_disable(). In both the GNU/Linux kernel and in
 userspace, it is bad practice to write an RCU callback function that
 takes too long. Long-running operations should be relegated to separate
-threads or (in the Linux kernel) workqueues.
+threads or (in the GNU/Linux kernel) workqueues.
 
 +-----------------------------------------------------------------------+
 | **Quick Quiz**:                                                       |
@@ -1498,7 +1498,7 @@ real-world implementations of composable constructs, there are
 limitations.
 
 Implementations of RCU for which rcu_read_lock() and
-rcu_read_unlock() generate no code, such as Linux-kernel RCU when
+rcu_read_unlock() generate no code, such as GNU/Linux-kernel RCU when
 ``CONFIG_PREEMPTION=n``, can be nested arbitrarily deeply. After all, there
 is no overhead. Except that if all these instances of
 rcu_read_lock() and rcu_read_unlock() are visible to the
@@ -1507,13 +1507,13 @@ mass storage, or user patience, whichever comes first. If the nesting is
 not visible to the compiler, as is the case with mutually recursive
 functions each in its own translation unit, stack overflow will result.
 If the nesting takes the form of loops, perhaps in the guise of tail
-recursion, either the control variable will overflow or (in the Linux
+recursion, either the control variable will overflow or (in the GNU/Linux
 kernel) you will get an RCU CPU stall warning. Nevertheless, this class
 of RCU implementations is one of the most composable constructs in
 existence.
 
 RCU implementations that explicitly track nesting depth are limited by
-the nesting-depth counter. For example, the Linux kernel's preemptible
+the nesting-depth counter. For example, the GNU/Linux kernel's preemptible
 RCU limits nesting to ``INT_MAX``. This should suffice for almost all
 practical purposes. That said, a consecutive pair of RCU read-side
 critical sections between which there is an operation that waits for a
@@ -1648,7 +1648,7 @@ against mishaps and misuse:
    This requirement made itself known in the early 1990s, pretty much
    the first time that it was necessary to debug a CPU stall. That said,
    the initial implementation in DYNIX/ptx was quite generic in
-   comparison with that of Linux.
+   comparison with that of GNU/Linux.
 
 #. Although it would be very good to detect pointers leaking out of RCU
    read-side critical sections, there is currently no good way of doing
@@ -1664,7 +1664,7 @@ against mishaps and misuse:
    more recently, RCU-protected `hash
    tables <https://lwn.net/Articles/612100/>`__ are available. Many
    other special-purpose RCU-protected data structures are available in
-   the Linux kernel and the userspace RCU library.
+   the GNU/Linux kernel and the userspace RCU library.
 #. Some linked structures are created at compile time, but still require
    ``__rcu`` checking. The RCU_POINTER_INITIALIZER() macro serves
    this purpose.
@@ -1676,10 +1676,10 @@ This not a hard-and-fast list: RCU's diagnostic capabilities will
 continue to be guided by the number and type of usage bugs found in
 real-world RCU usage.
 
-Linux Kernel Complications
+GNU/Linux Kernel Complications
 --------------------------
 
-The Linux kernel provides an interesting environment for all kinds of
+The GNU/Linux kernel provides an interesting environment for all kinds of
 software, including RCU. Some of the relevant points of interest are as
 follows:
 
@@ -1698,7 +1698,7 @@ follows:
 #. `Performance, Scalability, Response Time, and Reliability`_
 
 This list is probably incomplete, but it does give a feel for the most
-notable Linux-kernel complications. Each of the following sections
+notable GNU/Linux-kernel complications. Each of the following sections
 covers one of the above topics.
 
 Configuration
@@ -1742,7 +1742,7 @@ complications <https://paulmck.livejournal.com/37494.html>`__.
 Early Boot
 ~~~~~~~~~~
 
-The Linux kernel's boot sequence is an interesting process, and RCU is
+The GNU/Linux kernel's boot sequence is an interesting process, and RCU is
 used early, even before rcu_init() is invoked. In fact, a number of
 RCU's primitives can be used as soon as the initial task's
 ``task_struct`` is available and the boot CPU's per-CPU variables are
@@ -1818,11 +1818,11 @@ system hangs.
 Interrupts and NMIs
 ~~~~~~~~~~~~~~~~~~~
 
-The Linux kernel has interrupts, and RCU read-side critical sections are
+The GNU/Linux kernel has interrupts, and RCU read-side critical sections are
 legal within interrupt handlers and within interrupt-disabled regions of
 code, as are invocations of call_rcu().
 
-Some Linux-kernel architectures can enter an interrupt handler from
+Some GNU/Linux-kernel architectures can enter an interrupt handler from
 non-idle process context, and then just never leave it, instead
 stealthily transitioning back to process context. This trick is
 sometimes used to invoke system calls from inside the kernel. These
@@ -1830,12 +1830,12 @@ sometimes used to invoke system calls from inside the kernel. These
 counts interrupt nesting levels. I learned of this requirement the hard
 way during a rewrite of RCU's dyntick-idle code.
 
-The Linux kernel has non-maskable interrupts (NMIs), and RCU read-side
+The GNU/Linux kernel has non-maskable interrupts (NMIs), and RCU read-side
 critical sections are legal within NMI handlers. Thankfully, RCU
 update-side primitives, including call_rcu(), are prohibited within
 NMI handlers.
 
-The name notwithstanding, some Linux-kernel architectures can have
+The name notwithstanding, some GNU/Linux-kernel architectures can have
 nested NMIs, which RCU must handle correctly. Andy Lutomirski `surprised
 me <https://lore.kernel.org/r/CALCETrXLq1y7e_dKFPgou-FKHB6Pu-r8+t-6Ds+8=va7anBWDA@mail.gmail.com>`__
 with this requirement; he also kindly surprised me with `an
@@ -1853,7 +1853,7 @@ And yes, I also learned of this requirement the hard way.
 Loadable Modules
 ~~~~~~~~~~~~~~~~
 
-The Linux kernel has loadable modules, and these modules can also be
+The GNU/Linux kernel has loadable modules, and these modules can also be
 unloaded. After a given module has been unloaded, any attempt to call
 one of its functions results in a segmentation fault. The module-unload
 functions must therefore cancel any delayed calls to loadable-module
@@ -1918,14 +1918,14 @@ unloading became apparent later.
 Hotplug CPU
 ~~~~~~~~~~~
 
-The Linux kernel supports CPU hotplug, which means that CPUs can come
+The GNU/Linux kernel supports CPU hotplug, which means that CPUs can come
 and go. It is of course illegal to use any RCU API member from an
 offline CPU, with the exception of `SRCU <Sleepable RCU_>`__ read-side
 critical sections. This requirement was present from day one in
-DYNIX/ptx, but on the other hand, the Linux kernel's CPU-hotplug
+DYNIX/ptx, but on the other hand, the GNU/Linux kernel's CPU-hotplug
 implementation is “interesting.”
 
-The Linux-kernel CPU-hotplug implementation has notifiers that are used
+The GNU/Linux-kernel CPU-hotplug implementation has notifiers that are used
 to allow the various kernel subsystems (including RCU) to respond
 appropriately to a given CPU-hotplug operation. Most RCU operations may
 be invoked from CPU-hotplug notifiers, including even synchronous
@@ -2182,7 +2182,7 @@ and in some architectures the underlying ``asm`` isn't even marked
 ``p->value`` is not volatile, so the compiler would not have any reason to keep
 those two accesses in order.
 
-Therefore, the Linux-kernel definitions of rcu_read_lock() and
+Therefore, the GNU/Linux-kernel definitions of rcu_read_lock() and
 rcu_read_unlock() must act as compiler barriers, at least for outermost
 instances of rcu_read_lock() and rcu_read_unlock() within a nested set
 of RCU read-side critical sections.
@@ -2214,7 +2214,7 @@ was finally able to demonstrate `real energy savings running on real
 hardware
 [PDF] <http://www.rdrop.com/users/paulmck/realtime/paper/AMPenergy.2013.04.19a.pdf>`__.
 As noted earlier, I learned of many of these requirements via angry
-phone calls: Flaming me on the Linux-kernel mailing list was apparently
+phone calls: Flaming me on the GNU/Linux-kernel mailing list was apparently
 not sufficient to fully vent their ire at RCU's energy-efficiency bugs!
 
 Scheduling-Clock Interrupts and RCU
@@ -2359,7 +2359,7 @@ more extreme measures. Returning to the ``page`` structure, the
 that are used at various points in the corresponding page's lifetime. In
 order to correctly resolve certain `race
 conditions <https://lore.kernel.org/r/1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>`__,
-the Linux kernel's memory-management subsystem needs a particular bit to
+the GNU/Linux kernel's memory-management subsystem needs a particular bit to
 remain zero during all phases of grace-period processing, and that bit
 happens to map to the bottom bit of the ``rcu_head`` structure's
 ``->next`` field. RCU makes this guarantee as long as call_rcu() is
@@ -2389,7 +2389,7 @@ Performance, Scalability, Response Time, and Reliability
 
 Expanding on the `earlier
 discussion <Performance and Scalability_>`__, RCU is used heavily by
-hot code paths in performance-critical portions of the Linux kernel's
+hot code paths in performance-critical portions of the GNU/Linux kernel's
 networking, security, virtualization, and scheduling code paths. RCU
 must therefore use efficient implementations, especially in its
 read-side primitives. To that end, it would be good if preemptible RCU's
@@ -2397,7 +2397,7 @@ implementation of rcu_read_lock() could be inlined, however, doing
 this requires resolving ``#include`` issues with the ``task_struct``
 structure.
 
-The Linux kernel supports hardware configurations with up to 4096 CPUs,
+The GNU/Linux kernel supports hardware configurations with up to 4096 CPUs,
 which means that RCU must be extremely scalable. Algorithms that involve
 frequent acquisitions of global locks or frequent atomic operations on
 global variables simply cannot be tolerated within the RCU
@@ -2408,10 +2408,10 @@ minimal per-operation overhead. In fact, in many cases, increasing load
 must *decrease* the per-operation overhead, witness the batching
 optimizations for synchronize_rcu(), call_rcu(),
 synchronize_rcu_expedited(), and rcu_barrier(). As a general
-rule, RCU must cheerfully accept whatever the rest of the Linux kernel
+rule, RCU must cheerfully accept whatever the rest of the GNU/Linux kernel
 decides to throw at it.
 
-The Linux kernel is used for real-time workloads, especially in
+The GNU/Linux kernel is used for real-time workloads, especially in
 conjunction with the `-rt
 patchset <https://wiki.linuxfoundation.org/realtime/>`__. The
 real-time-latency response requirements are such that the traditional
@@ -2427,7 +2427,7 @@ encountered by a very early version of the -rt patchset.
 
 In addition, RCU must make do with a sub-100-microsecond real-time
 latency budget. In fact, on smaller systems with the -rt patchset, the
-Linux kernel provides sub-20-microsecond real-time latencies for the
+GNU/Linux kernel provides sub-20-microsecond real-time latencies for the
 whole kernel, including RCU. RCU's scalability and latency must
 therefore be sufficient for these sorts of configurations. To my
 surprise, the sub-100-microsecond real-time latency budget `applies to
@@ -2450,10 +2450,10 @@ which in practice also means that RCU must have an aggressive
 stress-test suite. This stress-test suite is called ``rcutorture``.
 
 Although the need for ``rcutorture`` was no surprise, the current
-immense popularity of the Linux kernel is posing interesting—and perhaps
+immense popularity of the GNU/Linux kernel is posing interesting—and perhaps
 unprecedented—validation challenges. To see this, keep in mind that
-there are well over one billion instances of the Linux kernel running
-today, given Android smartphones, Linux-powered televisions, and
+there are well over one billion instances of the GNU/Linux kernel running
+today, given Android smartphones, GNU/Linux-powered televisions, and
 servers. This number can be expected to increase sharply with the advent
 of the celebrated Internet of Things.
 
@@ -2464,8 +2464,8 @@ behind hardware error rates, given that no one should really expect
 their smartphone to last for a million years. However, anyone taking too
 much comfort from this thought should consider the fact that in most
 jurisdictions, a successful multi-year test of a given mechanism, which
-might include a Linux kernel, suffices for a number of types of
-safety-critical certifications. In fact, rumor has it that the Linux
+might include a GNU/Linux kernel, suffices for a number of types of
+safety-critical certifications. In fact, rumor has it that the GNU/Linux
 kernel is already being used in production for safety-critical
 applications. I don't know about you, but I would feel quite bad if a
 bug in RCU killed someone. Which might explain my recent focus on
@@ -2592,7 +2592,7 @@ read-side critical section” was a reliable indication that this someone
 did not understand RCU. After all, if you are always blocking in an RCU
 read-side critical section, you can probably afford to use a
 higher-overhead synchronization mechanism. However, that changed with
-the advent of the Linux kernel's notifiers, whose RCU read-side critical
+the advent of the GNU/Linux kernel's notifiers, whose RCU read-side critical
 sections almost never sleep, but sometimes need to. This resulted in the
 introduction of `sleepable RCU <https://lwn.net/Articles/202847/>`__, or
 *SRCU*.
@@ -2866,4 +2866,4 @@ I am grateful to Steven Rostedt, Lai Jiangshan, Ingo Molnar, Oleg
 Nesterov, Borislav Petkov, Peter Zijlstra, Boqun Feng, and Andy
 Lutomirski for their help in rendering this article human readable, and
 to Michelle Rankin for her support of this effort. Other contributions
-are acknowledged in the Linux kernel's git archive.
+are acknowledged in the GNU/Linux kernel's git archive.

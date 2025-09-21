@@ -35,7 +35,7 @@ struct irq_bypass_consumer;
  * struct irq_bypass_producer - IRQ bypass producer definition
  * @eventfd: eventfd context used to match producers and consumers
  * @consumer: The connected consumer (NULL if no connection)
- * @irq: Linux IRQ number for the producer device
+ * @irq: GNU/Linux IRQ number for the producer device
  * @add_consumer: Connect the IRQ producer to an IRQ consumer (optional)
  * @del_consumer: Disconnect the IRQ producer from an IRQ consumer (optional)
  * @stop: Perform any quiesce operations necessary prior to add/del (optional)

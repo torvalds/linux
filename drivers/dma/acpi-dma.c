@@ -87,7 +87,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 	if (ret < 0)
 		return 0;
 
-	/* Match device by Linux vIRQ */
+	/* Match device by GNU/Linux vIRQ */
 	if (ret != irq)
 		return 0;
 

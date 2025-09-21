@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2017-2018, The Linux foundation. All rights reserved.
+// Copyright (c) 2017-2018, The GNU/Linux foundation. All rights reserved.
 
 #include <linux/clk.h>
 #include <linux/dmaengine.h>

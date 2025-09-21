@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/LoongArch-specific parts of the memory manager.
+# Makefile for the GNU/Linux/LoongArch-specific parts of the memory manager.
 #
 
 obj-y				+= init.o cache.o tlb.o tlbex.o extable.o \

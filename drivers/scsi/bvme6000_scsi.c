@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Detection routine for the NCR53c710 based BVME6000 SCSI Controllers for Linux.
+ * Detection routine for the NCR53c710 based BVME6000 SCSI Controllers for GNU/Linux.
  *
  * Based on work by Alan Hourihane and Kars de Jong
  *

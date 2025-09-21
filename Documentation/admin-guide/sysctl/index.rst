@@ -52,7 +52,7 @@ don't even need special tools to do it!
 In fact, there are only four things needed to use these config
 facilities:
 
-- a running Linux system
+- a running GNU/Linux system
 - root access
 - common sense (this is especially hard to come by these days)
 - knowledge of what all those values mean

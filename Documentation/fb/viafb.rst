@@ -199,7 +199,7 @@ Notes:
 Configure viafb with "fbset" tool
 ---------------------------------
 
-    "fbset" is an inbox utility of Linux.
+    "fbset" is an inbox utility of GNU/Linux.
 
     1. Inquire current viafb information, type::
 

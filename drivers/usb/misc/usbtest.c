@@ -2925,13 +2925,13 @@ static struct usbtest_info fw_info = {
 	.iso		= 1,		/* iso_ep's are #8 in/out */
 };
 
-/* peripheral running Linux and 'zero.c' test firmware, or
+/* peripheral running GNU/Linux and 'zero.c' test firmware, or
  * its user-mode cousin. different versions of this use
  * different hardware with the same vendor/product codes.
  * host side MUST rely on the endpoint descriptors.
  */
 static struct usbtest_info gz_info = {
-	.name		= "Linux gadget zero",
+	.name		= "GNU/Linux gadget zero",
 	.autoconf	= 1,
 	.ctrl_out	= 1,
 	.iso		= 1,
@@ -2940,13 +2940,13 @@ static struct usbtest_info gz_info = {
 };
 
 static struct usbtest_info um_info = {
-	.name		= "Linux user mode test driver",
+	.name		= "GNU/Linux user mode test driver",
 	.autoconf	= 1,
 	.alt		= -1,
 };
 
 static struct usbtest_info um2_info = {
-	.name		= "Linux user mode ISO test driver",
+	.name		= "GNU/Linux user mode ISO test driver",
 	.autoconf	= 1,
 	.iso		= 1,
 	.alt		= -1,
@@ -3000,7 +3000,7 @@ static const struct usb_device_id id_table[] = {
 		.driver_info = (unsigned long) &fw_info,
 	},
 
-	/* "Gadget Zero" firmware runs under Linux */
+	/* "Gadget Zero" firmware runs under GNU/Linux */
 	{ USB_DEVICE(0x0525, 0xa4a0),
 		.driver_info = (unsigned long) &gz_info,
 	},

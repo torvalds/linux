@@ -18,7 +18,7 @@ masquerades as a PE/COFF image and the EFI stub is linked into the
 kernel. The arm64 EFI stub lives in drivers/firmware/efi/libstub/arm64.c
 and drivers/firmware/efi/libstub/arm64-stub.c.
 
-By using the EFI boot stub it's possible to boot a Linux kernel
+By using the EFI boot stub it's possible to boot a GNU/Linux kernel
 without the use of a conventional EFI boot loader, such as grub or
 elilo. Since the EFI boot stub performs the jobs of a boot loader, in
 a certain sense it *IS* the boot loader.
@@ -32,7 +32,7 @@ How to install bzImage.efi
 The bzImage located in arch/x86/boot/bzImage must be copied to the EFI
 System Partition (ESP) and renamed with the extension ".efi". Without
 the extension the EFI firmware loader will refuse to execute it. It's
-not possible to execute bzImage.efi from the usual Linux file systems
+not possible to execute bzImage.efi from the usual GNU/Linux file systems
 because EFI firmware doesn't have support for them. For ARM the
 arch/arm/boot/zImage should be copied to the system partition, and it
 may not need to be renamed. Similarly for arm64, arch/arm64/boot/Image

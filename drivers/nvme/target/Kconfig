@@ -9,8 +9,8 @@ config NVME_TARGET
 	select SGL_ALLOC
 	help
 	  This enabled target side support for the NVMe protocol, that is
-	  it allows the Linux kernel to implement NVMe subsystems and
-	  controllers and export Linux block devices as NVMe namespaces.
+	  it allows the GNU/Linux kernel to implement NVMe subsystems and
+	  controllers and export GNU/Linux block devices as NVMe namespaces.
 	  You need to select at least one of the transports below to make this
 	  functionality useful.
 

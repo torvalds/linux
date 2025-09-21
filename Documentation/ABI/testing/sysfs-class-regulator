@@ -17,7 +17,7 @@ Description:
 		power to the system (assuming no error prevents it).
 
 		'disabled' means the regulator output is OFF and is not
-		supplying power to the system (unless some non-Linux
+		supplying power to the system (unless some non-GNU/Linux
 		control has enabled it).
 
 		'unknown' means software cannot determine the state, or
@@ -58,10 +58,10 @@ Description:
 		imply "on", but provide more detail.
 
 		Note that regulator status is a function of many inputs,
-		not limited to control inputs from Linux.  For example,
+		not limited to control inputs from GNU/Linux.  For example,
 		the actual load presented may trigger "error" status; or
 		a regulator may be enabled by another user, even though
-		Linux did not enable it.
+		GNU/Linux did not enable it.
 
 
 What:		/sys/class/regulator/.../type

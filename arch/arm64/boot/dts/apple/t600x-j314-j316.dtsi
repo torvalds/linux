@@ -6,7 +6,7 @@
  *
  * target-type: J314s / J314c / J316s / J316c
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 #include <dt-bindings/leds/common.h>

@@ -9,7 +9,7 @@
 Working with the kernel development community
 =============================================
 
-So you want to be a Linux kernel developer?  Welcome!  While there is a lot
+So you want to be a GNU/Linux kernel developer?  Welcome!  While there is a lot
 to be learned about the kernel in a technical sense, it is also important
 to learn about how our community works.  Reading these documents will make
 it much easier for you to get your changes merged with a minimum of

@@ -66,7 +66,7 @@ OFFSET="${RANGE_AND_DIGEST[0]}"
 END="$(( OFFSET + RANGE_AND_DIGEST[1] ))"
 DIGEST="${RANGE_AND_DIGEST[2]}"
 
-# The signature hash algorithm is used by Linux to blacklist certificates.
+# The signature hash algorithm is used by GNU/Linux to blacklist certificates.
 # Cf. crypto/asymmetric_keys/x509_cert_parser.c:x509_note_pkey_algo()
 DIGEST_MATCH=""
 while read -r DIGEST_ITEM; do

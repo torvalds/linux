@@ -1,12 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================================================
-BusLogic MultiMaster and FlashPoint SCSI Driver for Linux
+BusLogic MultiMaster and FlashPoint SCSI Driver for GNU/Linux
 =========================================================
 
-			 Version 2.0.15 for Linux 2.0
+			 Version 2.0.15 for GNU/Linux 2.0
 
-			 Version 2.1.15 for Linux 2.1
+			 Version 2.1.15 for GNU/Linux 2.1
 
 			      PRODUCTION RELEASE
 
@@ -44,17 +44,17 @@ analogous to the firmware on the MultiMaster Host Adapters.  Thanks to their
 having provided the SCCB Manager, this driver now supports the FlashPoint Host
 Adapters as well.
 
-My primary goals in writing this completely new BusLogic driver for Linux are
+My primary goals in writing this completely new BusLogic driver for GNU/Linux are
 to achieve the full performance that BusLogic SCSI Host Adapters and modern
 SCSI peripherals are capable of, and to provide a highly robust driver that can
 be depended upon for high performance mission critical applications.  All of
-the major performance features can be configured from the Linux kernel command
+the major performance features can be configured from the GNU/Linux kernel command
 line or at module initialization time, allowing individual installations to
 tune driver performance and error recovery to their particular needs.
 
-The latest information on Linux support for BusLogic SCSI Host Adapters, as
+The latest information on GNU/Linux support for BusLogic SCSI Host Adapters, as
 well as the most recent release of this driver and the latest firmware for the
-BT-948/958/958D, will always be available from my Linux Home Page at URL
+BT-948/958/958D, will always be available from my GNU/Linux Home Page at URL
 "http://sourceforge.net/projects/dandelion/".
 
 Bug reports should be sent via electronic mail to "lnz@dandelion.com".  Please
@@ -64,27 +64,27 @@ relevant to SCSI operations, and a detailed description of your system's
 hardware configuration.
 
 Mylex has been an excellent company to work with and I highly recommend their
-products to the Linux community.  In November 1995, I was offered the
+products to the GNU/Linux community.  In November 1995, I was offered the
 opportunity to become a beta test site for their latest MultiMaster product,
 the BT-948 PCI Ultra SCSI Host Adapter, and then again for the BT-958 PCI Wide
 Ultra SCSI Host Adapter in January 1996.  This was mutually beneficial since
 Mylex received a degree and kind of testing that their own testing group cannot
-readily achieve, and the Linux community has available high performance host
-adapters that have been well tested with Linux even before being brought to
+readily achieve, and the GNU/Linux community has available high performance host
+adapters that have been well tested with GNU/Linux even before being brought to
 market.  This relationship has also given me the opportunity to interact
 directly with their technical staff, to understand more about the internal
 workings of their products, and in turn to educate them about the needs and
-potential of the Linux community.
+potential of the GNU/Linux community.
 
 More recently, Mylex has reaffirmed the company's interest in supporting the
-Linux community, and I am now working on a Linux driver for the DAC960 PCI RAID
+GNU/Linux community, and I am now working on a GNU/Linux driver for the DAC960 PCI RAID
 Controllers.  Mylex's interest and support is greatly appreciated.
 
 Unlike some other vendors, if you contact Mylex Technical Support with a
-problem and are running Linux, they will not tell you that your use of their
+problem and are running GNU/Linux, they will not tell you that your use of their
 products is unsupported.  Their latest product marketing literature even states
 "Mylex SCSI host adapters are compatible with all major operating systems
-including: ... Linux ...".
+including: ... GNU/Linux ...".
 
 Mylex Corporation is located at 34551 Ardenwood Blvd., Fremont, California
 94555, USA and can be reached at 510/796-6100 or on the World Wide Web at
@@ -150,7 +150,7 @@ Performance Features
   device or logical unit, and can improve I/O performance substantially.  In
   addition, BusLogic's Strict Round Robin Mode is used to optimize host adapter
   performance, and scatter/gather I/O can support as many segments as can be
-  effectively utilized by the Linux I/O subsystem.  Control over the use of
+  effectively utilized by the GNU/Linux I/O subsystem.  Control over the use of
   tagged queuing for each target device as well as individual selection of the
   tagged queue depth is available through driver options provided on the kernel
   command line or at module initialization time.  By default, the queue depth
@@ -287,10 +287,10 @@ RAIDPlus Support
 ----------------
 
   FlashPoint Host Adapters now include RAIDPlus, Mylex's bootable software
-  RAID.  RAIDPlus is not supported on Linux, and there are no plans to support
-  it.  The MD driver in Linux 2.0 provides for concatenation (LINEAR) and
+  RAID.  RAIDPlus is not supported on GNU/Linux, and there are no plans to support
+  it.  The MD driver in GNU/Linux 2.0 provides for concatenation (LINEAR) and
   striping (RAID-0), and support for mirroring (RAID-1), fixed parity (RAID-4),
-  and distributed parity (RAID-5) is available separately.  The built-in Linux
+  and distributed parity (RAID-5) is available separately.  The built-in GNU/Linux
   RAID support is generally more flexible and is expected to perform better
   than RAIDPlus, so there is little impetus to include RAIDPlus support in the
   BusLogic driver.
@@ -314,7 +314,7 @@ BT-948/958/958D Installation Notes
 ==================================
 
 The BT-948/958/958D PCI Ultra SCSI Host Adapters have some features which may
-require attention in some circumstances when installing Linux.
+require attention in some circumstances when installing GNU/Linux.
 
 PCI I/O Port Assignments
 ------------------------
@@ -325,7 +325,7 @@ PCI I/O Port Assignments
   that previous BusLogic SCSI Host Adapters respond to.  This driver supports
   the PCI I/O port assignments, so this is the preferred configuration.
   However, if the obsolete BusLogic driver must be used for any reason, such as
-  a Linux distribution that does not yet use this driver in its boot kernel,
+  a GNU/Linux distribution that does not yet use this driver in its boot kernel,
   BusLogic has provided an AutoSCSI configuration option to enable a legacy ISA
   compatible I/O port.
 
@@ -346,7 +346,7 @@ PCI Slot Scanning Order
   correctly, it is necessary that the host adapter's BIOS and the kernel agree
   on which disk is the boot device, which requires that they recognize the PCI
   host adapters in the same order.  The motherboard's PCI BIOS provides a
-  standard way of enumerating the PCI host adapters, which is used by the Linux
+  standard way of enumerating the PCI host adapters, which is used by the GNU/Linux
   kernel.  Some PCI BIOS implementations enumerate the PCI slots in order of
   increasing bus number and device number, while others do so in the opposite
   direction.
@@ -383,7 +383,7 @@ Enabling UltraSCSI Transfers
 Driver Options
 ==============
 
-BusLogic Driver Options may be specified either via the Linux Kernel Command
+BusLogic Driver Options may be specified either via the GNU/Linux Kernel Command
 Line or via the Loadable Kernel Module Installation Facility.  Driver Options
 for multiple host adapters may be specified either by separating the option
 strings by a semicolon, or by specifying multiple "BusLogic=" strings on the
@@ -530,11 +530,11 @@ The following examples demonstrate setting the Queue Depth for Target Devices
 Devices on the second host adapter to 31, and the Bus Settle Time on the
 second host adapter to 30 seconds.
 
-Linux Kernel Command Line::
+GNU/Linux Kernel Command Line::
 
   linux BusLogic=QueueDepth:[,7,15];QueueDepth:31,BusSettleTime:30
 
-LILO Linux Boot Loader (in /etc/lilo.conf)::
+LILO GNU/Linux Boot Loader (in /etc/lilo.conf)::
 
   append = "BusLogic=QueueDepth:[,7,15];QueueDepth:31,BusSettleTime:30"
 
@@ -553,11 +553,11 @@ INSMOD Loadable Kernel Module Installation Facility::
 Driver Installation
 ===================
 
-This distribution was prepared for Linux kernel version 2.0.35, but should be
+This distribution was prepared for GNU/Linux kernel version 2.0.35, but should be
 compatible with 2.0.4 or any later 2.0 series kernel.
 
 To install the new BusLogic SCSI driver, you may use the following commands,
-replacing "/usr/src" with wherever you keep your Linux kernel source tree::
+replacing "/usr/src" with wherever you keep your GNU/Linux kernel source tree::
 
   cd /usr/src
   tar -xvzf BusLogic-2.0.15.tar.gz
@@ -574,8 +574,8 @@ appropriate, and reboot.
 BusLogic Announcements Mailing List
 ===================================
 
-The BusLogic Announcements Mailing List provides a forum for informing Linux
-users of new driver releases and other announcements regarding Linux support
+The BusLogic Announcements Mailing List provides a forum for informing GNU/Linux
+users of new driver releases and other announcements regarding GNU/Linux support
 for BusLogic SCSI Host Adapters.  To join the mailing list, send a message to
 "buslogic-announce-request@dandelion.com" with the line "subscribe" in the
 message body.

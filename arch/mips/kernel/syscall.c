@@ -46,7 +46,7 @@
  * For historic reasons the pipe(2) syscall on MIPS has an unusual calling
  * convention.	It returns results in registers $v0 / $v1 which means there
  * is no need for it to do verify the validity of a userspace pointer
- * argument.  Historically that used to be expensive in Linux.	These days
+ * argument.  Historically that used to be expensive in GNU/Linux.	These days
  * the performance advantage is negligible.
  */
 asmlinkage int sysm_pipe(void)

@@ -1,5 +1,5 @@
 =================================
-Linux Security Module Development
+GNU/Linux Security Module Development
 =================================
 
 Based on https://lore.kernel.org/r/20071026073721.618b4778@laptopd505.fenrus.org,

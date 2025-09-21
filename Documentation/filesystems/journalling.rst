@@ -1,4 +1,4 @@
-The Linux Journalling API
+The GNU/Linux Journalling API
 =========================
 
 Overview
@@ -205,7 +205,7 @@ Transaction Level
 See also
 --------
 
-`Journaling the Linux ext2fs Filesystem, LinuxExpo 98, Stephen
+`Journaling the GNU/Linux ext2fs Filesystem, GNU/LinuxExpo 98, Stephen
 Tweedie <http://kernel.org/pub/linux/kernel/people/sct/ext3/journal-design.ps.gz>`__
 
 `Ext3 Journalling FileSystem, OLS 2000, Dr. Stephen

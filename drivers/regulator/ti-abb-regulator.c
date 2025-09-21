@@ -335,7 +335,7 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 
 	info = &abb->info[sel];
 	/*
-	 * When Linux kernel is starting up, we aren't sure of the
+	 * When GNU/Linux kernel is starting up, we aren't sure of the
 	 * Bias configuration that bootloader has configured.
 	 * So, we get to know the actual setting the first time
 	 * we are asked to transition.

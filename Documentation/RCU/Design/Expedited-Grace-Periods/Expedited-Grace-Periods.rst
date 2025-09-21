@@ -405,7 +405,7 @@ Use of Workqueues
 In earlier implementations, the task requesting the expedited grace
 period also drove it to completion. This straightforward approach had
 the disadvantage of needing to account for POSIX signals sent to user
-tasks, so more recent implementations use the Linux kernel's
+tasks, so more recent implementations use the GNU/Linux kernel's
 workqueues (see Documentation/core-api/workqueue.rst).
 
 The requesting task still does counter snapshotting and funnel-lock

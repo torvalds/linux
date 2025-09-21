@@ -9,7 +9,7 @@
  *
  * Besides the protocol changes, this is mostly a copy of:
  *
- *    RadioTrack II driver for Linux radio support (C) 1998 Ben Pfaff
+ *    RadioTrack II driver for GNU/Linux radio support (C) 1998 Ben Pfaff
  *
  *    Based on RadioTrack I/RadioReveal (C) 1997 M. Kirkwood
  *    Converted to new API by Alan Cox <alan@lxorguk.ukuu.org.uk>

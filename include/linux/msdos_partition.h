@@ -31,7 +31,7 @@ enum msdos_sys_ind {
 	LINUX_LVM_PARTITION = 0x8e,
 	LINUX_RAID_PARTITION = 0xfd,	/* autodetect RAID partition */
 
-	SOLARIS_X86_PARTITION =	0x82,	/* also Linux swap partitions */
+	SOLARIS_X86_PARTITION =	0x82,	/* also GNU/Linux swap partitions */
 	NEW_SOLARIS_X86_PARTITION = 0xbf,
 
 	DM6_AUX1PARTITION = 0x51,	/* no DDO:  use xlated geom */

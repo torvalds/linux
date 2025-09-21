@@ -68,7 +68,7 @@ How to Use ISO-TP
 =================
 
 As with others CAN protocols, the ISO-TP stack support is built into the
-Linux network subsystem for the CAN bus, aka. Linux-CAN or SocketCAN, and
+GNU/Linux network subsystem for the CAN bus, aka. GNU/Linux-CAN or SocketCAN, and
 thus follows the same socket API.
 
 Creation and basic usage of an ISO-TP socket
@@ -311,7 +311,7 @@ differ less than this value will be ignored:
 Multi-frame transport support
 -----------------------------
 
-The ISO-TP stack contained inside the Linux kernel supports the multi-frame
+The ISO-TP stack contained inside the GNU/Linux kernel supports the multi-frame
 transport mechanism defined by the standard, with the following constraints:
 
 * the maximum size of a PDU is defined by a module parameter, with an hard

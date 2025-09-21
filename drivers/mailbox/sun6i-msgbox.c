@@ -234,7 +234,7 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 	/*
 	 * NOTE: We rely on platform firmware to preconfigure the channel
 	 * directions, and we share this hardware block with other firmware
-	 * that runs concurrently with Linux (e.g. a trusted monitor).
+	 * that runs concurrently with GNU/Linux (e.g. a trusted monitor).
 	 *
 	 * Therefore, we do *not* assert the reset line if probing fails or
 	 * when removing the device.

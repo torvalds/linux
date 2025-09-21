@@ -1,5 +1,5 @@
 /*
-   3w-sas.c -- LSI 3ware SAS/SATA-RAID Controller device driver for Linux.
+   3w-sas.c -- LSI 3ware SAS/SATA-RAID Controller device driver for GNU/Linux.
 
    Written By: Adam Radford <aradford@gmail.com>
 
@@ -81,7 +81,7 @@ extern struct timezone sys_tz;
 
 /* Module parameters */
 MODULE_AUTHOR ("LSI");
-MODULE_DESCRIPTION ("LSI 3ware SAS/SATA-RAID Linux Driver");
+MODULE_DESCRIPTION ("LSI 3ware SAS/SATA-RAID GNU/Linux Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(TW_DRIVER_VERSION);
 
@@ -1843,7 +1843,7 @@ static struct pci_driver twl_driver = {
 /* This function is called on driver initialization */
 static int __init twl_init(void)
 {
-	printk(KERN_INFO "LSI 3ware SAS/SATA-RAID Controller device driver for Linux v%s.\n", TW_DRIVER_VERSION);
+	printk(KERN_INFO "LSI 3ware SAS/SATA-RAID Controller device driver for GNU/Linux v%s.\n", TW_DRIVER_VERSION);
 
 	return pci_register_driver(&twl_driver);
 } /* End twl_init() */

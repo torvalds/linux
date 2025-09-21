@@ -1,4 +1,4 @@
-Credits for the Simple Linux USB Driver:
+Credits for the Simple GNU/Linux USB Driver:
 
 The following people have contributed to this code (in alphabetical
 order by last name).  I'm sure this list should be longer, it's
@@ -28,10 +28,10 @@ difficult to maintain, add yourself with a patch if desired.
 Special thanks to:
 
   Inaky Perez Gonzalez <inaky@peloncho.fis.ucm.es> for starting the
-  Linux USB driver effort and writing much of the larger uusbd driver.
+  GNU/Linux USB driver effort and writing much of the larger uusbd driver.
   Much has been learned from that effort.
 
-  The NetBSD & FreeBSD USB developers.  For being on the Linux USB list
+  The NetBSD & FreeBSD USB developers.  For being on the GNU/Linux USB list
   and offering suggestions and sharing implementation experiences.
 
 Additional thanks to the following companies and people for donations
@@ -39,14 +39,14 @@ of hardware, support, time and development (this is from the original
 THANKS file in Inaky's driver):
 
         The following corporations have helped us in the development
-        of Linux USB / UUSBD:
+        of GNU/Linux USB / UUSBD:
 
 	- 3Com GmbH for donating a ISDN Pro TA and supporting me
 	  in technical questions and with test equipment. I'd never 
 	  expect such a great help.
 
         - USAR Systems provided us with one of their excellent USB
-          Evaluation Kits. It allows us to test the Linux-USB driver
+          Evaluation Kits. It allows us to test the GNU/Linux-USB driver
           for compliance with the latest USB specification. USAR
           Systems recognized the importance of an up-to-date open
           Operating System and supports this project with
@@ -54,7 +54,7 @@ THANKS file in Inaky's driver):
 
         - Thanks to Intel Corporation for their precious help.
 
-        - We teamed up with Cherry to make Linux the first OS with
+        - We teamed up with Cherry to make GNU/Linux the first OS with
           built-in USB support. Cherry is one of the biggest keyboard
           makers in the world.
 
@@ -63,7 +63,7 @@ THANKS file in Inaky's driver):
 
         - Due to their support to us, Keytronic can be sure that they
           will sell keyboards to some of the 3 million (at least)
-          Linux users.
+          GNU/Linux users.
 
         - Many thanks to ing büro h doran [http://www.ibhdoran.com]!
           It was almost impossible to get a PC backplate USB connector
@@ -74,11 +74,11 @@ THANKS file in Inaky's driver):
           protocol. They've also donated a F-23 digital joystick and a
           NetMouse Pro. Thanks! 
 
-        - AVM GmbH Berlin is supporting the development of the Linux
+        - AVM GmbH Berlin is supporting the development of the GNU/Linux
           USB driver for the AVM ISDN Controller B1 USB. AVM is a
           leading manufacturer for active and passive ISDN Controllers
           and CAPI 2.0-based software. The active design of the AVM B1
-          is open for all OS platforms, including Linux.
+          is open for all OS platforms, including GNU/Linux.
 
         - Thanks to Y-E Data, Inc. for donating their FlashBuster-U
           USB Floppy Disk Drive, so we could test the bulk transfer
@@ -95,14 +95,14 @@ THANKS file in Inaky's driver):
 
           Being a recognized vendor and seller for all these devices,
           they have donated USB mice, a joystick and a scanner, as a
-          way to acknowledge the importance of Linux and to allow
+          way to acknowledge the importance of GNU/Linux and to allow
           Logitech customers to enjoy support in their favorite
-          operating systems and all Linux users to use Logitech and
+          operating systems and all GNU/Linux users to use Logitech and
           other USB hardware.
 
-          Logitech is official sponsor of the Linux Conference on
+          Logitech is official sponsor of the GNU/Linux Conference on
           Feb. 11th 1999 in Vienna, where we'll will present the
-          current state of the Linux USB effort.
+          current state of the GNU/Linux USB effort.
 
         - CATC has provided means to uncover dark corners of the UHCI
           inner workings with a USB Inspector.
@@ -128,7 +128,7 @@ THANKS file in Inaky's driver):
 
         - Edmund Humemberger <ed@atnet.at>, for his great work on
           public relationships and general management stuff for the
-          Linux-USB effort.
+          GNU/Linux-USB effort.
 
         - Alberto Menegazzi <flash@flash.iol.it> is starting the
           documentation for the UUSBD. Go for it!
@@ -152,7 +152,7 @@ THANKS file in Inaky's driver):
         - Peter Dettori <dettori@ozy.dec.com> is uncovering bugs like
           crazy, as well as making cool suggestions, great :)
 
-        - All the Free Software and Linux community, the FSF & the GNU
+        - All the Free Software and GNU/Linux community, the FSF & the GNU
           project, the MIT X consortium, the TeX people ... everyone!
           You know who you are!
 
@@ -167,7 +167,7 @@ THANKS file in Inaky's driver):
         - Nathan Myers <ncm@cantrip.org>, for his advice! (hope you
           liked Cibeles' party).
 
-        - Linus Torvalds, for starting, developing and managing Linux.
+        - Linus Torvalds, for starting, developing and managing GNU/Linux.
 
         - Mike Smith, Craig Keithley, Thierry Giron and Janet Schank
           for convincing me USB Standard hubs are not that standard

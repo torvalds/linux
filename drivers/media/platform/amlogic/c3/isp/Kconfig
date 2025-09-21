@@ -11,7 +11,7 @@ config VIDEO_C3_ISP
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
 	help
-	  Video4Linux2 driver for Amlogic C3 ISP pipeline.
+	  Video4GNU/Linux2 driver for Amlogic C3 ISP pipeline.
 	  The C3 ISP is used for processing raw images and
 	  outputing results to memory.
 

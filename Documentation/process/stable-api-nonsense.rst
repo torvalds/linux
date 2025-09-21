@@ -1,13 +1,13 @@
 .. _stable_api_nonsense:
 
-The Linux Kernel Driver Interface
+The GNU/Linux Kernel Driver Interface
 ==================================
 
 (all of your questions answered and then some)
 
 Greg Kroah-Hartman <greg@kroah.com>
 
-This is being written to try to explain why Linux **does not have a binary
+This is being written to try to explain why GNU/Linux **does not have a binary
 kernel interface, nor does it have a stable kernel interface**.
 
 .. note::
@@ -29,7 +29,7 @@ You think you want a stable kernel interface, but you really do not, and
 you don't even know it.  What you want is a stable running driver, and
 you get that only if your driver is in the main kernel tree.  You also
 get lots of other good benefits if your driver is in the main kernel
-tree, all of which has made Linux into such a strong, stable, and mature
+tree, all of which has made GNU/Linux into such a strong, stable, and mature
 operating system which is the reason you are using it in the first
 place.
 
@@ -59,7 +59,7 @@ Binary Kernel Interface
 -----------------------
 Assuming that we had a stable kernel source interface for the kernel, a
 binary interface would naturally happen too, right?  Wrong.  Please
-consider the following facts about the Linux kernel:
+consider the following facts about the GNU/Linux kernel:
 
   - Depending on the version of the C compiler you use, different kernel
     data structures will contain different alignment of structures, and
@@ -77,7 +77,7 @@ consider the following facts about the Linux kernel:
       - Memory within the kernel can be aligned in different ways,
 	depending on the build options.
 
-  - Linux runs on a wide range of different processor architectures.
+  - GNU/Linux runs on a wide range of different processor architectures.
     There is no way that binary drivers from one architecture will run
     on another architecture properly.
 
@@ -85,11 +85,11 @@ Now a number of these issues can be addressed by simply compiling your
 module for the exact specific kernel configuration, using the same exact
 C compiler that the kernel was built with.  This is sufficient if you
 want to provide a module for a specific release version of a specific
-Linux distribution.  But multiply that single build by the number of
-different Linux distributions and the number of different supported
-releases of the Linux distribution and you quickly have a nightmare of
+GNU/Linux distribution.  But multiply that single build by the number of
+different GNU/Linux distributions and the number of different supported
+releases of the GNU/Linux distribution and you quickly have a nightmare of
 different build options on different releases.  Also realize that each
-Linux distribution release contains a number of different kernels, all
+GNU/Linux distribution release contains a number of different kernels, all
 tuned to different hardware types (different processor types and
 different options), so for even a single release you will need to create
 multiple versions of your module.
@@ -102,10 +102,10 @@ Stable Kernel Source Interfaces
 -------------------------------
 
 This is a much more "volatile" topic if you talk to people who try to
-keep a Linux kernel driver that is not in the main kernel tree up to
+keep a GNU/Linux kernel driver that is not in the main kernel tree up to
 date over time.
 
-Linux kernel development is continuous and at a rapid pace, never
+GNU/Linux kernel development is continuous and at a rapid pace, never
 stopping to slow down.  As such, the kernel developers find bugs in
 current interfaces, or figure out a better way to do things.  If they do
 that, they then fix the current interfaces to work better.  When they do
@@ -136,14 +136,14 @@ operating system to suffer.
 
 In both of these instances, all developers agreed that these were
 important changes that needed to be made, and they were made, with
-relatively little pain.  If Linux had to ensure that it will preserve a
+relatively little pain.  If GNU/Linux had to ensure that it will preserve a
 stable source interface, a new interface would have been created, and
 the older, broken one would have had to be maintained over time, leading
-to extra work for the USB developers.  Since all Linux USB developers do
+to extra work for the USB developers.  Since all GNU/Linux USB developers do
 their work on their own time, asking programmers to do extra work for no
 gain, for free, is not a possibility.
 
-Security issues are also very important for Linux.  When a
+Security issues are also very important for GNU/Linux.  When a
 security issue is found, it is fixed in a very short amount of time.  A
 number of times this has caused internal kernel interfaces to be
 reworked to prevent the security problem from occurring.  When this
@@ -163,7 +163,7 @@ test for validity.)
 What to do
 ----------
 
-So, if you have a Linux kernel driver that is not in the main kernel
+So, if you have a GNU/Linux kernel driver that is not in the main kernel
 tree, what are you, a developer, supposed to do?  Releasing a binary
 driver for every different kernel version for every distribution is a
 nightmare, and trying to keep up with an ever changing kernel interface
@@ -187,10 +187,10 @@ are:
   - Other people will find tuning opportunities in your driver.
   - Other people will update the driver for you when external interface
     changes require it.
-  - The driver automatically gets shipped in all Linux distributions
+  - The driver automatically gets shipped in all GNU/Linux distributions
     without having to ask the distros to add it.
 
-As Linux supports a larger number of different devices "out of the box"
+As GNU/Linux supports a larger number of different devices "out of the box"
 than any other operating system, and it supports these devices on more
 different processor architectures than any other operating system, this
 proven type of development model must be doing something right :)

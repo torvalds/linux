@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =============================================
-Linux Kernel GPIO based sloppy logic analyzer
+GNU/Linux Kernel GPIO based sloppy logic analyzer
 =============================================
 
 :Author: Wolfram Sang

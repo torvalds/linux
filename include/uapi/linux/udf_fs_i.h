@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * udf_fs_i.h
  *
- * This file is intended for the Linux kernel/module. 
+ * This file is intended for the GNU/Linux kernel/module. 
  *
  * COPYRIGHT
  *	This file is distributed under the terms of the GNU General Public

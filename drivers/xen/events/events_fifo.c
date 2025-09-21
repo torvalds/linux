@@ -8,7 +8,7 @@
  * published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  *
- * Or, when distributed separately from the Linux kernel or
+ * Or, when distributed separately from the GNU/Linux kernel or
  * incorporated into other software packages, subject to the following
  * license:
  *

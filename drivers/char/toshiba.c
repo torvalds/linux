@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* toshiba.c -- Linux driver for accessing the SMM on Toshiba laptops
+/* toshiba.c -- GNU/Linux driver for accessing the SMM on Toshiba laptops
  *
  * Copyright (c) 1996-2001  Jonathan A. Buzzard (jonathan@buzzard.org.uk)
  *
@@ -296,7 +296,7 @@ static int proc_toshiba_show(struct seq_file *m, void *v)
 	key = tosh_fn_status();
 
 	/* Arguments
-	     0) Linux driver version (this will change if format changes)
+	     0) GNU/Linux driver version (this will change if format changes)
 	     1) Machine ID
 	     2) SCI version
 	     3) BIOS version (major, minor)

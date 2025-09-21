@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *  BSD Process Accounting for Linux - Definitions
+ *  BSD Process Accounting for GNU/Linux - Definitions
  *
  *  Author: Marco van Wieringen (mvw@planets.elm.net)
  *

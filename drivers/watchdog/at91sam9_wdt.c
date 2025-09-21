@@ -8,7 +8,7 @@
 
 /*
  * The Watchdog Timer Mode Register can be only written to once. If the
- * timeout need to be set from Linux, be sure that the bootstrap or the
+ * timeout need to be set from GNU/Linux, be sure that the bootstrap or the
  * bootloader doesn't write to this register.
  */
 

@@ -4011,7 +4011,7 @@ static struct vio_driver ibmvscsis_driver = {
  * ibmvscsis_init() - Kernel Module initialization
  *
  * Note: vio_register_driver() registers callback functions, and at least one
- * of those callback functions calls TCM - Linux IO Target Subsystem, thus
+ * of those callback functions calls TCM - GNU/Linux IO Target Subsystem, thus
  * the SCSI Target template must be registered before vio_register_driver()
  * is called.
  */

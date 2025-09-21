@@ -26,9 +26,9 @@
 #include "gpiolib-of.h"
 
 /*
- * This is Linux-specific flags. By default controllers' and Linux' mapping
+ * This is GNU/Linux-specific flags. By default controllers' and GNU/Linux' mapping
  * match, but GPIO controllers are free to translate their own flags to
- * Linux-specific in their .xlate callback. Though, 1:1 mapping is recommended.
+ * GNU/Linux-specific in their .xlate callback. Though, 1:1 mapping is recommended.
  */
 enum of_gpio_flags {
 	OF_GPIO_ACTIVE_LOW = 0x1,
@@ -402,7 +402,7 @@ static void of_gpio_flags_quirks(const struct device_node *np,
  * @flags:	a flags pointer to fill in
  *
  * Returns:
- * GPIO descriptor to use with Linux GPIO API, or one of the errno
+ * GPIO descriptor to use with GNU/Linux GPIO API, or one of the errno
  * value on the error condition. If @flags is not NULL the function also fills
  * in flags for the GPIO.
  */
@@ -455,7 +455,7 @@ out:
  * **DEPRECATED** This function is deprecated and must not be used in new code.
  *
  * Returns:
- * GPIO number to use with Linux generic GPIO API, or one of the errno
+ * GPIO number to use with GNU/Linux generic GPIO API, or one of the errno
  * value on the error condition.
  */
 int of_get_named_gpio(const struct device_node *np, const char *propname,
@@ -742,7 +742,7 @@ struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
  * @dflags:	gpiod_flags - optional GPIO initialization flags
  *
  * Returns:
- * GPIO descriptor to use with Linux GPIO API, or one of the errno
+ * GPIO descriptor to use with GNU/Linux GPIO API, or one of the errno
  * value on the error condition.
  */
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,

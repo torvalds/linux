@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/MIPS-specific parts of the memory manager.
+# Makefile for the GNU/Linux/MIPS-specific parts of the memory manager.
 #
 
 obj-y				+= cache.o

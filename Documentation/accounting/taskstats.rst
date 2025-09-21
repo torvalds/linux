@@ -16,7 +16,7 @@ Terminology
 -----------
 
 "pid", "tid" and "task" are used interchangeably and refer to the standard
-Linux task defined by struct task_struct.  per-pid stats are the same as
+GNU/Linux task defined by struct task_struct.  per-pid stats are the same as
 per-task stats.
 
 "tgid", "process" and "thread group" are used interchangeably and refer to the

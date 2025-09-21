@@ -1952,5 +1952,5 @@ subsys_initcall(iucv_init);
 module_exit(iucv_exit);
 
 MODULE_AUTHOR("(C) 2001 IBM Corp. by Fritz Elfert <felfert@millenux.com>");
-MODULE_DESCRIPTION("Linux for S/390 IUCV lowlevel driver");
+MODULE_DESCRIPTION("GNU/Linux for S/390 IUCV lowlevel driver");
 MODULE_LICENSE("GPL");

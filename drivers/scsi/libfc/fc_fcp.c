@@ -1945,7 +1945,7 @@ EXPORT_SYMBOL(fc_queuecommand);
  * fc_io_compl() - Handle responses for completed commands
  * @fsp: The FCP packet that is complete
  *
- * Translates fcp_pkt errors to a Linux SCSI errors.
+ * Translates fcp_pkt errors to a GNU/Linux SCSI errors.
  * The fcp packet lock must be held when calling.
  */
 static void fc_io_compl(struct fc_fcp_pkt *fsp)

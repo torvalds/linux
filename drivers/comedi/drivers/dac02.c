@@ -8,7 +8,7 @@
  * Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
  * Copyright (C) 2001 David A. Schleef <ds@schleef.org>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
  */
 

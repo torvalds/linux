@@ -11,7 +11,7 @@ This is a description of the messages to be passed between the X.25 Packet
 Layer and the X.25 device driver. They are designed to allow for the easy
 setting of the LAPB mode from within the Packet Layer.
 
-The X.25 device driver will be coded normally as per the Linux device driver
+The X.25 device driver will be coded normally as per the GNU/Linux device driver
 standards. Most X.25 device drivers will be moderately similar to the
 already existing Ethernet device drivers. However unlike those drivers, the
 X.25 device driver has a state associated with it, and this information

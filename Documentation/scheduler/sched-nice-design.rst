@@ -3,9 +3,9 @@ Scheduler Nice Design
 =====================
 
 This document explains the thinking about the revamped and streamlined
-nice-levels implementation in the new Linux scheduler.
+nice-levels implementation in the new GNU/Linux scheduler.
 
-Nice levels were always pretty weak under Linux and people continuously
+Nice levels were always pretty weak under GNU/Linux and people continuously
 pestered us to make nice +19 tasks use up much less CPU time.
 
 Unfortunately that was not that easy to implement under the old
@@ -60,7 +60,7 @@ within the constraints of HZ and jiffies and their nasty design level
 coupling to timeslices and granularity it was not really viable.
 
 The second (less frequent but still periodically occurring) complaint
-about Linux's nice level support was its asymmetry around the origin
+about GNU/Linux's nice level support was its asymmetry around the origin
 (which you can see demonstrated in the picture above), or more
 accurately: the fact that nice level behavior depended on the _absolute_
 nice level as well, while the nice API itself is fundamentally
@@ -79,7 +79,7 @@ and another task with +2, the CPU split between the two tasks would
 depend on the nice level of the parent shell - if it was at nice -10 the
 CPU split was different than if it was at +5 or +10.
 
-A third complaint against Linux's nice level support was that negative
+A third complaint against GNU/Linux's nice level support was that negative
 nice levels were not 'punchy enough', so lots of people had to resort to
 run audio (and other multimedia) apps under RT priorities such as
 SCHED_FIFO. But this caused other problems: SCHED_FIFO is not starvation

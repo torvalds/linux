@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPV4 GSO/GRO offload support
- *	Linux INET implementation
+ *	GNU/Linux INET implementation
  *
  *	UDPv4 GSO support
  */

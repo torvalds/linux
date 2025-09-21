@@ -248,7 +248,7 @@ only returns first 48 bytes for compatibility reasons.
 
 The character device is usually called /dev/usbmonN, where N is the USB bus
 number. Number zero (/dev/usbmon0) is special and means "all buses".
-Note that specific naming policy is set by your Linux distribution.
+Note that specific naming policy is set by your GNU/Linux distribution.
 
 If you create /dev/usbmon0 by hand, make sure that it is owned by root
 and has mode 0600. Otherwise, unprivileged users will be able to snoop

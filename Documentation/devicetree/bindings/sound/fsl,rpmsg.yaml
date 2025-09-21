@@ -12,7 +12,7 @@ maintainers:
 description: |
   fsl_rpmsg is a virtual audio device. Mapping to real hardware devices
   are SAI, MICFIL, DMA controlled by Cortex M core. What we see from
-  Linux side is a device which provides audio service by rpmsg channel.
+  GNU/Linux side is a device which provides audio service by rpmsg channel.
   We can create different sound cards which access different hardwares
   such as SAI, MICFIL, .etc through building rpmsg channels between
   Cortex-A and Cortex-M.

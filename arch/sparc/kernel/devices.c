@@ -115,7 +115,7 @@ int cpu_get_hwmid(phandle prom_node)
 
 void __init device_scan(void)
 {
-	printk(KERN_NOTICE "Booting Linux...\n");
+	printk(KERN_NOTICE "Booting GNU/Linux...\n");
 
 #ifndef CONFIG_SMP
 	{

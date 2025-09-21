@@ -9,7 +9,7 @@
  * Also based on pwm-samsung.c
  *
  * Description:
- *   This file is the core OMAP support for the generic, Linux
+ *   This file is the core OMAP support for the generic, GNU/Linux
  *   PWM driver / controller, using the OMAP's dual-mode timers
  *   with a timer counter that goes up. When it overflows it gets
  *   reloaded with the load value and the pwm output goes up.

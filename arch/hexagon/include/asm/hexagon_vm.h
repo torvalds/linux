@@ -2,14 +2,14 @@
 /*
  * Declarations for to Hexagon Virtal Machine.
  *
- * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef ASM_HEXAGON_VM_H
 #define ASM_HEXAGON_VM_H
 
 /*
- * In principle, a Linux kernel for the VM could
+ * In principle, a GNU/Linux kernel for the VM could
  * selectively define the virtual instructions
  * as inline assembler macros, but for a first pass,
  * we'll use subroutines for both the VM and the native

@@ -873,5 +873,5 @@ module_i2c_driver(ssif_bmc_driver);
 
 MODULE_AUTHOR("Quan Nguyen <quan@os.amperecomputing.com>");
 MODULE_AUTHOR("Chuong Tran <chuong@os.amperecomputing.com>");
-MODULE_DESCRIPTION("Linux device driver of the BMC IPMI SSIF interface.");
+MODULE_DESCRIPTION("GNU/Linux device driver of the BMC IPMI SSIF interface.");
 MODULE_LICENSE("GPL");

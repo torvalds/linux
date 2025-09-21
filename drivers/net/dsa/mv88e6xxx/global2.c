@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
- * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
+ * Copyright (c) 2016-2017 Savoir-faire GNU/Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  */
 

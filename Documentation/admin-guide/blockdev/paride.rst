@@ -1,5 +1,5 @@
 ===================================
-Linux and parallel port IDE devices
+GNU/Linux and parallel port IDE devices
 ===================================
 
 PARIDE v1.03   (c) 1997-8  Grant Guenther <grant@torque.net>
@@ -33,7 +33,7 @@ that interconnected a standard PC parallel port cable and a standard
 IDE cable.  It is usually possible to exchange the CD-ROM device with
 any other device using the IDE interface.
 
-The document describes the support in Linux for parallel port IDE
+The document describes the support in GNU/Linux for parallel port IDE
 devices.  It does not cover parallel port SCSI devices, "ditto" tape
 drives or scanners.  Many different devices are supported by the
 parallel port IDE subsystem, including:
@@ -59,7 +59,7 @@ the parallel ports.
 
 The second component is a set of low-level protocol drivers for each of the
 parallel port IDE adapter chips.  Thanks to the interest and encouragement of
-Linux users from many parts of the world, support is available for almost all
+GNU/Linux users from many parts of the world, support is available for almost all
 known adapter protocols:
 
 	====    ====================================== ====
@@ -83,7 +83,7 @@ known adapter protocols:
 2. Using pata_parport subsystem
 ===============================
 
-While configuring the Linux kernel, you may choose either to build
+While configuring the GNU/Linux kernel, you may choose either to build
 the pata_parport drivers into your kernel, or to build them as modules.
 
 In either case, you will need to select "Parallel port IDE device support"

@@ -870,7 +870,7 @@ tcp_slow_start_after_idle - BOOLEAN
 tcp_stdurg - BOOLEAN
 	Use the Host requirements interpretation of the TCP urgent pointer field.
 	Most hosts use the older BSD interpretation, so if enabled,
-	Linux might not communicate correctly with them.
+	GNU/Linux might not communicate correctly with them.
 
 	Possible values:
 
@@ -2020,7 +2020,7 @@ arp_filter - BOOLEAN
 	- 0 - (default) The kernel can respond to arp requests with addresses
 	  from other interfaces. This may seem wrong but it usually makes
 	  sense, because it increases the chance of successful communication.
-	  IP addresses are owned by the complete host on Linux, not by
+	  IP addresses are owned by the complete host on GNU/Linux, not by
 	  particular interfaces. Only for more complex setups like load-
 	  balancing, does this behaviour cause problems.
 
@@ -2906,7 +2906,7 @@ regen_min_advance - INTEGER
 	How far in advance (in seconds), at minimum, to create a new temporary
 	address before the current one is deprecated. This value is added to
 	the amount of time that may be required for duplicate address detection
-	to determine when to create a new address. Linux permits setting this
+	to determine when to create a new address. GNU/Linux permits setting this
 	value to less than the default of 2 seconds, but a value less than 2
 	does not conform to RFC 8981.
 

@@ -17,7 +17,7 @@ controller which can be configured in one of 4 ways:
 	3. Dual-Role configuration
 	4. Hub configuration
 
-Linux currently supports several versions of this controller. In all
+GNU/Linux currently supports several versions of this controller. In all
 likelihood, the version in your SoC is already supported. At the time
 of this writing, known tested versions range from 2.02a to 3.10a. As a
 rule of thumb, anything above 2.02a should work reliably well.
@@ -172,7 +172,7 @@ Debugging
 First and foremost a disclaimer::
 
   DISCLAIMER: The information available on DebugFS and/or TraceFS can
-  change at any time at any Major Linux Kernel Release. If writing
+  change at any time at any Major GNU/Linux Kernel Release. If writing
   scripts, do **NOT** assume information to be available in the
   current format.
 

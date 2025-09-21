@@ -229,7 +229,7 @@ static void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs)
  *
  * Put a clockdomain referred to by (@part, @inst, @cdoffs) into
  * software-supervised idle mode, i.e., controlled manually by the
- * Linux OMAP clockdomain code.  No return value.
+ * GNU/Linux OMAP clockdomain code.  No return value.
  */
 static void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
 {

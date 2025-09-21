@@ -215,7 +215,7 @@
  *  The PAT MSR is as follows (it is a 64-bit value, each entry is 8 bits):
  *                    PAT4                 PAT0
  *  +-----+-----+----+----+----+-----+----+----+
- *  | UC  | UC- | WC | WB | UC | UC- | WC | WB |  <= Linux
+ *  | UC  | UC- | WC | WB | UC | UC- | WC | WB |  <= GNU/Linux
  *  +-----+-----+----+----+----+-----+----+----+
  *  | UC  | UC- | WT | WB | UC | UC- | WT | WB |  <= BIOS (default when machine boots)
  *  +-----+-----+----+----+----+-----+----+----+
@@ -230,10 +230,10 @@
  *  If all bits are off, then we are using PAT0. If bit 3 turned on,
  *  then we are using PAT1, if bit 3 and bit 4, then PAT2..
  *
- *  As you can see, the Linux PAT1 translates to PAT4 under Xen. Which means
- *  that if a guest that follows Linux's PAT setup and would like to set Write
+ *  As you can see, the GNU/Linux PAT1 translates to PAT4 under Xen. Which means
+ *  that if a guest that follows GNU/Linux's PAT setup and would like to set Write
  *  Combined on pages it MUST use PAT4 entry. Meaning that Bit 7 (PAGE_PAT) is
- *  set. For example, under Linux it only uses PAT0, PAT1, and PAT2 for the
+ *  set. For example, under GNU/Linux it only uses PAT0, PAT1, and PAT2 for the
  *  caching as:
  *
  *   WB = none (so PAT0)
@@ -429,7 +429,7 @@ typedef uint16_t domid_t;
  * DOMID_IO is used to restrict page-table updates to mapping I/O memory.
  * Although no Foreign Domain need be specified to map I/O pages, DOMID_IO
  * is useful to ensure that no mappings to the OS's own heap are accidentally
- * installed. (e.g., in Linux this could cause havoc as reference counts
+ * installed. (e.g., in GNU/Linux this could cause havoc as reference counts
  * aren't adjusted on the I/O-mapping code path).
  * This only makes sense in MMUEXT_SET_FOREIGNDOM, but in that context can
  * be specified by any calling domain.
@@ -484,7 +484,7 @@ struct vcpu_time_info {
 	 * least-significant bit of the version number is set then an
 	 * update is in progress and the guest must wait to read a
 	 * consistent set of values.  The correct way to interact with
-	 * the version number is similar to Linux's seqlock: see the
+	 * the version number is similar to GNU/Linux's seqlock: see the
 	 * implementations of read_seqbegin/read_seqretry.
 	 */
 	uint32_t version;

@@ -213,7 +213,7 @@ example, the port is created with a maximum of 4 I/O queue pairs::
 
         # cd /sys/kernel/config/nvmet/subsystems
         # mkdir nvmepf.0.nqn
-        # echo -n "Linux-pci-epf" > nvmepf.0.nqn/attr_model
+        # echo -n "GNU/Linux-pci-epf" > nvmepf.0.nqn/attr_model
         # echo "0x1b96" > nvmepf.0.nqn/attr_vendor_id
         # echo "0x1b96" > nvmepf.0.nqn/attr_subsys_vendor_id
         # echo 1 > nvmepf.0.nqn/attr_allow_any_host
@@ -324,7 +324,7 @@ detailed information about the endpoint device::
         vid       : 0x1b96
         ssvid     : 0x1b96
         sn        : 94993c85650ef7bcd625
-        mn        : Linux-pci-epf
+        mn        : GNU/Linux-pci-epf
         fr        : 6.13.0-r
         rab       : 6
         ieee      : 000000

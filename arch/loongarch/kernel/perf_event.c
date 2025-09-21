@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux performance counter support for LoongArch.
+ * GNU/Linux performance counter support for LoongArch.
  *
  * Copyright (C) 2022 Loongson Technology Corporation Limited
  *

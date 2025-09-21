@@ -24,7 +24,7 @@ Clock sources
 
 The purpose of the clock source is to provide a timeline for the system that
 tells you where you are in time. For example issuing the command 'date' on
-a Linux system will eventually read the clock source to determine exactly
+a GNU/Linux system will eventually read the clock source to determine exactly
 what time it is.
 
 Typically the clock source is a monotonic, atomic counter which will provide

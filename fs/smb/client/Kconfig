@@ -32,7 +32,7 @@ config CIFS
 	  The SMB3.1.1 protocol is supported by most modern operating systems
 	  and NAS appliances (e.g. Samba, Windows 11, Windows Server 2022,
 	  MacOS) and even in the cloud (e.g. Microsoft Azure) and also by the
-	  Linux kernel server, ksmbd.  Support for the older CIFS protocol was
+	  GNU/Linux kernel server, ksmbd.  Support for the older CIFS protocol was
 	  included in Windows NT4, 2000 and XP (and later). Use of dialects
 	  older than SMB2.1 is often discouraged on public networks.
 	  This module also provides limited support for OS/2 and Windows ME
@@ -99,7 +99,7 @@ config CIFS_XATTR
 	  CIFS maps the name of extended attributes beginning with the user
 	  namespace prefix to SMB/CIFS EAs.  EAs are stored on Windows
 	  servers without the user namespace prefix, but their names are
-	  seen by Linux cifs clients prefaced by the user namespace prefix.
+	  seen by GNU/Linux cifs clients prefaced by the user namespace prefix.
 	  The system namespace (used by some filesystems to store ACLs) is
 	  not supported at this time.
 

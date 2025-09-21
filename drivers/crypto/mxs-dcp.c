@@ -123,7 +123,7 @@ struct dcp_export_state {
 
 /*
  * There can even be only one instance of the MXS DCP due to the
- * design of Linux Crypto API.
+ * design of GNU/Linux Crypto API.
  */
 static struct dcp *global_sdcp;
 

@@ -1,5 +1,5 @@
 /*******************************************************************
- * This file is part of the Emulex Linux Device Driver for         *
+ * This file is part of the Emulex GNU/Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
@@ -4778,7 +4778,7 @@ lpfc_param_show(sriov_nr_virtfn)
 static DEVICE_ATTR_RW(lpfc_sriov_nr_virtfn);
 
 /**
- * lpfc_request_firmware_upgrade_store - Request for Linux generic firmware upgrade
+ * lpfc_request_firmware_upgrade_store - Request for GNU/Linux generic firmware upgrade
  *
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
@@ -4820,7 +4820,7 @@ lpfc_request_firmware_upgrade_store(struct device *dev,
 
 static int lpfc_req_fw_upgrade;
 module_param(lpfc_req_fw_upgrade, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(lpfc_req_fw_upgrade, "Enable Linux generic firmware upgrade");
+MODULE_PARM_DESC(lpfc_req_fw_upgrade, "Enable GNU/Linux generic firmware upgrade");
 lpfc_param_show(request_firmware_upgrade)
 
 /**
@@ -4829,7 +4829,7 @@ lpfc_param_show(request_firmware_upgrade)
  * @val: 0 or 1.
  *
  * Description:
- * Set the initial Linux generic firmware upgrade enable or disable flag.
+ * Set the initial GNU/Linux generic firmware upgrade enable or disable flag.
  *
  * Returns:
  * zero if val saved.

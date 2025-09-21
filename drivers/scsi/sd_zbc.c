@@ -2,7 +2,7 @@
 /*
  * SCSI Zoned Block commands
  *
- * Copyright (C) 2014-2015 SUSE Linux GmbH
+ * Copyright (C) 2014-2015 SUSE GNU/Linux GmbH
  * Written by: Hannes Reinecke <hare@suse.de>
  * Modified by: Damien Le Moal <damien.lemoal@hgst.com>
  * Modified by: Shaun Tancheff <shaun.tancheff@seagate.com>

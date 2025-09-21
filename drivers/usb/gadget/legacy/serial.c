@@ -34,7 +34,7 @@ USB_GADGET_COMPOSITE_OPTIONS();
 * Instead:  allocate your own, using normal USB-IF procedures.
 */
 #define GS_VENDOR_ID			0x0525	/* NetChip */
-#define GS_PRODUCT_ID			0xa4a6	/* Linux-USB Serial Gadget */
+#define GS_PRODUCT_ID			0xa4a6	/* GNU/Linux-USB Serial Gadget */
 #define GS_CDC_PRODUCT_ID		0xa4a7	/* ... as CDC-ACM */
 #define GS_CDC_OBEX_PRODUCT_ID		0xa4a9	/* ... as CDC-OBEX */
 

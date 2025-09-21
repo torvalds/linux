@@ -12,7 +12,7 @@ El propósito de este documento es ayudar a los desarrolladores (y sus
 jefes) a trabajar con la comunidad de desarrollo con el mínimo de
 frustración. Es un intento de documentar cómo funciona esta comunidad
 de una manera accesible, para aquellos que no están familiarizados
-íntimamente con el desarrollo del kernel Linux (o, de hecho, el desarrollo
+íntimamente con el desarrollo del kernel GNU/Linux (o, de hecho, el desarrollo
 de software libre en general). Si bien hay algo de material técnico aquí,
 esto es en gran medida una discusión orientada al proceso que no requiere
 un conocimiento profundo de la programación del kernel para entenderla.

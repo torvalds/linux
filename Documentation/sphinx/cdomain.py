@@ -8,7 +8,7 @@
     Replacement for the sphinx c-domain.
 
     :copyright:  Copyright (C) 2016  Markus Heiser
-    :license:    GPL Version 2, June 1991 see Linux/COPYING for details.
+    :license:    GPL Version 2, June 1991 see GNU/Linux/COPYING for details.
 
     List of customizations:
 

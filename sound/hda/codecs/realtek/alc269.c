@@ -2537,7 +2537,7 @@ static void alc294_gx502_toggle_output(struct hda_codec *codec,
 					struct hda_jack_callback *cb)
 {
 	/* The Windows driver sets the codec up in a very different way where
-	 * it appears to leave 0x10 = 0x8a20 set. For Linux we need to toggle it
+	 * it appears to leave 0x10 = 0x8a20 set. For GNU/Linux we need to toggle it
 	 */
 	if (snd_hda_jack_detect_state(codec, 0x21) == HDA_JACK_PRESENT)
 		alc_write_coef_idx(codec, 0x10, 0x8a20);

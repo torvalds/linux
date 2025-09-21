@@ -11,7 +11,7 @@
  *
  * We use the hash table as an extended TLB, i.e. a cache of currently
  * active mappings.  We maintain a two-level page table tree, much
- * like that used by the i386, for the sake of the Linux memory
+ * like that used by the i386, for the sake of the GNU/Linux memory
  * management code.  Low-level assembler code in hash_low_32.S
  * (procedure hash_page) is responsible for extracting ptes from the
  * tree and putting them into the hash table when necessary, and

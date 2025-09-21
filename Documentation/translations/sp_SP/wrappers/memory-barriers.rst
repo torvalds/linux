@@ -4,7 +4,7 @@
    converted directly.
 
 ====================================
-Barreras de Memoria del kernel Linux
+Barreras de Memoria del kernel GNU/Linux
 ====================================
 
 .. raw:: latex

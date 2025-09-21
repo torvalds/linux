@@ -2,7 +2,7 @@
 .. include:: <isonum.txt>
 
 ==========
-Linux CAIF
+GNU/Linux CAIF
 ==========
 
 Copyright |copy| ST-Ericsson AB 2010
@@ -20,7 +20,7 @@ channels, initiate GPRS Data connections, Video channels and Utility Channels.
 The Utility Channels are general purpose pipes between modem and host.
 
 ST-Ericsson modems support a number of transports between modem
-and host. Currently, UART and Loopback are available for Linux.
+and host. Currently, UART and Loopback are available for GNU/Linux.
 
 
 Architecture
@@ -186,8 +186,8 @@ function is called in order to transmit data.
 
 Configuration of Link Layer
 ---------------------------
-The Link Layer is implemented as Linux network devices (struct net_device).
-Payload handling and registration is done using standard Linux mechanisms.
+The Link Layer is implemented as GNU/Linux network devices (struct net_device).
+Payload handling and registration is done using standard GNU/Linux mechanisms.
 
 The CAIF Protocol relies on a loss-less link layer without implementing
 retransmission. This implies that packet drops must not happen.

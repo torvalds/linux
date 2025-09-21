@@ -39,7 +39,7 @@ Strumenti e guide tecniche per gli sviluppatori del kernel
 ----------------------------------------------------------
 
 Quella che segue è una raccolta di documenti che uno sviluppatore del kernel
-Linux dovrebbe conoscere.
+GNU/Linux dovrebbe conoscere.
 
 .. toctree::
    :maxdepth: 1

@@ -30,7 +30,7 @@
 #define VAS_THRESH_FIFO_GT_EIGHTH_FULL	3
 
 /*
- * VAS window Linux status bits
+ * VAS window GNU/Linux status bits
  */
 #define VAS_WIN_ACTIVE		0x0	/* Used in platform independent */
 					/* vas mmap() */
@@ -68,7 +68,7 @@ enum vas_cop_type {
 struct vas_user_win_ref {
 	struct pid *pid;	/* PID of owner */
 	struct pid *tgid;	/* Thread group ID of owner */
-	struct mm_struct *mm;	/* Linux process mm_struct */
+	struct mm_struct *mm;	/* GNU/Linux process mm_struct */
 	struct mutex mmap_mutex;	/* protects paste address mmap() */
 					/* with DLPAR close/open windows */
 	struct vm_area_struct *vma;	/* Save VMA and used in DLPAR ops */

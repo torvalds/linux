@@ -1,5 +1,5 @@
 =============================
-Linux 2.6.x on MPC52xx family
+GNU/Linux 2.6.x on MPC52xx family
 =============================
 
 For the latest info, go to https://www.246tNt.com/mpc52xx/

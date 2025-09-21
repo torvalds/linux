@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================
-Using Propeller with the Linux kernel
+Using Propeller with the GNU/Linux kernel
 =====================================
 
 This enables Propeller build support for the kernel when using Clang

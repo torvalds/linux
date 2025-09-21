@@ -1560,7 +1560,7 @@ static const struct regmap_config sgtl5000_regmap = {
  * Since sgtl5000 does not have a reset line, nor a reset command in software,
  * we follow this approach to guarantee we always start from the default values
  * and avoid problems like, not being able to probe after an audio playback
- * followed by a system reset or a 'reboot' command in Linux
+ * followed by a system reset or a 'reboot' command in GNU/Linux
  */
 static void sgtl5000_fill_defaults(struct i2c_client *client)
 {

@@ -871,7 +871,7 @@ EXPORT_SYMBOL_GPL(snd_card_rw_proc_new);
 static void snd_info_version_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	snd_iprintf(buffer,
-		    "Advanced Linux Sound Architecture Driver Version k%s.\n",
+		    "Advanced GNU/Linux Sound Architecture Driver Version k%s.\n",
 		    init_utsname()->release);
 }
 

@@ -183,7 +183,7 @@ Uncorrected Error (UE) happened.
 
 The information about the CE/UE errors is stored on some special registers
 at the memory controller and can be accessed by reading such registers,
-either by BIOS, by some special CPUs or by Linux EDAC driver. On x86 64
+either by BIOS, by some special CPUs or by GNU/Linux EDAC driver. On x86 64
 bit CPUs, such errors can also be retrieved via the Machine Check
 Architecture (MCA)\ [#f3]_.
 

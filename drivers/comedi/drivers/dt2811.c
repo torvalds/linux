@@ -2,7 +2,7 @@
 /*
  * Comedi driver for Data Translation DT2811
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) David A. Schleef <ds@schleef.org>
  */
 

@@ -177,14 +177,14 @@ file size is aligned to 4 bytes. To fill the gap, null characters
 (``\0``) will be added. Thus the ``size`` is the length of the bootconfig
 file + padding bytes.
 
-The Linux kernel decodes the last part of the initrd image in memory to
+The GNU/Linux kernel decodes the last part of the initrd image in memory to
 get the boot configuration data.
 Because of this "piggyback" method, there is no need to change or
 update the boot loader and the kernel image itself as long as the boot
 loader passes the correct initrd file size. If by any chance, the boot
 loader passes a longer size, the kernel fails to find the bootconfig data.
 
-To do this operation, Linux kernel provides ``bootconfig`` command under
+To do this operation, GNU/Linux kernel provides ``bootconfig`` command under
 tools/bootconfig, which allows admin to apply or delete the config file
 to/from initrd image. You can build it by the following command::
 

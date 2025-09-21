@@ -3,7 +3,7 @@ Implementing I2C device drivers
 ===============================
 
 This is a small guide for those who want to write kernel drivers for I2C
-or SMBus devices, using Linux as the protocol host/master (not slave).
+or SMBus devices, using GNU/Linux as the protocol host/master (not slave).
 
 To set up a driver, you need to do several things. Some are optional, and
 some things can be done slightly or completely different. Use this as a
@@ -119,14 +119,14 @@ literally::
 Probing and attaching
 =====================
 
-The Linux I2C stack was originally written to support access to hardware
+The GNU/Linux I2C stack was originally written to support access to hardware
 monitoring chips on PC motherboards, and thus used to embed some assumptions
 that were more appropriate to SMBus (and PCs) than to I2C.  One of these
 assumptions was that most adapters and devices drivers support the SMBUS_QUICK
 protocol to probe device presence.  Another was that devices and their drivers
 can be sufficiently configured using only such probe primitives.
 
-As Linux and its I2C stack became more widely used in embedded systems
+As GNU/Linux and its I2C stack became more widely used in embedded systems
 and complex components such as DVB adapters, those assumptions became more
 problematic.  Drivers for I2C devices that issue interrupts need more (and
 different) configuration information, as do drivers handling chip variants
@@ -145,7 +145,7 @@ and other wiring artifacts, chip type, and so on.  That could be used to
 create i2c_client objects for each I2C device.
 
 I2C device drivers using this binding model work just like any other
-kind of driver in Linux:  they provide a probe() method to bind to
+kind of driver in GNU/Linux:  they provide a probe() method to bind to
 those devices, and a remove() method to unbind.
 
 ::
@@ -156,7 +156,7 @@ those devices, and a remove() method to unbind.
 Remember that the i2c_driver does not create those client handles.  The
 handle may be used during foo_probe().  If foo_probe() reports success
 (zero not a negative status code) it may save the handle and use it until
-foo_remove() returns.  That binding model is used by most Linux drivers.
+foo_remove() returns.  That binding model is used by most GNU/Linux drivers.
 
 The probe function is called when an entry in the id_table name field
 matches the device's name. If the probe function needs that entry, it

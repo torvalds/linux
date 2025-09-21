@@ -13,10 +13,10 @@
 irq_domain 中断号映射库
 =======================
 
-目前Linux内核的设计使用了一个巨大的数字空间，每个独立的IRQ源都被分配了一个不
+目前GNU/Linux内核的设计使用了一个巨大的数字空间，每个独立的IRQ源都被分配了一个不
 同的数字。
 当只有一个中断控制器时，这很简单，但在有多个中断控制器的系统中，内核必须确保每
-个中断控制器都能得到非重复的Linux IRQ号（数字）分配。
+个中断控制器都能得到非重复的GNU/Linux IRQ号（数字）分配。
 
 注册为唯一的irqchips的中断控制器编号呈现出上升的趋势：例如GPIO控制器等不同
 种类的子驱动程序通过将其中断处理程序建模为irqchips，即实际上是级联中断控制器，
@@ -26,11 +26,11 @@ irq_domain 中断号映射库
 使它们与硬件IRQ线进入根中断控制器（即实际向CPU发射中断线的组件）相匹配，现
 在这个编号仅仅是一个数字。
 
-出于这个原因，我们需要一种机制将控制器本地中断号（即硬件irq编号）与Linux IRQ
+出于这个原因，我们需要一种机制将控制器本地中断号（即硬件irq编号）与GNU/Linux IRQ
 号分开。
 
 irq_alloc_desc*() 和 irq_free_desc*() API 提供了对irq号的分配，但它们不
-提供任何对控制器本地IRQ(hwirq)号到Linux IRQ号空间的反向映射的支持。
+提供任何对控制器本地IRQ(hwirq)号到GNU/Linux IRQ号空间的反向映射的支持。
 
 irq_domain 库在 irq_alloc_desc*() API 的基础上增加了 hwirq 和 IRQ 号码
 之间的映射。 相比于中断控制器驱动开放编码自己的反向映射方案，我们更喜欢用
@@ -50,7 +50,7 @@ irq_domain_add_*() 或 irq_domain_create_*()函数之一（每个映射方法都
 在大多数情况下，irq_domain在开始时是空的，没有任何hwirq和IRQ号之间的映射。
 通过调用irq_create_mapping()将映射添加到irq_domain中，该函数接受
 irq_domain和一个hwirq号作为参数。 如果hwirq的映射还不存在，那么它将分配
-一个新的Linux irq_desc，将其与hwirq关联起来，并调用.map()回调，这样驱动
+一个新的GNU/Linux irq_desc，将其与hwirq关联起来，并调用.map()回调，这样驱动
 程序就可以执行任何必要的硬件设置。
 
 一旦建立了映射，可以通过多种方法检索或使用它：
@@ -58,7 +58,7 @@ irq_domain和一个hwirq号作为参数。 如果hwirq的映射还不存在，�
 - irq_resolve_mapping()返回一个指向给定域和hwirq号的irq_desc结构指针，
   如果没有映射则返回NULL。
 
-- irq_find_mapping()返回给定域和hwirq的Linux IRQ号，如果没有映射则返回0。
+- irq_find_mapping()返回给定域和hwirq的GNU/Linux IRQ号，如果没有映射则返回0。
 
 - generic_handle_domain_irq()处理一个由域和hwirq号描述的中断。
 
@@ -67,13 +67,13 @@ irq_domain和一个hwirq号作为参数。 如果hwirq的映射还不存在，�
 在调用irq_find_mapping()之前，至少要调用一次irq_create_mapping()函数，
 以免描述符不能被分配。
 
-如果驱动程序有Linux的IRQ号或irq_data指针，并且需要知道相关的hwirq号（比
+如果驱动程序有GNU/Linux的IRQ号或irq_data指针，并且需要知道相关的hwirq号（比
 如在irq_chip回调中），那么可以直接从irq_data->hwirq中获得。
 
 irq_domain映射的类型
 ====================
 
-从hwirq到Linux irq的反向映射有几种机制，每种机制使用不同的分配函数。应该
+从hwirq到GNU/Linux irq的反向映射有几种机制，每种机制使用不同的分配函数。应该
 使用哪种反向映射类型取决于用例。 下面介绍每一种反向映射类型：
 
 线性映射
@@ -103,7 +103,7 @@ irq_domain_add_linear()和irq_domain_create_linear()在功能上是等价的，
 
 	irq_domain_create_tree()
 
-irq_domain维护着从hwirq号到Linux IRQ的radix的树状映射。 当一个hwirq被映射时，
+irq_domain维护着从hwirq号到GNU/Linux IRQ的radix的树状映射。 当一个hwirq被映射时，
 一个irq_desc被分配，hwirq被用作radix树的查找键。
 
 如果hwirq号可以非常大，树状映射是一个很好的选择，因为它不需要分配一个和最大hwirq
@@ -123,8 +123,8 @@ irq_domain_add_tree()和irq_domain_create_tree()在功能上是等价的，除�
 	irq_domain_create_nomap()
 
 当硬件中的hwirq号是可编程的时候，就可以采用无映射类型。 在这种情况下，最好将
-Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create_direct_mapping()
-会分配一个Linux IRQ号，并调用.map()回调，这样驱动就可以将Linux IRQ号编入硬件中。
+GNU/Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create_direct_mapping()
+会分配一个GNU/Linux IRQ号，并调用.map()回调，这样驱动就可以将GNU/Linux IRQ号编入硬件中。
 
 大多数驱动程序无法使用此映射，现在它由CONFIG_IRQ_DOMAIN_NOMAP选项控制。
 请不要引入此API的新用户。
@@ -140,7 +140,7 @@ Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create
 传统映射是已经为 hwirqs 分配了一系列 irq_descs 的驱动程序的特殊情况。 当驱动程
 序不能立即转换为使用线性映射时，就会使用它。 例如，许多嵌入式系统板卡支持文件使用
 一组用于IRQ号的定义（#define），这些定义被传递给struct设备注册。 在这种情况下，
-不能动态分配Linux IRQ号，应该使用传统映射。
+不能动态分配GNU/Linux IRQ号，应该使用传统映射。
 
 顾名思义，\*_legacy()系列函数已被废弃，只是为了方便对古老平台的支持而存在。
 不应该增加新的用户。当\*_simple()系列函数的使用导致遗留行为时，他们也是如此。
@@ -150,7 +150,7 @@ Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create
 个hwirq分配一个irq_desc，即使它没有被使用。
 
 只有在必须支持固定的IRQ映射时，才应使用传统映射。 例如，ISA控制器将使用传统映射来
-映射Linux IRQ 0-15，这样现有的ISA驱动程序就能得到正确的IRQ号。
+映射GNU/Linux IRQ 0-15，这样现有的ISA驱动程序就能得到正确的IRQ号。
 
 大多数使用传统映射的用户应该使用irq_domain_add_simple()或
 irq_domain_create_simple()，只有在系统提供IRQ范围时才会使用传统域，否则将使用

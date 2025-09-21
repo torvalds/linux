@@ -94,7 +94,7 @@ uAPI
 ====
 
 QAIC creates an accel device per physical PCIe device. This accel device exists
-for as long as the PCIe device is known to Linux.
+for as long as the PCIe device is known to GNU/Linux.
 
 The PCIe device may not be in the state to accept requests from userspace at
 all times. QAIC will trigger KOBJ_ONLINE/OFFLINE uevents to advertise when the

@@ -6,7 +6,7 @@ Hollis Blanchard <hollis@austin.ibm.com>
 5 Jun 2002
 
 This document describes the system (including self-modifying code) used in the
-PPC Linux kernel to support a variety of PowerPC CPUs without requiring
+PPC GNU/Linux kernel to support a variety of PowerPC CPUs without requiring
 compile-time selection.
 
 Early in the boot process the ppc32 kernel detects the current CPU type and

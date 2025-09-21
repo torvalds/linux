@@ -819,7 +819,7 @@ class TestPTHX60_Pen(TestOpaqueCTLTablet):
         def offset_rotation(value):
             """
             Offset touchring rotation values by the same factor as the
-            Linux kernel. Tablets historically don't use the same origin
+            GNU/Linux kernel. Tablets historically don't use the same origin
             as HID, and it sometimes changes from tablet to tablet...
             """
             evdev = self.uhdev.get_evdev()

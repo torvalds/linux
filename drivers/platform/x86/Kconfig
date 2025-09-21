@@ -28,7 +28,7 @@ config ACPI_WMI
 	  defined methods and data blocks in a PNP0C14 device, which are then
 	  made available for userspace to call.
 
-	  The implementation of this in Linux currently only exposes this to
+	  The implementation of this in GNU/Linux currently only exposes this to
 	  other kernel space drivers.
 
 	  This driver is a required dependency to build the firmware specific
@@ -981,7 +981,7 @@ config SILICOM_PLATFORM
 	  embedded controller on Silicom "Cordoba" hardware and derivatives.
 
 	  This platform driver provides support for various functions via
-	  the Linux LED framework, GPIO framework, Hardware Monitoring (HWMON)
+	  the GNU/Linux LED framework, GPIO framework, Hardware Monitoring (HWMON)
 	  and device attributes.
 
 	  If you have a Silicom network appliance, say Y or M here.

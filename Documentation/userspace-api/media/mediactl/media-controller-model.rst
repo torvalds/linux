@@ -7,7 +7,7 @@ Media device model
 
 Discovering a device internal topology, and configuring it at runtime,
 is one of the goals of the media controller API. To achieve this,
-hardware devices and Linux Kernel interfaces are modelled as graph
+hardware devices and GNU/Linux Kernel interfaces are modelled as graph
 objects on an oriented graph. The object types that constitute the graph
 are:
 
@@ -17,7 +17,7 @@ are:
    hardware devices (a building block in a System-on-Chip image
    processing pipeline), DMA channels or physical connectors.
 
--  An **interface** is a graph representation of a Linux Kernel
+-  An **interface** is a graph representation of a GNU/Linux Kernel
    userspace API interface, like a device node or a sysfs file that
    controls one or more entities in the graph.
 
@@ -32,7 +32,7 @@ are:
    from a source pad to a sink pad.
 
 -  An **interface link** is a point-to-point bidirectional control
-   connection between a Linux Kernel interface and an entity.
+   connection between a GNU/Linux Kernel interface and an entity.
 
 - An **ancillary link** is a point-to-point connection denoting that two
   entities form a single logical unit. For example this could represent the

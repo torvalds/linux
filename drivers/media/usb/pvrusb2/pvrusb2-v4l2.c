@@ -104,7 +104,7 @@ static struct v4l2_format pvr_format [] = {
 
 
 /*
- * This is part of Video 4 Linux API. These procedures handle ioctl() calls.
+ * This is part of Video 4 GNU/Linux API. These procedures handle ioctl() calls.
  */
 static int pvr2_querycap(struct file *file, void *priv, struct v4l2_capability *cap)
 {

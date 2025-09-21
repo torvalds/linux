@@ -668,7 +668,7 @@ static inline int sys_dup3(int oldfd, int newfd, int flags)
 }
 
 /* Some versions of Android don't provide memfd_create() in their libc
- * implementation, so avoid complications and just go straight to Linux
+ * implementation, so avoid complications and just go straight to GNU/Linux
  * syscall.
  */
 static inline int sys_memfd_create(const char *name, unsigned flags)

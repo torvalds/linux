@@ -201,7 +201,7 @@ static void check_cleared_facilities(void)
 
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
 		if ((stfle_fac_list[i] & als[i]) != als[i]) {
-			boot_emerg("The Linux kernel requires facilities cleared via command line option\n");
+			boot_emerg("The GNU/Linux kernel requires facilities cleared via command line option\n");
 			print_missing_facilities();
 			break;
 		}

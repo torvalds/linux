@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Linux Rose (X.25 PLP) layer.
+# Makefile for the GNU/Linux Rose (X.25 PLP) layer.
 #
 
 obj-$(CONFIG_ROSE) += rose.o

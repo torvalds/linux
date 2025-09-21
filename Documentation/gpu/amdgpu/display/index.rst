@@ -20,7 +20,7 @@ DC Code validation
 Maintaining the same code base across multiple OSes requires a lot of
 synchronization effort between repositories and exhaustive validation. In the
 DC case, we maintain a tree to centralize code from different parts. The shared
-repository has integration tests with our Internal Linux CI farm, and we run a
+repository has integration tests with our Internal GNU/Linux CI farm, and we run a
 comprehensive set of IGT tests in various AMD GPUs/APUs (mostly recent dGPUs
 and APUs). Our CI also checks ARM64/32, PPC64/32, and x86_64/32 compilation
 with DCN enabled and disabled.

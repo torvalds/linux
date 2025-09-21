@@ -19,7 +19,7 @@ is to focus on this part.
 The debug module provides sample-based profiling extension, which can be used
 to sample CPU program counter, secure state and exception level, etc; usually
 every CPU has one dedicated debug module to be connected. Based on self-hosted
-debug mechanism, Linux kernel can access these related registers from mmio
+debug mechanism, GNU/Linux kernel can access these related registers from mmio
 region when the kernel panic happens. The callback notifier for kernel panic
 will dump related registers for every CPU; finally this is good for assistant
 analysis for panic.

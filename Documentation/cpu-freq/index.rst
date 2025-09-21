@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ========================================================================
-CPUFreq - CPU frequency and voltage scaling code in the Linux(TM) kernel
+CPUFreq - CPU frequency and voltage scaling code in the GNU/Linux(TM) kernel
 ========================================================================
 
 Author: Dominik Brodowski  <linux@brodo.de>

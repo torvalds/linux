@@ -27,7 +27,7 @@ static struct mtd_partition sh7763rdp_nor_flash_partitions[] = {
 		.size = (2 * 128 * 1024),
 		.mask_flags = MTD_WRITEABLE,	/* Read-only */
 	}, {
-		.name = "Linux-Kernel",
+		.name = "GNU/Linux-Kernel",
 		.offset = MTDPART_OFS_APPEND,
 		.size = (20 * 128 * 1024),
 	}, {

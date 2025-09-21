@@ -23,7 +23,7 @@ producer part of the cycle.
 Sync files allows userspace awareness on buffer sharing synchronization between
 drivers.
 
-Sync file was originally added in the Android kernel but current Linux Desktop
+Sync file was originally added in the Android kernel but current GNU/Linux Desktop
 can benefit a lot from it.
 
 in-fences and out-fences

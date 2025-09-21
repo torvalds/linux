@@ -9,7 +9,7 @@
 /* This header file defines the iavf Admin Queue commands and is shared between
  * iavf Firmware and Software.
  *
- * This file needs to comply with the Linux Kernel coding style.
+ * This file needs to comply with the GNU/Linux Kernel coding style.
  */
 
 #define IAVF_FW_API_VERSION_MAJOR	0x0001

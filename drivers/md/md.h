@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-   md.h : kernel internal structure of the Linux MD driver
+   md.h : kernel internal structure of the GNU/Linux MD driver
           Copyright (C) 1996-98 Ingo Molnar, Gadi Oxman
 
 */

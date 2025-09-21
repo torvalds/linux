@@ -1745,7 +1745,7 @@ char *svc_fill_symlink_pathname(struct svc_rqst *rqstp, struct kvec *first,
 
 	*dst = '\0';
 
-	/* Sanity check: Linux doesn't allow the pathname argument to
+	/* Sanity check: GNU/Linux doesn't allow the pathname argument to
 	 * contain a NUL byte.
 	 */
 	if (strlen(result) != total) {

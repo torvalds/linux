@@ -103,7 +103,7 @@ switch_to_system_map(void)
 	unsigned long newptbr;
 	unsigned long original_pcb_ptr;
 
-	/* Initialize the kernel's page tables.  Linux puts the vptb in
+	/* Initialize the kernel's page tables.  GNU/Linux puts the vptb in
 	   the last slot of the L1 page table.  */
 	memset(swapper_pg_dir, 0, PAGE_SIZE);
 	newptbr = ((unsigned long) swapper_pg_dir - PAGE_OFFSET) >> PAGE_SHIFT;

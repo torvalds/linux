@@ -1,12 +1,12 @@
 ==========================
-TI Keystone Linux Overview
+TI Keystone GNU/Linux Overview
 ==========================
 
 Introduction
 ------------
 Keystone range of SoCs are based on ARM Cortex-A15 MPCore Processors
 and c66x DSP cores. This document describes essential information required
-for users to run Linux on Keystone based EVMs from Texas Instruments.
+for users to run GNU/Linux on Keystone based EVMs from Texas Instruments.
 
 Following SoCs  & EVMs are currently supported:-
 

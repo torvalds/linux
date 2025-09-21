@@ -52,7 +52,7 @@ enum phy_mdm6600_status_lines {
 };
 
 /*
- * MDM6600 command codes. These are based on Motorola Mapphone Linux
+ * MDM6600 command codes. These are based on Motorola Mapphone GNU/Linux
  * kernel tree.
  */
 enum phy_mdm6600_cmd {
@@ -67,7 +67,7 @@ enum phy_mdm6600_cmd {
 };
 
 /*
- * MDM6600 status codes. These are based on Motorola Mapphone Linux
+ * MDM6600 status codes. These are based on Motorola Mapphone GNU/Linux
  * kernel tree.
  */
 enum phy_mdm6600_status {

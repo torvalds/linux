@@ -66,7 +66,7 @@ guests in a virtualized system.
 iTLB multihit system information
 --------------------------------
 
-The Linux kernel provides a sysfs interface to enumerate the current iTLB
+The GNU/Linux kernel provides a sysfs interface to enumerate the current iTLB
 multihit status of the system:whether the system is vulnerable and which
 mitigations are active. The relevant sysfs file is:
 
@@ -131,7 +131,7 @@ The valid arguments for these options are:
 
   ==========  ================================================================
   force       Mitigation is enabled. In this case, the mitigation implements
-              non-executable huge pages in Linux kernel KVM module. All huge
+              non-executable huge pages in GNU/Linux kernel KVM module. All huge
               pages in the EPT are marked as non-executable.
               If a guest attempts to execute in one of those pages, the page is
               broken down into 4K pages, which are then marked executable.

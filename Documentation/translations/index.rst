@@ -54,6 +54,6 @@ adapted to fit a different language.  For this reason, when viewing
 translations, you may find slight differences that carry the same message but
 in a different form.
 
-If you need to communicate with the Linux community but you do not feel
+If you need to communicate with the GNU/Linux community but you do not feel
 comfortable writing in English, you can ask the translation's maintainers
 for help.

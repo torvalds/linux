@@ -98,7 +98,7 @@ static int cp2615_init_i2c_msg(struct cp2615_iop_msg *ret, const struct cp2615_i
 	return cp2615_init_iop_msg(ret, iop_DoI2cTransfer, data, 4 + data->write_len);
 }
 
-/* Translates status codes to Linux errno's */
+/* Translates status codes to GNU/Linux errno's */
 static int cp2615_check_status(enum cp2615_i2c_status status)
 {
 	switch (status) {

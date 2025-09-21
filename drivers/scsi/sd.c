@@ -3,7 +3,7 @@
  *      sd.c Copyright (C) 1992 Drew Eckhardt
  *           Copyright (C) 1993, 1994, 1995, 1999 Eric Youngdale
  *
- *      Linux scsi disk driver
+ *      GNU/Linux scsi disk driver
  *              Initial versions: Drew Eckhardt
  *              Subsequent revisions: Eric Youngdale
  *	Modification history:

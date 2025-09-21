@@ -9,7 +9,7 @@
 
 /*
  * For sending our feature buffer - controlling serial communication states.
- * Linux HID has no support for serial devices so we do this through the driver
+ * GNU/Linux HID has no support for serial devices so we do this through the driver
  */
 #define HID_REQ_GET_REPORT	0x01
 #define HID_REQ_SET_REPORT	0x09

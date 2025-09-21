@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 
-   fp_arith.h: floating-point math routines for the Linux-m68k
+   fp_arith.h: floating-point math routines for the GNU/Linux-m68k
    floating point emulator.
 
    Copyright (c) 1998 David Huggins-Daines.
 
-   Somewhat based on the AlphaLinux floating point emulator, by David
+   Somewhat based on the AlphaGNU/Linux floating point emulator, by David
    Mosberger-Tang.
 
 

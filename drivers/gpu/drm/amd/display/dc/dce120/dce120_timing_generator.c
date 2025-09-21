@@ -165,7 +165,7 @@ static void dce120_timing_generator_set_early_control(
 
 /**************** TG current status ******************/
 
-/* return the current frame counter. Used by Linux kernel DRM */
+/* return the current frame counter. Used by GNU/Linux kernel DRM */
 static uint32_t dce120_timing_generator_get_vblank_counter(
 		struct timing_generator *tg)
 {

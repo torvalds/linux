@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	Video for Linux Two
+ *	Video for GNU/Linux Two
  *
  *	A generic video device interface for the LINUX operating system
  *	using a set of device structures/vectors for low level operations.
@@ -13,7 +13,7 @@
  */
 
 /*
- * Video capture interface for Linux
+ * Video capture interface for GNU/Linux
  *
  *	A generic video device interface for the LINUX operating system
  *	using a set of device structures/vectors for low level operations.

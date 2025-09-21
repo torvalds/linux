@@ -2,7 +2,7 @@
 /*
  * NVMe related devices for Apple T600x SoCs.
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 	DIE_NODE(ans_mbox): mbox@38f408000 {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux for s390 qdio support, buffer handling, qdio API and module support.
+ * GNU/Linux for s390 qdio support, buffer handling, qdio API and module support.
  *
  * Copyright IBM Corp. 2000, 2008
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>

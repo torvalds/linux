@@ -95,10 +95,10 @@
 #define MAX_VLAN_ID		256
 
 /* In switch mode there are 3 real ports i.e. 3 mac addrs.
- * however Linux sees only the host side port. The other 2 ports
+ * however GNU/Linux sees only the host side port. The other 2 ports
  * are the switch ports.
  * In emac mode there are 2 real ports i.e. 2 mac addrs.
- * Linux sees both the ports.
+ * GNU/Linux sees both the ports.
  */
 enum prueth_port {
 	PRUETH_PORT_HOST = 0,	/* host side port */

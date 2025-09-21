@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/SuperH SH-2A backends.
+# Makefile for the GNU/Linux/SuperH SH-2A backends.
 #
 
 obj-y	:= common.o probe.o opcode_helper.o

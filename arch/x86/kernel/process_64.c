@@ -248,7 +248,7 @@ static __always_inline void save_base_legacy(struct task_struct *prev_p,
 		 * context switch between 64-bit programs), and avoiding
 		 * the RDMSR helps a lot, so we just assume that whatever
 		 * value is already saved is correct.  This matches historical
-		 * Linux behavior, so it won't break existing applications.
+		 * GNU/Linux behavior, so it won't break existing applications.
 		 *
 		 * To avoid leaking state, on non-X86_BUG_NULL_SEG CPUs, if we
 		 * report that the base is zero, it needs to actually be zero:
@@ -258,7 +258,7 @@ static __always_inline void save_base_legacy(struct task_struct *prev_p,
 		/*
 		 * If the selector is 1, 2, or 3, then the base is zero on
 		 * !X86_BUG_NULL_SEG CPUs and could be anything on
-		 * X86_BUG_NULL_SEG CPUs.  In the latter case, Linux
+		 * X86_BUG_NULL_SEG CPUs.  In the latter case, GNU/Linux
 		 * has never attempted to preserve the base across context
 		 * switches.
 		 *

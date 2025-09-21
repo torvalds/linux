@@ -287,7 +287,7 @@ enum vmmdev_guest_facility_type {
 	/* VBoxGINA / VBoxCredProv / pam_vbox. */
 	VBOXGUEST_FACILITY_TYPE_AUTO_LOGON       = 90,
 	VBOXGUEST_FACILITY_TYPE_VBOX_SERVICE     = 100,
-	/* VBoxTray (Windows), VBoxClient (Linux, Unix). */
+	/* VBoxTray (Windows), VBoxClient (GNU/Linux, Unix). */
 	VBOXGUEST_FACILITY_TYPE_VBOX_TRAY_CLIENT = 101,
 	VBOXGUEST_FACILITY_TYPE_SEAMLESS         = 1000,
 	VBOXGUEST_FACILITY_TYPE_GRAPHICS         = 1100,

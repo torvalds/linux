@@ -571,7 +571,7 @@ static pgprotval_t protect_kernel_text_ro(unsigned long start,
 	 * the current mapping is already using small page mapping.  No
 	 * need to work hard to preserve large page mappings in this case.
 	 *
-	 * This also fixes the Linux Xen paravirt guest boot failure caused
+	 * This also fixes the GNU/Linux Xen paravirt guest boot failure caused
 	 * by unexpected read-only mappings for kernel identity
 	 * mappings. In this paravirt guest case, the kernel text mapping
 	 * and the kernel identity mapping share the same page-table pages,

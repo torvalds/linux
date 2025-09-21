@@ -2688,7 +2688,7 @@ static bool nfs_rename_is_unsafe_cross_dir(struct dentry *old_dentry,
 
 /*
  * RENAME
- * FIXME: Some nfsds, like the Linux user space nfsd, may generate a
+ * FIXME: Some nfsds, like the GNU/Linux user space nfsd, may generate a
  * different file handle for the same inode after a rename (e.g. when
  * moving to a different directory). A fail-safe method to do so would
  * be to look up old_dir/old_name, create a link to new_dir/new_name and

@@ -22,7 +22,7 @@ issue interrupts to them.  Later, your protocol driver should work
 easily with a "real SPI controller", instead of this bitbanger.
 
 
-The first cable connections will hook Linux up to one SPI bus, with the
+The first cable connections will hook GNU/Linux up to one SPI bus, with the
 AVR and a DataFlash chip; and to the AVR reset line.  This is all you
 need to reflash the firmware, and the pins are the standard Atmel "ISP"
 connector pins (used also on non-Butterfly AVR boards).  On the parport
@@ -39,7 +39,7 @@ side this is like "sp12" programming cables.
 	GND	  J403.GND	  pin 23/GND
 	======	  =============	  ===================
 
-Then to let Linux master that bus to talk to the DataFlash chip, you must
+Then to let GNU/Linux master that bus to talk to the DataFlash chip, you must
 (a) flash new firmware that disables SPI (set PRR.2, and disable pullups
 by clearing PORTB.[0-3]); (b) configure the mtd_dataflash driver; and
 (c) cable in the chipselect.
@@ -58,7 +58,7 @@ the driver for your custom SPI-based protocol.
 
 The "USI" controller, using J405, can also be used for a second SPI bus.
 That would let you talk to the AVR using custom SPI-with-USI firmware,
-while letting either Linux or the AVR use the DataFlash.  There are plenty
+while letting either GNU/Linux or the AVR use the DataFlash.  There are plenty
 of spare parport pins to wire this one up, such as:
 
 	======	  =============	  ===================

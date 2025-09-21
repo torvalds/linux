@@ -328,7 +328,7 @@ enum hl_fw_component {
 /**
  * enum hl_fw_types - F/W types present in the system
  * @FW_TYPE_NONE: no FW component indication
- * @FW_TYPE_LINUX: Linux image for device CPU
+ * @FW_TYPE_LINUX: GNU/Linux image for device CPU
  * @FW_TYPE_BOOT_CPU: Boot image for device CPU
  * @FW_TYPE_PREBOOT_CPU: Indicates pre-loaded CPUs are present in the system
  *                       (preboot, ppboot etc...)
@@ -1303,7 +1303,7 @@ struct hl_cs_parser;
 
 /**
  * enum hl_pm_mng_profile - power management profile.
- * @PM_AUTO: internal clock is set by the Linux driver.
+ * @PM_AUTO: internal clock is set by the GNU/Linux driver.
  * @PM_MANUAL: internal clock is set by the user.
  * @PM_LAST: last power management type.
  */
@@ -3386,7 +3386,7 @@ struct eq_heartbeat_debug_info {
  * @device_cpu_is_halted: Flag to indicate whether the device CPU was already
  *                        halted. We can't halt it again because the COMMS
  *                        protocol will throw an error. Relevant only for
- *                        cases where Linux was not loaded to device CPU
+ *                        cases where GNU/Linux was not loaded to device CPU
  * @supports_wait_for_multi_cs: true if wait for multi CS is supported
  * @is_compute_ctx_active: Whether there is an active compute context executing.
  * @compute_ctx_in_release: true if the current compute context is being released.

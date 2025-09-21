@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 =============================================================
-Linux Base Driver for the Intel(R) PRO/100 Family of Adapters
+GNU/Linux Base Driver for the Intel(R) PRO/100 Family of Adapters
 =============================================================
 
 June 1, 2018
@@ -21,7 +21,7 @@ Contents
 In This Release
 ===============
 
-This file describes the Linux Base Driver for the Intel(R) PRO/100 Family of
+This file describes the GNU/Linux Base Driver for the Intel(R) PRO/100 Family of
 Adapters. This driver includes support for Itanium(R)2-based systems.
 
 For questions related to hardware requirements, refer to the documentation
@@ -32,7 +32,7 @@ The following features are now available in supported kernels:
  - Channel Bonding (teaming)
  - SNMP
 
-Channel Bonding documentation can be found in the Linux kernel source:
+Channel Bonding documentation can be found in the GNU/Linux kernel source:
 /Documentation/networking/bonding.rst
 
 
@@ -99,11 +99,11 @@ Configuring the Driver on Different Distributions
 Configuring a network driver to load properly when the system is started
 is distribution dependent.  Typically, the configuration process involves
 adding an alias line to `/etc/modprobe.d/*.conf` as well as editing other
-system startup scripts and/or configuration files.  Many popular Linux
+system startup scripts and/or configuration files.  Many popular GNU/Linux
 distributions ship with tools to make these changes for you.  To learn
 the proper way to configure a network device for your system, refer to
 your distribution documentation.  If during this process you are asked
-for the driver or module name, the name for the Linux Base Driver for
+for the driver or module name, the name for the GNU/Linux Base Driver for
 the Intel PRO/100 Family of Adapters is e100.
 
 As an example, if you install the e100 driver for two PRO/100 adapters
@@ -156,7 +156,7 @@ See :ref:`Documentation/networking/napi.rst <napi>` for more information.
 Multiple Interfaces on Same Ethernet Broadcast Network
 ------------------------------------------------------
 
-Due to the default ARP behavior on Linux, it is not possible to have one
+Due to the default ARP behavior on GNU/Linux, it is not possible to have one
 system on two IP networks in the same Ethernet broadcast domain
 (non-partitioned switch) behave as expected.  All Ethernet interfaces
 will respond to IP traffic for any IP address assigned to the system.

@@ -2,7 +2,7 @@
 
 // Copyright (C) 2024 Google LLC.
 
-//! Linux Security Modules (LSM).
+//! GNU/Linux Security Modules (LSM).
 //!
 //! C header: [`include/linux/security.h`](srctree/include/linux/security.h).
 

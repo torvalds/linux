@@ -623,7 +623,7 @@ struct xfrm_policy_queue {
  *	@flags: XFRM_POLICY_LOCALOK, XFRM_POLICY_ICMP
  *	@xfrm_nr: number of used templates in @xfrm_vec
  *	@family: protocol family
- *	@security: SELinux security label
+ *	@security: SEGNU/Linux security label
  *	@xfrm_vec: array of templates to resolve state
  *	@rcu: rcu head, used to defer memory release
  *	@xdo: hardware offload state

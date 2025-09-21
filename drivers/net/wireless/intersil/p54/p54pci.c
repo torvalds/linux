@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /*
- * Linux device driver for PCI based Prism54
+ * GNU/Linux device driver for PCI based Prism54
  *
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2008, Christian Lamparter <chunkeey@web.de>

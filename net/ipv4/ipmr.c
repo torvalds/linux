@@ -3,7 +3,7 @@
  *	IP multicast routing support for mrouted 3.6/3.8
  *
  *		(c) 1995 Alan Cox, <alan@lxorguk.ukuu.org.uk>
- *	  Linux Consultancy and Custom Driver Development
+ *	  GNU/Linux Consultancy and Custom Driver Development
  *
  *	Fixes:
  *	Michael Chastain	:	Incorrect size of copying.

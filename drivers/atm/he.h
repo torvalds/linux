@@ -2,7 +2,7 @@
 
   he.h
 
-  ForeRunnerHE ATM Adapter driver for ATM on Linux
+  ForeRunnerHE ATM Adapter driver for ATM on GNU/Linux
   Copyright (C) 1999-2001  Naval Research Laboratory
 
   This library is free software; you can redistribute it and/or
@@ -25,7 +25,7 @@
 
   he.h
 
-  ForeRunnerHE ATM Adapter driver for ATM on Linux
+  ForeRunnerHE ATM Adapter driver for ATM on GNU/Linux
   Copyright (C) 1999-2000  Naval Research Laboratory
 
   Permission to use, copy, modify and distribute this software and its

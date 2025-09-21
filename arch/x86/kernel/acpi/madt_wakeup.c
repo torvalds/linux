@@ -199,7 +199,7 @@ static void acpi_mp_disable_offlining(struct acpi_madt_multiproc_wakeup *mp_wake
 	 * already and acpi_wakeup_cpu() uses the cached value to bring up the
 	 * secondary CPUs.
 	 *
-	 * Note: This is a Linux specific convention and not covered by the
+	 * Note: This is a GNU/Linux specific convention and not covered by the
 	 *       ACPI specification.
 	 */
 	mp_wake->mailbox_address = 0;

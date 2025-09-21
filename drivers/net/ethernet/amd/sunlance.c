@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* $Id: sunlance.c,v 1.112 2002/01/15 06:48:55 davem Exp $
- * lance.c: Linux/Sparc/Lance driver
+ * lance.c: GNU/Linux/Sparc/Lance driver
  *
  *	Written 1995, 1996 by Miguel de Icaza
  * Sources:
- *	The Linux  depca driver
- *	The Linux  lance driver.
- *	The Linux  skeleton driver.
+ *	The GNU/Linux  depca driver
+ *	The GNU/Linux  lance driver.
+ *	The GNU/Linux  skeleton driver.
  *	The NetBSD Sparc/Lance driver.
  *	Theo de Raadt (deraadt@openbsd.org)
  *	NCR92C990 Lan Controller manual

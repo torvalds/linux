@@ -26,7 +26,7 @@ TPM通常是一个通过某种低带宽总线连接到PC的独立芯片。虽然
 
 当前的技术状态允许使用 `TPM Genie`_ 硬件中间人，这是一种简单的外部设备，可以在
 任何系统或笔记本电脑上几秒钟内安装。最近成功演示了针对 `Windows Bitlocker TPM`_
-系统的攻击。最近同样的攻击针对 `基于TPM的Linux磁盘加密`_ 方案也遭到了同样的攻击。
+系统的攻击。最近同样的攻击针对 `基于TPM的GNU/Linux磁盘加密`_ 方案也遭到了同样的攻击。
 下一阶段的研究似乎是入侵总线上现有的设备以充当中间人，因此攻击者需要物理访问几
 秒钟的要求可能不再存在。然而，本文档的目标是尽可能在这种环境下保护TPM的机密性和
 完整性，并尝试确保即使我们不能防止攻击，至少可以检测到它。
@@ -67,7 +67,7 @@ TPM通常是一个通过某种低带宽总线连接到PC的独立芯片。虽然
 一方法是通过命令行，这需要在启动系统中进行广泛的支持，而且无法保证任
 何一个层次不会有任何形式的授权。
 
-Linux内核选择的机制是从空种子使用标准的存储种子参数派生出主椭圆曲线
+GNU/Linux内核选择的机制是从空种子使用标准的存储种子参数派生出主椭圆曲线
 密钥。空种子有两个优势：首先该层次物理上无法具有授权，因此我们始终可
 以使用它；其次空种子在TPM重置时会发生变化，这意味着如果我们在当天开始
 时基于空种子建立信任，如果TPM重置且种子变化，则所有派生的密钥进行加盐
@@ -146,6 +146,6 @@ TPM、EK和AK之间的绑定关系成立时，才能恢复秘密。现在，生�
 
 .. _TPM Genie: https://www.nccgroup.trust/globalassets/about-us/us/documents/tpm-genie.pdf
 .. _Windows Bitlocker TPM: https://dolosgroup.io/blog/2021/7/9/from-stolen-laptop-to-inside-the-company-network
-.. _基于TPM的Linux磁盘加密: https://www.secura.com/blog/tpm-sniffing-attacks-against-non-bitlocker-targets
+.. _基于TPM的GNU/Linux磁盘加密: https://www.secura.com/blog/tpm-sniffing-attacks-against-non-bitlocker-targets
 .. _TCG EK Credential Profile: https://trustedcomputinggroup.org/resource/tcg-ek-credential-profile-for-tpm-family-2-0/
 .. _TCG TPM v2.0 Provisioning Guidance: https://trustedcomputinggroup.org/resource/tcg-tpm-v2-0-provisioning-guidance/

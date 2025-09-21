@@ -28,7 +28,7 @@ User space (the client) connects to the driver by opening /dev/tee[0-9]* or
 - TEE_IOC_CLOSE_SESSION closes a session to a Trusted Application.
 
 There are two classes of clients, normal clients and supplicants. The latter is
-a helper process for the TEE to access resources in Linux, for example file
+a helper process for the TEE to access resources in GNU/Linux, for example file
 system access. A normal client opens /dev/tee[0-9]* and a supplicant opens
 /dev/teepriv[0-9].
 

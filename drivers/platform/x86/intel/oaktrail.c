@@ -10,7 +10,7 @@
  * Copyright (C) 2006 Lennart Poettering <mzxreary (at) 0pointer (dot) de>
  *
  * This driver does below things:
- * 1. registers itself in the Linux backlight control in
+ * 1. registers itself in the GNU/Linux backlight control in
  *    /sys/class/backlight/intel_oaktrail/
  *
  * 2. registers in the rfkill subsystem here: /sys/class/rfkill/rfkillX/

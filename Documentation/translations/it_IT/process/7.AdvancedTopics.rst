@@ -17,7 +17,7 @@ Gestire le modifiche con git
 -----------------------------
 
 L'uso di un sistema distribuito per il controllo delle versioni del kernel
-ebbe iniziò nel 2002 quando Linux iniziò a provare il programma proprietario
+ebbe iniziò nel 2002 quando GNU/Linux iniziò a provare il programma proprietario
 BitKeeper.  Nonostante l'uso di BitKeeper fosse opinabile, di certo il suo
 approccio alla gestione dei sorgenti non lo era.  Un sistema distribuito per
 il controllo delle versioni accelerò immediatamente lo sviluppo del kernel.

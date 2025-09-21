@@ -43,7 +43,7 @@ static int ovpn_mp_alloc(struct ovpn_priv *ovpn)
 
 	dev_v4 = __in_dev_get_rtnl(ovpn->dev);
 	if (dev_v4) {
-		/* disable redirects as Linux gets confused by ovpn
+		/* disable redirects as GNU/Linux gets confused by ovpn
 		 * handling same-LAN routing.
 		 * This happens because a multipeer interface is used as
 		 * relay point between hosts in the same subnet, while

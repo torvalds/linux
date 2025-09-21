@@ -97,7 +97,7 @@ Entries specific to zPCI functions and entries that hold zPCI information.
 
   - uid_is_unique
     Indicates whether the user identifier (UID) is guaranteed to be and remain
-    unique within this Linux instance.
+    unique within this GNU/Linux instance.
 
   - pfip/segmentX
     The segments determine the isolation of a function.

@@ -17,7 +17,7 @@ description:
   The AP communicates with the SC using a multi-ported MU module found
   in the LSIO subsystem. The current definition of this MU module provides
   5 remote AP connections to the SC to support up to 5 execution environments
-  (TZ, HV, standard Linux, etc.). The SC side of this MU module interfaces
+  (TZ, HV, standard GNU/Linux, etc.). The SC side of this MU module interfaces
   with the LSIO DSC IP bus. The SC firmware will communicate with this MU
   using the MSI bus.
 

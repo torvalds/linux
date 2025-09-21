@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux Kernel Dump Test Module for testing kernel crashes conditions:
+ * GNU/Linux Kernel Dump Test Module for testing kernel crashes conditions:
  * induces system failures at predefined crashpoints and under predefined
  * operational conditions in order to evaluate the reliability of kernel
  * sanity checking and crash dumps obtained using different dumping
@@ -10,7 +10,7 @@
  *
  * Author: Ankita Garg <ankita@in.ibm.com>
  *
- * It is adapted from the Linux Kernel Dump Test Tool by
+ * It is adapted from the GNU/Linux Kernel Dump Test Tool by
  * Fernando Luis Vazquez Cao <http://lkdtt.sourceforge.net>
  *
  * Debugfs support added by Simon Kagstrom <simon.kagstrom@netinsight.net>

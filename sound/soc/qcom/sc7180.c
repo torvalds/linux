@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright (c) 2020, The Linux Foundation. All rights reserved.
+// Copyright (c) 2020, The GNU/Linux Foundation. All rights reserved.
 //
 // sc7180.c -- ALSA SoC Machine driver for SC7180
 

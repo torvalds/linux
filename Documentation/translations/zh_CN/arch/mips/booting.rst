@@ -29,6 +29,6 @@ BMIPS设备树引导
               0x1fffffff)的任何位置，以64位边界对齐。
 
   传统bootloaders不会使用这样的约定，并且它们不传入DT块。
-  在这种情况下，Linux将通过选中CONFIG_DT_*查找DTB。
+  在这种情况下，GNU/Linux将通过选中CONFIG_DT_*查找DTB。
 
   以上约定只在32位系统中定义，因为目前没有任何64位的BMIPS实现。

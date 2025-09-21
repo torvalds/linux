@@ -2441,7 +2441,7 @@ bnxt_get_link_mode(struct bnxt_link_info *link_info)
 	if (sig_mode >= BNXT_SIG_MODE_MAX)
 		return BNXT_LINK_MODE_UNKNOWN;
 
-	/* Note ETHTOOL_LINK_MODE_10baseT_Half_BIT == 0 is a legal Linux
+	/* Note ETHTOOL_LINK_MODE_10baseT_Half_BIT == 0 is a legal GNU/Linux
 	 * link mode, but since no such devices exist, the zeroes in the
 	 * map can be conveniently used to represent unknown link modes.
 	 */

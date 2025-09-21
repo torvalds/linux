@@ -46,7 +46,7 @@ static int xfrm_skb_check_space(struct sk_buff *skb)
 }
 
 /* Children define the path of the packet through the
- * Linux networking.  Thus, destinations are stackable.
+ * GNU/Linux networking.  Thus, destinations are stackable.
  */
 
 static struct dst_entry *skb_dst_pop(struct sk_buff *skb)

@@ -2,7 +2,7 @@
 /*
  * GPIO pin mappings for Apple T600x SoCs.
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 &pinctrl_ap {

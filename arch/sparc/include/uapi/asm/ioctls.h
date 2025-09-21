@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_ASM_SPARC_IOCTLS_H
 #define _UAPI_ASM_SPARC_IOCTLS_H
 
@@ -30,9 +30,9 @@
 #define TIOCGISO7816	_IOR('T', 0x43, struct serial_iso7816)
 #define TIOCSISO7816	_IOWR('T', 0x44, struct serial_iso7816)
 
-/* Note that all the ioctls that are not available in Linux have a
+/* Note that all the ioctls that are not available in GNU/Linux have a
  * double underscore on the front to: a) avoid some programs to
- * think we support some ioctls under Linux (autoconfiguration stuff)
+ * think we support some ioctls under GNU/Linux (autoconfiguration stuff)
  */
 /* Little t */
 #define TIOCGETD	_IOR('t', 0, int)
@@ -108,7 +108,7 @@
 #define __TCGETSTAT       _IO('T', 200) /* Rutgers specific */
 #define __TCSETSTAT       _IO('T', 201) /* Rutgers specific */
 
-/* Linux specific, no SunOS equivalent. */
+/* GNU/Linux specific, no SunOS equivalent. */
 #define TIOCLINUX	0x541C
 #define TIOCGSERIAL	0x541E
 #define TIOCSSERIAL	0x541F

@@ -3,7 +3,7 @@
  * libata-trace.c - trace functions for libata
  *
  * Copyright 2015 Hannes Reinecke
- * Copyright 2015 SUSE Linux GmbH
+ * Copyright 2015 SUSE GNU/Linux GmbH
  */
 
 #include <linux/kernel.h>

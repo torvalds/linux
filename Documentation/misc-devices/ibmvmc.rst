@@ -40,7 +40,7 @@ a system administrator to configure the system’s partitioning
 characteristics via a command line interface (CLI) or Representational
 State Transfer Application (REST API's).
 
-The management application runs on a Linux logical partition on a
+The management application runs on a GNU/Linux logical partition on a
 POWER8 or newer processor-based server that is virtualized by PowerVM.
 System configuration, maintenance, and control functions which
 traditionally require an HMC can be implemented in the management
@@ -223,5 +223,5 @@ Additional Information
 ======================
 
 For more information on the documentation for CRQ Messages, VMC Messages,
-HMC interface Buffers, and signal messages please refer to the Linux on
+HMC interface Buffers, and signal messages please refer to the GNU/Linux on
 Power Architecture Platform Reference. Section F.

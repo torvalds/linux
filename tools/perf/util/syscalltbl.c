@@ -50,7 +50,7 @@ const char *syscalltbl__name(int e_machine, int id)
 		/*
 		 * MIPS may encode the N32/64/O32 type in the high part of
 		 * syscall number. Mask this off if present. See the values of
-		 * __NR_N32_Linux, __NR_64_Linux, __NR_O32_Linux and __NR_Linux.
+		 * __NR_N32_GNU/Linux, __NR_64_GNU/Linux, __NR_O32_GNU/Linux and __NR_GNU/Linux.
 		 */
 		id = id % 1000;
 	}

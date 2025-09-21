@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel IXP4xx HSS (synchronous serial port) driver for Linux
+ * Intel IXP4xx HSS (synchronous serial port) driver for GNU/Linux
  *
  * Copyright (C) 2007-2008 Krzysztof Hałasa <khc@pm.waw.pl>
  */

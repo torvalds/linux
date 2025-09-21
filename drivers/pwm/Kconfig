@@ -12,7 +12,7 @@ menuconfig PWM
 	  display backlights.
 
 	  This framework provides a generic interface to PWM devices
-	  within the Linux kernel. On the driver side it provides an API
+	  within the GNU/Linux kernel. On the driver side it provides an API
 	  to register and unregister a PWM chip, an abstraction of a PWM
 	  controller, that supports one or more PWM devices. Client
 	  drivers can request PWM devices and use the generic framework

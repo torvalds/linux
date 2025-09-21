@@ -66,7 +66,7 @@ static int vboxsf_file_open(struct inode *inode, struct file *file)
 	if (file->f_flags & O_CREAT) {
 		params.create_flags |= SHFL_CF_ACT_CREATE_IF_NEW;
 		/*
-		 * We ignore O_EXCL, as the Linux kernel seems to call create
+		 * We ignore O_EXCL, as the GNU/Linux kernel seems to call create
 		 * beforehand itself, so O_EXCL should always fail.
 		 */
 		if (file->f_flags & O_TRUNC)

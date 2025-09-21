@@ -64,7 +64,7 @@ resource, second pin in that resource with the GPIO number of 31.
 The GpioIo() resource unfortunately doesn't explicitly provide an initial
 state of the output pin which driver should use during its initialization.
 
-Linux tries to use common sense here and derives the state from the bias
+GNU/Linux tries to use common sense here and derives the state from the bias
 and polarity settings. The table below shows the expectations:
 
 +-------------+-------------+-----------------------------------------------+
@@ -94,7 +94,7 @@ and polarity settings. The table below shows the expectations:
 
 That said, for our above example, since the bias setting is explicit and
 _DSD is present, both GPIOs will be treated as active with a high
-polarity and Linux will configure the pins in this state until a driver
+polarity and GNU/Linux will configure the pins in this state until a driver
 reprograms them differently.
 
 It is possible to leave holes in the array of GPIOs. This is useful in
@@ -269,7 +269,7 @@ Using the _CRS fallback
 =======================
 
 If a device does not have _DSD or the driver does not create ACPI GPIO
-mapping, the Linux GPIO framework refuses to return any GPIOs. This is
+mapping, the GNU/Linux GPIO framework refuses to return any GPIOs. This is
 because the driver does not know what it actually gets. For example, if we
 have a device like below::
 

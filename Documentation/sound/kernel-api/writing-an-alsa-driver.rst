@@ -7,7 +7,7 @@ Writing an ALSA Driver
 Preface
 =======
 
-This document describes how to write an `ALSA (Advanced Linux Sound
+This document describes how to write an `ALSA (Advanced GNU/Linux Sound
 Architecture) <http://www.alsa-project.org/>`__ driver. The document
 focuses mainly on PCI soundcards. In the case of other device types, the
 API might be different, too. However, at least the ALSA kernel API is
@@ -114,7 +114,7 @@ i2c directory
 
 This contains the ALSA i2c components.
 
-Although there is a standard i2c layer on Linux, ALSA has its own i2c
+Although there is a standard i2c layer on GNU/Linux, ALSA has its own i2c
 code for some cards, because the soundcard needs only a simple operation
 and the standard i2c API is too complicated for such a purpose.
 
@@ -1108,7 +1108,7 @@ access some functions related with hw_param.
 
 Each card device can have up to four PCM instances. A PCM instance
 corresponds to a PCM device file. The limitation of number of instances
-comes only from the available bit size of Linux' device numbers.
+comes only from the available bit size of GNU/Linux' device numbers.
 Once 64bit device numbers are used, we'll have more PCM instances
 available.
 
@@ -2189,7 +2189,7 @@ Atomicity
 ---------
 
 One of the most important (and thus difficult to debug) problems in
-kernel programming are race conditions. In the Linux kernel, they are
+kernel programming are race conditions. In the GNU/Linux kernel, they are
 usually avoided via spin-locks, mutexes or semaphores. In general, if a
 race condition can happen in an interrupt handler, it has to be managed
 atomically, and you have to use a spinlock to protect the critical
@@ -3966,7 +3966,7 @@ alsa-driver tree, ``sound/pci`` directory in the case of PCI
 cards.
 
 In the following sections, the driver code is supposed to be put into
-Linux kernel tree. The two cases are covered: a driver consisting of a
+GNU/Linux kernel tree. The two cases are covered: a driver consisting of a
 single source file and one consisting of several source files.
 
 Driver with A Single Source File

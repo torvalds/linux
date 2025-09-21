@@ -38,7 +38,7 @@ más fácil si tiene en cuenta algunas cosas:
   hacer una pregunta fundamental: ¿cómo será mantener un kernel con este
   código en él cinco o diez años después? Muchos de los cambios que se le
   pueden pedir que haga, desde ajustes de estilo de codificación hasta
-  reescrituras sustanciales, provienen de la comprensión de que Linux
+  reescrituras sustanciales, provienen de la comprensión de que GNU/Linux
   seguirá existiendo y en desarrollo dentro de una década.
 
 - La revisión de código es un trabajo arduo y es una ocupación
@@ -215,7 +215,7 @@ considere el parche aceptable. Existe una cierta resistencia a incluir
 parches que son rechazados por el autor y el maintainer del código, pero
 esto tiene un límite. Si se interpreta que bloque buen trabajo, esos
 parches eventualmente lo eludirán y se incorporarán al kernel de todos
-modos. En el kernel de Linux, nadie tiene poder de veto absoluto sobre
+modos. En el kernel de GNU/Linux, nadie tiene poder de veto absoluto sobre
 ningún código. Excepto quizás Linus.
 
 En muy raras ocasiones, puede encontrar algo completamente diferente: otro

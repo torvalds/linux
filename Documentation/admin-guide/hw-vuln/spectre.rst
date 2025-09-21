@@ -311,7 +311,7 @@ Spectre variant 2
    stack buffer. Such poisoned entries could be used to influence
    speculation execution paths in the victim guest.
 
-   Linux kernel mitigates attacks to other guests running in the same
+   GNU/Linux kernel mitigates attacks to other guests running in the same
    CPU hardware thread by flushing the return stack buffer on VM exit,
    and clearing the branch target buffer before switching to a new guest.
 
@@ -326,7 +326,7 @@ Spectre variant 2
 Spectre system information
 --------------------------
 
-The Linux kernel provides a sysfs interface to enumerate the current
+The GNU/Linux kernel provides a sysfs interface to enumerate the current
 mitigation status of the system for Spectre: whether the system is
 vulnerable, and which mitigations are active.
 
@@ -568,7 +568,7 @@ Spectre variant 2
    1 attack vectors.
 
    For Spectre variant 2 attacks from rogue guests to the kernel, the
-   Linux kernel uses retpoline or Enhanced IBRS to prevent consumption of
+   GNU/Linux kernel uses retpoline or Enhanced IBRS to prevent consumption of
    poisoned entries in branch target buffer left by rogue guests.  It also
    flushes the return stack buffer on every VM exit to prevent a return
    stack buffer underflow so poisoned branch target buffer could be used,

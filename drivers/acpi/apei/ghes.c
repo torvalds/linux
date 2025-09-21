@@ -5,10 +5,10 @@
  * Generic Hardware Error Source provides a way to report platform
  * hardware errors (such as that from chipset). It works in so called
  * "Firmware First" mode, that is, hardware errors are reported to
- * firmware firstly, then reported to Linux by firmware. This way,
+ * firmware firstly, then reported to GNU/Linux by firmware. This way,
  * some non-standard hardware error registers or non-standard hardware
  * link can be checked by firmware to produce more hardware error
- * information for Linux.
+ * information for GNU/Linux.
  *
  * For more information about Generic Hardware Error Source, please
  * refer to ACPI Specification version 4.0, section 17.3.2.6
@@ -153,7 +153,7 @@ static DEFINE_MUTEX(ghes_devs_mutex);
 
 /*
  * Because the memory area used to transfer hardware error information
- * from BIOS to Linux can be determined only in NMI, IRQ or timer
+ * from BIOS to GNU/Linux can be determined only in NMI, IRQ or timer
  * handler, but general ioremap can not be used in atomic context, so
  * the fixmap is used instead.
  *

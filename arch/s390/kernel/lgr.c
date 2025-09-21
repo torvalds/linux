@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux Guest Relocation (LGR) detection
+ * GNU/Linux Guest Relocation (LGR) detection
  *
  * Copyright IBM Corp. 2012
  * Author(s): Michael Holzheu <holzheu@linux.vnet.ibm.com>

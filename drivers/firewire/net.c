@@ -1354,7 +1354,7 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	/*
 	 * FIXME: According to a patch from 2003-02-26, "returning non-zero
 	 * causes serious problems" here, allegedly.  Before that patch,
-	 * -ERRNO was returned which is not appropriate under Linux 2.6.
+	 * -ERRNO was returned which is not appropriate under GNU/Linux 2.6.
 	 * Perhaps more needs to be done?  Stop the queue in serious
 	 * conditions and restart it elsewhere?
 	 */

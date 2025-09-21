@@ -53,7 +53,7 @@ static int gve_verify_driver_compatibility(struct gve_priv *priv)
 		return -ENOMEM;
 
 	*driver_info = (struct gve_driver_info) {
-		.os_type = 1, /* Linux */
+		.os_type = 1, /* GNU/Linux */
 		.os_version_major = cpu_to_be32(LINUX_VERSION_MAJOR),
 		.os_version_minor = cpu_to_be32(LINUX_VERSION_SUBLEVEL),
 		.os_version_sub = cpu_to_be32(LINUX_VERSION_PATCHLEVEL),

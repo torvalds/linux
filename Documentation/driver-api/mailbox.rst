@@ -13,7 +13,7 @@ platforms employ, say, PL320 controller, the client drivers can't
 be shared across them. Even the PL320 driver might need to accommodate
 some platform specific quirks. So the API is meant mainly to avoid
 similar copies of code written for each platform. Having said that,
-nothing prevents the remote f/w to also be Linux based and use the
+nothing prevents the remote f/w to also be GNU/Linux based and use the
 same api there. However none of that helps us locally because we only
 ever deal at client's protocol level.
 

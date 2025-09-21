@@ -120,11 +120,11 @@ PocketPC PDA Driver
   contains the necessary packages and a simple step-by-step howto.
 
   Once connected, you can use Win CE programs like ftpView, Pocket Outlook
-  from the PDA and xcerdisp, synce utilities from the Linux side.
+  from the PDA and xcerdisp, synce utilities from the GNU/Linux side.
 
   To use Pocket IE, follow the instructions given at
   http://www.tekguru.co.uk/EM500/usbtonet.htm to achieve the same thing
-  on Win98. Omit the proxy server part; Linux is quite capable of forwarding
+  on Win98. Omit the proxy server part; GNU/Linux is quite capable of forwarding
   packets unlike Win98. Another modification is required at least for the
   iPAQ - disable autosync by going to the Start/Settings/Connections menu
   and unchecking the "Automatically synchronize ..." box. Go to
@@ -302,7 +302,7 @@ Digi AccelePort Driver
   The driver is generally working, though we still have a few more ioctls
   to implement and final testing and debugging to do.  The parallel port
   on the USB 2 is supported as a serial to parallel converter; in other
-  words, it appears as another USB serial port on Linux, even though
+  words, it appears as another USB serial port on GNU/Linux, even though
   physically it is really a parallel port.  The Digi Acceleport USB 8
   is not yet supported.
 
@@ -528,7 +528,7 @@ Contact
 
   If anyone has any problems using these drivers, with any of the above
   specified products, please contact the specific driver's author listed
-  above, or join the Linux-USB mailing list (information on joining the
+  above, or join the GNU/Linux-USB mailing list (information on joining the
   mailing list, as well as a link to its searchable archive is at
   http://www.linux-usb.org/ )
 

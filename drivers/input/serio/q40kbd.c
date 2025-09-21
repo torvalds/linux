@@ -7,7 +7,7 @@
  */
 
 /*
- * Q40 PS/2 keyboard controller driver for Linux/m68k
+ * Q40 PS/2 keyboard controller driver for GNU/Linux/m68k
  */
 
 #include <linux/module.h>

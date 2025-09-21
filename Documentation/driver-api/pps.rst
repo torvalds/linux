@@ -21,7 +21,7 @@ GNU General Public License for more details.
 Overview
 --------
 
-LinuxPPS provides a programming interface (API) to define in the
+GNU/LinuxPPS provides a programming interface (API) to define in the
 system several PPS sources.
 
 PPS means "pulse per second" and a PPS source is just a device which
@@ -64,7 +64,7 @@ So your programs should check if the GPS data source (the serial port
 for instance) is a PPS source too, and if not they should provide the
 possibility to open another device as PPS source.
 
-In LinuxPPS the PPS sources are simply char devices usually mapped
+In GNU/LinuxPPS the PPS sources are simply char devices usually mapped
 into files /dev/pps0, /dev/pps1, etc.
 
 

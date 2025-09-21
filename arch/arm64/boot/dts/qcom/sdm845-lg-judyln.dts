@@ -2,7 +2,7 @@
 /*
  * SDM845 LG G7 (judyln) device tree.
  *
- * Copyright (c) 2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, The GNU/Linux Foundation. All rights reserved.
  */
 
 /dts-v1/;

@@ -6,7 +6,7 @@ Introduction
 ------------
 
 Here we describe the vfio support for I/O subchannel devices for
-Linux/s390. Motivation for vfio-ccw is to passthrough subchannels to a
+GNU/Linux/s390. Motivation for vfio-ccw is to passthrough subchannels to a
 virtual machine, while vfio is the means.
 
 Different than other hardware architectures, s390 has defined a unified

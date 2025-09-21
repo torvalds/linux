@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux - z/VM Monitor Stream.
+# Makefile for the GNU/Linux - z/VM Monitor Stream.
 #
 
 obj-$(CONFIG_APPLDATA_BASE) += appldata_base.o

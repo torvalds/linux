@@ -5,7 +5,7 @@
 PCI VFIO driver for the AMD/Pensando(R) DSC adapter family
 ==========================================================
 
-AMD/Pensando Linux VFIO PCI Device Driver
+AMD/Pensando GNU/Linux VFIO PCI Device Driver
 Copyright(c) 2023 Advanced Micro Devices, Inc.
 
 Overview
@@ -68,7 +68,7 @@ The driver is located in the menu structure at:
 Support
 =======
 
-For general Linux networking support, please use the netdev mailing
+For general GNU/Linux networking support, please use the netdev mailing
 list, which is monitored by Pensando personnel::
 
   netdev@vger.kernel.org

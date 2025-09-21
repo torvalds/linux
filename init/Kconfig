@@ -119,7 +119,7 @@ config CC_HAS_COUNTED_BY
 	bool
 	# clang needs to be at least 20.1.0 to avoid potential crashes
 	# when building structures that contain __counted_by
-	# https://github.com/ClangBuiltLinux/linux/issues/2114
+	# https://github.com/ClangBuiltGNU/Linux/linux/issues/2114
 	# https://github.com/llvm/llvm-project/commit/160fb1121cdf703c3ef5e61fb26c5659eb581489
 	default y if CC_IS_CLANG && CLANG_VERSION >= 200100
 	# supported since gcc 15.1.0
@@ -430,12 +430,12 @@ config SYSVIPC
 	  system calls which let processes (running programs) synchronize and
 	  exchange information. It is generally considered to be a good thing,
 	  and some programs won't run unless you say Y here. In particular, if
-	  you want to run the DOS emulator dosemu under Linux (read the
+	  you want to run the DOS emulator dosemu under GNU/Linux (read the
 	  DOSEMU-HOWTO, available from <http://www.tldp.org/docs.html#howto>),
 	  you'll need to say Y here.
 
 	  You can find documentation about IPC with "info ipc" and also in
-	  section 6.4 of the Linux Programmer's Guide, available from
+	  section 6.4 of the GNU/Linux Programmer's Guide, available from
 	  <http://www.tldp.org/guides.html>.
 
 config SYSVIPC_SYSCTL
@@ -497,7 +497,7 @@ config AUDIT
 	depends on NET
 	help
 	  Enable auditing infrastructure that can be used with another
-	  kernel subsystem, such as SELinux (which requires this for
+	  kernel subsystem, such as SEGNU/Linux (which requires this for
 	  logging of avc messages output).  System call auditing is included
 	  on architectures which support it.
 
@@ -732,7 +732,7 @@ source "kernel/rcu/Kconfig"
 config IKCONFIG
 	tristate "Kernel .config support"
 	help
-	  This option enables the complete Linux kernel ".config" file
+	  This option enables the complete GNU/Linux kernel ".config" file
 	  contents to be saved in the kernel. It provides documentation
 	  of which kernel options are used in a running kernel or in an
 	  on-disk kernel.  This information can be extracted from the kernel
@@ -2011,7 +2011,7 @@ config PERF_EVENTS
 	  when a threshold number of events have passed - and can thus be
 	  used to profile the code that runs on that CPU.
 
-	  The Linux Performance Event subsystem provides an abstraction of
+	  The GNU/Linux Performance Event subsystem provides an abstraction of
 	  these software and hardware event capabilities, available via a
 	  system call and used by the "perf" utility in tools/perf/. It
 	  provides per task and per CPU counters, and it provides event

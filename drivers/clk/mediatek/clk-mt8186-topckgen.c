@@ -499,7 +499,7 @@ static const char * const apll_mck_parents[] = {
 static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_0
-	 * top_axi is bus clock, should not be closed by Linux.
+	 * top_axi is bus clock, should not be closed by GNU/Linux.
 	 * top_scp is main clock in always-on co-processor.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "top_axi", axi_parents,
@@ -551,7 +551,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_5
 	 * top_sspm is main clock in always-on co-processor, should not be closed
-	 * in Linux.
+	 * in GNU/Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUD_ENGEN2, "top_aud_engen2",
 		aud_engen2_parents, 0x0090, 0x0094, 0x0098, 0, 2, 7, 0x0004, 20),
@@ -623,7 +623,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 		audiodsp_parents, 0x00ec, 0x00f0, 0x00f4, 24, 3, 31, 0x0008, 16),
 	/*
 	 * CLK_CFG_12
-	 * dvfsrc is for internal DVFS usage, should not be closed in Linux.
+	 * dvfsrc is for internal DVFS usage, should not be closed in GNU/Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_DVFSRC, "top_dvfsrc", dvfsrc_parents,
 				   0x0100, 0x0104, 0x0108, 0, 1, 7, 0x0008, 17,

@@ -49,7 +49,7 @@ config HVC_IUCV
 	default y
 	help
 	  This driver provides a Hypervisor console (HVC) back-end to access
-	  a Linux (console) terminal via a z/VM IUCV communication path.
+	  a GNU/Linux (console) terminal via a z/VM IUCV communication path.
 
 config HVC_XEN
 	bool "Xen Hypervisor Console support"
@@ -123,10 +123,10 @@ config HVCS
 	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Partitionable IBM Power5 ppc64 machines allow hosting of
-	  firmware virtual consoles from one Linux partition by
-	  another Linux partition.  This driver allows console data
-	  from Linux partitions to be accessed through TTY device
-	  interfaces in the device tree of a Linux partition running
+	  firmware virtual consoles from one GNU/Linux partition by
+	  another GNU/Linux partition.  This driver allows console data
+	  from GNU/Linux partitions to be accessed through TTY device
+	  interfaces in the device tree of a GNU/Linux partition running
 	  this driver.
 
 	  To compile this driver as a module, choose M here: the

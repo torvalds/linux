@@ -34,7 +34,7 @@
  * This description can be automatically generated from the TI
  * hardware database.  OMAP hwmod provides a standard, consistent API
  * to reset, enable, idle, and disable these hardware blocks.  And
- * hwmod provides a way for other core code, such as the Linux device
+ * hwmod provides a way for other core code, such as the GNU/Linux device
  * code or the OMAP power management and address space mapping code,
  * to query the hardware database.
  *
@@ -45,7 +45,7 @@
  * in arch/arm/ *omap*.  The omap_device code includes functions to
  * build a struct platform_device using omap_hwmod data, and that is
  * currently how hwmod data is communicated to drivers and to the
- * Linux driver model.  Most drivers will call omap_hwmod functions only
+ * GNU/Linux driver model.  Most drivers will call omap_hwmod functions only
  * indirectly, via pm_runtime*() functions.
  *
  * From a layering perspective, here is where the OMAP hwmod code
@@ -55,7 +55,7 @@
  *            |      Device driver code       |
  *            |      (e.g., drivers/)         |
  *            +-------------------------------+
- *            |      Linux driver model       |
+ *            |      GNU/Linux driver model       |
  *            |     (platform_device /        |
  *            |  platform_driver data/code)   |
  *            +-------------------------------+

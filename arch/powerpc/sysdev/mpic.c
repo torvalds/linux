@@ -661,7 +661,7 @@ static inline void mpic_eoi(struct mpic *mpic)
 }
 
 /*
- * Linux descriptor level callbacks
+ * GNU/Linux descriptor level callbacks
  */
 
 

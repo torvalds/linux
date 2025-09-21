@@ -1,16 +1,16 @@
 .. _readme:
 
-Linux kernel release 6.x <http://kernel.org/>
+GNU/Linux kernel release 6.x <http://kernel.org/>
 =============================================
 
-These are the release notes for Linux version 6.  Read them carefully,
+These are the release notes for GNU/Linux version 6.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong.
 
-What is Linux?
+What is GNU/Linux?
 --------------
 
-  Linux is a clone of the operating system Unix, written from scratch by
+  GNU/Linux is a clone of the operating system Unix, written from scratch by
   Linus Torvalds with assistance from a loosely-knit team of hackers across
   the Net. It aims towards POSIX and Single UNIX Specification compliance.
 
@@ -26,26 +26,26 @@ On what hardware does it run?
 -----------------------------
 
   Although originally developed first for 32-bit x86-based PCs (386 or higher),
-  today Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
+  today GNU/Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
   UltraSPARC, Motorola 68000, PowerPC, PowerPC64, ARM, Hitachi SuperH, Cell,
   IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64 Xtensa, and
   ARC architectures.
 
-  Linux is easily portable to most general-purpose 32- or 64-bit architectures
+  GNU/Linux is easily portable to most general-purpose 32- or 64-bit architectures
   as long as they have a paged memory management unit (PMMU) and a port of the
-  GNU C compiler (gcc) (part of The GNU Compiler Collection, GCC). Linux has
+  GNU C compiler (gcc) (part of The GNU Compiler Collection, GCC). GNU/Linux has
   also been ported to a number of architectures without a PMMU, although
   functionality is then obviously somewhat limited.
-  Linux has also been ported to itself. You can now run the kernel as a
-  userspace application - this is called UserMode Linux (UML).
+  GNU/Linux has also been ported to itself. You can now run the kernel as a
+  userspace application - this is called UserMode GNU/Linux (UML).
 
 Documentation
 -------------
 
  - There is a lot of documentation available both in electronic form on
-   the Internet and in books, both Linux-specific and pertaining to
+   the Internet and in books, both GNU/Linux-specific and pertaining to
    general UNIX questions.  I'd recommend looking into the documentation
-   subdirectories on any Linux FTP site for the LDP (Linux Documentation
+   subdirectories on any GNU/Linux FTP site for the LDP (GNU/Linux Documentation
    Project) books.  This README is not meant to be documentation on the
    system: there are much better sources available.
 
@@ -234,7 +234,7 @@ Configuring the kernel
 
      "make tinyconfig"  Configure the tiniest possible kernel.
 
-   You can find more information on using the Linux kernel config tools
+   You can find more information on using the GNU/Linux kernel config tools
    in Documentation/kbuild/kconfig.rst.
 
  - NOTES on ``make config``:

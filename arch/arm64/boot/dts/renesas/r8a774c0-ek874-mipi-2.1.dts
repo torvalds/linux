@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the Silicon Linux RZ/G2E 96board platform (CAT874)
+ * Device Tree Source for the Silicon GNU/Linux RZ/G2E 96board platform (CAT874)
  * connected with aistarvision-mipi-v2-adapter board
  *
  * Copyright (C) 2020 Renesas Electronics Corp.
@@ -13,7 +13,7 @@
 #include "aistarvision-mipi-adapter-2.1.dtsi"
 
 / {
-	model = "Silicon Linux RZ/G2E evaluation kit EK874 (CAT874 + CAT875) with aistarvision-mipi-v2-adapter board";
+	model = "Silicon GNU/Linux RZ/G2E evaluation kit EK874 (CAT874 + CAT875) with aistarvision-mipi-v2-adapter board";
 	compatible = "si-linux,cat875", "si-linux,cat874", "renesas,r8a774c0";
 };
 

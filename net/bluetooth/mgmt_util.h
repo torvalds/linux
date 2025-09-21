@@ -1,5 +1,5 @@
 /*
-   BlueZ - Bluetooth protocol stack for Linux
+   BlueZ - Bluetooth protocol stack for GNU/Linux
    Copyright (C) 2015  Intel Coropration
 
    This program is free software; you can redistribute it and/or modify

@@ -24,7 +24,7 @@
 // in it's original order shown in the first table. ECC can't be turned on when
 // auto-format is off.
 //
-// However, Linux SPI-NAND driver expects the data returned as:
+// However, GNU/Linux SPI-NAND driver expects the data returned as:
 // +------+-----+
 // | Page | OOB |
 // +------+-----+
@@ -45,7 +45,7 @@
 //
 // Write requests operates in a similar manner.
 // As a limitation of this strategy, we won't be able to access any ECC parity
-// data at all in Linux.
+// data at all in GNU/Linux.
 //
 // Here's the bad block mark situation on MTK chips:
 // In older chips like mt7622, MTK uses the first FDM byte in the first sector

@@ -33,14 +33,14 @@ ABS_TOOL_PATH = os.path.abspath(os.path.dirname(__file__))
 QEMU_CONFIGS_DIR = os.path.join(ABS_TOOL_PATH, 'qemu_configs')
 
 class ConfigError(Exception):
-	"""Represents an error trying to configure the Linux kernel."""
+	"""Represents an error trying to configure the GNU/Linux kernel."""
 
 
 class BuildError(Exception):
-	"""Represents an error trying to build the Linux kernel."""
+	"""Represents an error trying to build the GNU/Linux kernel."""
 
 
-class LinuxSourceTreeOperations:
+class GNU/LinuxSourceTreeOperations:
 	"""An abstraction over command line operations performed on a source tree."""
 
 	def __init__(self, linux_arch: str, cross_compile: Optional[str]):
@@ -98,7 +98,7 @@ class LinuxSourceTreeOperations:
 		raise RuntimeError('not implemented!')
 
 
-class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
+class GNU/LinuxSourceTreeOperationsQemu(GNU/LinuxSourceTreeOperations):
 
 	def __init__(self, qemu_arch_params: qemu_config.QemuArchParams, cross_compile: Optional[str]):
 		super().__init__(linux_arch=qemu_arch_params.linux_arch,
@@ -138,7 +138,7 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 					stderr=subprocess.STDOUT,
 					text=True, errors='backslashreplace')
 
-class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
+class GNU/LinuxSourceTreeOperationsUml(GNU/LinuxSourceTreeOperations):
 	"""An abstraction over command line operations performed on a source tree."""
 
 	def __init__(self, cross_compile: Optional[str]=None):
@@ -150,7 +150,7 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 		return kconfig
 
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
-		"""Runs the Linux UML binary. Must be named 'linux'."""
+		"""Runs the GNU/Linux UML binary. Must be named 'linux'."""
 		linux_bin = os.path.join(build_dir, 'linux')
 		params.extend(['mem=1G', 'console=tty', 'kunit_shutdown=halt'])
 		print('Running tests with:\n$', linux_bin, ' '.join(shlex.quote(arg) for arg in params))
@@ -213,7 +213,7 @@ def _default_qemu_config_path(arch: str) -> str:
 
 def _get_qemu_ops(config_path: str,
 		  extra_qemu_args: Optional[List[str]],
-		  cross_compile: Optional[str]) -> Tuple[str, LinuxSourceTreeOperations]:
+		  cross_compile: Optional[str]) -> Tuple[str, GNU/LinuxSourceTreeOperations]:
 	# The module name/path has very little to do with where the actual file
 	# exists (I learned this through experimentation and could not find it
 	# anywhere in the Python documentation).
@@ -235,11 +235,11 @@ def _get_qemu_ops(config_path: str,
 	params: qemu_config.QemuArchParams = config.QEMU_ARCH
 	if extra_qemu_args:
 		params.extra_qemu_params.extend(extra_qemu_args)
-	return params.linux_arch, LinuxSourceTreeOperationsQemu(
+	return params.linux_arch, GNU/LinuxSourceTreeOperationsQemu(
 			params, cross_compile=cross_compile)
 
-class LinuxSourceTree:
-	"""Represents a Linux kernel source tree with KUnit tests."""
+class GNU/LinuxSourceTree:
+	"""Represents a GNU/Linux kernel source tree with KUnit tests."""
 
 	def __init__(
 	      self,
@@ -256,7 +256,7 @@ class LinuxSourceTree:
 		else:
 			self._arch = 'um' if arch is None else arch
 			if self._arch == 'um':
-				self._ops = LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
+				self._ops = GNU/LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
 			else:
 				qemu_config_path = _default_qemu_config_path(self._arch)
 				_, self._ops = _get_qemu_ops(qemu_config_path, extra_qemu_args, cross_compile)

@@ -968,7 +968,7 @@ ret_from_kernel_thread:
 	b	ret_sys_call
 	 mov	0, %o0
 
-	/* Linux native system calls enter here... */
+	/* GNU/Linux native system calls enter here... */
 	.align	4
 	.globl	linux_sparc_syscall
 linux_sparc_syscall:

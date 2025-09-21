@@ -10,7 +10,7 @@
  *
  * Also uses information and code from:
  *
- * The original macfb.c from Linux/mac68k 2.0, by Alan Cox, Juergen
+ * The original macfb.c from GNU/Linux/mac68k 2.0, by Alan Cox, Juergen
  * Mellinger, Mikael Forselius, Michael Schmitz, and others.
  *
  * valkyriefb.c, by Martin Costabel, Kevin Schoedel, Barry Nathan, Dan
@@ -409,7 +409,7 @@ static int civic_setpalette(unsigned int regno, unsigned int red,
 /*
  * The CSC is the framebuffer on the PowerBook 190 series
  * (and the 5300 too, but that's a PowerMac). This function
- * brought to you in part by the ECSC driver for MkLinux.
+ * brought to you in part by the ECSC driver for MkGNU/Linux.
  */
 static int csc_setpalette(unsigned int regno, unsigned int red,
 			  unsigned int green, unsigned int blue,

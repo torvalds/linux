@@ -1,4 +1,4 @@
-/* epic100.c: A SMC 83c170 EPIC/100 Fast Ethernet driver for Linux. */
+/* epic100.c: A SMC 83c170 EPIC/100 Fast Ethernet driver for GNU/Linux. */
 /*
 	Written/copyright 1997-2001 by Donald Becker.
 

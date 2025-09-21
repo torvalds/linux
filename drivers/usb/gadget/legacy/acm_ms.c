@@ -24,7 +24,7 @@
  * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
  * Instead:  allocate your own, using normal USB-IF procedures.
  */
-#define ACM_MS_VENDOR_NUM	0x1d6b	/* Linux Foundation */
+#define ACM_MS_VENDOR_NUM	0x1d6b	/* GNU/Linux Foundation */
 #define ACM_MS_PRODUCT_NUM	0x0106	/* Composite Gadget: ACM + MS*/
 
 #include "f_mass_storage.h"

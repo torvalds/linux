@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ============================
-Linux Directory Notification
+GNU/Linux Directory Notification
 ============================
 
 	   Stephen Rothwell <sfr@canb.auug.org.au>
@@ -71,5 +71,5 @@ See tools/testing/selftests/filesystems/dnotify_test.c for an example.
 
 NOTE
 ----
-Beginning with Linux 2.6.13, dnotify has been replaced by inotify.
+Beginning with GNU/Linux 2.6.13, dnotify has been replaced by inotify.
 See Documentation/filesystems/inotify.rst for more information on it.

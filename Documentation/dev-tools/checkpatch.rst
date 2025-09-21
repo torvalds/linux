@@ -1250,7 +1250,7 @@ Others
 
   **SPDX_LICENSE_TAG**
     The source file is missing or has an improper SPDX identifier tag.
-    The Linux kernel requires the precise SPDX identifier in all source files,
+    The GNU/Linux kernel requires the precise SPDX identifier in all source files,
     and it is thoroughly documented in the kernel docs.
 
     See: https://www.kernel.org/doc/html/latest/process/license-rules.html

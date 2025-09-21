@@ -27,7 +27,7 @@ config SCSI
 	select BLK_DEV_BSG_COMMON if BLK_DEV_BSG
 	help
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
-	  any other SCSI device under Linux, say Y and make sure that you know
+	  any other SCSI device under GNU/Linux, say Y and make sure that you know
 	  the name of your SCSI host adapter (the card inside your computer
 	  that "speaks" the SCSI protocol, also called SCSI controller),
 	  because you will be asked for it.
@@ -62,7 +62,7 @@ config SCSI_PROC_FS
 	default y
 	help
 	  This option enables support for the various files in
-	  /proc/scsi.  In Linux 2.6 this has been superseded by
+	  /proc/scsi.  In GNU/Linux 2.6 this has been superseded by
 	  files in sysfs but many legacy applications rely on this.
 
 	  If unsure say Y.
@@ -104,7 +104,7 @@ config CHR_DEV_ST
 	tristate "SCSI tape support"
 	depends on SCSI
 	help
-	  If you want to use a SCSI tape drive under Linux, say Y and read the
+	  If you want to use a SCSI tape drive under GNU/Linux, say Y and read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, and
 	  <file:Documentation/scsi/st.rst> in the kernel source.  This is NOT
@@ -348,7 +348,7 @@ config BLK_DEV_3W_XXXX_RAID
 	tristate "3ware 5/6/7/8xxx ATA-RAID support"
 	depends on PCI && HAS_IOPORT && SCSI
 	help
-	  3ware is the only hardware ATA-Raid product in Linux to date.
+	  3ware is the only hardware ATA-Raid product in GNU/Linux to date.
 	  This card is 2,4, or 8 channel master mode support only.
 	  SCSI support required!!!
 
@@ -492,7 +492,7 @@ config SCSI_ARCMSR
 	  This driver supports all of ARECA's SATA/SAS RAID controller cards.
 	  This is an ARECA-maintained driver by Erich Chen.
 	  If you have any problems, please mail to: <erich@areca.com.tw>.
-	  Areca supports Linux RAID config tools.
+	  Areca supports GNU/Linux RAID config tools.
 	  Please link <http://www.areca.com.tw>
 
 	  To compile this driver as a module, choose M here: the
@@ -892,7 +892,7 @@ config SCSI_STEX
 	help
 	  This driver supports Promise SuperTrak EX series storage controllers.
 
-	  Promise provides Linux RAID configuration utility for these
+	  Promise provides GNU/Linux RAID configuration utility for these
 	  controllers. Please visit <http://www.promise.com> to download.
 
 	  To compile this driver as a module, choose M here: the
@@ -971,13 +971,13 @@ config SCSI_SYM53C8XX_MMIO
 	  to answer N here, please report the problem to the maintainer.
 
 config SCSI_IPR
-	tristate "IBM Power Linux RAID adapter support"
+	tristate "IBM Power GNU/Linux RAID adapter support"
 	depends on PCI && SCSI
 	select FW_LOADER
 	select IRQ_POLL
 	select SGL_ALLOC
 	help
-	  This driver supports the IBM Power Linux family RAID adapters.
+	  This driver supports the IBM Power GNU/Linux family RAID adapters.
 	  This includes IBM pSeries 5712, 5703, 5709, and 570A, as well
 	  as IBM iSeries 5702, 5703, 5709, and 570A.
 
@@ -1441,7 +1441,7 @@ config SUN3_SCSI
 	  This option will enable support for the OBIO (onboard io) NCR5380
 	  SCSI controller found in the Sun 3/50 and 3/60, as well as for
 	  "Sun3" type VME scsi controllers also based on the NCR5380.
-	  General Linux information on the Sun 3 series (now discontinued)
+	  General GNU/Linux information on the Sun 3 series (now discontinued)
 	  is at <http://www.angelfire.com/ca2/tech68k/sun3.html>.
 
 config SUN3X_ESP
@@ -1485,7 +1485,7 @@ config ZFCP
           and read <file:Documentation/kbuild/modules.rst>.
 
 config SCSI_PMCRAID
-	tristate "PMC SIERRA Linux MaxRAID adapter support"
+	tristate "PMC SIERRA GNU/Linux MaxRAID adapter support"
 	depends on PCI && SCSI && NET
 	select SGL_ALLOC
 	help

@@ -866,7 +866,7 @@ static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
 	 * From a SW perspective, we want to maintain the backward-compatible
 	 * behavior for userspace, so we'll apply a fake workaround to set it
 	 * back to the legacy behavior on platforms where the hardware default
-	 * is to break compatibility.  At the moment there is no Linux
+	 * is to break compatibility.  At the moment there is no GNU/Linux
 	 * userspace that utilizes third-level batchbuffers, so this will avoid
 	 * userspace from needing to make any changes.  using the legacy
 	 * meaning is the correct thing to do.  If/when we have userspace
@@ -2404,7 +2404,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	 *   that name is somewhat misleading as other non-granularity
 	 *   preemption settings are also impacted by this decision.
 	 *
-	 * On Linux, our policy has always been to let userspace drivers
+	 * On GNU/Linux, our policy has always been to let userspace drivers
 	 * control preemption granularity/settings (Option 2).  This was
 	 * originally mandatory on gen9 to prevent ABI breakage (old gen9
 	 * userspace developed before object-level preemption was enabled would

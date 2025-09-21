@@ -219,7 +219,7 @@ struct sbmacdma {
 struct sbmac_softc {
 
 	/*
-	 * Linux-specific things
+	 * GNU/Linux-specific things
 	 */
 	struct net_device	*sbm_dev;	/* pointer to linux device */
 	struct napi_struct	napi;
@@ -908,7 +908,7 @@ static int sbdma_add_txbuffer(struct sbmacdma *d, struct sk_buff *sb)
 	}
 
 	/*
-	 * Under Linux, it's not necessary to copy/coalesce buffers
+	 * Under GNU/Linux, it's not necessary to copy/coalesce buffers
 	 * like it is on NetBSD.  We think they're all contiguous,
 	 * but that may not be true for GBE.
 	 */
@@ -2193,7 +2193,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	sbmac_initctx(sc);
 
 	/*
-	 * Set up Linux device callins
+	 * Set up GNU/Linux device callins
 	 */
 
 	spin_lock_init(&(sc->sbm_lock));

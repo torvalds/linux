@@ -51,7 +51,7 @@
 #include <asm/processor.h>
 
 /*
- * Brk needs to return an error.  Still support Linux's brk(0) query idiom,
+ * Brk needs to return an error.  Still support GNU/Linux's brk(0) query idiom,
  * which OSF programs just shouldn't be doing.  We're still not quite
  * identical to OSF as we don't return 0 on success, but doing otherwise
  * would require changes to libc.  Hopefully this is good enough.
@@ -419,7 +419,7 @@ SYSCALL_DEFINE3(osf_fstatfs64, unsigned long, fd,
 /*
  * Uhh.. OSF/1 mount parameters aren't exactly obvious..
  *
- * Although to be frank, neither are the native Linux/i386 ones..
+ * Although to be frank, neither are the native GNU/Linux/i386 ones..
  */
 struct ufs_args {
 	char __user *devname;
@@ -432,7 +432,7 @@ struct cdfs_args {
 	int flags;
 	uid_t exroot;
 
-	/* This has lots more here, which Linux handles with the option block
+	/* This has lots more here, which GNU/Linux handles with the option block
 	   but I'm too lazy to do the translation into ASCII.  */
 };
 

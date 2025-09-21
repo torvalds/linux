@@ -90,7 +90,7 @@ config JFFS2_FS_SECURITY
 	default y
 	help
 	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
+	  implemented by security modules like SEGNU/Linux.  This option
 	  enables an extended attribute handler for file security
 	  labels in the jffs2 filesystem.
 

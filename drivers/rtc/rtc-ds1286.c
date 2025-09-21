@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * DS1286 Real Time Clock interface for Linux
+ * DS1286 Real Time Clock interface for GNU/Linux
  *
  * Copyright (C) 1998, 1999, 2000 Ralf Baechle
  * Copyright (C) 2008 Thomas Bogendoerfer

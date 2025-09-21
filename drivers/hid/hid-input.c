@@ -3,7 +3,7 @@
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *  Copyright (c) 2006-2010 Jiri Kosina
  *
- *  HID to Linux Input mapping
+ *  HID to GNU/Linux Input mapping
  */
 
 /*

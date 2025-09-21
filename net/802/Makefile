@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux 802.x protocol layers.
+# Makefile for the GNU/Linux 802.x protocol layers.
 #
 
 obj-$(CONFIG_LLC)	+= psnap.o

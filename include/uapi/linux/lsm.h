@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
- * Linux Security Modules (LSM) - User space API
+ * GNU/Linux Security Modules (LSM) - User space API
  *
  * Copyright (C) 2022 Casey Schaufler <casey@schaufler-ca.com>
  * Copyright (C) 2022 Intel Corporation
@@ -41,7 +41,7 @@ struct lsm_ctx {
 };
 
 /*
- * ID tokens to identify Linux Security Modules (LSMs)
+ * ID tokens to identify GNU/Linux Security Modules (LSMs)
  *
  * These token values are used to uniquely identify specific LSMs
  * in the kernel as well as in the kernel's LSM userspace API.

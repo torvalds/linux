@@ -39,7 +39,7 @@ config VT
 	  or network connection.
 
 	  If unsure, say Y, or else you won't be able to do much with your new
-	  shiny Linux system :-)
+	  shiny GNU/Linux system :-)
 
 config CONSOLE_TRANSLATIONS
 	depends on VT
@@ -102,7 +102,7 @@ config UNIX98_PTYS
 	  terminal. Typical programs for the master side are telnet servers
 	  and xterms.
 
-	  Linux has traditionally used the BSD-like names /dev/ptyxx for
+	  GNU/Linux has traditionally used the BSD-like names /dev/ptyxx for
 	  masters and /dev/ttyxx for slaves of pseudo terminals. This scheme
 	  has a number of problems. The GNU C library glibc 2.1 and later,
 	  however, supports the Unix98 naming standard: in order to acquire a
@@ -111,7 +111,7 @@ config UNIX98_PTYS
 	  terminal slave can be accessed as /dev/pts/<number>. What was
 	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
 
-	  All modern Linux systems use the Unix98 ptys.  Say Y unless
+	  All modern GNU/Linux systems use the Unix98 ptys.  Say Y unless
 	  you're on an embedded system and want to conserve memory.
 
 config LEGACY_PTYS
@@ -125,7 +125,7 @@ config LEGACY_PTYS
 	  terminal. Typical programs for the master side are telnet servers
 	  and xterms.
 
-	  Linux has traditionally used the BSD-like names /dev/ptyxx
+	  GNU/Linux has traditionally used the BSD-like names /dev/ptyxx
 	  for masters and /dev/ttyxx for slaves of pseudo
 	  terminals. This scheme has a number of problems, including
 	  security.  This option enables these legacy devices; on most

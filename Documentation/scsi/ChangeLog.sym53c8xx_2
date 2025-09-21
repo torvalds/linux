@@ -26,7 +26,7 @@ Sat Jan 20 18:00 2001 Gerard Roudier
 
 Wed Jan 24 21:00 2001 Gerard Roudier 
 	* version sym-2.1.5-20010124
-	- Make the driver work under Linux-2.4.x when statically linked 
+	- Make the driver work under GNU/Linux-2.4.x when statically linked 
 	  with the kernel.
 	- Check against memory allocation failure for SCRIPTZ and add the 
 	  missing free of this memory on instance detach.
@@ -54,7 +54,7 @@ Sat Mar 3 21:00 2001 Gerard Roudier
 	  This allows to share the corresponding code with NetBSD 
 	  without polluating the core driver source (sym_hipd.c).
 	- Add optional code that handles IO timeouts from the driver.
-	  (not used under Linux, but required for NetBSD)
+	  (not used under GNU/Linux, but required for NetBSD)
 	- Do not assume any longer that PAGE_SHIFT and PAGE_SIZE are
 	  defined at compile time, as at least NetBSD uses variables 
 	  in memory for that.
@@ -87,7 +87,7 @@ Wed May 22:00 2001 Gerard Roudier
 	- Define the number of PQS BUSes supported.
 	  Fix sent by Stig Telfer <stig@api-networks.com>
 	- Miscellaneous common code rearrangements due to NetBSD accel 
-	  ioctl support, without impact on Linux (hopefully).
+	  ioctl support, without impact on GNU/Linux (hopefully).
 
 Mon July 2 12:00 2001 Gerard Roudier 
 	* version sym-2.1.11-20010702

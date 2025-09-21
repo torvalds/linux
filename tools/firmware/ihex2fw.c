@@ -61,7 +61,7 @@ static int include_jump = 0;
 static int usage(void)
 {
 	fprintf(stderr, "ihex2fw: Convert ihex files into binary "
-		"representation for use by Linux kernel\n");
+		"representation for use by GNU/Linux kernel\n");
 	fprintf(stderr, "usage: ihex2fw [<options>] <src.HEX> <dst.fw>\n");
 	fprintf(stderr, "       -w: wide records (16-bit length)\n");
 	fprintf(stderr, "       -s: sort records by address\n");

@@ -142,7 +142,7 @@ static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 
 	if (xen_initial_domain()) {
 		/*
-		 * When Linux is running as Xen dom0, the hypervisor is the
+		 * When GNU/Linux is running as Xen dom0, the hypervisor is the
 		 * entity in charge of the processor power management, and so
 		 * Xen needs to check the OS capabilities reported in the
 		 * processor capabilities buffer matches what the hypervisor

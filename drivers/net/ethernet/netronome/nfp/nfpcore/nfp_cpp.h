@@ -375,7 +375,7 @@ void *nfp_cpp_priv(struct nfp_cpp *priv);
 int nfp_cpp_area_cache_add(struct nfp_cpp *cpp, size_t size);
 
 /* The following section contains extensions to the
- * NFP CPP API, to be used in a Linux kernel-space context.
+ * NFP CPP API, to be used in a GNU/Linux kernel-space context.
  */
 
 /* Use this channel ID for multiple virtual channel interfaces

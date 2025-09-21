@@ -26,13 +26,13 @@
 
 	configurations {
 		conf-ocelot_pcb123 {
-			description = "Ocelot Linux kernel";
+			description = "Ocelot GNU/Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-ocelot_pcb123";
 		};
 
 		conf-ocelot_pcb120 {
-			description = "Ocelot Linux kernel";
+			description = "Ocelot GNU/Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-ocelot_pcb120";
 		};

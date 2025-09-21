@@ -2,7 +2,7 @@
 /*
  * OpenRISC ptrace.c
  *
- * Linux architectural port borrowing liberally from similar works of
+ * GNU/Linux architectural port borrowing liberally from similar works of
  * others.  All original copyrights apply as per the original source
  * declaration.
  *
@@ -113,7 +113,7 @@ static int fpregs_set(struct task_struct *target,
 #endif
 
 /*
- * Define the register sets available on OpenRISC under Linux
+ * Define the register sets available on OpenRISC under GNU/Linux
  */
 enum or1k_regset {
 	REGSET_GENERAL,

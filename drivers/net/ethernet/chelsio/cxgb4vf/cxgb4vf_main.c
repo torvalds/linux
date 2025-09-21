@@ -1,6 +1,6 @@
 /*
  * This file is part of the Chelsio T4 PCI-E SR-IOV Virtual Function Ethernet
- * driver for Linux.
+ * driver for GNU/Linux.
  *
  * Copyright (c) 2009-2010 Chelsio Communications, Inc. All rights reserved.
  *
@@ -2520,7 +2520,7 @@ static int adap_init0(struct adapter *adapter)
 	u32 param, val = 0;
 
 	/*
-	 * Some environments do not properly handle PCIE FLRs -- e.g. in Linux
+	 * Some environments do not properly handle PCIE FLRs -- e.g. in GNU/Linux
 	 * 2.6.31 and later we can't call pci_reset_function() in order to
 	 * issue an FLR because of a self- deadlock on the device semaphore.
 	 * Meanwhile, the OS infrastructure doesn't issue FLRs in all the

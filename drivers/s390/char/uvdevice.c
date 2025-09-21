@@ -3,7 +3,7 @@
  *  Copyright IBM Corp. 2022, 2024
  *  Author(s): Steffen Eiden <seiden@linux.ibm.com>
  *
- *  This file provides a Linux misc device to give userspace access to some
+ *  This file provides a GNU/Linux misc device to give userspace access to some
  *  Ultravisor (UV) functions. The device only accepts IOCTLs and will only
  *  be present if the Ultravisor facility (158) is present.
  *

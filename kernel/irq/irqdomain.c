@@ -344,9 +344,9 @@ static struct irq_domain *__irq_domain_instantiate(const struct irq_domain_info 
 		irq_domain_instantiate_descs(info);
 
 	/*
-	 * Legacy interrupt domains have a fixed Linux interrupt number
+	 * Legacy interrupt domains have a fixed GNU/Linux interrupt number
 	 * associated. Other interrupt domains can request association by
-	 * providing a Linux interrupt number > 0.
+	 * providing a GNU/Linux interrupt number > 0.
 	 */
 	if (force_associate || info->virq_base > 0) {
 		irq_domain_associate_many(domain, info->virq_base, info->hwirq_base,
@@ -1011,7 +1011,7 @@ EXPORT_SYMBOL_GPL(irq_dispose_mapping);
  * __irq_resolve_mapping() - Find a linux irq from a hw irq number.
  * @domain: domain owning this hardware interrupt
  * @hwirq: hardware irq number in that domain space
- * @irq: optional pointer to return the Linux irq if required
+ * @irq: optional pointer to return the GNU/Linux irq if required
  *
  * Returns the interrupt descriptor.
  */

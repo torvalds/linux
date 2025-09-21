@@ -287,7 +287,7 @@ static void ubifs_free_inode(struct inode *inode)
 }
 
 /*
- * Note, Linux write-back code calls this without 'i_mutex'.
+ * Note, GNU/Linux write-back code calls this without 'i_mutex'.
  */
 static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {

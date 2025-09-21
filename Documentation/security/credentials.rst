@@ -1,5 +1,5 @@
 ====================
-Credentials in Linux
+Credentials in GNU/Linux
 ====================
 
 By: David Howells <dhowells@redhat.com>
@@ -9,13 +9,13 @@ By: David Howells <dhowells@redhat.com>
 Overview
 ========
 
-There are several parts to the security check performed by Linux when one
+There are several parts to the security check performed by GNU/Linux when one
 object acts upon another:
 
  1. Objects.
 
      Objects are things in the system that may be acted upon directly by
-     userspace programs.  Linux has a variety of actionable objects, including:
+     userspace programs.  GNU/Linux has a variety of actionable objects, including:
 
 	- Tasks
 	- Files/inodes
@@ -67,14 +67,14 @@ object acts upon another:
      is used as part of the security calculation that is carried out when a
      subject acts.
 
-     A Linux task, for example, has the FSUID, FSGID and the supplementary
+     A GNU/Linux task, for example, has the FSUID, FSGID and the supplementary
      group list for when it is acting upon a file - which are quite separate
      from the real UID and GID that normally form the objective context of the
      task.
 
  6. Actions.
 
-     Linux has a number of actions available that a subject may perform upon an
+     GNU/Linux has a number of actions available that a subject may perform upon an
      object.  The set of actions available depends on the nature of the subject
      and the object.
 
@@ -94,7 +94,7 @@ object acts upon another:
      a. Discretionary access control (DAC):
 
 	 Sometimes the object will include sets of rules as part of its
-	 description.  This is an 'Access Control List' or 'ACL'.  A Linux
+	 description.  This is an 'Access Control List' or 'ACL'.  A GNU/Linux
 	 file may supply more than one ACL.
 
 	 A traditional UNIX file, for example, includes a permissions mask that
@@ -104,16 +104,16 @@ object acts upon another:
 	 in question).  UNIX file permissions do not allow the arbitrary
 	 specification of subjects, however, and so are of limited use.
 
-	 A Linux file might also sport a POSIX ACL.  This is a list of rules
+	 A GNU/Linux file might also sport a POSIX ACL.  This is a list of rules
 	 that grants various permissions to arbitrary subjects.
 
      b. Mandatory access control (MAC):
 
 	 The system as a whole may have one or more sets of rules that get
 	 applied to all subjects and objects, regardless of their source.
-	 SELinux and Smack are examples of this.
+	 SEGNU/Linux and Smack are examples of this.
 
-	 In the case of SELinux and Smack, each object is given a label as part
+	 In the case of SEGNU/Linux and Smack, each object is given a label as part
 	 of its credentials.  When an action is requested, they take the
 	 subject label, the object label and the action and look for a rule
 	 that says that this action is either granted or denied.
@@ -122,14 +122,14 @@ object acts upon another:
 Types of Credentials
 ====================
 
-The Linux kernel supports the following types of credentials:
+The GNU/Linux kernel supports the following types of credentials:
 
  1. Traditional UNIX credentials.
 
 	- Real User ID
 	- Real Group ID
 
-     The UID and GID are carried by most, if not all, Linux objects, even if in
+     The UID and GID are carried by most, if not all, GNU/Linux objects, even if in
      some cases it has to be invented (FAT or CIFS files for example, which are
      derived from Windows).  These (mostly) define the objective context of
      that object, with tasks being slightly different in some cases.
@@ -200,8 +200,8 @@ The Linux kernel supports the following types of credentials:
 
  5. LSM
 
-     The Linux Security Module allows extra controls to be placed over the
-     operations that a task may do.  Currently Linux supports several LSM
+     The GNU/Linux Security Module allows extra controls to be placed over the
+     operations that a task may do.  Currently GNU/Linux supports several LSM
      options.
 
      Some work by labelling the objects in a system and then applying sets of
@@ -247,7 +247,7 @@ extra privileges, based on the annotations on the executable file.
 Task Credentials
 ================
 
-In Linux, all of a task's credentials are held in (uid, gid) or through
+In GNU/Linux, all of a task's credentials are held in (uid, gid) or through
 (groups, keys, LSM security) a refcounted structure of type 'struct cred'.
 Each task points to its credentials by a pointer called 'cred' in its
 task_struct.

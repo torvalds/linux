@@ -1349,7 +1349,7 @@ config RTC_DRV_OPTEE
 	depends on OPTEE
 	help
 	  Select this to get support for OP-TEE based RTC control on SoCs where
-	  RTC are not accessible to the normal world (Linux).
+	  RTC are not accessible to the normal world (GNU/Linux).
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-optee.

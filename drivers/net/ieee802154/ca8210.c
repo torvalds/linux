@@ -498,12 +498,12 @@ static int (*cascoda_api_upstream)(
  *                       linux error
  * @link_status:  802.15.4 status code
  *
- * Return: 0 or Linux error code
+ * Return: 0 or GNU/Linux error code
  */
 static int link_to_linux_err(int link_status)
 {
 	if (link_status < 0) {
-		/* status is already a Linux code */
+		/* status is already a GNU/Linux code */
 		return link_status;
 	}
 	switch (link_status) {

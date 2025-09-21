@@ -422,7 +422,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_SMBUS,
 			 ati_force_enable_hpet);
 
 /*
- * Undocumented chipset feature taken from LinuxBIOS.
+ * Undocumented chipset feature taken from GNU/LinuxBIOS.
  */
 static void nvidia_force_hpet_resume(void)
 {

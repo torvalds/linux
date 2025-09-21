@@ -16,7 +16,7 @@ struct oobmsm_plat_info;
 
 /*
  * List of supported TMPI IDs.
- * Some TMPI IDs are not used by Linux, so the numbers are not consecutive.
+ * Some TMPI IDs are not used by GNU/Linux, so the numbers are not consecutive.
  */
 enum intel_tpmi_id {
 	TPMI_ID_RAPL = 0,	/* Running Average Power Limit */

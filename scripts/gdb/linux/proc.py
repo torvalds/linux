@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# gdb helper commands and functions for Linux kernel debugging
+# gdb helper commands and functions for GNU/Linux kernel debugging
 #
 #  Kernel proc information reader
 #
@@ -23,7 +23,7 @@ from struct import *
 
 
 class LxCmdLine(gdb.Command):
-    """ Report the Linux Commandline used in the current kernel.
+    """ Report the GNU/Linux Commandline used in the current kernel.
         Equivalent to cat /proc/cmdline on a running target"""
 
     def __init__(self):
@@ -37,7 +37,7 @@ LxCmdLine()
 
 
 class LxVersion(gdb.Command):
-    """ Report the Linux Version of the current kernel.
+    """ Report the GNU/Linux Version of the current kernel.
         Equivalent to cat /proc/version on a running target"""
 
     def __init__(self):

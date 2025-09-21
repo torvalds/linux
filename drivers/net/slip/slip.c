@@ -55,7 +55,7 @@
  *					from multislip BSDI driver which was
  *					written by Igor Chechik, RELCOM Corp.
  *					Only algorithms have been ported to
- *					Linux SLIP driver.
+ *					GNU/Linux SLIP driver.
  *	Vitaly E. Lavrov	:	Sane behaviour on tty hangup.
  *	Alexey Kuznetsov	:	Cleanup interfaces to tty & netdevice
  *					modules.

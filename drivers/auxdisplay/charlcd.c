@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Character LCD driver for Linux
+ * Character LCD driver for GNU/Linux
  *
  * Copyright (C) 2000-2008, Willy Tarreau <w@1wt.eu>
  * Copyright (C) 2016-2017 Glider bvba
@@ -550,7 +550,7 @@ static void charlcd_puts(struct charlcd *lcd, const char *s)
 #ifdef CONFIG_PANEL_BOOT_MESSAGE
 #define LCD_INIT_TEXT CONFIG_PANEL_BOOT_MESSAGE
 #else
-#define LCD_INIT_TEXT "Linux-" UTS_RELEASE "\n"
+#define LCD_INIT_TEXT "GNU/Linux-" UTS_RELEASE "\n"
 #endif
 
 #ifdef CONFIG_CHARLCD_BL_ON

@@ -2,7 +2,7 @@
 /*
  * Checksum functions for Hexagon
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011, The GNU/Linux Foundation. All rights reserved.
  */
 
 /*  This was derived from arch/alpha/lib/checksum.c  */

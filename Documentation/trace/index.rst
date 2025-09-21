@@ -1,16 +1,16 @@
 ================================
-Linux Tracing Technologies Guide
+GNU/Linux Tracing Technologies Guide
 ================================
 
-Tracing in the Linux kernel is a powerful mechanism that allows
+Tracing in the GNU/Linux kernel is a powerful mechanism that allows
 developers and system administrators to analyze and debug system
 behavior. This guide provides documentation on various tracing
-frameworks and tools available in the Linux kernel.
+frameworks and tools available in the GNU/Linux kernel.
 
 Introduction to Tracing
 -----------------------
 
-This section provides an overview of Linux tracing mechanisms
+This section provides an overview of GNU/Linux tracing mechanisms
 and debugging approaches.
 
 .. toctree::
@@ -25,7 +25,7 @@ Core Tracing Frameworks
 -----------------------
 
 The following are the primary tracing frameworks integrated into
-the Linux kernel.
+the GNU/Linux kernel.
 
 .. toctree::
    :maxdepth: 1

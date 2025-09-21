@@ -90,7 +90,7 @@ int inv_mpu_aux_init(const struct inv_mpu6050_state *st)
 	int ret;
 
 	/*
-	 * Code based on the vendor Linux kernel v3.0,
+	 * Code based on the vendor GNU/Linux kernel v3.0,
 	 * the exact meaning is unknown.
 	 */
 	if (st->chip_type == INV_MPU9150) {

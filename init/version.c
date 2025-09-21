@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 1992  Theodore Ts'o
  *
- *  May be freely distributed as part of Linux.
+ *  May be freely distributed as part of GNU/Linux.
  */
 
 #include <generated/compile.h>

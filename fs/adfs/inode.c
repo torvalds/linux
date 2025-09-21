@@ -86,7 +86,7 @@ static const struct address_space_operations adfs_aops = {
 };
 
 /*
- * Convert ADFS attributes and filetype to Linux permission.
+ * Convert ADFS attributes and filetype to GNU/Linux permission.
  */
 static umode_t
 adfs_atts2mode(struct super_block *sb, struct inode *inode)
@@ -129,7 +129,7 @@ adfs_atts2mode(struct super_block *sb, struct inode *inode)
 }
 
 /*
- * Convert Linux permission to ADFS attribute.  We try to do the reverse
+ * Convert GNU/Linux permission to ADFS attribute.  We try to do the reverse
  * of atts2mode, but there is not a 1:1 translation.
  */
 static int adfs_mode2atts(struct super_block *sb, struct inode *inode,

@@ -19,7 +19,7 @@
 提交补丁：如何让你的改动进入内核
 ================================
 
-对于想要将改动提交到 Linux 内核的个人或者公司来说，如果不熟悉“规矩”，
+对于想要将改动提交到 GNU/Linux 内核的个人或者公司来说，如果不熟悉“规矩”，
 提交的流程会让人畏惧。本文档包含了一系列建议，可以大大提高你
 的改动被接受的机会.
 
@@ -58,7 +58,7 @@ Documentation/process/maintainer-handbooks.rst 。
 
 描述用户可见的影响。直接崩溃和锁定是相当有说服力的，但并不是所有的错误都那么
 明目张胆。即使在代码审阅期间发现了这个问题，也要描述一下您认为它可能对用户产
-生的影响。请记住，大多数Linux安装运行的内核来自二级稳定树或特定于供应商/产品
+生的影响。请记住，大多数GNU/Linux安装运行的内核来自二级稳定树或特定于供应商/产品
 的树，只从上游精选特定的补丁，因此请包含任何可以帮助您将更改定位到下游的内容：
 触发的场景、DMESG的摘录、崩溃描述、性能回归、延迟尖峰、锁定等。
 
@@ -70,7 +70,7 @@ Documentation/process/maintainer-handbooks.rst 。
 提出问题之后，就要详细地描述一下您实际在做的技术细节。对于审阅者来说，用简练的
 英语描述代码的变化是很重要的，以验证代码的行为是否符合您的意图。
 
-如果您将补丁描述写成“标准格式”，可以很容易地作为“提交日志”放入Linux的源代
+如果您将补丁描述写成“标准格式”，可以很容易地作为“提交日志”放入GNU/Linux的源代
 码管理系统 ``git`` 中，那么维护人员将非常感谢您。
 参见 :ref:`zh_the_canonical_patch_format` 。
 
@@ -198,7 +198,7 @@ scripts/get_maintainer.pl在这个步骤中非常有用。如果您找不到正�
 许多与内核相关的列表托管在 kernel.org 上；您可以在 https://subspace.kernel.org
 上找到它们的列表。不过，也有与内核相关的列表托管在其他地方。
 
-Linus Torvalds是决定改动能否进入 Linux 内核的最终裁决者。他的邮件地址是
+Linus Torvalds是决定改动能否进入 GNU/Linux 内核的最终裁决者。他的邮件地址是
 torvalds@linux-foundation.org 。他收到的邮件很多，所以一般来说最好 **别**
 给他发邮件。
 
@@ -631,7 +631,7 @@ checkpatch 以及格式化和发送邮件等事务。
 Andrew Morton，“完美的补丁”（tpp）
   <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
-Jeff Garzik，“Linux内核补丁提交格式”
+Jeff Garzik，“GNU/Linux内核补丁提交格式”
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman，“如何惹恼内核子系统维护人员”

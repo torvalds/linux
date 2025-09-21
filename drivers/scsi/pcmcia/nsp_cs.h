@@ -289,7 +289,7 @@ static void        nsp_cs_detach (struct pcmcia_device *p_dev);
 static void        nsp_cs_release(struct pcmcia_device *link);
 static int        nsp_cs_config (struct pcmcia_device *link);
 
-/* Linux SCSI subsystem specific functions */
+/* GNU/Linux SCSI subsystem specific functions */
 static struct Scsi_Host *nsp_detect     (struct scsi_host_template *sht);
 static const  char      *nsp_info       (struct Scsi_Host *shpnt);
 static        int        nsp_show_info  (struct seq_file *m,

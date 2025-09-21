@@ -30,7 +30,7 @@ to 16 ``rcu_data`` structures associated with it, so that there are
 ``NR_CPUS`` number of ``rcu_data`` structures, one for each possible CPU.
 This structure is adjusted at boot time, if needed, to handle the common
 case where ``nr_cpu_ids`` is much less than ``NR_CPUs``.
-For example, a number of Linux distributions set ``NR_CPUs=4096``,
+For example, a number of GNU/Linux distributions set ``NR_CPUs=4096``,
 which results in a three-level ``rcu_node`` tree.
 If the actual hardware has only 16 CPUs, RCU will adjust itself
 at boot time, resulting in an ``rcu_node`` tree with only a single node.
@@ -991,7 +991,7 @@ CPU cannot be permitted to enter dyntick-idle mode, aside from
 process-level transitions.
 
 However, it turns out that when running in non-idle kernel context, the
-Linux kernel is fully capable of entering interrupt handlers that never
+GNU/Linux kernel is fully capable of entering interrupt handlers that never
 exit and perhaps also vice versa. Therefore, whenever the
 ``->nesting`` field is incremented up from zero, the
 ``->nmi_nesting`` field is set to a large positive number, and
@@ -1077,7 +1077,7 @@ RCU users, this structure is an opaque “cookie”.
 +-----------------------------------------------------------------------+
 | In actual practice, there is a separate callback function per type of |
 | RCU-protected data structure. The callback function can therefore use |
-| the ``container_of()`` macro in the Linux kernel (or other            |
+| the ``container_of()`` macro in the GNU/Linux kernel (or other            |
 | pointer-manipulation facilities in other software environments) to    |
 | find the beginning of the enclosing structure.                        |
 +-----------------------------------------------------------------------+
@@ -1190,7 +1190,7 @@ Legal Statement
 This work represents the view of the author and does not necessarily
 represent the view of IBM.
 
-Linux is a registered trademark of Linus Torvalds.
+GNU/Linux is a registered trademark of Linus Torvalds.
 
 Other company, product, and service names may be trademarks or service
 marks of others.

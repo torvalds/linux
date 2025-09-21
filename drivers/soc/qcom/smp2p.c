@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Sony Mobile Communications AB.
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/interrupt.h>
@@ -33,7 +33,7 @@
  * processor.  By using two separate SMEM items that are single-reader and
  * single-writer, SMP2P does not require any remote locking mechanisms.
  *
- * The driver uses the Linux GPIO and interrupt framework to expose a virtual
+ * The driver uses the GNU/Linux GPIO and interrupt framework to expose a virtual
  * GPIO for each outbound entry and a virtual interrupt controller for each
  * inbound entry.
  */

@@ -84,7 +84,7 @@ config XFS_QUOTA
 	  information as filesystem metadata and uses journaling to provide a
 	  higher level guarantee of consistency.  The on-disk data format for
 	  quota is also compatible with the IRIX version of XFS, allowing a
-	  filesystem to be migrated between Linux and IRIX without any need
+	  filesystem to be migrated between GNU/Linux and IRIX without any need
 	  for conversion.
 
 	  If unsure, say N.  More comprehensive documentation can be found in

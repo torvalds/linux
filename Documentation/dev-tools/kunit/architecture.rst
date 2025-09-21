@@ -185,7 +185,7 @@ Documentation/dev-tools/kunit/run_manual.rst) or use ``kunit_tool``
   To build a KUnit kernel from the current ``.config``, you can use the
   ``build`` argument: ``./tools/testing/kunit/kunit.py build``.
 - ``exec`` command executes kernel results either directly (using
-  User-mode Linux configuration), or through an emulator such
+  User-mode GNU/Linux configuration), or through an emulator such
   as QEMU. It reads results from the log using standard
   output (stdout), and passes them to ``parse`` to be parsed.
   If you already have built a kernel with built-in KUnit tests,

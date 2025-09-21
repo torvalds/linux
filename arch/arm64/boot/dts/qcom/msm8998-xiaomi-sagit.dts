@@ -2,7 +2,7 @@
 /*
  * Xiaomi Mi 6 (sagit) device tree source based on msm8998-mtp.dtsi
  *
- * Copyright (c) 2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2022, Degdag Mohamed <degdagmohamed@gmail.com>
  * Copyright (c) 2022, Dzmitry Sankouski <dsankouski@gmail.com>
  */

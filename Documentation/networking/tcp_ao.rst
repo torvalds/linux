@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ========================================================
-TCP Authentication Option Linux implementation (RFC5925)
+TCP Authentication Option GNU/Linux implementation (RFC5925)
 ========================================================
 
 TCP Authentication Option (TCP-AO) provides a TCP extension aimed at verifying
@@ -98,7 +98,7 @@ also [6.1]::
    The only way to avoid reuse of previously used MKTs is to remove the MKT
    when it is no longer considered permitted.
 
-Linux TCP-AO will try its best to prevent you from removing a key that's
+GNU/Linux TCP-AO will try its best to prevent you from removing a key that's
 being used, considering it a key management failure. But since keeping
 an outdated key may become a security issue and as a peer may
 unintentionally prevent the removal of an old key by always setting
@@ -141,7 +141,7 @@ the behaviour can be configured by the user [7.5.1.a]::
    segments with TCP-AO are not discarded solely because they include
    the option, provided they do not match any MKT.
 
-Note that Linux TCP-AO implementation differs in this aspect. Currently, TCP-AO
+Note that GNU/Linux TCP-AO implementation differs in this aspect. Currently, TCP-AO
 segments with unknown key signatures are discarded with warnings logged.
 
 Q: Does the RFC imply centralized kernel key management in any way?
@@ -241,7 +241,7 @@ re-establishing the TCP connection.
 2. In-kernel MKTs database vs database in userspace
 ===================================================
 
-Linux TCP-AO support is implemented using ``setsockopt()s``, in a similar way
+GNU/Linux TCP-AO support is implemented using ``setsockopt()s``, in a similar way
 to TCP-MD5. It means that a userspace application that wants to use TCP-AO
 should perform ``setsockopt()`` on a TCP socket when it wants to add,
 remove or rotate MKTs. This approach moves the key management responsibility
@@ -290,7 +290,7 @@ no transparency is really needed and modern BGP daemons already have
 3. uAPI
 =======
 
-Linux provides a set of ``setsockopt()s`` and ``getsockopt()s`` that let
+GNU/Linux provides a set of ``setsockopt()s`` and ``getsockopt()s`` that let
 userspace manage TCP-AO on a per-socket basis. In order to add/delete MKTs
 ``TCP_AO_ADD_KEY`` and ``TCP_AO_DEL_KEY`` TCP socket options must be used.
 It is not allowed to add a key on an established non-TCP-AO connection
@@ -323,7 +323,7 @@ A tip here for scaled TCP_LISTEN sockets, that may have some thousands TCP-AO
 keys, is: use filters in ``getsockopt(TCP_AO_GET_KEYS)`` and asynchronous
 delete with ``setsockopt(TCP_AO_DEL_KEY)``.
 
-Linux TCP-AO also provides a bunch of segment counters that can be helpful
+GNU/Linux TCP-AO also provides a bunch of segment counters that can be helpful
 with troubleshooting/debugging issues. Every MKT has good/bad counters
 that reflect how many packets passed/failed verification.
 Each TCP-AO socket has the following counters:
@@ -354,7 +354,7 @@ MKTs::
    Values can be partially specified using ranges (e.g., 2-30), masks
    (e.g., 0xF0), wildcards (e.g., "*"), or any other suitable indication.
 
-Currently Linux TCP-AO implementation doesn't provide any TCP port matching.
+Currently GNU/Linux TCP-AO implementation doesn't provide any TCP port matching.
 Probably, port ranges are the most flexible for uAPI, but so far
 not implemented.
 
@@ -403,7 +403,7 @@ both TCP-AO and (deprecated) TCP-MD5 clients. As a result, both types of keys
 may be added to TCP_CLOSED or TCP_LISTEN sockets. It's not allowed to add
 different types of keys for the same peer.
 
-6. SNE Linux implementation
+6. SNE GNU/Linux implementation
 ===========================
 
 RFC 5925 [6.2] describes the algorithm of how to extend TCP sequence numbers
@@ -416,7 +416,7 @@ In times when sne_flag is set, the algorithm compares SEQ for each packet with
 verified with SNE before the increment. As a result, there's
 this [0; 32Kb] window, when packets with (SNE - 1) can be accepted.
 
-Linux implementation simplifies this a bit: as the network stack already tracks
+GNU/Linux implementation simplifies this a bit: as the network stack already tracks
 the first SEQ byte that ACK is wanted for (snd_una) and the next SEQ byte that
 is wanted (rcv_nxt) - that's enough information for a rough estimation
 on where in the 4GB SEQ number space both sender and receiver are.

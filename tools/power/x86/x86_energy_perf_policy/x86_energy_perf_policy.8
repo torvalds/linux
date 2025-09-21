@@ -20,7 +20,7 @@ x86_energy_perf_policy \- Manage Energy vs. Performance Policy via x86 Model Spe
 \fBx86_energy_perf_policy\fP
 displays and updates energy-performance policy settings specific to
 Intel Architecture Processors.  Settings are accessed via Model Specific Register (MSR)
-updates, no matter if the Linux cpufreq sub-system is enabled or not.
+updates, no matter if the GNU/Linux cpufreq sub-system is enabled or not.
 
 Policy in MSR_IA32_ENERGY_PERF_BIAS (EPB)
 may affect a wide range of hardware decisions,
@@ -103,7 +103,7 @@ a measurable performance impact to maximize energy efficiency.
 
 .PP
 The following table shows the mapping from the value strings above to actual MSR values.
-This mapping is defined in the Linux-kernel header, msr-index.h.
+This mapping is defined in the GNU/Linux-kernel header, msr-index.h.
 
 .nf
 VALUE STRING      	EPB	EPP
@@ -176,7 +176,7 @@ be used to modify HWP limit fields at the same time that
 intel_pstate's sysfs attributes access the same MSRs.
 .PP
 Note that --hwp-desired and --hwp-window are considered experimental.
-Future versions of Linux reserve the right to access these
+Future versions of GNU/Linux reserve the right to access these
 fields internally -- potentially conflicting with user-space access.
 .SH EXAMPLE
 .nf

@@ -1,14 +1,14 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ========================
-BFS Filesystem for Linux
+BFS Filesystem for GNU/Linux
 ========================
 
 The BFS filesystem is used by SCO UnixWare OS for the /stand slice, which
 usually contains the kernel image and a few other files required for the
 boot process.
 
-In order to access /stand partition under Linux you obviously need to
+In order to access /stand partition under GNU/Linux you obviously need to
 know the partition number and the kernel must support UnixWare disk slices
 (CONFIG_UNIXWARE_DISKLABEL config option). However BFS support does not
 depend on having UnixWare disklabel support because one can also mount

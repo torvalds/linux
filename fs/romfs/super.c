@@ -3,7 +3,7 @@
  * Copyright © 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
- * Derived from: ROMFS file system, Linux implementation
+ * Derived from: ROMFS file system, GNU/Linux implementation
  *
  * Copyright © 1997-1999  Janos Farkas <chexum@shadow.banki.hu>
  *

@@ -33,7 +33,7 @@ static const char shortname [] = "printer";
 /* Thanks to NetChip Technologies for donating this product ID.
  */
 #define PRINTER_VENDOR_NUM	0x0525		/* NetChip */
-#define PRINTER_PRODUCT_NUM	0xa4a8		/* Linux-USB Printer Gadget */
+#define PRINTER_PRODUCT_NUM	0xa4a8		/* GNU/Linux-USB Printer Gadget */
 
 /* Some systems will want different product identifiers published in the
  * device descriptor, either numbers or strings or both.  These string

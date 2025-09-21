@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Generic HDLC support routines for Linux
+ * Generic HDLC support routines for GNU/Linux
  * Cisco HDLC support
  *
  * Copyright (C) 2000 - 2006 Krzysztof Halasa <khc@pm.waw.pl>

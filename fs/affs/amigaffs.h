@@ -144,6 +144,6 @@ struct affs_data_head
 #define FIBF_NODELETE		0x0001		/* 0 means allowed */
 
 #define FIBF_OWNER		0x000F		/* Bits pertaining to owner */
-#define FIBF_MASK		0xEE0E		/* Bits modified by Linux */
+#define FIBF_MASK		0xEE0E		/* Bits modified by GNU/Linux */
 
 #endif

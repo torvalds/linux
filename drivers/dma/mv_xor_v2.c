@@ -149,7 +149,7 @@ struct mv_xor_v2_descriptor {
  * @desc_size: HW descriptor size
  * @npendings: number of pending descriptors (for which tx_submit has
  * @hw_queue_idx: HW queue index
- * @irq: The Linux interrupt number
+ * @irq: The GNU/Linux interrupt number
  * been called, but not yet issue_pending)
  */
 struct mv_xor_v2_device {

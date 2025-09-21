@@ -6,7 +6,7 @@ Overview
 ========
 
 The Extcon (External Connector) subsystem provides a unified framework for
-managing external connectors in Linux systems. It allows drivers to report
+managing external connectors in GNU/Linux systems. It allows drivers to report
 the state of external connectors and provides a standardized interface for
 userspace to query and monitor these states.
 

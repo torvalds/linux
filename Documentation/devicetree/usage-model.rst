@@ -1,14 +1,14 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ========================
-Linux and the Devicetree
+GNU/Linux and the Devicetree
 ========================
 
-The Linux usage model for device tree data
+The GNU/Linux usage model for device tree data
 
 :Author: Grant Likely <grant.likely@secretlab.ca>
 
-This article describes how Linux uses the device tree.  An overview of
+This article describes how GNU/Linux uses the device tree.  An overview of
 the device tree data format can be found on the device tree usage page
 at devicetree.org\ [1]_.
 
@@ -50,10 +50,10 @@ thereby support a majority of available hardware without hard coded
 information (assuming drivers were available for all devices).
 
 Since Open Firmware is commonly used on PowerPC and SPARC platforms,
-the Linux support for those architectures has for a long time used the
+the GNU/Linux support for those architectures has for a long time used the
 Device Tree.
 
-In 2005, when PowerPC Linux began a major cleanup and to merge 32-bit
+In 2005, when PowerPC GNU/Linux began a major cleanup and to merge 32-bit
 and 64-bit support, the decision was made to require DT support on all
 powerpc platforms, regardless of whether or not they used Open
 Firmware.  To do this, a DT representation called the Flattened Device
@@ -82,7 +82,7 @@ structure that describes the hardware.  There is nothing magical about
 it, and it doesn't magically make all hardware configuration problems
 go away.  What it does do is provide a language for decoupling the
 hardware configuration from the board and device driver support in the
-Linux kernel (or any other operating system for that matter).  Using
+GNU/Linux kernel (or any other operating system for that matter).  Using
 it allows board and device support to become data driven; to make
 setup decisions based on data passed into the kernel instead of on
 per-machine hard coded selections.
@@ -91,7 +91,7 @@ Ideally, data driven platform setup should result in less code
 duplication and make it easier to support a wide range of hardware
 with a single kernel image.
 
-Linux uses DT data for three major purposes:
+GNU/Linux uses DT data for three major purposes:
 
 1) platform identification,
 2) runtime configuration, and
@@ -188,7 +188,7 @@ configuration data like the kernel parameters string and the location
 of an initrd image.
 
 Most of this data is contained in the /chosen node, and when booting
-Linux it will look something like this::
+GNU/Linux it will look something like this::
 
 	chosen {
 		bootargs = "console=ttyS0,115200 loglevel=8";
@@ -238,7 +238,7 @@ to call any of the DT query functions (of_* in include/linux/of*.h) to
 get additional data about the platform.
 
 The most interesting hook in the DT context is .init_machine() which
-is primarily responsible for populating the Linux device model with
+is primarily responsible for populating the GNU/Linux device model with
 data about the platform.  Historically this has been implemented on
 embedded platforms by defining a set of static clock structures,
 platform_devices, and other data in the board support .c file, and
@@ -249,7 +249,7 @@ structures dynamically.
 
 The simplest case is when .init_machine() is only responsible for
 registering a block of platform_devices.  A platform_device is a concept
-used by Linux for memory or I/O mapped devices which cannot be detected
+used by GNU/Linux for memory or I/O mapped devices which cannot be detected
 by hardware, and for 'composite' or 'virtual' devices (more on those
 later).  While there is no 'platform device' terminology for the DT,
 platform devices roughly correspond to device nodes at the root of the
@@ -339,11 +339,11 @@ assumed that any node with a 'compatible' property represents a device
 of some kind, and second, it can be assumed that any node at the root
 of the tree is either directly attached to the processor bus, or is a
 miscellaneous system device that cannot be described any other way.
-For each of these nodes, Linux allocates and registers a
+For each of these nodes, GNU/Linux allocates and registers a
 platform_device, which in turn may get bound to a platform_driver.
 
 Why is using a platform_device for these nodes a safe assumption?
-Well, for the way that Linux models devices, just about all bus_types
+Well, for the way that GNU/Linux models devices, just about all bus_types
 assume that its devices are children of a bus controller.  For
 example, each i2c_client is a child of an i2c_master.  Each spi_device
 is a child of an SPI bus.  Similarly for USB, PCI, MDIO, etc.  The
@@ -351,11 +351,11 @@ same hierarchy is also found in the DT, where I2C device nodes only
 ever appear as children of an I2C bus node.  Ditto for SPI, MDIO, USB,
 etc.  The only devices which do not require a specific type of parent
 device are platform_devices (and amba_devices, but more on that
-later), which will happily live at the base of the Linux /sys/devices
+later), which will happily live at the base of the GNU/Linux /sys/devices
 tree.  Therefore, if a DT node is at the root of the tree, then it
 really probably is best registered as a platform_device.
 
-Linux board support code calls of_platform_populate(NULL, NULL, NULL, NULL)
+GNU/Linux board support code calls of_platform_populate(NULL, NULL, NULL, NULL)
 to kick off discovery of devices at the root of the tree.  The
 parameters are all NULL because when starting from the root of the
 tree, there is no need to provide a starting node (the first NULL), a
@@ -366,7 +366,7 @@ of_platform_populate() call.
 
 In the Tegra example, this accounts for the /soc and /sound nodes, but
 what about the children of the SoC node?  Shouldn't they be registered
-as platform devices too?  For Linux DT support, the generic behaviour
+as platform devices too?  For GNU/Linux DT support, the generic behaviour
 is for child devices to be registered by the parent's device driver at
 driver .probe() time.  So, an i2c bus device driver will register a
 i2c_client for each child node, an SPI bus driver will register
@@ -405,9 +405,9 @@ Appendix A: AMBA devices
 
 ARM Primecells are a certain kind of device attached to the ARM AMBA
 bus which include some support for hardware detection and power
-management.  In Linux, struct amba_device and the amba_bus_type is
+management.  In GNU/Linux, struct amba_device and the amba_bus_type is
 used to represent Primecell devices.  However, the fiddly bit is that
-not all devices on an AMBA bus are Primecells, and for Linux it is
+not all devices on an AMBA bus are Primecells, and for GNU/Linux it is
 typical for both amba_device and platform_device instances to be
 siblings of the same bus segment.
 

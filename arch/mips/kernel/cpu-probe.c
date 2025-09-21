@@ -1138,7 +1138,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_R4650:
 		/*
 		 * This processor doesn't have an MMU, so it's not
-		 * "real easy" to run Linux on it. It is left purely
+		 * "real easy" to run GNU/Linux on it. It is left purely
 		 * for documentation.  Commented out because it shares
 		 * its c0_prid id number with the TX3900.
 		 */

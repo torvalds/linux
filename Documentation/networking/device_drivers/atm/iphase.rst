@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==================================
-ATM (i)Chip IA Linux Driver Source
+ATM (i)Chip IA GNU/Linux Driver Source
 ==================================
 
 			      READ ME FIRST
@@ -15,7 +15,7 @@ ATM (i)Chip IA Linux Driver Source
 Description
 ===========
 
-This is the README file for the Interphase PCI ATM (i)Chip IA Linux driver
+This is the README file for the Interphase PCI ATM (i)Chip IA GNU/Linux driver
 source release.
 
 The features and limitations of this driver are as follows:

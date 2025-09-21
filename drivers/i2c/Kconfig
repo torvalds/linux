@@ -17,7 +17,7 @@ config I2C
 	  especially in the file called "summary" there.
 
 	  Both I2C and SMBus are supported here. You will need this for
-	  hardware sensors support, and also for Video For Linux support.
+	  hardware sensors support, and also for Video For GNU/Linux support.
 
 	  If you want I2C support, you should say Y here and also to the
 	  specific driver for your bus adapter(s) below.
@@ -114,7 +114,7 @@ config I2C_STUB
 config I2C_SLAVE
 	bool "I2C slave support"
 	help
-	  This enables Linux to act as an I2C slave device. Note that your I2C
+	  This enables GNU/Linux to act as an I2C slave device. Note that your I2C
 	  bus master driver also needs to support this functionality. Please
 	  read Documentation/i2c/slave-interface.rst for further details.
 
@@ -123,7 +123,7 @@ if I2C_SLAVE
 config I2C_SLAVE_EEPROM
 	tristate "I2C eeprom slave driver"
 	help
-	  This backend makes Linux behave like an I2C EEPROM. Please read
+	  This backend makes GNU/Linux behave like an I2C EEPROM. Please read
 	  Documentation/i2c/slave-eeprom-backend.rst for further details.
 
 config I2C_SLAVE_TESTUNIT

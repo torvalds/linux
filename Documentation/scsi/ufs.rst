@@ -112,7 +112,7 @@ UFS communication architecture consists of the following layers.
 3. UFSHCD Overview
 ==================
 
-The UFS host controller driver is based on the Linux SCSI Framework.
+The UFS host controller driver is based on the GNU/Linux SCSI Framework.
 UFSHCD is a low-level device driver which acts as an interface between
 the SCSI Midlayer and PCIe-based UFS host controllers.
 

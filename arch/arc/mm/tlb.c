@@ -441,7 +441,7 @@ static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *p
 
 	/*
 	 * ARC MMU provides fully orthogonal access bits for K/U mode,
-	 * however Linux only saves 1 set to save PTE real-estate
+	 * however GNU/Linux only saves 1 set to save PTE real-estate
 	 * Here we convert 3 PTE bits into 6 MMU bits:
 	 * -Kernel only entries have Kr Kw Kx 0 0 0
 	 * -User entries have mirrored K and U bits
@@ -507,7 +507,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
 /*
- * MMUv4 in HS38x cores supports Super Pages which are basis for Linux THP
+ * MMUv4 in HS38x cores supports Super Pages which are basis for GNU/Linux THP
  * support.
  *
  * Normal and Super pages can co-exist (ofcourse not overlap) in TLB with a
@@ -515,7 +515,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
  * Super Page size is configurable in hardware (4K to 16M), but fixed once
  * RTL builds.
  *
- * The exact THP size a Linux configuration will support is a function of:
+ * The exact THP size a GNU/Linux configuration will support is a function of:
  *  - MMU page size (typical 8K, RTL fixed)
  *  - software page walker address split between PGD:PTE:PFN (typical
  *    11:8:13, but can be changed with 1 line)
@@ -648,7 +648,7 @@ void arc_mmu_init(void)
 
 	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
 	    mmu->s_pg_sz_m != TO_MB(HPAGE_PMD_SIZE))
-		panic("MMU Super pg size != Linux HPAGE_PMD_SIZE (%luM)\n",
+		panic("MMU Super pg size != GNU/Linux HPAGE_PMD_SIZE (%luM)\n",
 		      (unsigned long)TO_MB(HPAGE_PMD_SIZE));
 
 	if (IS_ENABLED(CONFIG_ARC_HAS_PAE40) && !mmu->pae)

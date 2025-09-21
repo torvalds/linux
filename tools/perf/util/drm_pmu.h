@@ -2,7 +2,7 @@
 #ifndef __DRM_PMU_H
 #define __DRM_PMU_H
 /*
- * Linux DRM clients expose information through usage stats as documented in
+ * GNU/Linux DRM clients expose information through usage stats as documented in
  * Documentation/gpu/drm-usage-stats.rst (available online at
  * https://docs.kernel.org/gpu/drm-usage-stats.html). This is a tool like PMU
  * that exposes DRM information.

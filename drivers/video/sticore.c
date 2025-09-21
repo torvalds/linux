@@ -357,7 +357,7 @@ static int sti_font_setup(char *str)
 	/*
 	 * The default font can be selected in various ways.
 	 * a) sti_font=VGA8x16, sti_font=10x20, sti_font=10*20 selects
-	 *    an built-in Linux framebuffer font.
+	 *    an built-in GNU/Linux framebuffer font.
 	 * b) sti_font=<index>, where index is (1..x) with 1 selecting
 	 *    the first HP STI ROM built-in font..
 	 */

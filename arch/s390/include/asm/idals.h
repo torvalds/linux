@@ -2,7 +2,7 @@
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * Bugreports.to..: <GNU/Linux390@de.ibm.com>
  * Copyright IBM Corp. 2000
  *
  * History of changes

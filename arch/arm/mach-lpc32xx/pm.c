@@ -13,14 +13,14 @@
  *
  * The LPC32XX has three CPU modes for controlling system power: run,
  * direct-run, and halt modes. When switching between halt and run modes,
- * the CPU transistions through direct-run mode. For Linux, direct-run
+ * the CPU transistions through direct-run mode. For GNU/Linux, direct-run
  * mode is not used in normal operation. Halt mode is used when the
  * system is fully suspended.
  *
  * Run mode:
  * The ARM CPU clock (HCLK_PLL), HCLK bus clock, and PCLK bus clocks are
  * derived from the HCLK PLL. The HCLK and PCLK bus rates are divided from
- * the HCLK_PLL rate. Linux runs in this mode.
+ * the HCLK_PLL rate. GNU/Linux runs in this mode.
  *
  * Direct-run mode:
  * The ARM CPU clock, HCLK bus clock, and PCLK bus clocks are driven from

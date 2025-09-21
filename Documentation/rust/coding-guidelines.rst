@@ -406,7 +406,7 @@ For more information about diagnostics in Rust, please see:
 Error handling
 --------------
 
-For some background and guidelines about Rust for Linux specific error handling,
+For some background and guidelines about Rust for GNU/Linux specific error handling,
 please see:
 
 	https://rust.docs.kernel.org/kernel/error/type.Result.html#error-codes-in-c-and-rust

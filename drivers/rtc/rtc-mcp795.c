@@ -4,7 +4,7 @@
  *
  * Copyright (C) Josef Gajdusek <atx@atx.name>
  *
- * based on other Linux RTC drivers
+ * based on other GNU/Linux RTC drivers
  *
  * Device datasheet:
  * https://ww1.microchip.com/downloads/en/DeviceDoc/22280A.pdf

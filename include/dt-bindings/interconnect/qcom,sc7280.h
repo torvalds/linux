@@ -2,7 +2,7 @@
 /*
  * Qualcomm SC7280 interconnect IDs
  *
- * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef __DT_BINDINGS_INTERCONNECT_QCOM_SC7280_H

@@ -36,7 +36,7 @@ static u64 hv_sched_clock_offset __read_mostly;
  * where it sends a VMbus message when it expires. The old
  * mechanism is used when running on older versions of Hyper-V
  * that don't support Direct Mode. While Hyper-V provides
- * four stimer's per CPU, Linux uses only stimer0.
+ * four stimer's per CPU, GNU/Linux uses only stimer0.
  *
  * Because Direct Mode does not require processing a VMbus
  * message, stimer interrupts can be enabled earlier in the
@@ -265,7 +265,7 @@ int hv_stimer_alloc(bool have_percpu_irqs)
 
 	/*
 	 * Synthetic timers are always available except on old versions of
-	 * Hyper-V on x86.  In that case, return as error as Linux will use a
+	 * Hyper-V on x86.  In that case, return as error as GNU/Linux will use a
 	 * clockevent based on emulated LAPIC timer hardware.
 	 */
 	if (!(ms_hyperv.features & HV_MSR_SYNTIMER_AVAILABLE))
@@ -611,7 +611,7 @@ void __init hv_init_clocksource(void)
 	 * Try to set up the TSC page clocksource, then the MSR clocksource.
 	 * At least one of these will always be available except on very old
 	 * versions of Hyper-V on x86.  In that case we won't have a Hyper-V
-	 * clocksource, but Linux will still run with a clocksource based
+	 * clocksource, but GNU/Linux will still run with a clocksource based
 	 * on the emulated PIT or LAPIC timer.
 	 *
 	 * Never use the MSR clocksource as sched clock.  It's too slow.

@@ -82,7 +82,7 @@ static void __init rcar_gen2_timer_init(void)
 	    of_machine_is_compatible("renesas,r8a7794")) {
 		freq = 260000000 / 8;	/* ZS / 8 */
 	} else {
-		/* At Linux boot time the r8a7790 arch timer comes up
+		/* At GNU/Linux boot time the r8a7790 arch timer comes up
 		 * with the counter disabled. Moreover, it may also report
 		 * a potentially incorrect fixed 13 MHz frequency. To be
 		 * correct these registers need to be updated to use the

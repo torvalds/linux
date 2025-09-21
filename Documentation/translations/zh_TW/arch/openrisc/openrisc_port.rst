@@ -9,10 +9,10 @@
 .. _tw_openrisc_port:
 
 ==============
-OpenRISC Linux
+OpenRISC GNU/Linux
 ==============
 
-這是Linux對OpenRISC類微處理器的移植；具體來說，最早移植目標是32位
+這是GNU/Linux對OpenRISC類微處理器的移植；具體來說，最早移植目標是32位
 OpenRISC 1000系列（或1k）。
 
 關於OpenRISC處理器和正在進行中的開發的信息:
@@ -24,10 +24,10 @@ OpenRISC 1000系列（或1k）。
 
 ---------------------------------------------------------------------
 
-OpenRISC工具鏈和Linux的構建指南
+OpenRISC工具鏈和GNU/Linux的構建指南
 ===============================
 
-爲了構建和運行Linux for OpenRISC，你至少需要一個基本的工具鏈，或許
+爲了構建和運行GNU/Linux for OpenRISC，你至少需要一個基本的工具鏈，或許
 還需要架構模擬器。 這裏概述了準備就位這些部分的步驟。
 
 1) 工具鏈
@@ -44,7 +44,7 @@ OpenRISC工具鏈和Linux的構建指南
 
 2) 構建
 
-像往常一樣構建Linux內核::
+像往常一樣構建GNU/Linux內核::
 
 	make ARCH=openrisc CROSS_COMPILE="or1k-linux-" defconfig
 	make ARCH=openrisc CROSS_COMPILE="or1k-linux-"
@@ -76,8 +76,8 @@ FPGA RTL是從FuseSoC IP核庫中下載的代碼，並使用FPGA供應商工具�
 4) 在模擬器上運行（可選）
 
 QEMU是一個處理器仿真器，我們推薦它來模擬OpenRISC平臺。 請按照QEMU網
-站上的OpenRISC說明，讓Linux在QEMU上運行。 你可以自己構建QEMU，但你的
-Linux發行版可能提供了支持OpenRISC的二進制包。
+站上的OpenRISC說明，讓GNU/Linux在QEMU上運行。 你可以自己構建QEMU，但你的
+GNU/Linux發行版可能提供了支持OpenRISC的二進制包。
 
 	=============	======================================================
 	qemu openrisc	https://wiki.qemu.org/Documentation/Platforms/OpenRISC
@@ -124,5 +124,5 @@ or1200:   OpenRISC 1200處理器
    增加了opencores framebuffer驅動。
 
 2010-10-09    Jonas Bonn (jonas@southpole.se)
-   重大重寫，使其與上游的Linux 2.6.36看齊。
+   重大重寫，使其與上游的GNU/Linux 2.6.36看齊。
 

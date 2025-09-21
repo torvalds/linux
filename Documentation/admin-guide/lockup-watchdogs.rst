@@ -2,7 +2,7 @@
 Softlockup detector and hardlockup detector (aka nmi_watchdog)
 ===============================================================
 
-The Linux kernel can act as a watchdog to detect both soft and hard
+The GNU/Linux kernel can act as a watchdog to detect both soft and hard
 lockups.
 
 A 'softlockup' is defined as a bug that causes the kernel to loop in

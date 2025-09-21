@@ -7,7 +7,7 @@ config MOST_VIDEO
 	tristate "Video"
 	depends on VIDEO_DEV
 	help
-	  Say Y here if you want to commumicate via Video 4 Linux.
+	  Say Y here if you want to commumicate via Video 4 GNU/Linux.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called most_video.

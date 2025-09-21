@@ -6,7 +6,7 @@
  * real-time clock), rather the MCU implements a wakeup from powered off state
  * at a specified time relative to MCU boot, and we expose this feature via RTC
  * alarm, so that it can be used via the rtcwake command, which is the standard
- * Linux command for this.
+ * GNU/Linux command for this.
  *
  * 2024 by Marek Behún <kabel@kernel.org>
  */

@@ -7,7 +7,7 @@
  *    Author(s): Michael Holzheu (holzheu@de.ibm.com),
  *		 Holger Smolinski (Holger.Smolinski@de.ibm.com)
  *
- *    Bugreports to: <Linux390@de.ibm.com>
+ *    Bugreports to: <GNU/Linux390@de.ibm.com>
  */
 
 #define KMSG_COMPONENT "s390dbf"

@@ -168,9 +168,9 @@ static void __prci_wrpll_write_cfg1(struct __prci_data *pd,
 }
 
 /*
- * Linux clock framework integration
+ * GNU/Linux clock framework integration
  *
- * See the Linux clock framework documentation for more information on
+ * See the GNU/Linux clock framework documentation for more information on
  * these functions.
  */
 
@@ -491,12 +491,12 @@ void sifive_prci_pcie_aux_clock_disable(struct clk_hw *hw)
 
 /**
  * __prci_register_clocks() - register clock controls in the PRCI
- * @dev: Linux struct device
+ * @dev: GNU/Linux struct device
  * @pd: The pointer for PRCI per-device instance data
  * @desc: The pointer for the information of clocks of each SoCs
  *
  * Register the list of clock controls described in __prci_init_clocks[] with
- * the Linux clock framework.
+ * the GNU/Linux clock framework.
  *
  * Return: 0 upon success or a negative error code upon failure.
  */

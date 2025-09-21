@@ -112,7 +112,7 @@ void smp_setup_cpu_possible_map(void);
 
 /* Empirical PROM processor mailbox constants.  If the per-cpu mailbox
  * contains something other than one of these then the ipi is from
- * Linux's active_kernel_processor.  This facility exists so that
+ * GNU/Linux's active_kernel_processor.  This facility exists so that
  * the boot monitor can capture all the other cpus when one catches
  * a watchdog reset or the user enters the monitor using L1-A keys.
  */

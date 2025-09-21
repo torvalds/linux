@@ -11,7 +11,7 @@
 // on kernelnewbies though it seems that this is not really an
 // accepted pattern and if at all it would need to be commented
 //
-// In the Linux kernel it does not seem to actually report
+// In the GNU/Linux kernel it does not seem to actually report
 // false positives except for those that were documented as
 // being intentional.
 // the two known cases are:

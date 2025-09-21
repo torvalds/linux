@@ -2,7 +2,7 @@
 /*
  * Kernel traps/events for Hexagon processor
  *
- * Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2014, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -353,7 +353,7 @@ void do_trap0(struct pt_regs *regs)
 
 		/*
 		 * System call number is in r6, arguments in r0..r5.
-		 * Fortunately, no Linux syscall has more than 6 arguments,
+		 * Fortunately, no GNU/Linux syscall has more than 6 arguments,
 		 * and Hexagon ABI passes first 6 arguments in registers.
 		 * 64-bit arguments are passed in odd/even register pairs.
 		 * Fortunately, we have no system calls that take more

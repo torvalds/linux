@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Roccat driver for Linux
+ * Roccat driver for GNU/Linux
  *
  * Copyright (c) 2010 Stefan Achatz <erazor_de@users.sourceforge.net>
  */

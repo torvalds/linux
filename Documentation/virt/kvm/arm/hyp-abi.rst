@@ -4,8 +4,8 @@
 Internal ABI between the kernel and HYP
 =======================================
 
-This file documents the interaction between the Linux kernel and the
-hypervisor layer when running Linux as a hypervisor (for example
+This file documents the interaction between the GNU/Linux kernel and the
+hypervisor layer when running GNU/Linux as a hypervisor (for example
 KVM). It doesn't cover the interaction of the kernel with the
 hypervisor when running as a guest (under Xen, KVM or any other
 hypervisor), or any hypervisor-specific interaction when the kernel is
@@ -36,7 +36,7 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
   Set HVBAR/VBAR_EL2 to 'vectors' to enable a hypervisor. 'vectors'
   must be a physical address, and respect the alignment requirements
   of the architecture. Only implemented by the initial stubs, not by
-  Linux hypervisors.
+  GNU/Linux hypervisors.
 
 * ::
 

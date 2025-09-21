@@ -46,7 +46,7 @@ Name              Alias           Usage               Preserved
 ================= =============== =================== ============
 
 .. Note::
-    The register ``$r21`` is reserved in the ELF psABI, but used by the Linux
+    The register ``$r21`` is reserved in the ELF psABI, but used by the GNU/Linux
     kernel for storing the percpu base address. It normally has no ABI name,
     but is called ``$u0`` in the kernel. You may also see ``$v0`` or ``$v1``
     in some old code,however they are deprecated aliases of ``$a0`` and ``$a1``
@@ -385,6 +385,6 @@ Documentation of LoongArch ELF psABI:
 
   https://github.com/loongson/LoongArch-Documentation/releases/latest/download/LoongArch-ELF-ABI-v2.01-EN.pdf (in English)
 
-Linux kernel repository of Loongson and LoongArch:
+GNU/Linux kernel repository of Loongson and LoongArch:
 
   https://git.kernel.org/pub/scm/linux/kernel/git/chenhuacai/linux-loongson.git

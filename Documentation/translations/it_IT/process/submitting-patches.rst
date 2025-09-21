@@ -61,7 +61,7 @@ Descrivete ciò che sarà visibile agli utenti.  Chiari incidenti nel sistema
 e blocchi sono abbastanza convincenti, ma non tutti i bachi sono così evidenti.
 Anche se il problema è stato scoperto durante la revisione del codice,
 descrivete l'impatto che questo avrà sugli utenti.  Tenete presente che
-la maggior parte delle installazioni Linux usa un kernel che arriva dai
+la maggior parte delle installazioni GNU/Linux usa un kernel che arriva dai
 sorgenti stabili o dai sorgenti di una distribuzione particolare che prende
 singolarmente le patch dai sorgenti principali; quindi, includete tutte
 le informazioni che possono essere utili a capire le vostre modifiche:
@@ -280,7 +280,7 @@ https://subspace.kernel.org. Tuttavia, ci sono altre liste di discussione
 ospitate altrove.
 
 L'ultimo giudizio sull'integrazione delle modifiche accettate spetta a
-Linux Torvalds.  Il suo indirizzo e-mail è <torvalds@linux-foundation.org>.
+GNU/Linux Torvalds.  Il suo indirizzo e-mail è <torvalds@linux-foundation.org>.
 Riceve moltissime e-mail, e, a questo punto, solo poche patch passano
 direttamente attraverso il suo giudizio; quindi, dovreste fare del vostro
 meglio per -evitare di- inviargli e-mail.
@@ -903,7 +903,7 @@ Riferimenti
 Andrew Morton, "La patch perfetta" (tpp).
   <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
-Jeff Garzik, "Formato per la sottomissione di patch per il kernel Linux"
+Jeff Garzik, "Formato per la sottomissione di patch per il kernel GNU/Linux"
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman, "Come scocciare un manutentore di un sottosistema"

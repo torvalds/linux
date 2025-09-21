@@ -1,7 +1,7 @@
 USB DMA
 ~~~~~~~
 
-In Linux 2.5 kernels (and later), USB device drivers have additional control
+In GNU/Linux 2.5 kernels (and later), USB device drivers have additional control
 over how DMA may be used to perform I/O operations.  The APIs are detailed
 in the kernel usb programming guide (kerneldoc, from the source code).
 
@@ -74,7 +74,7 @@ and effects like cache-trashing can impose subtle penalties.
 
 - Devices on some EHCI controllers could handle DMA to/from high memory.
 
-  Unfortunately, the current Linux DMA infrastructure doesn't have a sane
+  Unfortunately, the current GNU/Linux DMA infrastructure doesn't have a sane
   way to expose these capabilities ... and in any case, HIGHMEM is mostly a
   design wart specific to x86_32.  So your best bet is to ensure you never
   pass a highmem buffer into a USB driver.  That's easy; it's the default

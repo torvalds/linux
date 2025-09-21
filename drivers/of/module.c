@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux kernel module helpers.
+ * GNU/Linux kernel module helpers.
  */
 
 #include <linux/of.h>

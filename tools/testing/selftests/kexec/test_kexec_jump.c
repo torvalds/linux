@@ -19,7 +19,7 @@ asm(
     "  leaq purgatory_start_b(%rip), %r11\n"
     "  movq %r11, 8(%rsp)\n"
 
-    // Back to Linux
+    // Back to GNU/Linux
     "  ret\n"
 
     // Same again
@@ -32,7 +32,7 @@ asm(
     "  leaq purgatory_start(%rip), %r11\n"
     "  movq %r11, 8(%rsp)\n"
 
-    // Back to Linux
+    // Back to GNU/Linux
     "  ret\n"
 
     "purgatory_end:\n"

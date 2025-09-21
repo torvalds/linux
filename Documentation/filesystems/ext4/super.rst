@@ -187,7 +187,7 @@ The ext4 superblock is laid out as follows in
    * - 0xC8
      - __le32
      - s_algorithm_usage_bitmap
-     - For compression (Not used in e2fsprogs/Linux)
+     - For compression (Not used in e2fsprogs/GNU/Linux)
    * -
      -
      -
@@ -197,12 +197,12 @@ The ext4 superblock is laid out as follows in
      - __u8
      - s_prealloc_blocks
      - #. of blocks to try to preallocate for ... files? (Not used in
-       e2fsprogs/Linux)
+       e2fsprogs/GNU/Linux)
    * - 0xCD
      - __u8
      - s_prealloc_dir_blocks
      - #. of blocks to preallocate for directories. (Not used in
-       e2fsprogs/Linux)
+       e2fsprogs/GNU/Linux)
    * - 0xCE
      - __le16
      - s_reserved_gdt_blocks
@@ -342,21 +342,21 @@ The ext4 superblock is laid out as follows in
    * - 0x180
      - __le32
      - s_snapshot_inum
-     - inode number of active snapshot. (Not used in e2fsprogs/Linux.)
+     - inode number of active snapshot. (Not used in e2fsprogs/GNU/Linux.)
    * - 0x184
      - __le32
      - s_snapshot_id
-     - Sequential ID of active snapshot. (Not used in e2fsprogs/Linux.)
+     - Sequential ID of active snapshot. (Not used in e2fsprogs/GNU/Linux.)
    * - 0x188
      - __le64
      - s_snapshot_r_blocks_count
      - Number of blocks reserved for active snapshot's future use. (Not used in
-       e2fsprogs/Linux.)
+       e2fsprogs/GNU/Linux.)
    * - 0x190
      - __le32
      - s_snapshot_list
      - inode number of the head of the on-disk snapshot list. (Not used in
-       e2fsprogs/Linux.)
+       e2fsprogs/GNU/Linux.)
    * - 0x194
      - __le32
      - s_error_count
@@ -543,7 +543,7 @@ The filesystem creator is one of the following:
    * - Value
      - Description
    * - 0
-     - Linux
+     - GNU/Linux
    * - 1
      - Hurd
    * - 2
@@ -596,7 +596,7 @@ following:
    * - 0x20
      - Has directory indices (COMPAT_DIR_INDEX).
    * - 0x40
-     - “Lazy BG”. Not in Linux kernel, seems to have been for uninitialized
+     - “Lazy BG”. Not in GNU/Linux kernel, seems to have been for uninitialized
        block groups? (COMPAT_LAZY_BG)
    * - 0x80
      - “Exclude inode”. Not used. (COMPAT_EXCLUDE_INODE).

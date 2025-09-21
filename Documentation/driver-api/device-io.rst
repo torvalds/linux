@@ -16,7 +16,7 @@ Bus-Independent Device Accesses
 Introduction
 ============
 
-Linux provides an API which abstracts performing IO across all busses
+GNU/Linux provides an API which abstracts performing IO across all busses
 and devices, allowing device drivers to be written independently of bus
 type.
 
@@ -49,7 +49,7 @@ Accessing the device
 --------------------
 
 The part of the interface most used by drivers is reading and writing
-memory-mapped registers on the device. Linux provides interfaces to read
+memory-mapped registers on the device. GNU/Linux provides interfaces to read
 and write 8-bit, 16-bit, 32-bit and 64-bit quantities. Due to a
 historical accident, these are named byte, word, long and quad accesses.
 Both read and write accesses are supported; there is no prefetch support

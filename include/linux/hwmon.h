@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
-    hwmon.h - part of lm_sensors, Linux kernel modules for hardware monitoring
+    hwmon.h - part of lm_sensors, GNU/Linux kernel modules for hardware monitoring
 
     This file declares helper functions for the sysfs class "hwmon",
     for use by sensors drivers.

@@ -87,7 +87,7 @@ static inline const char *arc_platform_smp_cpuinfo(void)
  *
  * (2) In a SMP setup, the LLOCK/SCOND atomicity across CPUs needs to be
  *	guaranteed by the platform (not something which core handles).
- *	Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
+ *	Assuming a platform won't, SMP GNU/Linux needs to use spinlocks + local IRQ
  *	disabling for atomicity.
  *
  *	However exported spinlock API is not usable due to cyclic hdr deps

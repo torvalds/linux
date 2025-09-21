@@ -6,7 +6,7 @@ Description:	Directory containing information about the system's IRQs.
 		Specifically, data from the associated struct irq_desc.
 		The information here is similar to that in /proc/interrupts
 		but in a more machine-friendly format.  This directory contains
-		one subdirectory for each Linux IRQ number.
+		one subdirectory for each GNU/Linux IRQ number.
 
 What:		/sys/kernel/irq/<irq>/actions
 Date:		September 2016
@@ -27,7 +27,7 @@ Date:		September 2016
 KernelVersion:	4.9
 Contact:	Craig Gallek <kraig@google.com>
 Description:	When interrupt translation domains are used, this file contains
-		the underlying hardware IRQ number used for this Linux IRQ.
+		the underlying hardware IRQ number used for this GNU/Linux IRQ.
 
 What:		/sys/kernel/irq/<irq>/name
 Date:		September 2016

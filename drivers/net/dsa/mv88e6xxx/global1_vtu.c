@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2008 Marvell Semiconductor
  * Copyright (c) 2015 CMC Electronics, Inc.
- * Copyright (c) 2017 Savoir-faire Linux, Inc.
+ * Copyright (c) 2017 Savoir-faire GNU/Linux, Inc.
  */
 
 #include <linux/bitfield.h>

@@ -236,18 +236,18 @@ For changing the ownership, group ID or permissions mask, being the owner of
 the key or having the sysadmin capability is sufficient.
 
 
-SELinux Support
+SEGNU/Linux Support
 ===============
 
-The security class "key" has been added to SELinux so that mandatory access
+The security class "key" has been added to SEGNU/Linux so that mandatory access
 controls can be applied to keys created within various contexts.  This support
 is preliminary, and is likely to change quite significantly in the near future.
-Currently, all of the basic permissions explained above are provided in SELinux
-as well; SELinux is simply invoked after all basic permission checks have been
+Currently, all of the basic permissions explained above are provided in SEGNU/Linux
+as well; SEGNU/Linux is simply invoked after all basic permission checks have been
 performed.
 
 The value of the file /proc/self/attr/keycreate influences the labeling of
-newly-created keys.  If the contents of that file correspond to an SELinux
+newly-created keys.  If the contents of that file correspond to an SEGNU/Linux
 security context, then the key will be assigned that context.  Otherwise, the
 key will be assigned the current context of the task that invoked the key
 creation request.  Tasks must be granted explicit permission to assign a

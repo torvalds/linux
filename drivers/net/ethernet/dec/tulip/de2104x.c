@@ -1,4 +1,4 @@
-/* de2104x.c: A Linux PCI Ethernet driver for Intel/Digital 21040/1 chips. */
+/* de2104x.c: A GNU/Linux PCI Ethernet driver for Intel/Digital 21040/1 chips. */
 /*
 	Copyright 2001,2003 Jeff Garzik <jgarzik@pobox.com>
 

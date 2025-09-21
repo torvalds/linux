@@ -14,7 +14,7 @@
  * reconfiguration.  The code reconfiguring the ports cannot run out of SDRAM
  * nor can the FPGA access the SDRAM during reconfiguration.  This driver does
  * not support reconfiguring the ports.  The ports are configured by code
- * running out of on chip ram before Linux is started and the configuration
+ * running out of on chip ram before GNU/Linux is started and the configuration
  * is passed in a handoff register in the system manager.
  *
  * This driver supports enabling and disabling of the configured ports, which

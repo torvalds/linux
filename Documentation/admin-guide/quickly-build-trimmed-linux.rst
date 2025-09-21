@@ -2,25 +2,25 @@
 .. [see the bottom of this file for redistribution information]
 
 ===========================================
-How to quickly build a trimmed Linux kernel
+How to quickly build a trimmed GNU/Linux kernel
 ===========================================
 
-This guide explains how to swiftly build Linux kernels that are ideal for
+This guide explains how to swiftly build GNU/Linux kernels that are ideal for
 testing purposes, but perfectly fine for day-to-day use, too.
 
 The essence of the process (aka 'TL;DR')
 ========================================
 
-*[If you are new to compiling Linux, ignore this TLDR and head over to the next
+*[If you are new to compiling GNU/Linux, ignore this TLDR and head over to the next
 section below: it contains a step-by-step guide, which is more detailed, but
 still brief and easy to follow; that guide and its accompanying reference
 section also mention alternatives, pitfalls, and additional aspects, all of
 which might be relevant for you.]*
 
 If your system uses techniques like Secure Boot, prepare it to permit starting
-self-compiled Linux kernels; install compilers and everything else needed for
-building Linux; make sure to have 12 Gigabyte free space in your home directory.
-Now run the following commands to download fresh Linux mainline sources, which
+self-compiled GNU/Linux kernels; install compilers and everything else needed for
+building GNU/Linux; make sure to have 12 Gigabyte free space in your home directory.
+Now run the following commands to download fresh GNU/Linux mainline sources, which
 you then use to configure, build and install your own kernel::
 
     git clone --depth 1 -b master \
@@ -33,7 +33,7 @@ you then use to configure, build and install your own kernel::
     #   have to, if you are running Debian. See below for details.
     make -j $(nproc --all)
     # Note: on many commodity distributions the next command suffices, but on Arch
-    #   Linux, its derivatives, and some others it does not. See below for details.
+    #   GNU/Linux, its derivatives, and some others it does not. See below for details.
     command -v installkernel && sudo make modules_install install
     reboot
 
@@ -54,12 +54,12 @@ If you later want to build a newer mainline snapshot, use these commands::
 Step-by-step guide
 ==================
 
-Compiling your own Linux kernel is easy in principle. There are various ways to
+Compiling your own GNU/Linux kernel is easy in principle. There are various ways to
 do it. Which of them actually work and is the best depends on the circumstances.
 
 This guide describes a way perfectly suited for those who want to quickly
-install Linux from sources without being bothered by complicated details; the
-goal is to cover everything typically needed on mainstream Linux distributions
+install GNU/Linux from sources without being bothered by complicated details; the
+goal is to cover everything typically needed on mainstream GNU/Linux distributions
 running on commodity PC or server hardware.
 
 The described approach is great for testing purposes, for example to try a
@@ -100,17 +100,17 @@ again.
 
 .. _buildrequires_sbs:
 
- * Install all software required to build a Linux kernel. Often you will need:
+ * Install all software required to build a GNU/Linux kernel. Often you will need:
    'bc', 'binutils' ('ld' et al.), 'bison', 'flex', 'gcc', 'git', 'openssl',
    'pahole', 'perl', and the development headers for 'libelf' and 'openssl'. The
-   reference section shows how to quickly install those on various popular Linux
+   reference section shows how to quickly install those on various popular GNU/Linux
    distributions.
 
    [:ref:`details<buildrequires>`]
 
 .. _diskspace_sbs:
 
- * Ensure to have enough free space for building and installing Linux. For the
+ * Ensure to have enough free space for building and installing GNU/Linux. For the
    latter 150 Megabyte in /lib/ and 100 in /boot/ are a safe bet. For storing
    sources and build artifacts 12 Gigabyte in your home directory should
    typically suffice. If you have less available, be sure to check the reference
@@ -122,12 +122,12 @@ again.
 
 .. _sources_sbs:
 
- * Retrieve the sources of the Linux version you intend to build; then change
+ * Retrieve the sources of the GNU/Linux version you intend to build; then change
    into the directory holding them, as all further commands in this guide are
    meant to be executed from there.
 
    *[Note: the following paragraphs describe how to retrieve the sources by
-   partially cloning the Linux stable git repository. This is called a shallow
+   partially cloning the GNU/Linux stable git repository. This is called a shallow
    clone. The reference section explains two alternatives:* :ref:`packaged
    archives<sources_archive>` *and* :ref:`a full git clone<sources_full>` *;
    prefer the latter, if downloading a lot of data does not bother you, as that
@@ -213,10 +213,10 @@ again.
    This will try to pick your distribution's kernel as base, but then disable
    modules for any features apparently superfluous for your setup. This will
    reduce the compile time enormously, especially if you are running an
-   universal kernel from a commodity Linux distribution.
+   universal kernel from a commodity GNU/Linux distribution.
 
    There is a catch: 'localmodconfig' is likely to disable kernel features you
-   did not use since you booted your Linux -- like drivers for currently
+   did not use since you booted your GNU/Linux -- like drivers for currently
    disconnected peripherals or a virtualization software not haven't used yet.
    You can reduce or nearly eliminate that risk with tricks the reference
    section outlines; but when building a kernel just for quick testing purposes
@@ -264,16 +264,16 @@ again.
      command -v installkernel && sudo make modules_install install
 
    Often all left for you to do afterwards is a ``reboot``, as many commodity
-   Linux distributions will then create an initramfs (also known as initrd) and
+   GNU/Linux distributions will then create an initramfs (also known as initrd) and
    an entry for your kernel in your bootloader's configuration; but on some
    distributions you have to take care of these two steps manually for reasons
    the reference section explains.
 
-   On a few distributions like Arch Linux and its derivatives the above command
+   On a few distributions like Arch GNU/Linux and its derivatives the above command
    does nothing at all; in that case you have to manually install your kernel,
    as outlined in the reference section.
 
-   If you are running a immutable Linux distribution, check its documentation
+   If you are running a immutable GNU/Linux distribution, check its documentation
    and the web to find out how to install your own kernel there.
 
    [:ref:`details<install>`]
@@ -353,7 +353,7 @@ Did you run into trouble following any of the above steps that is not cleared up
 by the reference section below? Or do you have ideas how to improve the text?
 Then please take a moment of your time and let the maintainer of this document
 know by email (Thorsten Leemhuis <linux@leemhuis.info>), ideally while CCing the
-Linux docs mailing list (linux-doc@vger.kernel.org). Such feedback is vital to
+GNU/Linux docs mailing list (linux-doc@vger.kernel.org). Such feedback is vital to
 improve this document further, which is in everybody's interest, as it will
 enable more people to master the task described here.
 
@@ -397,12 +397,12 @@ its purpose; 'Documentation/admin-guide/module-signing.rst' and various web
 sides already explain this in more detail.
 
 Temporarily disabling solutions like Secure Boot is another way to make your own
-Linux boot. On commodity x86 systems it is possible to do this in the BIOS Setup
+GNU/Linux boot. On commodity x86 systems it is possible to do this in the BIOS Setup
 utility; the steps to do so are not described here, as they greatly vary between
 machines.
 
-On mainstream x86 Linux distributions there is a third and universal option:
-disable all Secure Boot restrictions for your Linux environment. You can
+On mainstream x86 GNU/Linux distributions there is a third and universal option:
+disable all Secure Boot restrictions for your GNU/Linux environment. You can
 initiate this process by running ``mokutil --disable-validation``; this will
 tell you to create a one-time password, which is safe to write down. Now
 restart; right after your BIOS performed all self-tests the bootloader Shim will
@@ -420,12 +420,12 @@ Afterwards, permit MokManager to reboot the machine.
 Install build requirements
 --------------------------
 
-   *Install all software required to build a Linux kernel.*
+   *Install all software required to build a GNU/Linux kernel.*
    [:ref:`...<buildrequires_sbs>`]
 
 The kernel is pretty stand-alone, but besides tools like the compiler you will
 sometimes need a few libraries to build one. How to install everything needed
-depends on your Linux distribution and the configuration of the kernel you are
+depends on your GNU/Linux distribution and the configuration of the kernel you are
 about to build.
 
 Here are a few examples what you typically need on some mainstream
@@ -466,7 +466,7 @@ development headers for ncurses or Qt5.
 Space requirements
 ------------------
 
-   *Ensure to have enough free space for building and installing Linux.*
+   *Ensure to have enough free space for building and installing GNU/Linux.*
    [:ref:`... <diskspace_sbs>`]
 
 The numbers mentioned are rough estimates with a big extra charge to be on the
@@ -485,10 +485,10 @@ a few gigabytes.
 Download the sources
 --------------------
 
-  *Retrieve the sources of the Linux version you intend to build.*
+  *Retrieve the sources of the GNU/Linux version you intend to build.*
   [:ref:`...<sources_sbs>`]
 
-The step-by-step guide outlines how to retrieve Linux' sources using a shallow
+The step-by-step guide outlines how to retrieve GNU/Linux' sources using a shallow
 git clone. There is :ref:`more to tell about this method<sources_shallow>` and
 two alternate ways worth describing: :ref:`packaged archives<sources_archive>`
 and :ref:`a full git clone<sources_full>`. And the aspects ':ref:`wouldn't it
@@ -538,7 +538,7 @@ worth mentioning:
    'fatal: error in object: unshallow cafecaca0c0dacafecaca0c0dacafecaca0c0da'.
    In that case run ``git repack -d`` and try again``
 
- * In case you want to revert changes from a certain version (say Linux 6.3) or
+ * In case you want to revert changes from a certain version (say GNU/Linux 6.3) or
    perform a bisection (v6.2..v6.3), better tell ``git fetch`` to retrieve
    objects up to three versions earlier (e.g. 6.0): ``git describe`` will then
    be able to describe most commits just like it would in a full git clone.
@@ -550,8 +550,8 @@ worth mentioning:
 Downloading the sources using a packages archive
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-People new to compiling Linux often assume downloading an archive via the
-front-page of https://kernel.org is the best approach to retrieve Linux'
+People new to compiling GNU/Linux often assume downloading an archive via the
+front-page of https://kernel.org is the best approach to retrieve GNU/Linux'
 sources. It actually can be, if you are certain to build just one particular
 kernel version without changing any code. Thing is: you might be sure this will
 be the case, but in practice it often will turn out to be a wrong assumption.
@@ -624,12 +624,12 @@ Avoiding the mainline lag
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The explanations for both the shallow clone and the full clone both retrieve the
-code from the Linux stable git repository. That makes things simpler for this
+code from the GNU/Linux stable git repository. That makes things simpler for this
 document's audience, as it allows easy access to both mainline and
 stable/longterm releases. This approach has just one downside:
 
 Changes merged into the mainline repository are only synced to the master branch
-of the Linux stable repository  every few hours. This lag most of the time is
+of the GNU/Linux stable repository  every few hours. This lag most of the time is
 not something to worry about; but in case you really need the latest code, just
 add the mainline repo as additional remote and checkout the code from there::
 
@@ -899,7 +899,7 @@ to find the most crucial line describing the problem. Then search the internet
 for the most important and non-generic section of that line (say 4 to 8 words);
 avoid or remove anything that looks remotely system-specific, like your username
 or local path names like ``/home/username/linux/``. First try your regular
-internet search engine with that string, afterwards search Linux kernel mailing
+internet search engine with that string, afterwards search GNU/Linux kernel mailing
 lists via `lore.kernel.org/all/ <https://lore.kernel.org/all/>`_.
 
 This most of the time will find something that will explain what is wrong; quite
@@ -950,7 +950,7 @@ Install your kernel
 
 What you need to do after executing the command in the step-by-step guide
 depends on the existence and the implementation of an ``installkernel``
-executable. Many commodity Linux distributions ship such a kernel installer in
+executable. Many commodity GNU/Linux distributions ship such a kernel installer in
 ``/sbin/`` that does everything needed, hence there is nothing left for you
 except rebooting. But some distributions contain an installkernel that does
 only part of the job -- and a few lack it completely and leave all the work to
@@ -958,7 +958,7 @@ you.
 
 If ``installkernel`` is found, the kernel's build system will delegate the
 actual installation of your kernel's image and related files to this executable.
-On almost all Linux distributions it will store the image as '/boot/vmlinuz-
+On almost all GNU/Linux distributions it will store the image as '/boot/vmlinuz-
 <your kernel's release name>' and put a 'System.map-<your kernel's release
 name>' alongside it. Your kernel will thus be installed in parallel to any
 existing ones, unless you already have one with exactly the same release name.
@@ -971,7 +971,7 @@ modules. Often installkernel will then add your kernel to the bootloader
 configuration, too. You have to take care of one or both of these tasks
 yourself, if your distributions installkernel doesn't handle them.
 
-A few distributions like Arch Linux and its derivatives totally lack an
+A few distributions like Arch GNU/Linux and its derivatives totally lack an
 installkernel executable. On those just install the modules using the kernel's
 build system and then install the image and the System.map file manually::
 
@@ -1059,7 +1059,7 @@ Why does this 'how-to' not work on my system?
 ---------------------------------------------
 
 As initially stated, this guide is 'designed to cover everything typically
-needed [to build a kernel] on mainstream Linux distributions running on
+needed [to build a kernel] on mainstream GNU/Linux distributions running on
 commodity PC or server hardware'. The outlined approach despite this should work
 on many other setups as well. But trying to cover every possible use-case in one
 guide would defeat its purpose, as without such a focus you would need dozens or
@@ -1086,11 +1086,11 @@ document, as :ref:`described above <submit_improvements_qbtl>`.
 ..
    This text is available under GPL-2.0+ or CC-BY-4.0, as stated at the top
    of the file. If you want to distribute this text under CC-BY-4.0 only,
-   please use 'The Linux kernel development community' for author attribution
+   please use 'The GNU/Linux kernel development community' for author attribution
    and link this as source:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/admin-guide/quickly-build-trimmed-linux.rst
 ..
-   Note: Only the content of this RST file as found in the Linux kernel sources
+   Note: Only the content of this RST file as found in the GNU/Linux kernel sources
    is available under CC-BY-4.0, as versions of this text that were processed
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.

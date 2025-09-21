@@ -87,7 +87,7 @@ static const struct {
 } sam9x60_systemck[] = {
 	/*
 	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
-	 * to keep it enabled in case there is no Linux consumer for it.
+	 * to keep it enabled in case there is no GNU/Linux consumer for it.
 	 */
 	{ .n = "ddrck",  .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "uhpck",  .p = "usbck",    .id = 6 },
@@ -147,7 +147,7 @@ static const struct {
 	{ .n = "dbgu_clk",   .id = 47, },
 	/*
 	 * mpddr_clk feeds DDR controller and is enabled by bootloader thus we
-	 * need to keep it enabled in case there is no Linux consumer for it.
+	 * need to keep it enabled in case there is no GNU/Linux consumer for it.
 	 */
 	{ .n = "mpddr_clk",  .id = 49, .flags = CLK_IS_CRITICAL },
 };

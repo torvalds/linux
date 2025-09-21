@@ -6,7 +6,7 @@ Author: Krzysztof Kozlowski
 
 Date  : 6 June 2015
 
-The document tries to describe currently used interface between Linux kernel
+The document tries to describe currently used interface between GNU/Linux kernel
 and boot loaders on Samsung Exynos based boards. This is not a definition
 of interface but rather a description of existing state, a reference
 for information purpose only.

@@ -3,7 +3,7 @@ menuconfig STAGING
 	bool "Staging drivers"
 	help
 	  This option allows you to select a number of drivers that are
-	  not of the "normal" Linux kernel quality level.  These drivers
+	  not of the "normal" GNU/Linux kernel quality level.  These drivers
 	  are placed here in order to get a wider audience to make use of
 	  them.  Please note that these drivers are under heavy
 	  development, may or may not work, and may contain userspace

@@ -9,7 +9,7 @@ config SLIP
 	help
 	  Say Y if you intend to use SLIP or CSLIP (compressed SLIP) to
 	  connect to your Internet service provider or to connect to some
-	  other local Unix box or if you want to configure your Linux box as a
+	  other local Unix box or if you want to configure your GNU/Linux box as a
 	  Slip/CSlip server for other people to dial in. SLIP (Serial Line
 	  Internet Protocol) is a protocol used to send Internet traffic over
 	  serial connections such as telephone lines or null modem cables;
@@ -19,7 +19,7 @@ config SLIP
 	  Normally, your access provider has to support SLIP in order for you
 	  to be able to use it, but there is now a SLIP emulator called SLiRP
 	  around (available from
-	  <ftp://ibiblio.org/pub/Linux/system/network/serial/>) which
+	  <ftp://ibiblio.org/pub/GNU/Linux/system/network/serial/>) which
 	  allows you to use SLIP over a regular dial up shell connection. If
 	  you plan to use SLiRP, make sure to say Y to CSLIP, below. The
 	  NET-3-HOWTO, available from
@@ -52,7 +52,7 @@ config SLIP_COMPRESSED
 	  on both ends. Ask your access provider if you are not sure and
 	  answer Y, just in case. You will still be able to use plain SLIP. If
 	  you plan to use SLiRP, the SLIP emulator (available from
-	  <ftp://ibiblio.org/pub/Linux/system/network/serial/>) which
+	  <ftp://ibiblio.org/pub/GNU/Linux/system/network/serial/>) which
 	  allows you to use SLIP over a regular dial up shell connection, you
 	  definitely want to say Y here. The NET-3-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, explains how to configure

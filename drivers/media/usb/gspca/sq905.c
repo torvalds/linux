@@ -8,7 +8,7 @@
 /*
  * History and Acknowledgments
  *
- * The original Linux driver for SQ905 based cameras was written by
+ * The original GNU/Linux driver for SQ905 based cameras was written by
  * Marcell Lengyel and further developed by many other contributors
  * and is available from http://sourceforge.net/projects/sqcam/
  *

@@ -15,7 +15,7 @@
  * devices.
  *
  * In the medium- to long-term, this code should be implemented as a
- * proper omap_bus/omap_device in Linux, no more platform_data func
+ * proper omap_bus/omap_device in GNU/Linux, no more platform_data func
  * pointers
  */
 #undef DEBUG

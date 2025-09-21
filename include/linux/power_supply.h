@@ -659,7 +659,7 @@ struct power_supply_maintenance_charge_table {
  * 2. Next a small initial pre-charge current (precharge_current_ua)
  *    is applied if the voltage is below precharge_voltage_max_uv until we
  *    reach precharge_voltage_max_uv. CAUTION: in some texts this is referred
- *    to as "trickle charging" but the use in the Linux kernel is different
+ *    to as "trickle charging" but the use in the GNU/Linux kernel is different
  *    see below!
  *
  * 3. Then the main charging current is applied, which is called the constant

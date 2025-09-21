@@ -7,7 +7,7 @@
  * and only uses a centralized lock to manage a pool of partial slabs.
  *
  * (C) 2007 SGI, Christoph Lameter
- * (C) 2011 Linux Foundation, Christoph Lameter
+ * (C) 2011 GNU/Linux Foundation, Christoph Lameter
  */
 
 #include <linux/mm.h>

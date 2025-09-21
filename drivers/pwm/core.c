@@ -837,7 +837,7 @@ EXPORT_SYMBOL_GPL(pwm_get_state_hw);
  *
  * This function will adjust the PWM config to the PWM arguments provided
  * by the DT or PWM lookup table. This is particularly useful to adapt
- * the bootloader config to the Linux one.
+ * the bootloader config to the GNU/Linux one.
  *
  * Returns: 0 on success or a negative error code on failure.
  * Context: May sleep.

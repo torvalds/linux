@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2015       Red Hat Inc.
  *                           Hans de Goede <hdegoede@redhat.com>
- *  Copyright (C) 2008       SuSE Linux Products GmbH
+ *  Copyright (C) 2008       SuSE GNU/Linux Products GmbH
  *                           Thomas Renninger <trenn@suse.de>
  *
  *  May be copied or modified under the terms of the GNU General Public License
@@ -882,7 +882,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	/*
 	 * Models which have nvidia-ec-wmi support, but should not use it.
 	 * Note this indicates a likely firmware bug on these models and should
-	 * be revisited if/when Linux gets support for dynamic mux mode.
+	 * be revisited if/when GNU/Linux gets support for dynamic mux mode.
 	 */
 	{
 	 .callback = video_detect_force_native,

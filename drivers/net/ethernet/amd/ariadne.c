@@ -1,5 +1,5 @@
 /*
- *  Amiga Linux/m68k Ariadne Ethernet Driver
+ *  Amiga GNU/Linux/m68k Ariadne Ethernet Driver
  *
  *  © Copyright 1995-2003 by Geert Uytterhoeven (geert@linux-m68k.org)
  *			     Peter De Schrijver (p2@mind.be)
@@ -21,7 +21,7 @@
  *  ---------------------------------------------------------------------------
  *
  *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of the Linux
+ *  License.  See the file COPYING in the main directory of the GNU/Linux
  *  distribution for more details.
  *
  *  ---------------------------------------------------------------------------

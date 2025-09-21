@@ -295,7 +295,7 @@ static struct cc_blob_sev_info *find_cc_blob_efi(struct boot_params *bp)
  * by firmware/bootloader in the following ways:
  *
  * - via an entry in the EFI config table
- * - via a setup_data structure, as defined by the Linux Boot Protocol
+ * - via a setup_data structure, as defined by the GNU/Linux Boot Protocol
  *
  * Scan for the blob in that order.
  */
@@ -465,7 +465,7 @@ void sev_enable(struct boot_params *bp)
 		 * Use RMPADJUST (see the rmpadjust() function for a description of
 		 * what the instruction does) to update the VMPL1 permissions of a
 		 * page. If the guest is running at VMPL0, this will succeed. If the
-		 * guest is running at any other VMPL, this will fail. Linux SNP guests
+		 * guest is running at any other VMPL, this will fail. GNU/Linux SNP guests
 		 * only ever run at a single VMPL level so permission mask changes of a
 		 * lesser-privileged VMPL are a don't-care.
 		 */

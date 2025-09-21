@@ -34,7 +34,7 @@ the TNC over a serial line. It can be used as an alternative to KISS.
   DAMA channel access methods.
   This kind of real-time control is especially important to supply several
   TNCs that are connected between each other and the PC by a daisy chain
-  (however, this feature is not supported yet by the Linux 6pack driver).
+  (however, this feature is not supported yet by the GNU/Linux 6pack driver).
 
 - Each packet transferred over the serial line is supplied with a checksum,
   so it is easy to detect errors due to problems on the serial line.
@@ -71,7 +71,7 @@ the file is 6pack.bin. This file is copyrighted and maintained by the FlexNet
 team. It can be used under the terms of the license that comes along
 with PC/FlexNet. Please do not ask me about the internals of this file as I
 don't know anything about it. I used a textual description of the 6pack
-protocol to program the Linux driver.
+protocol to program the GNU/Linux driver.
 
 TNCs contain a 64kByte EPROM, the lower half of which is used for
 the firmware/KISS. The upper half is either empty or is sometimes
@@ -145,7 +145,7 @@ Note that the connect and status LEDs of the TNC are controlled in a
 different way than they are when the TNC is used with PC/FlexNet. When using
 FlexNet, the connect LED is on if there is a connection; the status LED is
 on if there is data in the buffer of the PC's AX.25 engine that has to be
-transmitted. Under Linux, the 6pack layer is beyond the AX.25 layer,
+transmitted. Under GNU/Linux, the 6pack layer is beyond the AX.25 layer,
 so the 6pack driver doesn't know anything about connects or data that
 has not yet been transmitted. Therefore the LEDs are controlled
 as they are in KISS mode: The connect LED is turned on if data is transferred

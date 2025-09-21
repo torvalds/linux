@@ -1,7 +1,7 @@
 .. _kernel_hacking_hack:
 
 ============================================
-Unreliable Guide To Hacking The Linux Kernel
+Unreliable Guide To Hacking The GNU/Linux Kernel
 ============================================
 
 :Author: Rusty Russell
@@ -9,9 +9,9 @@ Unreliable Guide To Hacking The Linux Kernel
 Introduction
 ============
 
-Welcome, gentle reader, to Rusty's Remarkably Unreliable Guide to Linux
+Welcome, gentle reader, to Rusty's Remarkably Unreliable Guide to GNU/Linux
 Kernel Hacking. This document describes the common routines and general
-requirements for kernel code: its goal is to serve as a primer for Linux
+requirements for kernel code: its goal is to serve as a primer for GNU/Linux
 kernel development for experienced C programmers. I avoid implementation
 details: that's what the code is for, and I ignore whole tracts of
 useful routines.
@@ -145,7 +145,7 @@ A rigid stack limit
     Avoid deep recursion and huge local arrays on the stack (allocate
     them dynamically instead).
 
-The Linux kernel is portable
+The GNU/Linux kernel is portable
     Let's keep it that way. Your code should be 64-bit clean, and
     endian-independent. You should also minimize CPU specific stuff,
     e.g. inline assembly should be cleanly encapsulated and minimized to
@@ -179,7 +179,7 @@ occurs you return a negated errno (see
 ``include/uapi/asm-generic/errno.h`` and ``include/linux/errno.h``),
 otherwise you return 0.
 
-After you slept you should check if a signal occurred: the Unix/Linux
+After you slept you should check if a signal occurred: the Unix/GNU/Linux
 way of handling signals is to temporarily exit the system call with the
 ``-ERESTARTSYS`` error. The system call entry code will switch back to
 user context, process the signal handler and then your system call will
@@ -337,7 +337,7 @@ map. This block is not contiguous in physical memory, but the MMU makes
 it look like it is for you (so it'll only look contiguous to the CPUs,
 not to external device drivers). If you really need large physically
 contiguous memory for some weird device, you have a problem: it is
-poorly supported in Linux because after some time memory fragmentation
+poorly supported in GNU/Linux because after some time memory fragmentation
 in a running kernel makes it hard. The best way is to allocate the block
 early in the boot process via the :c:func:`alloc_bootmem()`
 routine.
@@ -668,7 +668,7 @@ fields are set. You should do this because it looks cool.
 GNU Extensions
 --------------
 
-GNU Extensions are explicitly allowed in the Linux kernel. Note that
+GNU Extensions are explicitly allowed in the GNU/Linux kernel. Note that
 some of the more complex ones are not very well supported, due to lack
 of general use, but the following are considered standard (see the GCC
 info page section "C Extensions" for more details - Yes, really the info

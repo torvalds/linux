@@ -1826,7 +1826,7 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define SYSCALL_NUM(_regs)				\
 	({						\
 		typeof((_regs).regs[2]) _nr;		\
-		if ((_regs).regs[2] == __NR_O32_Linux)	\
+		if ((_regs).regs[2] == __NR_O32_GNU/Linux)	\
 			_nr = (_regs).regs[4];		\
 		else					\
 			_nr = (_regs).regs[2];		\
@@ -1834,7 +1834,7 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 	})
 # define SYSCALL_NUM_SET(_regs, _nr)			\
 	do {						\
-		if ((_regs).regs[2] == __NR_O32_Linux)	\
+		if ((_regs).regs[2] == __NR_O32_GNU/Linux)	\
 			(_regs).regs[4] = _nr;		\
 		else					\
 			(_regs).regs[2] = _nr;		\
@@ -1919,7 +1919,7 @@ const bool ptrace_entry_set_syscall_ret =
 
 /*
  * Use PTRACE_GETREGS and PTRACE_SETREGS when available. This is useful for
- * architectures without HAVE_ARCH_TRACEHOOK (e.g. User-mode Linux).
+ * architectures without HAVE_ARCH_TRACEHOOK (e.g. User-mode GNU/Linux).
  */
 #if defined(__x86_64__) || defined(__i386__) || defined(__mips__) || defined(__mc68000__)
 # define ARCH_GETREGS(_regs)	ptrace(PTRACE_GETREGS, tracee, 0, &(_regs))

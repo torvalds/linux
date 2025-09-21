@@ -16,27 +16,27 @@ menuconfig TARGET_CORE
 if TARGET_CORE
 
 config TCM_IBLOCK
-	tristate "TCM/IBLOCK Subsystem Plugin for Linux/BLOCK"
+	tristate "TCM/IBLOCK Subsystem Plugin for GNU/Linux/BLOCK"
 	select BLK_DEV_INTEGRITY
 	help
 	Say Y here to enable the TCM/IBLOCK subsystem plugin for non-buffered
-	access to Linux/Block devices using BIO
+	access to GNU/Linux/Block devices using BIO
 
 config TCM_FILEIO
-	tristate "TCM/FILEIO Subsystem Plugin for Linux/VFS"
+	tristate "TCM/FILEIO Subsystem Plugin for GNU/Linux/VFS"
 	help
 	Say Y here to enable the TCM/FILEIO subsystem plugin for buffered
-	access to Linux/VFS struct file or struct block_device
+	access to GNU/Linux/VFS struct file or struct block_device
 
 config TCM_PSCSI
-	tristate "TCM/pSCSI Subsystem Plugin for Linux/SCSI"
+	tristate "TCM/pSCSI Subsystem Plugin for GNU/Linux/SCSI"
 	depends on SCSI
 	help
 	Say Y here to enable the TCM/pSCSI subsystem plugin for non-buffered
-	passthrough access to Linux/SCSI device
+	passthrough access to GNU/Linux/SCSI device
 
 config TCM_USER2
-	tristate "TCM/USER Subsystem Plugin for Linux"
+	tristate "TCM/USER Subsystem Plugin for GNU/Linux"
 	depends on UIO && NET
 	help
 	Say Y here to enable the TCM/USER subsystem plugin for a userspace

@@ -70,7 +70,7 @@ parse_headers.pl——解析一个C文件，识别函数、结构体、枚举、
 输出被写入到<输出文件>。
 
 它能够识别定义、函数、结构体、typedef、枚举和枚举符号，并为它们创建交叉引用。
-它还能够区分用于指定Linux ioctl的 ``#define`` 。
+它还能够区分用于指定GNU/Linux ioctl的 ``#define`` 。
 
 <例外文件> 包含两种类型的语句： \ **ignore**\  或 \ **replace**\ .
 

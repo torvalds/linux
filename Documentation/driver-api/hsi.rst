@@ -37,10 +37,10 @@ cellular die and CA for signals going the other way around.
     |            |                                 |               |
     +------------+                                 +---------------+
 
-HSI Subsystem in Linux
+HSI Subsystem in GNU/Linux
 -------------------------
 
-In the Linux kernel the hsi subsystem is supposed to be used for HSI devices.
+In the GNU/Linux kernel the hsi subsystem is supposed to be used for HSI devices.
 The hsi subsystem contains drivers for hsi controllers including support for
 multi-port controllers and provides a generic API for using the HSI ports.
 

@@ -174,7 +174,7 @@ Properties:
 - hwcap-bit-nr
   Usage: optional
   Value type: <u32>
-  Definition: Linux ELF AUX vector bit position (LSB0)
+  Definition: GNU/Linux ELF AUX vector bit position (LSB0)
 
   This property may exist when the usable-privilege property value has PR bit set.
   This property describes the bit number that should be set in the ELF AUX

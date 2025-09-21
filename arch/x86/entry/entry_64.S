@@ -51,7 +51,7 @@
  *
  * This is the only entry point used for 64-bit system calls.  The
  * hardware interface is reasonably well designed and the register to
- * argument mapping Linux uses fits well with the registers that are
+ * argument mapping GNU/Linux uses fits well with the registers that are
  * available when SYSCALL is used.
  *
  * SYSCALL instructions can be found inlined in libc implementations as
@@ -812,7 +812,7 @@ SYM_CODE_END(exc_xen_hypervisor_callback)
  * Category 1 we do not need to fix up as Xen has already reloaded all segment
  * registers that could be reloaded and zeroed the others.
  * Category 2 we fix up by killing the current process. We cannot use the
- * normal Linux return path in this case because if we use the IRET hypercall
+ * normal GNU/Linux return path in this case because if we use the IRET hypercall
  * to pop the stack frame we end up in an infinite loop of failsafe callbacks.
  * We distinguish between categories by comparing each saved segment register
  * with its current contents: any discrepancy means we in category 1.

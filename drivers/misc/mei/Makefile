@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (c) 2010-2019, Intel Corporation. All rights reserved.
-# Makefile - Intel Management Engine Interface (Intel MEI) Linux driver
+# Makefile - Intel Management Engine Interface (Intel MEI) GNU/Linux driver
 #
 obj-$(CONFIG_INTEL_MEI) += mei.o
 mei-objs := init.o

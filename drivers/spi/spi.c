@@ -910,7 +910,7 @@ static void spi_match_controller_to_boardinfo(struct spi_controller *ctlr,
  * with segments of the SPI device table.  Any device nodes are created later,
  * after the relevant parent SPI controller (bus_num) is defined.  We keep
  * this table of devices forever, so that reloading a controller driver will
- * not make Linux forget about these hard-wired devices.
+ * not make GNU/Linux forget about these hard-wired devices.
  *
  * Other code can also call this, e.g. a particular add-on board might provide
  * SPI devices through its expansion connector, so code initializing that board
@@ -2733,7 +2733,7 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 			/*
 			 * ACPI DeviceSelection numbering is handled by the
 			 * host controller driver in Windows and can vary
-			 * from driver to driver. In Linux we always expect
+			 * from driver to driver. In GNU/Linux we always expect
 			 * 0 .. max - 1 so we need to ask the driver to
 			 * translate between the two schemes.
 			 */
@@ -3220,7 +3220,7 @@ static int spi_controller_check_ops(struct spi_controller *ctlr)
 	return 0;
 }
 
-/* Allocate dynamic bus number using Linux idr */
+/* Allocate dynamic bus number using GNU/Linux idr */
 static int spi_controller_id_alloc(struct spi_controller *ctlr, int start, int end)
 {
 	int id;

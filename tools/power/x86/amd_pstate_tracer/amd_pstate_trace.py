@@ -13,7 +13,7 @@ Prerequisites:
     (Most of the distributions have these required packages. They may be called
      gnuplot-py, phython-gnuplot or phython3-gnuplot, gnuplot-nox, ... )
 
-    Kernel config for Linux trace is enabled
+    Kernel config for GNU/Linux trace is enabled
 
     see print_help(): for Usage and Output details
 

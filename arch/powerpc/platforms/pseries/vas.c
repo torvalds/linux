@@ -133,7 +133,7 @@ static int h_modify_vas_window(struct pseries_vas_window *win)
 	long rc;
 
 	/*
-	 * AMR value is not supported in Linux VAS implementation.
+	 * AMR value is not supported in GNU/Linux VAS implementation.
 	 * The hypervisor ignores it if 0 is passed.
 	 */
 	do {
@@ -1079,7 +1079,7 @@ static int __init pseries_vas_init(void)
 	int rc = 0;
 
 	/*
-	 * Linux supports user space COPY/PASTE only with Radix
+	 * GNU/Linux supports user space COPY/PASTE only with Radix
 	 */
 	if (!radix_enabled()) {
 		copypaste_feat = false;

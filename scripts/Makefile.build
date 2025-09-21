@@ -315,7 +315,7 @@ $(obj)/%.lst: $(obj)/%.c FORCE
 #   - Expected to become stable: `feature(arbitrary_self_types)`.
 #   - To be determined: `feature(used_with_arg)`.
 #
-# Please see https://github.com/Rust-for-Linux/linux/issues/2 for details on
+# Please see https://github.com/Rust-for-GNU/Linux/linux/issues/2 for details on
 # the unstable features in use.
 rust_allowed_features := asm_const,asm_goto,arbitrary_self_types,lint_reasons,offset_of_nested,raw_ref_op,used_with_arg
 

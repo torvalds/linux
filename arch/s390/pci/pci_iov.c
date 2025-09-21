@@ -40,7 +40,7 @@ void zpci_iov_map_resources(struct pci_dev *pdev)
 void zpci_iov_remove_virtfn(struct pci_dev *pdev, int vfn)
 {
 	pci_lock_rescan_remove();
-	/* Linux' vfid's start at 0 vfn at 1 */
+	/* GNU/Linux' vfid's start at 0 vfn at 1 */
 	pci_iov_remove_virtfn(pdev->physfn, vfn - 1);
 	pci_unlock_rescan_remove();
 }
@@ -84,7 +84,7 @@ struct pci_dev *zpci_iov_find_parent_pf(struct zpci_bus *zbus, struct zpci_dev *
 	/* Non-VFs and VFs without RID available don't have a parent */
 	if (!zdev->vfn || !zdev->rid_available)
 		return NULL;
-	/* Linux vfid starts at 0 vfn at 1 */
+	/* GNU/Linux vfid starts at 0 vfn at 1 */
 	vfid = zdev->vfn - 1;
 	devfn = zdev->rid & ZPCI_RID_MASK_DEVFN;
 	/*
@@ -119,7 +119,7 @@ int zpci_iov_setup_virtfn(struct zpci_bus *zbus, struct pci_dev *virtfn, int vfn
 
 	pdev_pf = zpci_iov_find_parent_pf(zbus, zdev);
 	if (pdev_pf) {
-		/* Linux' vfids start at 0 while zdev->vfn starts at 1 */
+		/* GNU/Linux' vfids start at 0 while zdev->vfn starts at 1 */
 		rc = zpci_iov_link_virtfn(pdev_pf, virtfn, zdev->vfn - 1);
 		pci_dev_put(pdev_pf);
 	}

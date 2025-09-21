@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Video4Linux devices
+Video4GNU/Linux devices
 -------------------
 
 .. toctree::

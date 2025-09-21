@@ -1,4 +1,4 @@
-/* sis900.c: A SiS 900/7016 PCI Fast Ethernet driver for Linux.
+/* sis900.c: A SiS 900/7016 PCI Fast Ethernet driver for GNU/Linux.
    Copyright 1999 Silicon Integrated System Corporation
    Revision:	1.08.10 Apr. 2 2006
 

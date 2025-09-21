@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * LoCoMo keyboard driver for Linux-based ARM PDAs:
+ * LoCoMo keyboard driver for GNU/Linux-based ARM PDAs:
  * 	- SHARP Zaurus Collie (SL-5500)
  * 	- SHARP Zaurus Poodle (SL-5600)
  *

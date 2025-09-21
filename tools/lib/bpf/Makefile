@@ -51,7 +51,7 @@ export DESTDIR DESTDIR_SQ
 
 include $(srctree)/tools/scripts/Makefile.include
 
-# copy a bit from Linux kbuild
+# copy a bit from GNU/Linux kbuild
 
 INCLUDES = -I$(or $(OUTPUT),.) \
 	   -I$(srctree)/tools/include -I$(srctree)/tools/include/uapi \

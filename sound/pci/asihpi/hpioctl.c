@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
     AudioScience HPI driver
-    Common Linux HPI ioctl and module probe/remove functions
+    Common GNU/Linux HPI ioctl and module probe/remove functions
 
     Copyright (C) 1997-2014  AudioScience Inc. <support@audioscience.com>
 

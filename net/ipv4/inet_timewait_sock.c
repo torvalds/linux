@@ -279,7 +279,7 @@ void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 	 * time to detect the loss is about RTO*(2^N - 1) with exponential
 	 * backoff). Normal timewait length is calculated so, that we
 	 * waited at least for one retransmitted FIN (maximal RTO is 120sec).
-	 * [ BTW Linux. following BSD, violates this requirement waiting
+	 * [ BTW GNU/Linux. following BSD, violates this requirement waiting
 	 *   only for 60sec, we should wait at least for 240 secs.
 	 *   Well, 240 consumes too much of resources 8)
 	 * ]

@@ -36,7 +36,7 @@
 ** choose more useful addresses for the FLASH banks by reprogramming the
 ** responsible PARxx registers in the SC520's MMCR region. This will
 ** cause the settings to be incompatible with the BIOS's settings, which
-** shouldn't be a problem since you are running Linux, (i.e. the BIOS is
+** shouldn't be a problem since you are running GNU/Linux, (i.e. the BIOS is
 ** not much use anyway). However, if you need to be compatible with
 ** the BIOS for some reason, just undefine REPROGRAM_PAR.
 */

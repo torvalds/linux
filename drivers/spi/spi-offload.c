@@ -10,7 +10,7 @@
  * Some SPI controllers support offloading of SPI transfers. Essentially, this
  * is the ability for a SPI controller to perform SPI transfers with minimal
  * or even no CPU intervention, e.g. via a specialized SPI controller with a
- * hardware trigger or via a conventional SPI controller using a non-Linux MCU
+ * hardware trigger or via a conventional SPI controller using a non-GNU/Linux MCU
  * processor core to offload the work.
  */
 

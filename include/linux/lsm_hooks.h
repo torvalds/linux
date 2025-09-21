@@ -1,5 +1,5 @@
 /*
- * Linux Security Module interfaces
+ * GNU/Linux Security Module interfaces
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001 Greg Kroah-Hartman <greg@kroah.com>
@@ -72,7 +72,7 @@ struct lsm_static_calls_table {
 } __packed __randomize_layout;
 
 /**
- * struct lsm_id - Identify a Linux Security Module.
+ * struct lsm_id - Identify a GNU/Linux Security Module.
  * @lsm: name of the LSM, must be approved by the LSM maintainers
  * @id: LSM ID number from uapi/linux/lsm.h
  *

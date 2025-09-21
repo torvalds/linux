@@ -14,7 +14,7 @@ General Information
 ===================
 
 ``intel_idle`` is a part of the
-:doc:`CPU idle time management subsystem <cpuidle>` in the Linux kernel
+:doc:`CPU idle time management subsystem <cpuidle>` in the GNU/Linux kernel
 (``CPUIdle``).  It is the default CPU idle time management driver for the
 Nehalem and later generations of Intel processors, but the level of support for
 a particular processor model in it depends on whether or not it recognizes that
@@ -55,7 +55,7 @@ The ``intel_idle`` driver exposes the following ``sysfs`` attributes in
 	C-state requests from the OS (e.g., C6 requests) to C1. The idea is that
 	firmware monitors CPU wake-up rate, and if it is higher than a
 	platform-specific threshold, the firmware demotes deep C-state requests
-	to C1. For example, Linux requests C6, but firmware noticed too many
+	to C1. For example, GNU/Linux requests C6, but firmware noticed too many
 	wake-ups per second, and it keeps the CPU in C1. When the CPU stays in
 	C1 long enough, the platform promotes it back to C6. This may improve
 	some workloads' performance, but it may also increase power consumption.

@@ -6,7 +6,7 @@ Apple Touchpad Driver (appletouch)
 
 :Copyright: |copy| 2005 Stelian Pop <stelian@popies.net>
 
-appletouch is a Linux kernel driver for the USB touchpad found on post
+appletouch is a GNU/Linux kernel driver for the USB touchpad found on post
 February 2005 and October 2005 Apple Aluminium Powerbooks.
 
 This driver is derived from Johannes Berg's appletrackpad driver [#f1]_,

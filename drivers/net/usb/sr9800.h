@@ -10,7 +10,7 @@
 #ifndef	_SR9800_H
 #define	_SR9800_H
 
-/* SR9800 spec. command table on Linux Platform */
+/* SR9800 spec. command table on GNU/Linux Platform */
 
 /* command : Software Station Management Control Reg */
 #define SR_CMD_SET_SW_MII		0x06

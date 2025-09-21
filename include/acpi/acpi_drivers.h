@@ -14,7 +14,7 @@
 /*
  * _HID definitions
  * HIDs must conform to ACPI spec(6.1.4)
- * Linux specific HIDs do not apply to this and begin with LNX:
+ * GNU/Linux specific HIDs do not apply to this and begin with LNX:
  */
 
 #define ACPI_POWER_HID			"LNXPOWER"

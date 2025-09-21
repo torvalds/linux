@@ -2865,7 +2865,7 @@ static void btc8723b2ant_action_a2dp(struct btc_coexist *btcoexist)
 	btcoexist->btc_get(btcoexist, BTC_GET_U1_AP_NUM, &ap_num);
 
 	/* define the office environment */
-	/* driver don't know AP num in Linux, so we will never enter this if */
+	/* driver don't know AP num in GNU/Linux, so we will never enter this if */
 	if (ap_num >= 10 && BTC_RSSI_HIGH(wifi_rssi_state1)) {
 		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1, 0xfffff,
 					  0x0);

@@ -53,7 +53,7 @@
 #define HASH_KEY_SIZE		(POLY1305_BLOCK_SIZE + NHPOLY1305_KEY_SIZE)
 
 /*
- * The specification allows variable-length tweaks, but Linux's crypto API
+ * The specification allows variable-length tweaks, but GNU/Linux's crypto API
  * currently only allows algorithms to support a single length.  The "natural"
  * tweak length for Adiantum is 16, since that fits into one Poly1305 block for
  * the best performance.  But longer tweaks are useful for fscrypt, to avoid

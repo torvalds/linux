@@ -37,7 +37,7 @@ int orangefs_getattr_timeout_msecs = 50;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ORANGEFS Development Team");
-MODULE_DESCRIPTION("The Linux Kernel VFS interface to ORANGEFS");
+MODULE_DESCRIPTION("The GNU/Linux Kernel VFS interface to ORANGEFS");
 MODULE_PARM_DESC(module_parm_debug_mask, "debugging level (see orangefs-debug.h for values)");
 MODULE_PARM_DESC(op_timeout_secs, "Operation timeout in seconds");
 MODULE_PARM_DESC(slot_timeout_secs, "Slot timeout in seconds");

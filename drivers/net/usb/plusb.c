@@ -21,7 +21,7 @@
  * Prolific PL-2301/PL-2302 driver ... http://www.prolific.com.tw/
  *
  * The protocol and handshaking used here should be bug-compatible
- * with the Linux 2.2 "plusb" driver, by Deti Fliegl.
+ * with the GNU/Linux 2.2 "plusb" driver, by Deti Fliegl.
  *
  * HEADS UP:  this handshaking isn't all that robust.  This driver
  * gets confused easily if you unplug one end of the cable then

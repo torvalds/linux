@@ -228,7 +228,7 @@ CFS调度类基于实体负载跟踪机制（Per-Entity Load Tracking, PELT）�
 3.1 CPU算力
 -----------
 
-当前，Linux无法凭自身算出CPU算力，因此必须要有把这个信息传递给Linux的方式。每个架构必须为此
+当前，GNU/Linux无法凭自身算出CPU算力，因此必须要有把这个信息传递给GNU/Linux的方式。每个架构必须为此
 定义arch_scale_cpu_capacity()函数。
 
 arm、arm64和RISC-V架构直接把这个信息映射到arch_topology驱动的CPU scaling数据中（译注：参考

@@ -3,7 +3,7 @@
  * mpc624.c
  * Hardware driver for a Micro/sys inc. MPC-624 PC/104 board
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 

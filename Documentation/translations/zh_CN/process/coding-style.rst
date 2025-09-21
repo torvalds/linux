@@ -16,7 +16,7 @@
  - Li Zefan <lizf@cn.fujitsu.com>
  - Wang Chen <wangchen@cn.fujitsu.com>
 
-Linux 内核代码风格
+GNU/Linux 内核代码风格
 ==================
 
 这是一个简短的文档，描述了 linux 内核的首选代码风格。代码风格是因人而异的，
@@ -216,9 +216,9 @@ C 语言风格中另外一个常见问题是大括号的放置。和缩进大小
 3.1) 空格
 *********
 
-Linux 内核的空格使用方式 (主要) 取决于它是用于函数还是关键字。(大多数) 关键字
+GNU/Linux 内核的空格使用方式 (主要) 取决于它是用于函数还是关键字。(大多数) 关键字
 后要加一个空格。值得注意的例外是 sizeof, typeof, alignof 和 __attribute__，这
-些关键字某些程度上看起来更像函数 (它们在 Linux 里也常常伴随小括号而使用，尽管
+些关键字某些程度上看起来更像函数 (它们在 GNU/Linux 里也常常伴随小括号而使用，尽管
 在 C 里这样的小括号不是必需的，就像 ``struct fileinfo info;`` 声明过后的
 ``sizeof info``)。
 
@@ -376,7 +376,7 @@ C 程序员不使用类似 ThisVariableIsATemporaryCounter 这样华丽的名字
      虽然让眼睛和脑筋来适应新的标准类型比如 ``uint32_t`` 不需要花很多时间，可
      是有些人仍然拒绝使用它们。
 
-     因此，Linux 特有的等同于标准类型的 ``u8/u16/u32/u64`` 类型和它们的有符号
+     因此，GNU/Linux 特有的等同于标准类型的 ``u8/u16/u32/u64`` 类型和它们的有符号
      类型是被允许的——尽管在你自己的新代码中，它们不是强制要求要使用的。
 
      当编辑已经使用了某个类型集的已有代码时，你应该遵循那些代码中已经做出的选
@@ -430,7 +430,7 @@ C 程序员不使用类似 ThisVariableIsATemporaryCounter 这样华丽的名字
 *************
 
 在函数原型中包含参数名和它们的数据类型。虽然 C 语言里没有这样的要求，但在
-Linux 里这是提倡的做法，因为这样可以很简单的给读者提供更多的有价值的信息。
+GNU/Linux 里这是提倡的做法，因为这样可以很简单的给读者提供更多的有价值的信息。
 
 不要在函数声明里使用 ``extern`` 关键字，因为这会导致代码行变长，并且不是严格
 必需的。
@@ -553,7 +553,7 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 
 	/*
 	 * This is the preferred style for multi-line
-	 * comments in the Linux kernel source code.
+	 * comments in the GNU/Linux kernel source code.
 	 * Please use it consistently.
 	 *
 	 * Description:  A column of asterisks on the left side,
@@ -658,7 +658,7 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 	depends on NET
 	help
 	  Enable auditing infrastructure that can be used with another
-	  kernel subsystem, such as SELinux (which requires this for
+	  kernel subsystem, such as SEGNU/Linux (which requires this for
 	  logging of avc messages output).  Does not do system-call
 	  auditing without CONFIG_AUDITSYSCALL.
 
@@ -888,7 +888,7 @@ inline gcc 也可以自动使其内联。而且其他用户可能会要求移除
 17) 使用布尔类型
 ----------------
 
-Linux内核布尔（bool）类型是C99 _Bool类型的别名。布尔值只能为0或1，而对布尔的
+GNU/Linux内核布尔（bool）类型是C99 _Bool类型的别名。布尔值只能为0或1，而对布尔的
 隐式或显式转换将自动将值转换为true或false。在使用布尔类型时 **不需要** 构造，
 它会消除一类错误。
 

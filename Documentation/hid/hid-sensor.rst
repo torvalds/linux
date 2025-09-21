@@ -156,7 +156,7 @@ HID Custom and generic Sensors
 
 
 HID Sensor specification defines two special sensor usage types. Since they
-don't represent a standard sensor, it is not possible to define using Linux IIO
+don't represent a standard sensor, it is not possible to define using GNU/Linux IIO
 type interfaces.
 The purpose of these sensors is to extend the functionality or provide a
 way to obfuscate the data being communicated by a sensor. Without knowing the

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * HighPoint RR3xxx/4xxx controller driver for Linux
+ * HighPoint RR3xxx/4xxx controller driver for GNU/Linux
  * Copyright (C) 2006-2015 HighPoint Technologies, Inc. All Rights Reserved.
  *
  * Please report bugs/comments/suggestions to linux@highpoint-tech.com

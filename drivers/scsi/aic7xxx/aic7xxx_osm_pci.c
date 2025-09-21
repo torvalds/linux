@@ -1,5 +1,5 @@
 /*
- * Linux driver attachment glue for PCI based controllers.
+ * GNU/Linux driver attachment glue for PCI based controllers.
  *
  * Copyright (c) 2000-2001 Adaptec Inc.
  * All rights reserved.

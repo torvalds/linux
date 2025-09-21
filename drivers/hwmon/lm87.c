@@ -8,7 +8,7 @@
  *                          Dan Eaton <dan.eaton@rocketlogix.com>
  * Copyright (C) 2004-2008  Jean Delvare <jdelvare@suse.de>
  *
- * Original port to Linux 2.6 by Jeff Oliver.
+ * Original port to GNU/Linux 2.6 by Jeff Oliver.
  *
  * The LM87 is a sensor chip made by National Semiconductor. It monitors up
  * to 8 voltages (including its own power source), up to three temperatures

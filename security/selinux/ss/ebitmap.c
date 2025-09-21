@@ -102,7 +102,7 @@ int ebitmap_and(struct ebitmap *dst, const struct ebitmap *e1,
  * @catmap: the NetLabel category bitmap
  *
  * Description:
- * Export a SELinux extensibile bitmap into a NetLabel category bitmap.
+ * Export a SEGNU/Linux extensibile bitmap into a NetLabel category bitmap.
  * Returns zero on success, negative values on error.
  *
  */
@@ -152,7 +152,7 @@ netlbl_export_failure:
  * @catmap: the NetLabel category bitmap
  *
  * Description:
- * Import a NetLabel category bitmap into a SELinux extensibile bitmap.
+ * Import a NetLabel category bitmap into a SEGNU/Linux extensibile bitmap.
  * Returns zero on success, negative values on error.
  *
  */
@@ -381,7 +381,7 @@ int ebitmap_read(struct ebitmap *e, struct policy_file *fp)
 	count = le32_to_cpu(buf[2]);
 
 	if (mapunit != BITS_PER_U64) {
-		pr_err("SELinux: ebitmap: map size %u does not "
+		pr_err("SEGNU/Linux: ebitmap: map size %u does not "
 		       "match my size %u (high bit was %u)\n",
 		       mapunit, BITS_PER_U64, e->highbit);
 		goto bad;
@@ -402,19 +402,19 @@ int ebitmap_read(struct ebitmap *e, struct policy_file *fp)
 	for (i = 0; i < count; i++) {
 		rc = next_entry(&ebitmap_start, fp, sizeof(u32));
 		if (rc < 0) {
-			pr_err("SELinux: ebitmap: truncated map\n");
+			pr_err("SEGNU/Linux: ebitmap: truncated map\n");
 			goto bad;
 		}
 		startbit = le32_to_cpu(ebitmap_start);
 
 		if (startbit & (mapunit - 1)) {
-			pr_err("SELinux: ebitmap start bit (%u) is "
+			pr_err("SEGNU/Linux: ebitmap start bit (%u) is "
 			       "not a multiple of the map unit size (%u)\n",
 			       startbit, mapunit);
 			goto bad;
 		}
 		if (startbit > e->highbit - mapunit) {
-			pr_err("SELinux: ebitmap start bit (%u) is "
+			pr_err("SEGNU/Linux: ebitmap start bit (%u) is "
 			       "beyond the end of the bitmap (%u)\n",
 			       startbit, (e->highbit - mapunit));
 			goto bad;
@@ -425,7 +425,7 @@ int ebitmap_read(struct ebitmap *e, struct policy_file *fp)
 			tmp = kmem_cache_zalloc(ebitmap_node_cachep,
 						GFP_KERNEL);
 			if (!tmp) {
-				pr_err("SELinux: ebitmap: out of memory\n");
+				pr_err("SEGNU/Linux: ebitmap: out of memory\n");
 				rc = -ENOMEM;
 				goto bad;
 			}
@@ -437,7 +437,7 @@ int ebitmap_read(struct ebitmap *e, struct policy_file *fp)
 				e->node = tmp;
 			n = tmp;
 		} else if (startbit <= n->startbit) {
-			pr_err("SELinux: ebitmap: start bit %u"
+			pr_err("SEGNU/Linux: ebitmap: start bit %u"
 			       " comes after start bit %u\n",
 			       startbit, n->startbit);
 			goto bad;
@@ -445,12 +445,12 @@ int ebitmap_read(struct ebitmap *e, struct policy_file *fp)
 
 		rc = next_entry(&mapbits, fp, sizeof(u64));
 		if (rc < 0) {
-			pr_err("SELinux: ebitmap: truncated map\n");
+			pr_err("SEGNU/Linux: ebitmap: truncated map\n");
 			goto bad;
 		}
 		map = le64_to_cpu(mapbits);
 		if (!map) {
-			pr_err("SELinux: ebitmap: empty map\n");
+			pr_err("SEGNU/Linux: ebitmap: empty map\n");
 			goto bad;
 		}
 
@@ -462,7 +462,7 @@ int ebitmap_read(struct ebitmap *e, struct policy_file *fp)
 	}
 
 	if (n && n->startbit + EBITMAP_SIZE != e->highbit) {
-		pr_err("SELinux: ebitmap: high bit %u is not equal to the expected value %zu\n",
+		pr_err("SEGNU/Linux: ebitmap: high bit %u is not equal to the expected value %zu\n",
 		       e->highbit, n->startbit + EBITMAP_SIZE);
 		goto bad;
 	}

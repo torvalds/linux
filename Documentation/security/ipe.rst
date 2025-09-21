@@ -44,14 +44,14 @@ was due to three main reasons:
       policy would indicate what labels required integrity verification, which
       presented an issue: EVM would protect the label, but if an attacker could
       modify filesystem offline, the attacker could wipe all the xattrs -
-      including the SELinux labels that would be used to determine whether the
+      including the SEGNU/Linux labels that would be used to determine whether the
       file should be subject to integrity policy.
 
       With DM-Verity, as the xattrs are saved as part of the Merkel tree, if
       offline mount occurs against the filesystem protected by dm-verity, the
       checksum no longer matches and the file fails to be read.
 
-    * As userspace binaries are paged in Linux, dm-verity also offers the
+    * As userspace binaries are paged in GNU/Linux, dm-verity also offers the
       additional protection against a hostile block device. In such an attack,
       the block device reports the appropriate content for the IMA hash
       initially, passing the required integrity check. Then, on the page fault
@@ -204,7 +204,7 @@ can be handled in one of three ways:
 The first option has problems: the kernel reading files from userspace
 is typically discouraged and very uncommon in the kernel.
 
-The second option also has problems: Linux supports a variety of bootloaders
+The second option also has problems: GNU/Linux supports a variety of bootloaders
 across its entire ecosystem - every bootloader would have to support this
 new methodology or there must be an independent source. It would likely
 result in more drastic changes to the kernel startup than necessary.

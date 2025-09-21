@@ -6,7 +6,7 @@
  *	Copyright (C) 2006-2008  Jiri Slaby <jirislaby@gmail.com>
  *
  *      This code is loosely based on the 1.8 moxa driver which is based on
- *	Linux serial driver, written by Linus Torvalds, Theodore T'so and
+ *	GNU/Linux serial driver, written by Linus Torvalds, Theodore T'so and
  *	others.
  *
  *	Fed through a cleanup, indent and remove of non 2.6 code by Alan Cox

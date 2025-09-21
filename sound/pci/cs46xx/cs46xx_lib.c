@@ -3530,7 +3530,7 @@ static void amp_voyetra_4294(struct snd_cs46xx *chip, int change)
  *	whenever we need to beat on the chip.
  *
  *	The original idea and code for this hack comes from David Kaiser at
- *	Linuxcare. Perhaps one day Crystal will document their chips well
+ *	GNU/Linuxcare. Perhaps one day Crystal will document their chips well
  *	enough to make them useful.
  */
  

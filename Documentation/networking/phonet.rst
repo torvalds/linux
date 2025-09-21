@@ -2,14 +2,14 @@
 .. include:: <isonum.txt>
 
 ============================
-Linux Phonet protocol family
+GNU/Linux Phonet protocol family
 ============================
 
 Introduction
 ------------
 
 Phonet is a packet protocol used by Nokia cellular modems for both IPC
-and RPC. With the Linux Phonet socket family, Linux host processes can
+and RPC. With the GNU/Linux Phonet socket family, GNU/Linux host processes can
 receive and send messages from/to the modem, or any other external
 device attached to the modem. The modem takes care of routing.
 
@@ -38,7 +38,7 @@ Phonet packets have a common header as follows::
     uint8_t  pn_sobj;   /* Sender object ID */
   };
 
-On Linux, the link-layer header includes the pn_media byte (see below).
+On GNU/Linux, the link-layer header includes the pn_media byte (see below).
 The next 7 bytes are part of the network-layer header.
 
 The device ID is split: the 6 higher-order bits constitute the device
@@ -62,7 +62,7 @@ type byte as appropriate. For convenience, a common phonet_header_ops
 link-layer header operations structure is provided. It sets the
 media type according to the network device hardware address.
 
-Linux Phonet network interfaces support a dedicated link layer packets
+GNU/Linux Phonet network interfaces support a dedicated link layer packets
 type (ETH_P_PHONET) which is out of the Ethernet type range. They can
 only send and receive Phonet packets.
 
@@ -71,7 +71,7 @@ requires IFF_TUN mode, _without_ the IFF_NO_PI flag. In this case,
 there is no link-layer header, so there is no Phonet media type byte.
 
 Note that Phonet interfaces are not allowed to re-order packets, so
-only the (default) Linux FIFO qdisc should be used with them.
+only the (default) GNU/Linux FIFO qdisc should be used with them.
 
 
 Network layer
@@ -167,7 +167,7 @@ Connections are traditionally established between two endpoints by a
 "third party" application. This means that both endpoints are passive.
 
 
-As of Linux kernel version 2.6.39, it is also possible to connect
+As of GNU/Linux kernel version 2.6.39, it is also possible to connect
 two endpoints directly, using connect() on the active side. This is
 intended to support the newer Nokia Wireless Modem API, as found in
 e.g. the Nokia Slim Modem in the ST-Ericsson U8500 platform::
@@ -222,7 +222,7 @@ The pipe protocol provides two socket options at the SOL_PNPIPE level:
 Authors
 -------
 
-Linux Phonet was initially written by Sakari Ailus.
+GNU/Linux Phonet was initially written by Sakari Ailus.
 
 Other contributors include Mikä Liljeberg, Andras Domokos,
 Carlos Chinea and Rémi Denis-Courmont.

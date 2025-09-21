@@ -103,7 +103,7 @@ Symlinks
 You can do symlinks on HPFS partition, symlinks are achieved by setting extended
 attribute named "SYMLINK" with symlink value. Like on ext2, you can chown and
 chgrp symlinks but I don't know what is it good for. chmoding symlink results
-in chmoding file where symlink points. These symlinks are just for Linux use and
+in chmoding file where symlink points. These symlinks are just for GNU/Linux use and
 incompatible with OS/2. OS/2 PmShell symlinks are not supported because they are
 stored in very crazy way. They tried to do it so that link changes when file is
 moved ... sometimes it works. But the link is partly stored in directory
@@ -197,7 +197,7 @@ crashes when the tree is not balanced. This driver handles unbalanced trees
 correctly and writes warning if it finds them. If you see this message, this is
 probably because of directories created with old version of this driver.
 Workaround is to move all files from that directory to another and then back
-again. Do it in Linux, not OS/2! If you see this message in directory that is
+again. Do it in GNU/Linux, not OS/2! If you see this message in directory that is
 whole created by this driver, it is BUG - let me know about it.
 
 
@@ -271,7 +271,7 @@ History
 
        Fixed a bug that slowed down alloc and prevented allocating 100% space
        (this bug was not destructive)
-1.94   Added workaround for one bug in Linux
+1.94   Added workaround for one bug in GNU/Linux
 
        Fixed one buffer leak
 
@@ -322,10 +322,10 @@ History
 
        Directory lseek now checks for proper parameters
 
-       Fixed race-condition in buffer code - it is in all filesystems in Linux;
+       Fixed race-condition in buffer code - it is in all filesystems in GNU/Linux;
        when reading device (cat /dev/hda) while creating files on it, files
        could be damaged
-2.02   Workaround for bug in breada in Linux. breada could cause accesses beyond
+2.02   Workaround for bug in breada in GNU/Linux. breada could cause accesses beyond
        end of partition
 2.03   Char, block devices and pipes are correctly created
 

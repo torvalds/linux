@@ -187,7 +187,7 @@ targets += ../vmlinuz.its
 
 quiet_cmd_cpp_its_S = ITS     $@
       cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
-		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
+		        -DKERNEL_NAME="\"GNU/Linux $(KERNELRELEASE)\"" \
 			-DVMLINUX_BINARY="\"$(2)\"" \
 			-DVMLINUX_COMPRESSION="\"none\"" \
 			-DVMLINUX_LOAD_ADDRESS=$(VMLINUZ_LOAD_ADDRESS) \

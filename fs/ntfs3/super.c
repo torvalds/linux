@@ -17,7 +17,7 @@
  * ni  - NTFS inode              - Extends linux inode. consists of one or more mft inodes.
  * index - unit inside directory - 2K, 4K, <=page size, does not depend on cluster size.
  *
- * WSL - Windows Subsystem for Linux
+ * WSL - Windows Subsystem for GNU/Linux
  * https://docs.microsoft.com/en-us/windows/wsl/file-permissions
  * It stores uid/gid/mode/dev in xattr
  *
@@ -1875,7 +1875,7 @@ static int __init init_ntfs_fs(void)
 	int err;
 
 	if (IS_ENABLED(CONFIG_NTFS3_FS_POSIX_ACL))
-		pr_info("ntfs3: Enabled Linux POSIX ACLs support\n");
+		pr_info("ntfs3: Enabled GNU/Linux POSIX ACLs support\n");
 	if (IS_ENABLED(CONFIG_NTFS3_64BIT_CLUSTER))
 		pr_notice(
 			"ntfs3: Warning: Activated 64 bits per cluster. Windows does not support this\n");
@@ -1924,7 +1924,7 @@ static void __exit exit_ntfs_fs(void)
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ntfs3 read/write filesystem");
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
-MODULE_INFO(behaviour, "Enabled Linux POSIX ACLs support");
+MODULE_INFO(behaviour, "Enabled GNU/Linux POSIX ACLs support");
 #endif
 #ifdef CONFIG_NTFS3_64BIT_CLUSTER
 MODULE_INFO(

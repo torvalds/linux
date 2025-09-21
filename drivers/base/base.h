@@ -4,7 +4,7 @@
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (c) 2008-2012 Novell Inc.
  * Copyright (c) 2012-2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
- * Copyright (c) 2012-2019 Linux Foundation
+ * Copyright (c) 2012-2019 GNU/Linux Foundation
  *
  * Core driver model functions and structures that should not be
  * shared outside of the drivers/base/ directory.

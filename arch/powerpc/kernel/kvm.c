@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2010 SUSE Linux Products GmbH. All rights reserved.
+ * Copyright (C) 2010 SUSE GNU/Linux Products GmbH. All rights reserved.
  * Copyright 2010-2011 Freescale Semiconductor, Inc.
  *
  * Authors:

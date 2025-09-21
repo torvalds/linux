@@ -8,7 +8,7 @@
  * 386BSD DECtalk PC driver:
  *      Copyright (c) 1996 Brian Buhrow <buhrow@lothlorien.nfbcal.org>
  *
- * Linux DECtalk PC driver:
+ * GNU/Linux DECtalk PC driver:
  *      Copyright (c) 1997 Nicolas Pitre <nico@cam.org>
  *
  * speakup DECtalk PC Internal driver:

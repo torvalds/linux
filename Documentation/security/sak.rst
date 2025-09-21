@@ -1,5 +1,5 @@
 =========================================
-Linux Secure Attention Key (SAK) handling
+GNU/Linux Secure Attention Key (SAK) handling
 =========================================
 
 :Date: 18 March 2001
@@ -11,7 +11,7 @@ is an undefeatable way of killing all programs which could be
 masquerading as login applications.  Users need to be taught to enter
 this key sequence before they log in to the system.
 
-From the PC keyboard, Linux has two similar but different ways of
+From the PC keyboard, GNU/Linux has two similar but different ways of
 providing SAK.  One is the ALT-SYSRQ-K sequence.  You shouldn't use
 this sequence.  It is only available if the kernel was compiled with
 sysrq support.
@@ -38,7 +38,7 @@ And that's it!  Only the superuser may reprogram the SAK key.
 
 .. note::
 
-  1. Linux SAK is said to be not a "true SAK" as is required by
+  1. GNU/Linux SAK is said to be not a "true SAK" as is required by
      systems which implement C2 level security.  This author does not
      know why.
 
@@ -49,7 +49,7 @@ And that's it!  Only the superuser may reprogram the SAK key.
      Unfortunately this includes a number of things which you don't
      actually want killed.  This is because these applications are
      incorrectly holding /dev/console open.  Be sure to complain to your
-     Linux distributor about this!
+     GNU/Linux distributor about this!
 
      You can identify processes which will be killed by SAK with the
      command::
@@ -76,7 +76,7 @@ And that's it!  Only the superuser may reprogram the SAK key.
 
      Vixie cron also seems to have this problem, and needs the same treatment.
 
-     Also, one prominent Linux distribution has the following three
+     Also, one prominent GNU/Linux distribution has the following three
      lines in its rc.sysinit and rc scripts::
 
 	exec 3<&0

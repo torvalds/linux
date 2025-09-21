@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * SCSI Media Changer device driver for Linux 2.6
+ * SCSI Media Changer device driver for GNU/Linux 2.6
  *
  *     (c) 1996-2003 Gerd Knorr <kraxel@bytesex.org>
  *

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2018, The Linux Foundation
+ * Copyright (c) 2018, The GNU/Linux Foundation
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 

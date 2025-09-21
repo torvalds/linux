@@ -26,7 +26,7 @@ Overview
   This document describes how to use the gadget from user space, its
   relation to mass storage function (or MSF) and different gadgets
   using it, and how it differs from File Storage Gadget (or FSG)
-  (which is no longer included in Linux).  It will talk only briefly
+  (which is no longer included in GNU/Linux).  It will talk only briefly
   about how to use MSF within composite gadgets.
 
 Module parameters
@@ -222,7 +222,7 @@ Relation to file storage gadget
   duplicate code needed for handling basic USB protocol commands and
   (ii) MSF can be used in any other composite gadget.
 
-  Because of that, File Storage Gadget has been removed in Linux 3.8.
+  Because of that, File Storage Gadget has been removed in GNU/Linux 3.8.
   All users need to transition to the Mass Storage Gadget.  The two
   gadgets behave mostly the same from the outside except:
 

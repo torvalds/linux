@@ -1,5 +1,5 @@
 =====================================
-The Linux kernel user-space API guide
+The GNU/Linux kernel user-space API guide
 =====================================
 
 .. _man-pages: https://www.kernel.org/doc/man-pages/

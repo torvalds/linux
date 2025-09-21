@@ -216,7 +216,7 @@ static const enum gpiod_flags gpio_flags[] = {
 #define SFP_PHY_ADDR_ROLLBALL	17
 
 /* SFP_EEPROM_BLOCK_SIZE is the size of data chunk to read the EEPROM
- * at a time. Some SFP modules and also some Linux I2C drivers do not like
+ * at a time. Some SFP modules and also some GNU/Linux I2C drivers do not like
  * reads longer than 16 bytes.
  */
 #define SFP_EEPROM_BLOCK_SIZE	16

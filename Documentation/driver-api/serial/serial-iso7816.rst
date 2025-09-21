@@ -14,7 +14,7 @@ ISO7816 Serial Communications
   Some CPUs/UARTs (e.g., Microchip AT91) contain a built-in mode capable of
   handling communication with a smart card.
 
-  For these microcontrollers, the Linux driver should be made capable of
+  For these microcontrollers, the GNU/Linux driver should be made capable of
   working in both modes, and proper ioctls (see later) should be made
   available at user-level to allow switching from one mode to the other, and
   vice versa.
@@ -22,7 +22,7 @@ ISO7816 Serial Communications
 3. Data Structures Already Available in the Kernel
 ==================================================
 
-  The Linux kernel provides the serial_iso7816 structure (see [1]) to handle
+  The GNU/Linux kernel provides the serial_iso7816 structure (see [1]) to handle
   ISO7816 communications. This data structure is used to set and configure
   ISO7816 parameters in ioctls.
 

@@ -5,10 +5,10 @@ AppArmor
 What is AppArmor?
 =================
 
-AppArmor is MAC style security extension for the Linux kernel.  It implements
+AppArmor is MAC style security extension for the GNU/Linux kernel.  It implements
 a task centered policy, with task "profiles" being created and loaded
 from user space.  Tasks on the system that do not have a profile defined for
-them run in an unconfined state which is equivalent to standard Linux DAC
+them run in an unconfined state which is equivalent to standard GNU/Linux DAC
 permissions.
 
 How to enable/disable
@@ -21,7 +21,7 @@ If AppArmor should be selected as the default security module then set::
    CONFIG_DEFAULT_SECURITY_APPARMOR=y
 
 The CONFIG_LSM parameter manages the order and selection of LSMs.
-Specify apparmor as the first "major" module (e.g. AppArmor, SELinux, Smack)
+Specify apparmor as the first "major" module (e.g. AppArmor, SEGNU/Linux, Smack)
 in the list.
 
 Build the kernel
@@ -33,7 +33,7 @@ If AppArmor is the default security module it can be disabled by passing
 ``apparmor=0, security=XXXX`` (where ``XXXX`` is valid security module), on the
 kernel's command line.
 
-For AppArmor to enforce any restrictions beyond standard Linux DAC permissions
+For AppArmor to enforce any restrictions beyond standard GNU/Linux DAC permissions
 policy must be loaded into the kernel from user space (see the Documentation
 and tools links).
 

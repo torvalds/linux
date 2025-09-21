@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Detection routine for the NCR53c710 based Amiga SCSI Controllers for Linux.
+ * Detection routine for the NCR53c710 based Amiga SCSI Controllers for GNU/Linux.
  *		Amiga MacroSystemUS WarpEngine SCSI controller.
  *		Amiga Technologies/DKB A4091 SCSI controller.
  *

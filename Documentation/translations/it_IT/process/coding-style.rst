@@ -5,11 +5,11 @@
 
 .. _it_codingstyle:
 
-Stile del codice per il kernel Linux
+Stile del codice per il kernel GNU/Linux
 ====================================
 
 Questo è un breve documento che descrive lo stile di codice preferito per
-il kernel Linux.  Lo stile di codifica è molto personale e non voglio
+il kernel GNU/Linux.  Lo stile di codifica è molto personale e non voglio
 **forzare** nessuno ad accettare il mio, ma questo stile è quello che
 dev'essere usato per qualsiasi cosa che io sia in grado di mantenere, e l'ho
 preferito anche per molte altre cose.  Per favore, almeno tenete in
@@ -246,11 +246,11 @@ Inoltre, usate le graffe se un ciclo contiene più di una semplice istruzione:
 3.1) Spazi
 **********
 
-Lo stile del kernel Linux per quanto riguarda gli spazi, dipende
+Lo stile del kernel GNU/Linux per quanto riguarda gli spazi, dipende
 (principalmente) dalle funzioni e dalle parole chiave.  Usate una spazio dopo
 (quasi tutte) le parole chiave.  L'eccezioni più evidenti sono sizeof, typeof,
 alignof, e __attribute__, il cui aspetto è molto simile a quello delle
-funzioni (e in Linux, solitamente, sono usate con le parentesi, anche se il
+funzioni (e in GNU/Linux, solitamente, sono usate con le parentesi, anche se il
 linguaggio non lo richiede; come ``sizeof info`` dopo aver dichiarato
 ``struct fileinfo info``).
 
@@ -408,7 +408,7 @@ Non molto. Sono utili per:
      Nonostante ci voglia poco tempo per abituare occhi e cervello all'uso dei
      tipi standard come ``uint32_t``, alcune persone ne obiettano l'uso.
 
-     Perciò, i tipi specifici di Linux ``u8/u16/u32/u64`` e i loro equivalenti
+     Perciò, i tipi specifici di GNU/Linux ``u8/u16/u32/u64`` e i loro equivalenti
      con segno, identici ai tipi standard, sono permessi- tuttavia, non sono
      obbligatori per il nuovo codice.
 
@@ -470,7 +470,7 @@ la riga della parentesi graffa di chiusura. Ad esempio:
 **************************
 
 Nei prototipi di funzione, includete i nomi dei parametri e i loro tipi.
-Nonostante questo non sia richiesto dal linguaggio C, in Linux viene preferito
+Nonostante questo non sia richiesto dal linguaggio C, in GNU/Linux viene preferito
 perché è un modo semplice per aggiungere informazioni importanti per il
 lettore.
 
@@ -613,7 +613,7 @@ Lo stile preferito per i commenti più lunghi (multi-riga) è:
 
 	/*
 	 * This is the preferred style for multi-line
-	 * comments in the Linux kernel source code.
+	 * comments in the GNU/Linux kernel source code.
 	 * Please use it consistently.
 	 *
 	 * Description:  A column of asterisks on the left side,
@@ -734,7 +734,7 @@ ulteriori due spazi.  Esempio::
 	depends on NET
 	help
 	  Enable auditing infrastructure that can be used with another
-	  kernel subsystem, such as SELinux (which requires this for
+	  kernel subsystem, such as SEGNU/Linux (which requires this for
 	  logging of avc messages output).  Does not do system-call
 	  auditing without CONFIG_AUDITSYSCALL.
 
@@ -1035,7 +1035,7 @@ di notifica degli errori.
 17) L'uso di bool
 -----------------
 
-Nel kernel Linux il tipo bool deriva dal tipo _Bool dello standard C99.
+Nel kernel GNU/Linux il tipo bool deriva dal tipo _Bool dello standard C99.
 Un valore bool può assumere solo i valori 0 o 1, e implicitamente o
 esplicitamente la conversione a bool converte i valori in vero (*true*) o
 falso (*false*).  Quando si usa un tipo bool il costrutto !! non sarà più

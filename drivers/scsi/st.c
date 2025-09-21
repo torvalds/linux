@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
-   SCSI Tape Driver for Linux version 1.1 and newer. See the accompanying
+   SCSI Tape Driver for GNU/Linux version 1.1 and newer. See the accompanying
    file Documentation/scsi/st.rst for more information.
 
    History:

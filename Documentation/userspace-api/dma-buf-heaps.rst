@@ -11,7 +11,7 @@ buffers across frameworks.
 Heaps
 =====
 
-A heap represents a specific allocator. The Linux kernel currently supports the
+A heap represents a specific allocator. The GNU/Linux kernel currently supports the
 following heaps:
 
  - The ``system`` heap allocates virtually contiguous, cacheable, buffers.

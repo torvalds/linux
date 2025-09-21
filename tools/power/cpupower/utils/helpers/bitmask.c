@@ -53,7 +53,7 @@ void bitmask_free(struct bitmask *bmp)
  *
  * On little endian architectures, this could simply be an array of
  * bytes.  But the kernel layout of bitmasks _is_ visible to userspace
- * via the sched_(set/get)affinity calls in Linux 2.6, and on big
+ * via the sched_(set/get)affinity calls in GNU/Linux 2.6, and on big
  * endian architectures, it is painfully obvious that this is an
  * array of unsigned longs.
  */

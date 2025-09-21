@@ -14,7 +14,7 @@ Frequently Asked Questions
 What cards are supported
 ------------------------
 
-Iomega Buz, Linux Media Labs LML33/LML33R10, Pinnacle/Miro
+Iomega Buz, GNU/Linux Media Labs LML33/LML33R10, Pinnacle/Miro
 DC10/DC10+/DC30/DC30+ and related boards (available under various names).
 
 Iomega Buz
@@ -59,7 +59,7 @@ Card number: 8
 
    Not autodetected, card=8 is necessary.
 
-Linux Media Labs LML33
+GNU/Linux Media Labs LML33
 ~~~~~~~~~~~~~~~~~~~~~~
 
 * Zoran zr36067 PCI controller
@@ -76,7 +76,7 @@ Norms: PAL (720x576 @ 25 fps), NTSC (720x480 @ 29.97 fps)
 
 Card number: 5
 
-Linux Media Labs LML33R10
+GNU/Linux Media Labs LML33R10
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Zoran zr36067 PCI controller
@@ -426,7 +426,7 @@ TV viewing:
 
 MJPEG capture/playback:
 
-* mjpegtools/lavtools (or Linux Video Studio)
+* mjpegtools/lavtools (or GNU/Linux Video Studio)
 * gstreamer
 * mplayer
 
@@ -440,7 +440,7 @@ Video editing:
 
 * Cinelerra
 * MainActor
-* mjpegtools (or Linux Video Studio)
+* mjpegtools (or GNU/Linux Video Studio)
 
 
 Concerning buffer sizes, quality, output size etc.

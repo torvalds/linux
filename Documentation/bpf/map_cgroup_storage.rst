@@ -17,7 +17,7 @@ cgroups on their own.
 
 This document describes the usage and semantics of the
 ``BPF_MAP_TYPE_CGROUP_STORAGE`` map type. Some of its behaviors was changed in
-Linux 5.9 and this document will describe the differences.
+GNU/Linux 5.9 and this document will describe the differences.
 
 Usage
 =====
@@ -33,7 +33,7 @@ The map uses key of type of either ``__u64 cgroup_inode_id`` or
 ``cgroup_inode_id`` is the inode id of the cgroup directory.
 ``attach_type`` is the program's attach type.
 
-Linux 5.9 added support for type ``__u64 cgroup_inode_id`` as the key type.
+GNU/Linux 5.9 added support for type ``__u64 cgroup_inode_id`` as the key type.
 When this key type is used, then all attach types of the particular cgroup and
 map will share the same storage. Otherwise, if the type is
 ``struct bpf_cgroup_storage_key``, then programs of different attach types
@@ -127,7 +127,7 @@ Semantics
 per-CPU variant will have different memory regions for each CPU for each
 storage. The non-per-CPU will have the same memory region for each storage.
 
-Prior to Linux 5.9, the lifetime of a storage is precisely per-attachment, and
+Prior to GNU/Linux 5.9, the lifetime of a storage is precisely per-attachment, and
 for a single ``CGROUP_STORAGE`` map, there can be at most one program loaded
 that uses the map. A program may be attached to multiple cgroups or have
 multiple attach types, and each attach creates a fresh zeroed storage. The
@@ -140,7 +140,7 @@ one storage map of each type. Because of map can only be used by one BPF
 program, sharing of this cgroup's storage with other BPF programs were
 impossible.
 
-Since Linux 5.9, storage can be shared by multiple programs. When a program is
+Since GNU/Linux 5.9, storage can be shared by multiple programs. When a program is
 attached to a cgroup, the kernel would create a new storage only if the map
 does not already contain an entry for the cgroup and attach type pair, or else
 the old storage is reused for the new attachment. If the map is attach type
@@ -157,7 +157,7 @@ However, the BPF program can still only associate with one map of each type
 
 In all versions, userspace may use the attach parameters of cgroup and
 attach type pair in ``struct bpf_cgroup_storage_key`` as the key to the BPF map
-APIs to read or update the storage for a given attachment. For Linux 5.9
+APIs to read or update the storage for a given attachment. For GNU/Linux 5.9
 attach type shared storages, only the first value in the struct, cgroup inode
 id, is used during comparison, so userspace may just specify a ``__u64``
 directly.

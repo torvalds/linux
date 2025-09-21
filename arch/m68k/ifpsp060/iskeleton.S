@@ -65,7 +65,7 @@
 | To simply continue execution at the next instruction, just
 | do an "rte".
 |
-| Linux/68k: If returning to user space, check for needed reselections.
+| GNU/Linux/68k: If returning to user space, check for needed reselections.
 
 	.global		_060_isp_done
 _060_isp_done:
@@ -87,7 +87,7 @@ _060_isp_done:
 | a CHK exception stack frame from the Unimplemented Integer Instrcution
 | stack frame and branches to this routine.
 |
-| Linux/68k: commented out test for tracing
+| GNU/Linux/68k: commented out test for tracing
 
 	.global		_060_real_chk
 _060_real_chk:
@@ -127,7 +127,7 @@ real_chk_end:
 | then it create a Trace exception stack frame from the "chk" exception
 | stack frame and branches to the _real_trace() entry point.
 |
-| Linux/68k: commented out test for tracing
+| GNU/Linux/68k: commented out test for tracing
 
 	.global		_060_real_divbyzero
 _060_real_divbyzero:
@@ -194,7 +194,7 @@ _060_real_cas2:
 | Expected outputs:
 |	d0 = 0 -> success; non-zero -> failure
 |
-| Linux/m68k: Make sure the page is properly paged in, so we use
+| GNU/Linux/m68k: Make sure the page is properly paged in, so we use
 | plpaw and handle any exception here. The kernel must not be
 | preempted until _060_unlock_page(), so that the page stays mapped.
 |
@@ -258,7 +258,7 @@ _060_real_lock_page:
 |	d0 = `xxxxxxff -> supervisor; `xxxxxx00 -> user
 |	d1 = `xxxxxxff -> longword; `xxxxxx00 -> word
 |
-| Linux/m68k: perhaps reenable preemption here...
+| GNU/Linux/m68k: perhaps reenable preemption here...
 
 	.global		_060_real_unlock_page
 _060_real_unlock_page:

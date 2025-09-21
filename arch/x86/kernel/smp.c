@@ -40,7 +40,7 @@
  *	Some notes on x86 processor bugs affecting SMP operation:
  *
  *	Pentium, Pentium Pro, II, III (and all CPUs) have bugs.
- *	The Linux implications for SMP are handled as follows:
+ *	The GNU/Linux implications for SMP are handled as follows:
  *
  *	Pentium III / [Xeon]
  *		None of the E1AP-E3AP errata are visible to the user.
@@ -61,12 +61,12 @@
  *	except occasional delivery of 'spurious interrupt' as trap #15.
  *	This is very rare and a non-problem.
  *
- *	1AP.	Linux maps APIC as non-cacheable
+ *	1AP.	GNU/Linux maps APIC as non-cacheable
  *	2AP.	worked around in hardware
  *	3AP.	fixed in C0 and above steppings microcode update.
- *		Linux does not use excessive STARTUP_IPIs.
+ *		GNU/Linux does not use excessive STARTUP_IPIs.
  *	4AP.	worked around in hardware
- *	5AP.	symmetric IO mode (normal Linux operation) not affected.
+ *	5AP.	symmetric IO mode (normal GNU/Linux operation) not affected.
  *		'noapic' mode has vector 0xf filled out properly.
  *	6AP.	'noapic' mode might be affected - fixed in later steppings
  *	7AP.	We do not assume writes to the LVT deasserting IRQs
@@ -85,10 +85,10 @@
  *
  *	Specific items [From Pentium Processor Specification Update]
  *
- *	1AP.	Linux doesn't use remote read
- *	2AP.	Linux doesn't trust APIC errors
+ *	1AP.	GNU/Linux doesn't use remote read
+ *	2AP.	GNU/Linux doesn't trust APIC errors
  *	3AP.	We work around this
- *	4AP.	Linux never generated 3 interrupts of the same priority
+ *	4AP.	GNU/Linux never generated 3 interrupts of the same priority
  *		to cause a lost local interrupt.
  *	5AP.	Remote read is never used
  *	6AP.	not affected - worked around in hardware
@@ -98,7 +98,7 @@
  *		interrupts, we log only the first one and count the
  *		rest silently.
  *	10AP.	not affected - worked around in hardware
- *	11AP.	Linux reads the APIC between writes to avoid this, as per
+ *	11AP.	GNU/Linux reads the APIC between writes to avoid this, as per
  *		the documentation. Make sure you preserve this as it affects
  *		the C stepping chips too.
  *	12AP.	not affected - worked around in hardware

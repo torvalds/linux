@@ -5,11 +5,11 @@
  *
  * Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
  *
- * This driver is derived from the Linux sym53c8xx driver.
+ * This driver is derived from the GNU/Linux sym53c8xx driver.
  * Copyright (C) 1998-2000  Gerard Roudier
  *
  * The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
- * a port of the FreeBSD ncr driver to Linux-1.2.13.
+ * a port of the FreeBSD ncr driver to GNU/Linux-1.2.13.
  *
  * The original ncr driver has been written for 386bsd and FreeBSD by
  *         Wolfgang Stanglmeier        <wolf@cologne.de>
@@ -52,7 +52,7 @@
 #include "sym_misc.h"
 
 /*
- * Configuration addendum for Linux.
+ * Configuration addendum for GNU/Linux.
  */
 #define	SYM_CONF_TIMER_INTERVAL		((HZ+1)/2)
 
@@ -130,14 +130,14 @@
 
 /*
  *  These ones are used as return code from 
- *  error recovery handlers under Linux.
+ *  error recovery handlers under GNU/Linux.
  */
 #define SCSI_SUCCESS	SUCCESS
 #define SCSI_FAILED	FAILED
 
 /*
  *  System specific target data structure.
- *  None for now, under Linux.
+ *  None for now, under GNU/Linux.
  */
 /* #define SYM_HAVE_STCB */
 
@@ -152,7 +152,7 @@ struct sym_slcb {
 
 /*
  *  System specific command data structure.
- *  Not needed under Linux.
+ *  Not needed under GNU/Linux.
  */
 /* struct sym_sccb */
 

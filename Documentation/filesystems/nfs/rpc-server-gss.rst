@@ -25,7 +25,7 @@ Authentication for NFS.  Although GSSAPI is itself completely mechanism
 agnostic, in many cases only the KRB5 mechanism is supported by NFS
 implementations.
 
-The Linux kernel, at the moment, supports only the KRB5 mechanism, and
+The GNU/Linux kernel, at the moment, supports only the KRB5 mechanism, and
 depends on GSSAPI extensions that are KRB5 specific.
 
 GSSAPI is a complex library, and implementing it completely in kernel is

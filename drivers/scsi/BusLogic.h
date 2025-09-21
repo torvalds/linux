@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
 
-  Linux Driver for BusLogic MultiMaster and FlashPoint SCSI Host Adapters
+  GNU/Linux Driver for BusLogic MultiMaster and FlashPoint SCSI Host Adapters
 
   Copyright 1995-1998 by Leonard N. Zubkoff <lnz@dandelion.com>
 
@@ -10,7 +10,7 @@
   sent directly to him for evaluation and testing.
 
   Special thanks to Wayne Yen, Jin-Lon Hon, and Alex Win of BusLogic, whose
-  advice has been invaluable, to David Gentzel, for writing the original Linux
+  advice has been invaluable, to David Gentzel, for writing the original GNU/Linux
   BusLogic driver, and to Paul Gortmaker, for being such a dedicated test site.
 
   Finally, special thanks to Mylex/BusLogic for making the FlashPoint SCCB
@@ -779,7 +779,7 @@ enum blogic_ccb_status {
   Define the 32 Bit Mode Command Control Block (CCB) structure.  The first 40
   bytes are defined by and common to both the MultiMaster Firmware and the
   FlashPoint SCCB Manager.  The next 60 bytes are defined by the FlashPoint
-  SCCB Manager.  The remaining components are defined by the Linux BusLogic
+  SCCB Manager.  The remaining components are defined by the GNU/Linux BusLogic
   Driver.  Extended LUN Format CCBs differ from Legacy LUN Format 32 Bit Mode
   CCBs only in having the TagEnable and QueueTag fields moved from byte 17 to
   byte 1, and the Logical Unit field in byte 17 expanded to 6 bits.  In theory,
@@ -835,7 +835,7 @@ struct blogic_ccb {
 	unsigned char private2[16];
 #endif
 	/*
-	   BusLogic Linux Driver Defined Portion.
+	   BusLogic GNU/Linux Driver Defined Portion.
 	 */
 	dma_addr_t allocgrp_head;
 	unsigned int allocgrp_size;

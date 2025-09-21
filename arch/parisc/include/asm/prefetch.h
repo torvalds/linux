@@ -7,7 +7,7 @@
  * instructions and data.
  *
  * PA7300LC (page 14-4 of the ERS) also implements prefetching by a load
- * to gr0 but not in a way that Linux can use.  If the load would cause an
+ * to gr0 but not in a way that GNU/Linux can use.  If the load would cause an
  * interruption (eg due to prefetching 0), it is suppressed on PA2.0
  * processors, but not on 7300LC.
  *

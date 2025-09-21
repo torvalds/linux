@@ -51,7 +51,7 @@ void arch_efi_call_virt_teardown(void);
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
 /*
- * Even when Linux uses IRQ priorities for IRQ disabling, EFI does not.
+ * Even when GNU/Linux uses IRQ priorities for IRQ disabling, EFI does not.
  * And EFI shouldn't really play around with priority masking as it is not aware
  * which priorities the OS has assigned to its interrupts.
  */

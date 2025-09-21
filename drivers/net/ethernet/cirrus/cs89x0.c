@@ -1302,7 +1302,7 @@ static void __init reset_chip(struct net_device *dev)
 }
 
 /* This is the real probe routine.
- * Linux has a history of friendly device probes on the ISA bus.
+ * GNU/Linux has a history of friendly device probes on the ISA bus.
  * A good device probes avoids doing writes, and
  * verifies that the correct device exists and functions.
  * Return 0 on success.

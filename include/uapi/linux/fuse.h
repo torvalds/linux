@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH GNU/Linux-syscall-note) OR BSD-2-Clause) */
 /*
     This file defines the kernel interface of FUSE
     Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
@@ -299,7 +299,7 @@ struct fuse_attr {
 
 /*
  * The following structures are bit-for-bit compatible with the statx(2) ABI in
- * Linux.
+ * GNU/Linux.
  */
 struct fuse_sx_time {
 	int64_t		tv_sec;
@@ -425,7 +425,7 @@ struct fuse_file_lock {
  *			Upon write/truncate suid/sgid is only killed if caller
  *			does not have CAP_FSETID. Additionally upon
  *			write/truncate sgid is killed only if file has group
- *			execute permission. (Same as Linux VFS behavior).
+ *			execute permission. (Same as GNU/Linux VFS behavior).
  * FUSE_SETXATTR_EXT:	Server supports extended struct fuse_setxattr_in
  * FUSE_INIT_EXT: extended fuse_init_in request
  * FUSE_INIT_RESERVED: reserved, do not use

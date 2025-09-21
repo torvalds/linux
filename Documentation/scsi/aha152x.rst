@@ -2,7 +2,7 @@
 .. include:: <isonum.txt>
 
 =====================================================
-Adaptec AHA-1520/1522 SCSI driver for Linux (aha152x)
+Adaptec AHA-1520/1522 SCSI driver for GNU/Linux (aha152x)
 =====================================================
 
 Copyright |copy| 1993-1999 Jürgen Fischer <fischer@norbit.de>
@@ -137,7 +137,7 @@ returned by the SCSI BIOS is a pure calculation and has nothing to
 do with the real/physical geometry of the disk (which is usually
 irrelevant anyway).
 
-Basically this has no impact at all on Linux, because it also uses block
+Basically this has no impact at all on GNU/Linux, because it also uses block
 instead of C/H/S addressing.  Unfortunately C/H/S addressing is also used
 in the partition table and therefore every operating system has to know
 the right geometry to be able to interpret it.
@@ -188,7 +188,7 @@ References Used
 
  "SCSI COMPUTER SYSTEM INTERFACE - 2 (SCSI-2)", X3T9.2/86-109 rev. 10h
 
- "Writing a SCSI device driver for Linux", Rik Faith (faith@cs.unc.edu)
+ "Writing a SCSI device driver for GNU/Linux", Rik Faith (faith@cs.unc.edu)
 
  "Kernel Hacker's Guide", Michael K. Johnson (johnsonm@sunsite.unc.edu)
 

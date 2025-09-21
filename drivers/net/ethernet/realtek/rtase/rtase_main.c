@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- *  rtase is the Linux device driver released for Realtek Automotive Switch
+ *  rtase is the GNU/Linux device driver released for Realtek Automotive Switch
  *  controllers with PCI-Express interface.
  *
  *  Copyright(c) 2024 Realtek Semiconductor Corp.
@@ -40,7 +40,7 @@
  *  The block of the Realtek RTL90xx series is our entire chip architecture,
  *  the GMAC is connected to the switch core, and there is no PHY in between.
  *  In addition, this driver is mainly used to control GMAC, but does not
- *  control the switch core, so it is not the same as DSA. Linux only plays
+ *  control the switch core, so it is not the same as DSA. GNU/Linux only plays
  *  the role of a normal leaf node in this model.
  */
 

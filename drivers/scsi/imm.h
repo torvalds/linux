@@ -11,7 +11,7 @@
 #ifndef _IMM_H
 #define _IMM_H
 
-#define   IMM_VERSION   "2.05 (for Linux 2.4.0)"
+#define   IMM_VERSION   "2.05 (for GNU/Linux 2.4.0)"
 
 /* 
  * 10 Apr 1998 (Good Friday) - Received EN144302 by email from Iomega.
@@ -52,7 +52,7 @@
  * Err.. It appears that imm-2.00 was broken....
  *                                              18Jun98 [ 2.01 ]
  *
- * Patch applied to sync this against the Linux 2.1.x kernel code
+ * Patch applied to sync this against the GNU/Linux 2.1.x kernel code
  * Included qboot_zip.sh
  *                                              21Jun98 [ 2.02 ]
  *

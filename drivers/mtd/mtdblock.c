@@ -34,7 +34,7 @@ struct mtdblk_dev {
 /*
  * Cache stuff...
  *
- * Since typical flash erasable sectors are much larger than what Linux's
+ * Since typical flash erasable sectors are much larger than what GNU/Linux's
  * buffer cache can handle, we must implement read-modify-write on flash
  * sectors for each block write requests.  To avoid over-erasing flash sectors
  * and to speed things up, we locally cache a whole flash sector while it is

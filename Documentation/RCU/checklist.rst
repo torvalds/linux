@@ -21,7 +21,7 @@ over a rather long period of time, but improvements are always welcome!
 
 	Another exception is where performance is not an issue, and RCU
 	provides a simpler implementation.  An example of this situation
-	is the dynamic NMI code in the Linux 2.6 kernel, at least on
+	is the dynamic NMI code in the GNU/Linux 2.6 kernel, at least on
 	architectures where NMIs are rare.
 
 	Yet another exception is where the low real-time latency of RCU's
@@ -92,7 +92,7 @@ over a rather long period of time, but improvements are always welcome!
 		primitives to add, remove, and replace elements on
 		an RCU-protected list.	Alternatively, use the other
 		RCU-protected data structures that have been added to
-		the Linux kernel.
+		the GNU/Linux kernel.
 
 		This is almost always the best approach.
 

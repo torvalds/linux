@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_LINUX_TTY_H
 #define _UAPI_LINUX_TTY_H
 
@@ -18,7 +18,7 @@
 #define N_MASC		8	/* Reserved for Mobitex module <kaz@cafe.net> */
 #define N_R3964		9	/* Reserved for Simatic R3964 module */
 #define N_PROFIBUS_FDL	10	/* Reserved for Profibus */
-#define N_IRDA		11	/* Linux IrDa - http://irda.sourceforge.net/ */
+#define N_IRDA		11	/* GNU/Linux IrDa - http://irda.sourceforge.net/ */
 #define N_SMSBLOCK	12	/* SMS block mode - for talking to GSM data */
 				/* cards about SMS messages */
 #define N_HDLC		13	/* synchronous HDLC */

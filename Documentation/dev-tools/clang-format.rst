@@ -28,7 +28,7 @@ subsystem or folder. To do so, you can override the defaults by writing
 another ``.clang-format`` file in a subfolder.
 
 The tool itself has already been included in the repositories of popular
-Linux distributions for a long time. Search for ``clang-format`` in
+GNU/Linux distributions for a long time. Search for ``clang-format`` in
 your repositories. Otherwise, you can either download pre-built
 LLVM/clang binaries or build the source code from:
 

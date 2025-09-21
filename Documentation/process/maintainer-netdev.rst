@@ -18,25 +18,25 @@ tl;dr
 netdev
 ------
 
-netdev is a mailing list for all network-related Linux stuff.  This
+netdev is a mailing list for all network-related GNU/Linux stuff.  This
 includes anything found under net/ (i.e. core code like IPv6) and
-drivers/net (i.e. hardware specific drivers) in the Linux source tree.
+drivers/net (i.e. hardware specific drivers) in the GNU/Linux source tree.
 
 Note that some subsystems (e.g. wireless drivers) which have a high
 volume of traffic have their own specific mailing lists and trees.
 
-Like many other Linux mailing lists, the netdev list is hosted at
+Like many other GNU/Linux mailing lists, the netdev list is hosted at
 kernel.org with archives available at https://lore.kernel.org/netdev/.
 
 Aside from subsystems like those mentioned above, all network-related
-Linux development (i.e. RFC, review, comments, etc.) takes place on
+GNU/Linux development (i.e. RFC, review, comments, etc.) takes place on
 netdev.
 
 Development cycle
 -----------------
 
 Here is a bit of background information on
-the cadence of Linux development.  Each new release starts off with a
+the cadence of GNU/Linux development.  Each new release starts off with a
 two week "merge window" where the main maintainers feed their new stuff
 to Linus for merging into the mainline tree.  After the two weeks, the
 merge window is closed, and it is called/tagged ``-rc1``.  No new
@@ -493,7 +493,7 @@ drivers are treated upstream.
 The exact rules a driver must follow to acquire the ``Supported`` status:
 
 1. Must run all tests under ``drivers/net`` and ``drivers/net/hw`` targets
-   of Linux selftests. Running and reporting private / internal tests is
+   of GNU/Linux selftests. Running and reporting private / internal tests is
    also welcome, but upstream tests are a must.
 
 2. The minimum run frequency is once every 12 hours. Must test the

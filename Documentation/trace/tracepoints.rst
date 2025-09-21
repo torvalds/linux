@@ -1,11 +1,11 @@
 ==================================
-Using the Linux Kernel Tracepoints
+Using the GNU/Linux Kernel Tracepoints
 ==================================
 
 :Author: Mathieu Desnoyers
 
 
-This document introduces Linux Kernel Tracepoints and their use. It
+This document introduces GNU/Linux Kernel Tracepoints and their use. It
 provides examples of how to insert tracepoints in the kernel and
 connect probe functions to them and provides some examples of probe
 functions.

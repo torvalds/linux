@@ -9,7 +9,7 @@
 #      Update the kernel tree in the current directory using patches in the
 #      directory above to the latest Linus kernel
 #   scripts/patch-kernel . .. -ac
-#      Get the latest Linux kernel and patch it with the latest ac patch
+#      Get the latest GNU/Linux kernel and patch it with the latest ac patch
 #   scripts/patch-kernel . .. 2.4.9
 #      Gets standard kernel 2.4.9
 #   scripts/patch-kernel . .. 2.4.9 -ac

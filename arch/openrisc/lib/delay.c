@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * OpenRISC Linux
+ * OpenRISC GNU/Linux
  *
- * Linux architectural port borrowing liberally from similar works of
+ * GNU/Linux architectural port borrowing liberally from similar works of
  * others.  All original copyrights apply as per the original source
  * declaration.
  *

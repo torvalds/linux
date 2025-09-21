@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH GNU/Linux-syscall-note */
 /*
  * <linux/gpio.h> - userspace ABI for the GPIO character devices
  *
@@ -24,7 +24,7 @@
 
 /**
  * struct gpiochip_info - Information about a certain GPIO chip
- * @name: the Linux kernel name of this GPIO chip
+ * @name: the GNU/Linux kernel name of this GPIO chip
  * @label: a functional name for this GPIO chip, such as a product
  * number, may be empty (i.e. label[0] == '\0')
  * @lines: number of GPIO lines on this chip

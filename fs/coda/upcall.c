@@ -4,11 +4,11 @@
  *  -- upcalls
  *  -- upcall routines
  *
- * Linux 2.0 version
+ * GNU/Linux 2.0 version
  * Copyright (C) 1996 Peter J. Braam <braam@maths.ox.ac.uk>, 
  * Michael Callahan <callahan@maths.ox.ac.uk> 
  * 
- * Redone for Linux 2.1
+ * Redone for GNU/Linux 2.1
  * Copyright (C) 1997 Carnegie Mellon University
  *
  * Carnegie Mellon University encourages users of this code to contribute

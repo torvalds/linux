@@ -8,7 +8,7 @@
  * kind, whether express or implied.
  *
  * Leveraged code from the OMAP2 camera driver
- * Video-for-Linux (Version 2) camera capture driver for
+ * Video-for-GNU/Linux (Version 2) camera capture driver for
  * the OMAP24xx camera controller.
  *
  * Author: Andy Lowe (source@mvista.com)
@@ -52,7 +52,7 @@
 #include "omap_vout_vrfb.h"
 
 MODULE_AUTHOR("Texas Instruments");
-MODULE_DESCRIPTION("OMAP Video for Linux Video out driver");
+MODULE_DESCRIPTION("OMAP Video for GNU/Linux Video out driver");
 MODULE_LICENSE("GPL");
 
 /* Driver Configuration macros */
@@ -1503,7 +1503,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		vfd = vout->vfd;
 		if (video_register_device(vfd, VFL_TYPE_VIDEO, -1) < 0) {
 			dev_err(&pdev->dev,
-				": Could not register Video for Linux device\n");
+				": Could not register Video for GNU/Linux device\n");
 			vfd->minor = -1;
 			ret = -ENODEV;
 			goto error2;

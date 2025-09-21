@@ -60,7 +60,7 @@ static const char * const mlxbf_bootctl_lifecycle_states[] = {
 #define MLXBF_RSH_LOG_LEN_MASK		GENMASK_ULL(54, 48)
 #define MLXBF_RSH_LOG_LEVEL_MASK	GENMASK_ULL(7, 0)
 
-/* Log module ID and type (only MSG type in Linux driver for now). */
+/* Log module ID and type (only MSG type in GNU/Linux driver for now). */
 #define MLXBF_RSH_LOG_TYPE_MSG		0x04ULL
 
 /* Log ctl/data register offset. */

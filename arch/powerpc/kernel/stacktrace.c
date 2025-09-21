@@ -4,7 +4,7 @@
  * Stack trace utility functions etc.
  *
  * Copyright 2008 Christoph Hellwig, IBM Corp.
- * Copyright 2018 SUSE Linux GmbH
+ * Copyright 2018 SUSE GNU/Linux GmbH
  * Copyright 2018 Nick Piggin, Michael Ellerman, IBM Corp.
  */
 

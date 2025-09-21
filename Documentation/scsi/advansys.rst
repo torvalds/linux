@@ -173,7 +173,7 @@ Driver LILO Option
 ==================
 
 If init/main.c is modified as described in the 'Directions for Adding
-the AdvanSys Driver to Linux' section (B.4.) above, the driver will
+the AdvanSys Driver to GNU/Linux' section (B.4.) above, the driver will
 recognize the 'advansys' LILO command line and /etc/lilo.conf option.
 This option can be used to either disable I/O port scanning or to limit
 scanning to 1 - 4 I/O ports. Regardless of the option setting EISA and
@@ -222,7 +222,7 @@ and maintained it up to 3.3F. He continues to answer questions
 and help maintain the driver.
 
 Nathan Hartwell <mage@cdc3.cdc.net> provided the directions and
-basis for the Linux v1.3.X changes which were included in the
+basis for the GNU/Linux v1.3.X changes which were included in the
 1.2 release.
 
 Thomas E Zerucha <zerucha@shell.portal.com> pointed out a bug

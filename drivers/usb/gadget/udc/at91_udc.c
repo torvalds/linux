@@ -50,7 +50,7 @@
  * The VBUS sensing helps during enumeration, and allows both USB clocks
  * (and the transceiver) to stay gated off until they're necessary, saving
  * power.  During USB suspend, the 48 MHz clock is gated off in hardware;
- * it may also be gated off by software during some Linux sleep states.
+ * it may also be gated off by software during some GNU/Linux sleep states.
  */
 
 #define	DRIVER_VERSION	"3 May 2006"

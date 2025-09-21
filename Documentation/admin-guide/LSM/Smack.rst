@@ -11,7 +11,7 @@ Smack is a kernel based implementation of mandatory access
 control that includes simplicity in its primary design goals.
 
 Smack is not the only Mandatory Access Control scheme
-available for Linux. Those new to Mandatory Access Control
+available for GNU/Linux. Those new to Mandatory Access Control
 are encouraged to compare Smack with the other mechanisms
 available to determine which is best suited to the problem
 at hand.
@@ -22,7 +22,7 @@ Smack consists of three major components:
     - Basic utilities, which are helpful but not required
     - Configuration data
 
-The kernel component of Smack is implemented as a Linux
+The kernel component of Smack is implemented as a GNU/Linux
 Security Modules (LSM) module. It requires netlabel and
 works best with file systems that support extended attributes,
 although xattr support is not strictly required.
@@ -371,7 +371,7 @@ Domain Type Enforcement
 Around the turn of the century Domain Type Enforcement (DTE) became popular.
 This scheme organizes users, programs, and data into domains that are
 protected from each other. This scheme has been widely deployed as a component
-of popular Linux distributions. The administrative overhead required to
+of popular GNU/Linux distributions. The administrative overhead required to
 maintain this scheme and the detailed understanding of the whole system
 necessary to provide a secure domain mapping leads to the scheme being
 disabled or used in limited ways in the majority of cases.
@@ -413,7 +413,7 @@ especially important:
 	characteristics of a subject or an object.
 
 These definitions are consistent with the traditional use in the security
-community. There are also some terms from Linux that are likely to crop up:
+community. There are also some terms from GNU/Linux that are likely to crop up:
 
   Capability:
 	A task that possesses a capability has permission to
@@ -431,7 +431,7 @@ community. There are also some terms from Linux that are likely to crop up:
 Smack Basics
 ------------
 
-Smack is an extension to a Linux system. It enforces additional restrictions
+Smack is an extension to a GNU/Linux system. It enforces additional restrictions
 on what subjects can access which objects, based on the labels attached to
 each of the subject and the object.
 
@@ -463,7 +463,7 @@ mechanism.
 Access Rules
 ~~~~~~~~~~~~
 
-Smack uses the traditional access modes of Linux. These modes are read,
+Smack uses the traditional access modes of GNU/Linux. These modes are read,
 execute, write, and occasionally append. There are a few cases where the
 access mode may not be obvious. These include:
 
@@ -548,7 +548,7 @@ as "ar". A lone dash is used to specify that no access should be allowed.
 Applying Access Rules
 ~~~~~~~~~~~~~~~~~~~~~
 
-The developers of Linux rarely define new sorts of things, usually importing
+The developers of GNU/Linux rarely define new sorts of things, usually importing
 schemes and concepts from other systems. Most often, the other systems are
 variants of Unix. Unix has many endearing properties, but consistency of
 access control models is not one of them. Smack strives to treat accesses as

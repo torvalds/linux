@@ -33,7 +33,7 @@ mind:
    will not keep them from asking a fundamental question: what will it be
    like to maintain a kernel with this code in it five or ten years later?
    Many of the changes you may be asked to make - from coding style tweaks
-   to substantial rewrites - come from the understanding that Linux will
+   to substantial rewrites - come from the understanding that GNU/Linux will
    still be around and under development a decade from now.
 
  - Code review is hard work, and it is a relatively thankless occupation;
@@ -205,7 +205,7 @@ possible, tell the author what changes need to be made to make the patch
 acceptable to you.  There is a certain resistance to merging patches which
 are opposed by the author and maintainer of the code, but it only goes so
 far.  If you are seen as needlessly blocking good work, those patches will
-eventually flow around you and get into the mainline anyway.  In the Linux
+eventually flow around you and get into the mainline anyway.  In the GNU/Linux
 kernel, nobody has absolute veto power over any code.  Except maybe Linus.
 
 On very rare occasion, you may see something completely different: another

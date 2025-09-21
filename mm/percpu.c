@@ -2,7 +2,7 @@
 /*
  * mm/percpu.c - percpu memory allocator
  *
- * Copyright (C) 2009		SUSE Linux Products GmbH
+ * Copyright (C) 2009		SUSE GNU/Linux Products GmbH
  * Copyright (C) 2009		Tejun Heo <tj@kernel.org>
  *
  * Copyright (C) 2017		Facebook Inc.

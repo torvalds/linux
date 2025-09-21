@@ -2,7 +2,7 @@
 /* comedi_usb.h
  * header file for USB Comedi drivers
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
  */
 

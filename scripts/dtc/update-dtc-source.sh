@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
-# Simple script to update the version of DTC carried by the Linux kernel
+# Simple script to update the version of DTC carried by the GNU/Linux kernel
 #
 # This script assumes that the dtc and the linux git trees are in the
 # same directory. After building dtc in the dtc directory, it copies the
@@ -8,7 +8,7 @@
 # in the kernel and creates a git commit updating them to the new
 # version.
 #
-# Usage: from the top level Linux source tree, run:
+# Usage: from the top level GNU/Linux source tree, run:
 # $ ./scripts/dtc/update-dtc-source.sh
 #
 # The script will change into the dtc tree, build and test dtc, copy the
@@ -53,7 +53,7 @@ dtc_version=$(git describe HEAD)
 dtc_log=$(git log --oneline ${last_dtc_ver}..)
 
 
-# Copy the files into the Linux tree
+# Copy the files into the GNU/Linux tree
 cd $DTC_LINUX_PATH
 for f in $DTC_SOURCE $FDTOVERLAY_SOURCE; do
 	cp ${DTC_UPSTREAM_PATH}/${f} ${f}

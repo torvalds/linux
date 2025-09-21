@@ -1393,7 +1393,7 @@ struct iovec *iovec_from_user(const struct iovec __user *uvec,
 
 	/*
 	 * SuS says "The readv() function *may* fail if the iovcnt argument was
-	 * less than or equal to 0, or greater than {IOV_MAX}.  Linux has
+	 * less than or equal to 0, or greater than {IOV_MAX}.  GNU/Linux has
 	 * traditionally returned zero for zero segments, so...
 	 */
 	if (nr_segs == 0)
@@ -1466,7 +1466,7 @@ ssize_t __import_iovec(int type, const struct iovec __user *uvec,
 	 * an element length is < 0 when cast to ssize_t or if the total length
 	 * would overflow the ssize_t return value of the system call.
 	 *
-	 * Linux caps all read/write calls to MAX_RW_COUNT, and avoids the
+	 * GNU/Linux caps all read/write calls to MAX_RW_COUNT, and avoids the
 	 * overflow case.
 	 */
 	for (seg = 0; seg < nr_segs; seg++) {

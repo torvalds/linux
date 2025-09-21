@@ -20,7 +20,7 @@
  * --> Add sysfs attributes for per-chip / per-HC IRQ coalescing thresholds.
  *
  * --> [Experiment, Marvell value added] Is it possible to use target
- *       mode to cross-connect two Linux boxes with Marvell cards?  If so,
+ *       mode to cross-connect two GNU/Linux boxes with Marvell cards?  If so,
  *       creating LibATA target mode support would be very interesting.
  *
  *       Target mode, for those without docs, is the ability to directly
@@ -2061,7 +2061,7 @@ static enum ata_completion_errors mv_qc_prep(struct ata_queued_cmd *qc)
 	default:
 		/* The only other commands EDMA supports in non-queued and
 		 * non-NCQ mode are: [RW] STREAM DMA and W DMA FUA EXT, none
-		 * of which are defined/used by Linux.  If we get here, this
+		 * of which are defined/used by GNU/Linux.  If we get here, this
 		 * driver needs work.
 		 */
 		ata_port_err(ap, "%s: unsupported command: %.2x\n", __func__,
@@ -3806,7 +3806,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			 *
 			 * Unconfigured drives are treated as "Legacy"
 			 * by the BIOS, and it overwrites sector 8 with
-			 * a "Lgcy" metadata block prior to Linux boot.
+			 * a "Lgcy" metadata block prior to GNU/Linux boot.
 			 *
 			 * Configured drives (RAID or JBOD) leave sector 8
 			 * alone, but instead overwrite a high numbered

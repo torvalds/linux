@@ -238,7 +238,7 @@
 	status = "okay";
 };
 
-/* Verdin UART_3, used as the Linux Console */
+/* Verdin UART_3, used as the GNU/Linux Console */
 &uart3 {
 	status = "okay";
 };

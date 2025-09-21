@@ -5,7 +5,7 @@
  * All rights reserved
  * www.qlogic.com
  *
- * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
+ * GNU/Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  */
 
 /*
@@ -68,7 +68,7 @@ struct bfa_trc_mod_s {
 enum {
 	BFA_TRC_HAL  = 1,	/*  BFA modules */
 	BFA_TRC_FCS  = 2,	/*  BFA FCS modules */
-	BFA_TRC_LDRV = 3,	/*  Linux driver modules */
+	BFA_TRC_LDRV = 3,	/*  GNU/Linux driver modules */
 	BFA_TRC_CNA  = 4,	/*  Common modules */
 };
 #define BFA_TRC_MOD_SH	10

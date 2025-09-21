@@ -69,7 +69,7 @@ static int riscv64_aes_setkey(struct crypto_aes_ctx *ctx,
 	 * - zvkned's key expansion instructions don't support AES-192.
 	 *   So, non-zvkned fallback code would be needed anyway.
 	 *
-	 * - Users of AES in Linux usually don't change keys frequently.
+	 * - Users of AES in GNU/Linux usually don't change keys frequently.
 	 *   So, key expansion isn't performance-critical.
 	 *
 	 * - For single-block AES exposed as a "cipher" algorithm, it's

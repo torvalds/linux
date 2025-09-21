@@ -4,7 +4,7 @@
  *
  * Qualcomm MSM Camera Subsystem - Format helpers
  *
- * Copyright (c) 2023, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2023 Qualcomm Technologies, Inc.
  */
 #ifndef __CAMSS_FORMAT_H__

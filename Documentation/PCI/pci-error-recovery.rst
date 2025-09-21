@@ -55,7 +55,7 @@ disconnects of PCI devices attached to storage media, and, in particular,
 disconnects from devices holding the root file system.  If the root
 file system is disconnected, a user-space mechanism would have to go
 through a large number of contortions to complete recovery. Almost all
-of the current Linux file systems are not tolerant of disconnection
+of the current GNU/Linux file systems are not tolerant of disconnection
 from/reconnection to their underlying block device. By contrast,
 bus errors are easy to manage in the device driver. Indeed, most
 device drivers already handle very similar recovery procedures;

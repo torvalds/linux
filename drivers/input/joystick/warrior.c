@@ -4,7 +4,7 @@
  */
 
 /*
- * Logitech WingMan Warrior joystick driver for Linux
+ * Logitech WingMan Warrior joystick driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

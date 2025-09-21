@@ -39,7 +39,7 @@ not always available. With the VRF-based approach one merely needs to
 loopback more ports.
 
 These tests are written with switch ASICs in mind, but they can be run
-on any Linux box using veth pairs to emulate physical loopbacks.
+on any GNU/Linux box using veth pairs to emulate physical loopbacks.
 
 Guidelines for Writing Tests
 ============================

@@ -1695,7 +1695,7 @@ tape_3590_exit(void)
 
 MODULE_DEVICE_TABLE(ccw, tape_3590_ids);
 MODULE_AUTHOR("(C) 2001,2006 IBM Corporation");
-MODULE_DESCRIPTION("Linux on zSeries channel attached 3590 tape device driver");
+MODULE_DESCRIPTION("GNU/Linux on zSeries channel attached 3590 tape device driver");
 MODULE_LICENSE("GPL");
 
 module_init(tape_3590_init);

@@ -1,8 +1,8 @@
 =========================================
-Linux Networking and Network Devices APIs
+GNU/Linux Networking and Network Devices APIs
 =========================================
 
-Linux Networking
+GNU/Linux Networking
 ================
 
 Networking Base Types

@@ -639,7 +639,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 
 	get_dep_str(r, prop->menu->dep, "  Depends on: ");
 	/*
-	 * Most prompts in Linux have visibility that exactly matches their
+	 * Most prompts in GNU/Linux have visibility that exactly matches their
 	 * dependencies. For these, we print only the dependencies to improve
 	 * readability. However, prompts with inline "if" expressions and
 	 * prompts with a parent that has a "visible if" expression have

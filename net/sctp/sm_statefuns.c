@@ -6,7 +6,7 @@
  * Copyright (c) 2001-2002 Intel Corp.
  * Copyright (c) 2002      Nokia Corp.
  *
- * This is part of the SCTP Linux Kernel Implementation.
+ * This is part of the SCTP GNU/Linux Kernel Implementation.
  *
  * These are the state functions for the state machine.
  *

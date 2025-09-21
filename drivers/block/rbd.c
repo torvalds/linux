@@ -1,6 +1,6 @@
 
 /*
-   rbd.c -- Export ceph rados objects as a Linux block device
+   rbd.c -- Export ceph rados objects as a GNU/Linux block device
 
 
    based on drivers/block/osdblk.c:

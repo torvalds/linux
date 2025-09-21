@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2023, Linaro Limited
  * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
- * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, 2020 The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _DPU_1_7_MSM8996_H

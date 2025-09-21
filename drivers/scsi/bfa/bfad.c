@@ -5,11 +5,11 @@
  * All rights reserved
  * www.qlogic.com
  *
- * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
+ * GNU/Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  */
 
 /*
- *  bfad.c Linux driver PCI interface module.
+ *  bfad.c GNU/Linux driver PCI interface module.
  */
 #include <linux/module.h>
 #include <linux/kthread.h>

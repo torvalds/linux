@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =================================
-KUnit - Linux Kernel Unit Testing
+KUnit - GNU/Linux Kernel Unit Testing
 =================================
 
 .. toctree::
@@ -24,7 +24,7 @@ Introduction
 ============
 
 KUnit (Kernel unit testing framework) provides a common framework for
-unit tests within the Linux kernel. Using KUnit, you can define groups
+unit tests within the GNU/Linux kernel. Using KUnit, you can define groups
 of test cases called test suites. The tests either run on kernel boot
 if built-in, or load as a module. KUnit automatically flags and reports
 failed test cases in the kernel log. The test results appear in
@@ -44,8 +44,8 @@ internal system functionality. KUnit runs in kernel space and is not
 restricted to things exposed to user-space.
 
 In addition, KUnit has kunit_tool, a script (``tools/testing/kunit/kunit.py``)
-that configures the Linux kernel, runs KUnit tests under QEMU or UML
-(:doc:`User Mode Linux </virt/uml/user_mode_linux_howto_v2>`),
+that configures the GNU/Linux kernel, runs KUnit tests under QEMU or UML
+(:doc:`User Mode GNU/Linux </virt/uml/user_mode_linux_howto_v2>`),
 parses the test results and
 displays them in a user friendly manner.
 
@@ -59,8 +59,8 @@ Features
 Prerequisites
 -------------
 
-- Any Linux kernel compatible hardware.
-- For Kernel under test, Linux kernel version 5.5 or greater.
+- Any GNU/Linux kernel compatible hardware.
+- For Kernel under test, GNU/Linux kernel version 5.5 or greater.
 
 Unit Testing
 ============

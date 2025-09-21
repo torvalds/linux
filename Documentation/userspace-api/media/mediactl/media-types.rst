@@ -73,7 +73,7 @@ Types and flags used to represent the media graph elements
 
     *  -  ``MEDIA_ENT_F_TS_DEMUX``
        -  MPEG Transport stream demux entity. Could be implemented on
-	  hardware or in Kernelspace by the Linux DVB subsystem.
+	  hardware or in Kernelspace by the GNU/Linux DVB subsystem.
 
     *  -  ``MEDIA_ENT_F_DTV_CA``
        -  Digital TV Conditional Access module (CAM) entity

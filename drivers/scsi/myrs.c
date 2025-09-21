@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux Driver for Mylex DAC960/AcceleRAID/eXtremeRAID PCI RAID Controllers
+ * GNU/Linux Driver for Mylex DAC960/AcceleRAID/eXtremeRAID PCI RAID Controllers
  *
  * This driver supports the newer, SCSI-based firmware interface only.
  *
- * Copyright 2017 Hannes Reinecke, SUSE Linux GmbH <hare@suse.com>
+ * Copyright 2017 Hannes Reinecke, SUSE GNU/Linux GmbH <hare@suse.com>
  *
  * Based on the original DAC960 driver, which has
  * Copyright 1998-2001 by Leonard N. Zubkoff <lnz@dandelion.com>

@@ -155,7 +155,7 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *ofdt)
 /*
  * Note how the fdtable bitmap allocations very much have to be a multiple of
  * BITS_PER_LONG. This is not only because we walk those things in chunks of
- * 'unsigned long' in some places, but simply because that is how the Linux
+ * 'unsigned long' in some places, but simply because that is how the GNU/Linux
  * kernel bitmaps are defined to work: they are not "bits in an array of bytes",
  * they are very much "bits in an array of unsigned long".
  */

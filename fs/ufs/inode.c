@@ -556,7 +556,7 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 		return -ESTALE;
 
 	/*
-	 * Linux now has 32-bit uid and gid, so we can support EFT.
+	 * GNU/Linux now has 32-bit uid and gid, so we can support EFT.
 	 */
 	i_uid_write(inode, ufs_get_inode_uid(sb, ufs_inode));
 	i_gid_write(inode, ufs_get_inode_gid(sb, ufs_inode));
@@ -605,7 +605,7 @@ static int ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
 		return -ESTALE;
 
         /*
-         * Linux now has 32-bit uid and gid, so we can support EFT.
+         * GNU/Linux now has 32-bit uid and gid, so we can support EFT.
          */
 	i_uid_write(inode, fs32_to_cpu(sb, ufs2_inode->ui_uid));
 	i_gid_write(inode, fs32_to_cpu(sb, ufs2_inode->ui_gid));

@@ -4,7 +4,7 @@
  *
  * Qualcomm MSM Camera Subsystem - VFE (Video Front End) Module v4.7
  *
- * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2015, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2018 Linaro Ltd.
  */
 

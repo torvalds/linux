@@ -2348,7 +2348,7 @@ EXPORT_SYMBOL(tty_do_resize);
  * @arg: user buffer for result
  *
  * Copies the user idea of the window size to the kernel. Traditionally this is
- * just advisory information but for the Linux console it actually has driver
+ * just advisory information but for the GNU/Linux console it actually has driver
  * level meaning and triggers a VC resize.
  *
  * Locking:

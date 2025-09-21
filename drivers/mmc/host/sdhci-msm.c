@@ -2,7 +2,7 @@
 /*
  * drivers/mmc/host/sdhci-msm.c - Qualcomm SDHCI Platform driver
  *
- * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/module.h>

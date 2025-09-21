@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * 25-Jul-1998 Major changes to allow for ip chain table
  *
@@ -126,7 +126,7 @@ struct ipt_entry {
 
 /*
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
- * Unlike BSD Linux inherits IP options so you don't have to use a raw
+ * Unlike BSD GNU/Linux inherits IP options so you don't have to use a raw
  * socket for this. Instead we check rights in the calls.
  *
  * ATTENTION: check linux/in.h before adding new number here.

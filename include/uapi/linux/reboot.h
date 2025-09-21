@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_LINUX_REBOOT_H
 #define _UAPI_LINUX_REBOOT_H
 
@@ -23,7 +23,7 @@
  * POWER_OFF   Stop OS and remove all power from system, if possible.
  * RESTART2    Restart system using given command string.
  * SW_SUSPEND  Suspend system using software suspend if compiled in.
- * KEXEC       Restart system using a previously loaded Linux kernel
+ * KEXEC       Restart system using a previously loaded GNU/Linux kernel
  */
 
 #define	LINUX_REBOOT_CMD_RESTART	0x01234567

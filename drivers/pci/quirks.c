@@ -477,12 +477,12 @@ static void quirk_vialatency(struct pci_dev *dev)
 	/*
 	 * Ok we have the problem. Now set the PCI master grant to occur
 	 * every master grant. The apparent bug is that under high PCI load
-	 * (quite common in Linux of course) you can get data loss when the
+	 * (quite common in GNU/Linux of course) you can get data loss when the
 	 * CPU is held off the bus for 3 bus master requests.  This happens
 	 * to include the IDE controllers....
 	 *
 	 * VIA only apply this fix when an SB Live! is present but under
-	 * both Linux and Windows this isn't enough, and we have seen
+	 * both GNU/Linux and Windows this isn't enough, and we have seen
 	 * corruption without SB Live! but with things like 3 UDMA IDE
 	 * controllers. So we ignore that bit of the VIA recommendation..
 	 */
@@ -1296,7 +1296,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C597_0,	quirk_vt
 /*
  * CardBus controllers have a legacy base address that enables them to
  * respond as i82365 pcmcia controllers.  We don't want them to do this
- * even if the Linux CardBus driver is not loaded, because the Linux i82365
+ * even if the GNU/Linux CardBus driver is not loaded, because the GNU/Linux i82365
  * driver does not (and should not) handle CardBus.
  */
 static void quirk_cardbus_legacy(struct pci_dev *dev)
@@ -1383,7 +1383,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_CYRIX,	PCI_DEVICE_ID_CYRIX_PCI_MASTER, qu
 /*
  * Ensure C0 rev restreaming is off. This is normally done by the BIOS but
  * in the odd case it is not the results are corruption hence the presence
- * of a Linux check.
+ * of a GNU/Linux check.
  */
 static void quirk_disable_pxb(struct pci_dev *pdev)
 {
@@ -1505,7 +1505,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_e
  * Intel SMBus, this is a very good reason to leave it hidden.
  *
  * Likewise, many recent laptops use ACPI for thermal management. If the
- * ACPI DSDT code accesses the SMBus, then Linux should not access it
+ * ACPI DSDT code accesses the SMBus, then GNU/Linux should not access it
  * natively, and keeping the SMBus hidden is the right thing to do. If you
  * are about to add an entry in the table below, please first disassemble
  * the DSDT and double-check that there is no code accessing the SMBus.
@@ -2115,7 +2115,7 @@ static const struct dmi_system_id boot_interrupt_dmi_table[] = {
 
 /*
  * Boot interrupts on some chipsets cannot be turned off. For these chipsets,
- * remap the original interrupt in the Linux kernel to the boot interrupt, so
+ * remap the original interrupt in the GNU/Linux kernel to the boot interrupt, so
  * that a PCI device's interrupt handler is installed on the boot interrupt
  * line instead.
  */
@@ -2687,7 +2687,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_HB,
 /*
  * Some chipsets do not support MSI. We cannot easily rely on setting
  * PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually some
- * other buses controlled by the chipset even if Linux is not aware of it.
+ * other buses controlled by the chipset even if GNU/Linux is not aware of it.
  * Instead of setting the flag on all buses in the machine, simply disable
  * MSI globally.
  */
@@ -3280,7 +3280,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HINT, 0x0020, quirk_hotplug_bridge);
  * MS, xD) and one or both of CardBus or FireWire.
  *
  * It happens that they implement SD and MMC support as separate
- * controllers (and PCI functions). The Linux SDHCI driver supports MMC
+ * controllers (and PCI functions). The GNU/Linux SDHCI driver supports MMC
  * cards but the chip detects MMC cards in hardware and directs them to the
  * MMC controller - so the SDHCI driver never sees them.
  *

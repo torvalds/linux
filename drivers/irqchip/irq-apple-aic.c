@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  *
  * Based on irq-lpc32xx:
  *   Copyright 2015-2016 Vladimir Zapolskiy <vz@mleia.com>
@@ -31,7 +31,7 @@
  *
  * - This driver creates two IRQ domains, one for HW IRQs and internal FIQs,
  *   and one for IPIs.
- * - Since Linux needs more than 2 IPIs, we implement a software IRQ controller
+ * - Since GNU/Linux needs more than 2 IPIs, we implement a software IRQ controller
  *   and funnel all IPIs into one per-CPU IPI (the second "self" IPI is unused).
  * - FIQ hwirq numbers are assigned after true hwirqs, and are per-cpu.
  * - DT bindings use 3-cell form (like GIC):

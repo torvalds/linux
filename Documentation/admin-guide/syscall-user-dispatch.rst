@@ -38,11 +38,11 @@ since they are quite rare, at least for modern gaming applications.
 
 Since this mechanism is designed to capture syscalls issued by
 non-native applications, it must function on syscalls whose invocation
-ABI is completely unexpected to Linux.  Syscall User Dispatch, therefore
+ABI is completely unexpected to GNU/Linux.  Syscall User Dispatch, therefore
 doesn't rely on any of the syscall ABI to make the filtering.  It uses
 only the syscall dispatcher address and the userspace key.
 
-As the ABI of these intercepted syscalls is unknown to Linux, these
+As the ABI of these intercepted syscalls is unknown to GNU/Linux, these
 syscalls are not instrumentable via ptrace or the syscall tracepoints.
 
 Interface
@@ -87,7 +87,7 @@ Security Notes
 
 Syscall User Dispatch provides functionality for compatibility layers to
 quickly capture system calls issued by a non-native part of the
-application, while not impacting the Linux native regions of the
+application, while not impacting the GNU/Linux native regions of the
 process.  It is not a mechanism for sandboxing system calls, and it
 should not be seen as a security mechanism, since it is trivial for a
 malicious application to subvert the mechanism by jumping to an allowed

@@ -1,5 +1,5 @@
 /*
-   BNEP implementation for Linux Bluetooth stack (BlueZ).
+   BNEP implementation for GNU/Linux Bluetooth stack (BlueZ).
    Copyright (C) 2001-2002 Inventel Systemes
    Written 2001-2002 by
 	Clément Moreau <clement.moreau@inventel.fr>

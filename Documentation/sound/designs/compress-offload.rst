@@ -18,7 +18,7 @@ In recent years, audio digital signal processors (DSP) were integrated
 in system-on-chip designs, and DSPs are also integrated in audio
 codecs. Processing compressed data on such DSPs results in a dramatic
 reduction of power consumption compared to host-based
-processing. Support for such hardware has not been very good in Linux,
+processing. Support for such hardware has not been very good in GNU/Linux,
 mostly because of a lack of a generic API available in the mainline
 kernel.
 

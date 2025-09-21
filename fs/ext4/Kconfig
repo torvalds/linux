@@ -85,7 +85,7 @@ config EXT4_FS_SECURITY
 	depends on EXT4_FS
 	help
 	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
+	  implemented by security modules like SEGNU/Linux.  This option
 	  enables an extended attribute handler for file security
 	  labels in the ext4 filesystem.
 

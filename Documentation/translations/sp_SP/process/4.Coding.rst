@@ -106,7 +106,7 @@ Las capas de abstracción que ocultan el acceso al hardware, a menudo para
 permitir que la mayor parte de un controlador se utilice con varios
 sistemas operativos, son especialmente mal vistas. Dichas capas oscurecen
 el código y pueden imponer una penalización en el rendimiento; no
-pertenecen al kernel de Linux.
+pertenecen al kernel de GNU/Linux.
 
 Por otro lado, si se encuentra copiando cantidades significativas de código
 de otro subsistema del kernel, es hora de preguntar si, de hecho, tendría
@@ -175,7 +175,7 @@ Bloqueo
 En mayo de 2006, la pila de red "Devicescape" fue, con gran fanfarria,
 lanzada bajo la licencia GPL y puesta a disposición para su inclusión en el
 kernel principal. Esta donación fue una noticia bienvenida; el soporte para
-redes inalámbricas en Linux se consideraba, en el mejor de los casos,
+redes inalámbricas en GNU/Linux se consideraba, en el mejor de los casos,
 deficiente, y la pila de Devicescape ofrecía la promesa de solucionar esa
 situación. Sin embargo, este código no fue incluido en el kernel principal
 hasta junio de 2007 (versión 2.6.22). ¿Qué sucedió?
@@ -186,7 +186,7 @@ no estaba diseñado para funcionar en sistemas multiprocesador. Antes de que
 esta pila de red (ahora llamada mac80211) pudiera fusionarse, se tuvo que
 implementar un esquema de bloqueo en ella.
 
-Hubo un tiempo en que se podía desarrollar código para el kernel de Linux
+Hubo un tiempo en que se podía desarrollar código para el kernel de GNU/Linux
 sin pensar en los problemas de concurrencia que presentan los sistemas
 multiprocesador. Ahora, sin embargo, este documento se está escribiendo en
 una computadora portátil con dos núcleos. Incluso en sistemas de un solo

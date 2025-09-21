@@ -8,8 +8,8 @@
  *
  * Based on ipv4/udp.c code.
  *
- * Authors:	Vasiliy Kulikov / Openwall (for Linux 2.6),
- *		Pavel Kankovsky (for Linux 2.4.32)
+ * Authors:	Vasiliy Kulikov / Openwall (for GNU/Linux 2.6),
+ *		Pavel Kankovsky (for GNU/Linux 2.4.32)
  *
  * Pavel gave all rights to bugs to Vasiliy,
  * none of the bugs are Pavel's now.

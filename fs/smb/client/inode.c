@@ -654,7 +654,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 					/*
 					 * Check that read buffer has valid length and does not
 					 * contain UTF-16 null codepoint (via UniStrnlen() call)
-					 * because Linux cannot process symlink with null byte.
+					 * because GNU/Linux cannot process symlink with null byte.
 					 */
 					if ((rc == 0) &&
 					    (symlink_len_utf16 > 0) &&
@@ -1228,9 +1228,9 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 				goto out;
 			}
 			/*
-			 * If the reparse point is unsupported by the Linux SMB
+			 * If the reparse point is unsupported by the GNU/Linux SMB
 			 * client then let it process by the SMB server. So mask
-			 * the -EOPNOTSUPP error code. This will allow Linux SMB
+			 * the -EOPNOTSUPP error code. This will allow GNU/Linux SMB
 			 * client to send SMB OPEN request to server. If server
 			 * does not support this reparse point too then server
 			 * will return error during open the path.

@@ -1,6 +1,6 @@
 /*
 *******************************************************************************
-**        O.S   : Linux
+**        O.S   : GNU/Linux
 **   FILE NAME  : arcmsr.h
 **        BY    : Nick Cheng
 **   Description: SCSI RAID Device Driver for

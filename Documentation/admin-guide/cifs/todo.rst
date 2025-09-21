@@ -2,7 +2,7 @@
 TODO
 ====
 
-As of 6.7 kernel. See https://wiki.samba.org/index.php/LinuxCIFSKernel
+As of 6.7 kernel. See https://wiki.samba.org/index.php/GNU/LinuxCIFSKernel
 for list of features added by release
 
 A Partial List of Missing Features
@@ -76,7 +76,7 @@ o) mount helper GUI (to simplify the various configuration options on mount)
 
 p) Expand support for witness protocol to allow for notification of share
    move, and server network adapter changes. Currently only notifications by
-   the witness protocol for server move is supported by the Linux client.
+   the witness protocol for server move is supported by the GNU/Linux client.
 
 q) Allow mount.cifs to be more verbose in reporting errors with dialect
    or unsupported feature errors. This would now be easier due to the

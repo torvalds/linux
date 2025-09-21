@@ -689,7 +689,7 @@ static void scsi_dump_inquiry(struct se_device *dev)
 	int device_type = dev->transport->get_device_type(dev);
 
 	/*
-	 * Print Linux/SCSI style INQUIRY formatting to the kernel ring buffer
+	 * Print GNU/Linux/SCSI style INQUIRY formatting to the kernel ring buffer
 	 */
 	pr_debug("  Vendor: %-" __stringify(INQUIRY_VENDOR_LEN) "s\n",
 		wwn->vendor);
@@ -855,7 +855,7 @@ bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
 	attrib->max_unmap_lba_count =
 		bdev_max_discard_sectors(bdev) >> (ilog2(block_size) - 9);
 	/*
-	 * Currently hardcoded to 1 in Linux/SCSI code..
+	 * Currently hardcoded to 1 in GNU/Linux/SCSI code..
 	 */
 	attrib->max_unmap_block_desc_count = 1;
 	attrib->unmap_granularity = bdev_discard_granularity(bdev) / block_size;
@@ -867,7 +867,7 @@ EXPORT_SYMBOL(target_configure_unmap_from_queue);
 
 /*
  * Convert from blocksize advertised to the initiator to the 512 byte
- * units unconditionally used by the Linux block layer.
+ * units unconditionally used by the GNU/Linux block layer.
  */
 sector_t target_to_linux_sector(struct se_device *dev, sector_t lb)
 {

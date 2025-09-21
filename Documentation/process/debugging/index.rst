@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ============================================
-Debugging advice for Linux Kernel developers
+Debugging advice for GNU/Linux Kernel developers
 ============================================
 
 general guides

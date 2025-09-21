@@ -17,7 +17,7 @@ empleadores pueden encontrar allí. Hay muchas razones por las que el
 código del kernel debe fusionarse con el kernel oficial (“mainline”),
 incluyendo la disponibilidad automática para los usuarios, el apoyo de la
 comunidad en muchas formas, y la capacidad de influir en la dirección del
-desarrollo del kernel. El código contribuido al kernel de Linux debe
+desarrollo del kernel. El código contribuido al kernel de GNU/Linux debe
 estar disponible bajo una licencia compatible con GPL.
 
 :ref:`sp_development_process` introduce el proceso de desarrollo, el ciclo
@@ -61,7 +61,7 @@ fuentes para obtener más información sobre el desarrollo del kernel.
 De qué trata este documento
 ---------------------------
 
-El kernel de Linux, con más de 8 millones de líneas de código y más de
+El kernel de GNU/Linux, con más de 8 millones de líneas de código y más de
 1000 colaboradores en cada versión, en uno de los proyectos de software
 libre más grandes y activos que existen. Desde sus humildes comienzos en
 1991, este kernel ha evolucionado hasta convertirse en el mejor componente
@@ -70,21 +70,21 @@ de bolsillo, PC de escritorio, las supercomputadoras más grandes que
 existen y todo tipo de sistemas intermedios. Es una solución robusta,
 eficiente, y escalable para casi cualquier situación.
 
-Con el crecimiento de Linux, ha llegado un aumento en el número de
+Con el crecimiento de GNU/Linux, ha llegado un aumento en el número de
 desarrolladores (y empresas) que desean participar en su desarrollo. Los
-vendedores de hardware quieren asegurarse de que Linux sea compatible con
+vendedores de hardware quieren asegurarse de que GNU/Linux sea compatible con
 sus productos, lo que hace que esos productos sean atractivos para los
-usuarios de Linux. Los vendedores de sistemas embebidos, que utilizan
-Linux como componente de un producto integrado, quieren que Linux sea lo
+usuarios de GNU/Linux. Los vendedores de sistemas embebidos, que utilizan
+GNU/Linux como componente de un producto integrado, quieren que GNU/Linux sea lo
 más capaz y adecuado posible para tarea en cuestión. Los distribuidores
-y otros vendedores de software que basan sus productos en Linux tienen un
+y otros vendedores de software que basan sus productos en GNU/Linux tienen un
 claro interés en las capacidades, el rendimiento, y la fiabilidad del
-kernel de Linux. Y los usuarios finales, también, a menudo desearán
-cambiar Linux para que se adapte mejor a sus necesidades.
+kernel de GNU/Linux. Y los usuarios finales, también, a menudo desearán
+cambiar GNU/Linux para que se adapte mejor a sus necesidades.
 
-Una de las características más convincentes de Linux es que es accesible
+Una de las características más convincentes de GNU/Linux es que es accesible
 a estos desarrolladores; cualquier persona con las habilidades necesarias
-puede mejorar Linux e influir en la dirección de su desarrollo. Los
+puede mejorar GNU/Linux e influir en la dirección de su desarrollo. Los
 productos propietarios no pueden ofrecer este tipo de apertura, que es una
 característica del proceso de software libre. Pero, en todo caso, el
 kernel es aún más libre que la mayoría de los otros proyectos de software
@@ -99,7 +99,7 @@ comunidad del kernel ha desarrollado sus propias formas distintivas de
 operar, lo que le permite funcionar de manera fluida (y producir un
 producto de alta calidad) en un entorno donde miles de líneas de código
 se cambian todos los días. Por lo tanto, no es sorprendente que el
-proceso de desarrollo del kernel de Linux difiera mucho de los métodos de
+proceso de desarrollo del kernel de GNU/Linux difiera mucho de los métodos de
 desarrollo propietarios.
 
 El proceso de desarrollo del kernel puede parecer extraño e intimidante
@@ -126,7 +126,7 @@ mejorado por los comentarios de Johannes Berg, James Berry, Alex Chiang,
 Roland Dreier, Randy Dunlap, Jake Edge, Jiri Kosina, Matt Mackall, Arthur
 Marsh, Amanda McPherson, Andrew Morton, Andrew Price, Tsugikazu Shibata y
 Jochen Voß.
-Este trabajo fue respaldado por la Fundación Linux; gracias especialmente
+Este trabajo fue respaldado por la Fundación GNU/Linux; gracias especialmente
 a Amanda McPherson, quien reconoció el valor de este esfuerzo e hizo que
 todo sucediera.
 
@@ -137,7 +137,7 @@ Algunas empresas y desarrolladores ocasionalmente se preguntan por qué
 deberían molestarse en aprender cómo trabajar con la comunidad del
 kernel y obtener su código en el kernel mainline (el “mainline” es el
 kernel mantenido por Linus Torvalds y utilizado como base por los
-distribuidores de Linux. A corto plazo, contribuir con código puede
+distribuidores de GNU/Linux. A corto plazo, contribuir con código puede
 parecer un gasto evitable; parece más fácil mantener el código separado
 y dar soporte a los usuarios directamente. La verdad del asunto es que
 mantener el código separado (“fuera del árbol”) es pan para hoy y hambre
@@ -149,7 +149,7 @@ estos se discutirán con mayor detalle más adelante en este documento.
 Considerar:
 
 - El código que se ha fusionado con el kernel mainline está disponible
-  para todos los usuarios de Linux. Estará presente automáticamente en
+  para todos los usuarios de GNU/Linux. Estará presente automáticamente en
   todas las distribuciones que lo habiliten. No hay necesidad de discos
   de controladores, descargas, o las molestias de admitir múltiples
   versiones de múltiples distribuciones; todo simplemente funciona, para
@@ -206,7 +206,7 @@ Considerar:
   el proceso funcione. Al contribuir con su código, puede agregar nuevas
   funcionalidades al kernel y proporcionar capacidades y ejemplos que son
   útiles para otros desarrolladores del kernel. Si ha desarrollado código
-  para Linux (o está pensando en hacerlo), claramente tiene un interés
+  para GNU/Linux (o está pensando en hacerlo), claramente tiene un interés
   en el éxito continuo de esta plataforma; contribuir con código es una
   de las mejores maneras de ayudar a garantizar ese éxito.
 
@@ -261,7 +261,7 @@ producto rápidamente para el mercado.
 Licencias
 ---------
 
-El código se contribuye al kernel de Linux bajo varias licencias, pero
+El código se contribuye al kernel de GNU/Linux bajo varias licencias, pero
 todo el código debe ser compatible con la versión 2 de la Licencia
 Pública General de GNU (GPLv2), que cubre la distribución del kernel. En
 la práctica, esto significa que todas las contribuciones de código están
@@ -293,10 +293,10 @@ se deriva de esfuerzos de ingeniería inversa que carecen de las garantías
 adecuadas) no puede ser contribuido.
 
 Las preguntas sobre cuestiones relacionadas con los derechos de autor son
-comunes en las listas de correo de desarrollo de Linux. Normalmente, estas
+comunes en las listas de correo de desarrollo de GNU/Linux. Normalmente, estas
 preguntas no recibirán escasez de respuestas, pero se debe tener en cuenta
 que las personas que responden a esas preguntas no son abogados y no
 pueden proporcionar consejo legal. Si tiene preguntas legales relacionadas
-con el código fuente de Linux, no hay sustituto para hablar con un abogado
+con el código fuente de GNU/Linux, no hay sustituto para hablar con un abogado
 que entienda este campo. Confiar en las respuestas obtenidas en listas
 técnicas de correo es un asunto arriesgado.

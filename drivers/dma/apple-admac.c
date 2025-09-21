@@ -2,7 +2,7 @@
 /*
  * Driver for Audio DMA Controller (ADMAC) on t8103 (M1) and other Apple chips
  *
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  */
 
 #include <linux/bits.h>

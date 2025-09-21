@@ -3,7 +3,7 @@
  *
  * msnd_classic.h
  *
- * Turtle Beach MultiSound Sound Card Driver for Linux
+ * Turtle Beach MultiSound Sound Card Driver for GNU/Linux
  *
  * Some parts of this header file were derived from the Turtle Beach
  * MultiSound Driver Development Kit.

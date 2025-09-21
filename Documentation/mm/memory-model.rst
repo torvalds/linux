@@ -12,7 +12,7 @@ for the CPU. Then there could be several contiguous ranges at
 completely distinct addresses. And, don't forget about NUMA, where
 different memory banks are attached to different CPUs.
 
-Linux abstracts this diversity using one of the two memory models:
+GNU/Linux abstracts this diversity using one of the two memory models:
 FLATMEM and SPARSEMEM. Each architecture defines what
 memory models it supports, what the default memory model is and
 whether it is possible to manually override that default.
@@ -60,7 +60,7 @@ systems with physical memory starting at address different from 0.
 SPARSEMEM
 =========
 
-SPARSEMEM is the most versatile memory model available in Linux and it
+SPARSEMEM is the most versatile memory model available in GNU/Linux and it
 is the only memory model that supports several advanced features such
 as hot-plug and hot-remove of the physical memory, alternative memory
 maps for non-volatile memory devices and deferred initialization of

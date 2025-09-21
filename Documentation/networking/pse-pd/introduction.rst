@@ -41,7 +41,7 @@ Ethernet are as follows:
 Kernel Naming Convention Recommendations
 ----------------------------------------
 
-For clarity and consistency within the Linux kernel's networking subsystem, the
+For clarity and consistency within the GNU/Linux kernel's networking subsystem, the
 following naming conventions are recommended:
 
 - For general PSE (PoE) code, use "c33_pse" key words. For example:

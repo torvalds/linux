@@ -15,10 +15,10 @@
  *
  * R. D. Rechenmacher <ron@fnal.gov>, Aug. 6, 1997
  *
- * Linux driver for the IDT77201 NICStAR PCI ATM controller.
+ * GNU/Linux driver for the IDT77201 NICStAR PCI ATM controller.
  * PHY component is expected to be 155 Mbps S/UNI-Lite or IDT 77155;
  * see init_nicstar() for PHY initialization to change this. This driver
- * expects the Linux ATM stack to support scatter-gather lists 
+ * expects the GNU/Linux ATM stack to support scatter-gather lists 
  * (skb->atm.iovcnt != 0) for Rx skb's passed to vcc->push.
  *
  * Implementing minimal-copy of received data:
@@ -28,7 +28,7 @@
  *     Fix is simple: make large buffers large enough to hold entire
  *     SDU, and leave <small_buffer_data> bytes empty at the start. Then
  *     copy small buffer contents to head of large buffer.
- *   Trick is to avoid fragmenting Linux, due to need for a lot of large
+ *   Trick is to avoid fragmenting GNU/Linux, due to need for a lot of large
  *     buffers. This is done by 2 things:
  *       1) skb->destructor / skb->atm.recycle_buffer
  *            combined, allow nicstar_free_rx_skb to be called to

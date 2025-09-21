@@ -16,7 +16,7 @@ Thanks go to the following people for patches and contributions:
 
 - Christian Theiss
 
-  - for his work on the initial Linux DVB driver
+  - for his work on the initial GNU/Linux DVB driver
 
 - Marcus Metzler <mocm@metzlerbros.de> and
   Ralph Metzler <rjkm@metzlerbros.de>
@@ -29,7 +29,7 @@ Thanks go to the following people for patches and contributions:
 
 - Diego Picciani <d.picciani@novacomp.it>
 
-  - for CyberLogin for Linux which allows logging onto EON
+  - for CyberLogin for GNU/Linux which allows logging onto EON
     (in case you are wondering where CyberLogin is, EON changed its login
     procedure and CyberLogin is no longer used.)
 

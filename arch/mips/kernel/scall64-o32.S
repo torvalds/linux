@@ -33,8 +33,8 @@ NESTED(handle_sys, PT_SIZE, sp)
 	.set	at
 	ld	t1, PT_EPC(sp)		# skip syscall on return
 
-	dsubu	t0, v0, __NR_O32_Linux	# check syscall number
-	sltiu	t0, t0, __NR_O32_Linux_syscalls
+	dsubu	t0, v0, __NR_O32_GNU/Linux	# check syscall number
+	sltiu	t0, t0, __NR_O32_GNU/Linux_syscalls
 	daddiu	t1, 4			# skip to next instruction
 	sd	t1, PT_EPC(sp)
 	beqz	t0, not_o32_scall
@@ -84,10 +84,10 @@ loads_done:
 	 * where the real syscall number is in a0
 	 * note: NR_syscall is the first O32 syscall but the macro is
 	 * only defined when compiling with -mabi=32 (CONFIG_32BIT)
-	 * therefore __NR_O32_Linux is used (4000)
+	 * therefore __NR_O32_GNU/Linux is used (4000)
 	 */
 
-	subu	t2, v0,  __NR_O32_Linux
+	subu	t2, v0,  __NR_O32_GNU/Linux
 	bnez	t2, 1f /* __NR_syscall at offset 0 */
 	LONG_S	a0, TI_SYSCALL($28)	# Save a0 as syscall number
 	b	2f
@@ -102,7 +102,7 @@ loads_done:
 
 syscall_common:
 	dsll	t0, v0, 3		# offset into table
-	ld	t2, (sys32_call_table - (__NR_O32_Linux * 8))(t0)
+	ld	t2, (sys32_call_table - (__NR_O32_GNU/Linux * 8))(t0)
 
 	jalr	t2			# Do The Real Thing (TM)
 
@@ -144,8 +144,8 @@ trace_a_syscall:
 	ld	a6, PT_R10(sp)
 	ld	a7, PT_R11(sp)		# For indirect syscalls
 
-	dsubu	t0, v0, __NR_O32_Linux	# check (new) syscall number
-	sltiu	t0, t0, __NR_O32_Linux_syscalls
+	dsubu	t0, v0, __NR_O32_GNU/Linux	# check (new) syscall number
+	sltiu	t0, t0, __NR_O32_GNU/Linux_syscalls
 	beqz	t0, not_o32_scall
 
 	j	syscall_common
@@ -193,8 +193,8 @@ not_o32_scall:
 	END(handle_sys)
 
 LEAF(sys32_syscall)
-	subu	t0, a0, __NR_O32_Linux	# check syscall number
-	sltiu	v0, t0, __NR_O32_Linux_syscalls
+	subu	t0, a0, __NR_O32_GNU/Linux	# check syscall number
+	sltiu	v0, t0, __NR_O32_GNU/Linux_syscalls
 	beqz	t0, einval		# do not recurse
 	dsll	t1, t0, 3
 	beqz	v0, einval

@@ -5,7 +5,7 @@
  * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
-/* File aq_main.c: Main file for aQuantia Linux driver. */
+/* File aq_main.c: Main file for aQuantia GNU/Linux driver. */
 
 #include "aq_main.h"
 #include "aq_nic.h"

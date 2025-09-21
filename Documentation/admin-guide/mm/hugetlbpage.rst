@@ -6,7 +6,7 @@ Overview
 ========
 
 The intent of this file is to give a brief summary of hugetlbpage support in
-the Linux kernel.  This support is built on top of multiple page size support
+the GNU/Linux kernel.  This support is built on top of multiple page size support
 that is provided by most modern architectures.  For example, x86 CPUs normally
 support 4K and 2M (1G if architecturally supported) page sizes, ia64
 architecture supports multiple page sizes 4K, 8K, 64K, 256K, 1M, 4M, 16M,
@@ -16,10 +16,10 @@ Operating systems try to make best use of limited number of TLB resources.
 This optimization is more critical now as bigger and bigger physical memories
 (several GBs) are more readily available.
 
-Users can use the huge page support in Linux kernel by either using the mmap
+Users can use the huge page support in GNU/Linux kernel by either using the mmap
 system call or standard SYSV shared memory system calls (shmget, shmat).
 
-First the Linux kernel needs to be built with the CONFIG_HUGETLBFS
+First the GNU/Linux kernel needs to be built with the CONFIG_HUGETLBFS
 (present under "File systems") and CONFIG_HUGETLB_PAGE (selected
 automatically when CONFIG_HUGETLBFS is selected) configuration
 options.

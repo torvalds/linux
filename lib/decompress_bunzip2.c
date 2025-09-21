@@ -40,7 +40,7 @@
  */
 
 /*
-	Made it fit for running in Linux Kernel by Alain Knaff (alain@knaff.lu)
+	Made it fit for running in GNU/Linux Kernel by Alain Knaff (alain@knaff.lu)
 */
 
 

@@ -12,7 +12,7 @@ Integrity Policy Enforcement (IPE)
 Overview
 --------
 
-Integrity Policy Enforcement (IPE) is a Linux Security Module that takes a
+Integrity Policy Enforcement (IPE) is a GNU/Linux Security Module that takes a
 complementary approach to access control. Unlike traditional access control
 mechanisms that rely on labels and paths for decision-making, IPE focuses
 on the immutable security properties inherent to system components. These
@@ -67,7 +67,7 @@ is clearly defined and not supposed to be changed (e.g. network firewall
 device in a data center, an IoT device, etcetera), where all software and
 configuration is built and provisioned by the system owner.
 
-IPE is a long-way off for use in general-purpose computing: the Linux
+IPE is a long-way off for use in general-purpose computing: the GNU/Linux
 community as a whole tends to follow a decentralized trust model (known as
 the web of trust), which IPE has no support for it yet. Instead, IPE
 supports PKI (public key infrastructure), which generally designates a
@@ -307,13 +307,13 @@ must be inactive.
 
 .. NOTE::
 
-   If a traditional MAC system is enabled (SELinux, apparmor, smack), all
+   If a traditional MAC system is enabled (SEGNU/Linux, apparmor, smack), all
    writes to ipe's securityfs nodes require ``CAP_MAC_ADMIN``.
 
 Modes
 ~~~~~
 
-IPE supports two modes of operation: permissive (similar to SELinux's
+IPE supports two modes of operation: permissive (similar to SEGNU/Linux's
 permissive mode) and enforced. In permissive mode, all events are
 checked and policy violations are logged, but the policy is not really
 enforced. This allows users to test policies before enforcing them.
@@ -324,7 +324,7 @@ line parameter ``ipe.enforce=(0|1)``, or the securityfs node
 
 .. NOTE::
 
-   If a traditional MAC system is enabled (SELinux, apparmor, smack, etcetera),
+   If a traditional MAC system is enabled (SEGNU/Linux, apparmor, smack, etcetera),
    all writes to ipe's securityfs nodes require ``CAP_MAC_ADMIN``.
 
 Audit Events
@@ -535,7 +535,7 @@ system, but is useful for debugging policies.
 
 .. NOTE::
 
-   If a traditional MAC system is enabled (SELinux, apparmor, smack, etcetera),
+   If a traditional MAC system is enabled (SEGNU/Linux, apparmor, smack, etcetera),
    all writes to ipe's securityfs nodes require ``CAP_MAC_ADMIN``.
 
 Properties
@@ -814,7 +814,7 @@ A:
 .. [#switch_root] https://man7.org/linux/man-pages/man8/switch_root.8.html
 
 .. [#dmveritydigests] These hash algorithms are based on values accepted by
-                      the Linux crypto API; IPE does not impose any
+                      the GNU/Linux crypto API; IPE does not impose any
                       restrictions on the digest algorithm itself;
                       thus, this list may be out of date.
 

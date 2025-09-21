@@ -2518,7 +2518,7 @@ static void mport_cdev_remove(struct mport_dev *md)
 
 /*
  * mport_add_mport() - Add rio_mport from LDM device struct
- * @dev:		Linux device model struct
+ * @dev:		GNU/Linux device model struct
  */
 static int mport_add_mport(struct device *dev)
 {
@@ -2572,7 +2572,7 @@ static struct class_interface rio_mport_interface __refdata = {
 };
 
 /*
- * Linux kernel module
+ * GNU/Linux kernel module
  */
 
 /*

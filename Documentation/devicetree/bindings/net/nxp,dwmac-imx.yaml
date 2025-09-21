@@ -9,7 +9,7 @@ title: NXP i.MX8/9 DWMAC glue layer
 maintainers:
   - Clark Wang <xiaoning.wang@nxp.com>
   - Shawn Guo <shawnguo@kernel.org>
-  - NXP Linux Team <linux-imx@nxp.com>
+  - NXP GNU/Linux Team <linux-imx@nxp.com>
 
 # We need a select here so we don't match all nodes with 'snps,dwmac'
 select:

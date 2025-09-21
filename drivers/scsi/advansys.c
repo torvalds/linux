@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
+ * advansys.c - GNU/Linux Host Driver for AdvanSys SCSI Adapters
  *
  * Copyright (c) 1995-2000 Advanced System Products, Inc.
  * Copyright (c) 2000-2001 ConnectCom Solutions, Inc.
@@ -1771,7 +1771,7 @@ typedef struct adv_scsi_req_q {
  * to the Mid-Level SCSI request structure.
  *
  * Zero or more ADV_SG_BLOCK are used with each ADV_SCSI_REQ_Q. Each
- * ADV_SG_BLOCK structure holds 15 scatter-gather elements. Under Linux
+ * ADV_SG_BLOCK structure holds 15 scatter-gather elements. Under GNU/Linux
  * up to 255 scatter-gather elements may be used per request or
  * ADV_SCSI_REQ_Q.
  *
@@ -3135,7 +3135,7 @@ static void asc_prt_driver_conf(struct seq_file *m, struct Scsi_Host *shost)
 	struct asc_board *boardp = shost_priv(shost);
 
 	seq_printf(m,
-		"\nLinux Driver Configuration and Information for AdvanSys SCSI Host %d:\n",
+		"\nGNU/Linux Driver Configuration and Information for AdvanSys SCSI Host %d:\n",
 		shost->host_no);
 
 	seq_printf(m,
@@ -3483,7 +3483,7 @@ static void asc_prt_board_stats(struct seq_file *m, struct Scsi_Host *shost)
 	struct asc_stats *s = &boardp->asc_stats;
 
 	seq_printf(m,
-		   "\nLinux Driver Statistics for AdvanSys SCSI Host %d:\n",
+		   "\nGNU/Linux Driver Statistics for AdvanSys SCSI Host %d:\n",
 		   shost->host_no);
 
 	seq_printf(m,

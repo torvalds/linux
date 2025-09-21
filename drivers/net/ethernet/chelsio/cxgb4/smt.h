@@ -1,5 +1,5 @@
 /*
- * This file is part of the Chelsio T4/T5/T6 Ethernet driver for Linux.
+ * This file is part of the Chelsio T4/T5/T6 Ethernet driver for GNU/Linux.
  *
  * Copyright (c) 2017 Chelsio Communications, Inc. All rights reserved.
  *

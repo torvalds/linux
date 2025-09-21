@@ -1,11 +1,11 @@
 =============================
-Linux Filesystems API summary
+GNU/Linux Filesystems API summary
 =============================
 
 This section contains API-level documentation, mostly taken from the source
 code itself.
 
-The Linux VFS
+The GNU/Linux VFS
 =============
 
 The Filesystem types

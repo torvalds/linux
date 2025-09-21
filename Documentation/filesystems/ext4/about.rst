@@ -10,7 +10,7 @@ and the fields will be shorter.
 
 **NOTE**: This is a work in progress, based on notes that the author
 (djwong) made while picking apart a filesystem by hand. The data
-structure definitions should be current as of Linux 4.18 and
+structure definitions should be current as of GNU/Linux 4.18 and
 e2fsprogs-1.44. All comments and corrections are welcome, since there is
 undoubtedly plenty of lore that might not be reflected in freshly
 created demonstration filesystems.

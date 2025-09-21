@@ -4,7 +4,7 @@
 DAMON: Data Access MONitoring and Access-aware System Operations
 ================================================================
 
-:doc:`DAMON </mm/damon/index>` is a Linux kernel subsystem for efficient data
+:doc:`DAMON </mm/damon/index>` is a GNU/Linux kernel subsystem for efficient data
 access monitoring and access-aware system operations.
 
 .. toctree::

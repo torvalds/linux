@@ -3,7 +3,7 @@ Kernel Self-Protection
 ======================
 
 Kernel self-protection is the design and implementation of systems and
-structures within the Linux kernel to protect against security flaws in
+structures within the GNU/Linux kernel to protect against security flaws in
 the kernel itself. This covers a wide range of issues, including removing
 entire classes of bugs, blocking security flaw exploitation methods,
 and actively detecting attack attempts. Not all topics are explored in

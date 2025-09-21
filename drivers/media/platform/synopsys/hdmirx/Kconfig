@@ -21,7 +21,7 @@ config VIDEO_SYNOPSYS_HDMIRX_LOAD_DEFAULT_EDID
 	depends on VIDEO_SYNOPSYS_HDMIRX
 	help
 	  Preload default EDID (Extended Display Identification Data)
-	  branded by Linux Foundation that exposes display modes up
+	  branded by GNU/Linux Foundation that exposes display modes up
 	  to 4k@30Hz, which have best compatibility with HDMI transmitters.
 
 	  Enabling this option is recommended for a non-production use-cases.

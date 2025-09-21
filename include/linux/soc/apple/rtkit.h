@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
 /*
  * Apple RTKit IPC Library
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  *
  * Apple's SoCs come with various co-processors running their RTKit operating
  * system. This protocol library is used by client drivers to use the
@@ -48,7 +48,7 @@ struct apple_rtkit_shmem {
  *                 worker thread.
  * @shmem_setup:   Setup shared memory buffer. If bfr.is_iomem is true the
  *                 buffer is managed by the co-processor and needs to be mapped.
- *                 Otherwise the buffer is managed by Linux and needs to be
+ *                 Otherwise the buffer is managed by GNU/Linux and needs to be
  *                 allocated. If not specified dma_alloc_coherent is used.
  *                 Called in process context.
  * @shmem_destroy: Undo the shared memory buffer setup in shmem_setup. If not

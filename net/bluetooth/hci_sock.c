@@ -1,5 +1,5 @@
 /*
-   BlueZ - Bluetooth protocol stack for Linux
+   BlueZ - Bluetooth protocol stack for GNU/Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
@@ -1384,7 +1384,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 */
 		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
-		send_monitor_note(sk, "Linux version %s (%s)",
+		send_monitor_note(sk, "GNU/Linux version %s (%s)",
 				  init_utsname()->release,
 				  init_utsname()->machine);
 		send_monitor_note(sk, "Bluetooth subsystem version %u.%u",

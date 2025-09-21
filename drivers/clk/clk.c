@@ -5513,7 +5513,7 @@ static int parent_ready(struct device_node *np)
  *
  * Do not use this function. It exists only for legacy Device Tree
  * bindings, such as the one-clock-per-node style that are outdated.
- * Those bindings typically put all clock data into .dts and the Linux
+ * Those bindings typically put all clock data into .dts and the GNU/Linux
  * driver has no clock data, thus making it impossible to set this flag
  * correctly from the driver. Only those drivers may call
  * of_clk_detect_critical from their setup functions.

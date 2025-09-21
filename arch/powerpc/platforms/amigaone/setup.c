@@ -68,7 +68,7 @@ static int __init amigaone_add_bridge(struct device_node *dev)
 static void __init amigaone_setup_arch(void)
 {
 	if (ppc_md.progress)
-		ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0);
+		ppc_md.progress("GNU/Linux/PPC "UTS_RELEASE"\n", 0);
 }
 
 static void __init amigaone_discover_phbs(void)

@@ -13,7 +13,7 @@ specifics cannot be presented. These details are useful for debugging, and
 offloading process.
 
 For example, the routing longest prefix match (LPM) algorithm used by the
-Linux kernel may differ from the hardware implementation. The pipeline debug
+GNU/Linux kernel may differ from the hardware implementation. The pipeline debug
 API (DPIPE) is aimed at providing the user visibility into the ASIC's
 pipeline in a generic way.
 

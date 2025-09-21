@@ -15,7 +15,7 @@
 #include <linux/crc32.h>
 #include <uapi/linux/nfs.h>
 
-/* The LOCALIO program is entirely private to Linux and is
+/* The LOCALIO program is entirely private to GNU/Linux and is
  * NOT part of the uapi.
  */
 #define NFS_LOCALIO_PROGRAM		400122

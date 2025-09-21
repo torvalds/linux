@@ -5,7 +5,7 @@
 /*
  * APIs which are relevant for device driver code for allocating and
  * freeing MSI interrupts and querying the associations between
- * hardware/software MSI indices and the Linux interrupt number.
+ * hardware/software MSI indices and the GNU/Linux interrupt number.
  */
 
 struct device;
@@ -36,12 +36,12 @@ union msi_instance_cookie {
 };
 
 /**
- * msi_map - Mapping between MSI index and Linux interrupt number
+ * msi_map - Mapping between MSI index and GNU/Linux interrupt number
  * @index:	The MSI index, e.g. slot in the MSI-X table or
  *		a software managed index if >= 0. If negative
  *		the allocation function failed and it contains
  *		the error code.
- * @virq:	The associated Linux interrupt number
+ * @virq:	The associated GNU/Linux interrupt number
  */
 struct msi_map {
 	int	index;
@@ -58,11 +58,11 @@ struct msi_map {
 unsigned int msi_domain_get_virq(struct device *dev, unsigned int domid, unsigned int index);
 
 /**
- * msi_get_virq - Lookup the Linux interrupt number for a MSI index on the default interrupt domain
+ * msi_get_virq - Lookup the GNU/Linux interrupt number for a MSI index on the default interrupt domain
  * @dev:	Device for which the lookup happens
  * @index:	The MSI index to lookup
  *
- * Return: The Linux interrupt number on success (> 0), 0 if not found
+ * Return: The GNU/Linux interrupt number on success (> 0), 0 if not found
  */
 static inline unsigned int msi_get_virq(struct device *dev, unsigned int index)
 {

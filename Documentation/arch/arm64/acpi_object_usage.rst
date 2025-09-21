@@ -25,7 +25,7 @@ For ACPI on arm64, tables also fall into the following categories:
           MSDM, OEMx, PDTT, PSDT, RAS2, RSDT, SLIC, WAET, WDAT, WDRT, WPBT
 
 ====== ========================================================================
-Table  Usage for ARMv8 Linux
+Table  Usage for ARMv8 GNU/Linux
 ====== ========================================================================
 AEST   Signature Reserved (signature == "AEST")
 
@@ -508,7 +508,7 @@ should be used as needed for a particular platform or particular subsystem,
 such as power management or PCI.
 
 ===== ================ ========================================================
-Name   Section         Usage for ARMv8 Linux
+Name   Section         Usage for ARMv8 GNU/Linux
 ===== ================ ========================================================
 _CCA   6.2.17          This method must be defined for all bus masters
                        on arm64 - there are no assumptions made about
@@ -589,8 +589,8 @@ _OFF   7.2.2           It is recommended to define this method for any device
 _ON    7.2.3           It is recommended to define this method for any device
                        that can be turned on or off.
 
-\_OS   5.7.3           This method will return "Linux" by default (this is
-                       the value of the macro ACPI_OS_NAME on Linux).  The
+\_OS   5.7.3           This method will return "GNU/Linux" by default (this is
+                       the value of the macro ACPI_OS_NAME on GNU/Linux).  The
                        command line parameter acpi_os=<string> can be used
                        to set it to some other value.
 
@@ -735,7 +735,7 @@ given that these are corrected (or correctable) errors being reported, this
 is sufficient.  The NMI is emulated as the highest priority interrupt
 possible.  This implies some caution must be used since there could be
 interrupts at higher privilege levels or even interrupts at the same priority
-as the emulated NMI.  In Linux, this should not be the case but one should
+as the emulated NMI.  In GNU/Linux, this should not be the case but one should
 be aware it could happen.
 
 

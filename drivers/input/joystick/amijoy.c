@@ -4,7 +4,7 @@
  */
 
 /*
- * Driver for Amiga joysticks for Linux/m68k
+ * Driver for Amiga joysticks for GNU/Linux/m68k
  */
 
 #include <linux/types.h>

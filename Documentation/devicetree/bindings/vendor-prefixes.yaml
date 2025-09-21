@@ -880,7 +880,7 @@ patternProperties:
   "^linutronix,.*":
     description: Linutronix GmbH
   "^linux,.*":
-    description: Linux-specific binding
+    description: GNU/Linux-specific binding
   "^linx,.*":
     description: Linx Technologies
   "^liontron,.*":
@@ -914,7 +914,7 @@ patternProperties:
   "^lwn,.*":
     description: Liebherr-Werk Nenzing GmbH
   "^lxa,.*":
-    description: Linux Automation GmbH
+    description: GNU/Linux Automation GmbH
   "^m5stack,.*":
     description: M5Stack
   "^macnica,.*":
@@ -1378,7 +1378,7 @@ patternProperties:
   "^si-en,.*":
     description: Si-En Technology Ltd.
   "^si-linux,.*":
-    description: Silicon Linux Corporation
+    description: Silicon GNU/Linux Corporation
   "^siemens,.*":
     description: Siemens AG
   "^sifive,.*":

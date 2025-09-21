@@ -101,7 +101,7 @@ int smb2_fix_symlink_target_type(char **target, bool directory, struct cifs_sb_i
 	 * If this is a file (non-directory) symlink and it points to path name
 	 * with trailing slash then this is an invalid symlink because file name
 	 * cannot contain slash character. File name with slash is invalid on
-	 * both Windows and Linux systems. So return an error for such symlink.
+	 * both Windows and GNU/Linux systems. So return an error for such symlink.
 	 */
 	if (!directory && (*target)[len-1] == '/')
 		return -EIO;

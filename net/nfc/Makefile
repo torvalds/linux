@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux NFC subsystem.
+# Makefile for the GNU/Linux NFC subsystem.
 #
 
 obj-$(CONFIG_NFC) += nfc.o

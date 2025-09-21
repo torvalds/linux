@@ -11,11 +11,11 @@ October 17, 2005
 What is ramfs?
 --------------
 
-Ramfs is a very simple filesystem that exports Linux's disk caching
+Ramfs is a very simple filesystem that exports GNU/Linux's disk caching
 mechanisms (the page cache and dentry cache) as a dynamically resizable
 RAM-based filesystem.
 
-Normally all files are cached in memory by Linux.  Pages of data read from
+Normally all files are cached in memory by GNU/Linux.  Pages of data read from
 backing store (usually the block device the filesystem is mounted on) are kept
 around in case it's needed again, but marked as clean (freeable) in case the
 Virtual Memory system needs the memory for something else.  Similarly, data
@@ -30,7 +30,7 @@ This means the pages are never marked clean, so they can't be freed by the
 VM when it's looking to recycle memory.
 
 The amount of code required to implement ramfs is tiny, because all the
-work is done by the existing Linux caching infrastructure.  Basically,
+work is done by the existing GNU/Linux caching infrastructure.  Basically,
 you're mounting the disk cache as a filesystem.  Because of this, ramfs is not
 an optional component removable via menuconfig, since there would be negligible
 space savings.
@@ -91,7 +91,7 @@ line.
 What is initramfs?
 ------------------
 
-All 2.6 Linux kernels contain a gzipped "cpio" format archive, which is
+All 2.6 GNU/Linux kernels contain a gzipped "cpio" format archive, which is
 extracted into rootfs when the kernel boots up.  After extracting, the kernel
 checks to see if rootfs contains a file "init", and if so it executes it as PID
 1.  If found, this init process is responsible for bringing the system the
@@ -214,7 +214,7 @@ use in place of the above config file::
    of filenames is with the find command; you should give find the -depth
    option to minimize problems with permissions on directories that are
    unwritable or not searchable."  Don't do this when creating
-   initramfs.cpio.gz images, it won't work.  The Linux kernel cpio extractor
+   initramfs.cpio.gz images, it won't work.  The GNU/Linux kernel cpio extractor
    won't create files in a directory that doesn't exist, so the directory
    entries must go before the files that go in those directories.
    The above script gets them in the right order.
@@ -230,7 +230,7 @@ archive into rootfs before trying to run /init.
 This has the memory efficiency advantages of initramfs (no ramdisk block
 device) but the separate packaging of initrd (which is nice if you have
 non-GPL code you'd like to run from initramfs, without conflating it with
-the GPL licensed Linux kernel binary).
+the GPL licensed GNU/Linux kernel binary).
 
 It can also be used to supplement the kernel's built-in initramfs image.  The
 files in the external archive will overwrite any conflicting files in
@@ -240,7 +240,7 @@ a single kernel image with task-specific initramfs images, without recompiling.
 Contents of initramfs:
 ----------------------
 
-An initramfs archive is a complete self-contained root filesystem for Linux.
+An initramfs archive is a complete self-contained root filesystem for GNU/Linux.
 If you don't already understand what shared libraries, devices, and paths
 you need to get a minimal root filesystem up and running, here are some
 references:
@@ -264,7 +264,7 @@ name lookups, even when otherwise statically linked.)
 
 A good first step is to get initramfs to run a statically linked "hello world"
 program as init, and test it under an emulator like qemu (www.qemu.org) or
-User Mode Linux, like so::
+User Mode GNU/Linux, like so::
 
   cat > hello.c << EOF
   #include <stdio.h>
@@ -300,8 +300,8 @@ The quick and dirty summary version (which is no substitute for reading
 the above threads) is:
 
 1) cpio is a standard.  It's decades old (from the AT&T days), and already
-   widely used on Linux (inside RPM, Red Hat's device driver disks).  Here's
-   a Linux Journal article about it from 1996:
+   widely used on GNU/Linux (inside RPM, Red Hat's device driver disks).  Here's
+   a GNU/Linux Journal article about it from 1996:
 
       http://www.linuxjournal.com/article/1213
 
@@ -320,7 +320,7 @@ the above threads) is:
    total of human-readable text.
 
 3) The GNU project standardizing on tar is approximately as relevant as
-   Windows standardizing on zip.  Linux is not part of either, and is free
+   Windows standardizing on zip.  GNU/Linux is not part of either, and is free
    to make its own technical decisions.
 
 4) Since this is a kernel internal format, it could easily have been

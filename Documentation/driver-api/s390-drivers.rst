@@ -39,7 +39,7 @@ into several categories:
   device on the ccw bus and are described below.
 * I/O subchannels bound to the vfio-ccw driver. See
   Documentation/arch/s390/vfio-ccw.rst.
-* Message subchannels. No Linux driver currently exists.
+* Message subchannels. No GNU/Linux driver currently exists.
 * CHSC subchannels (at most one). The chsc subchannel driver can be used
   to send asynchronous chsc commands.
 * eADM subchannels. Used for talking to storage class memory.

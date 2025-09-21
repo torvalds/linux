@@ -1,4 +1,4 @@
-The Linux Hardware Monitoring kernel API
+The GNU/Linux Hardware Monitoring kernel API
 ========================================
 
 Guenter Roeck

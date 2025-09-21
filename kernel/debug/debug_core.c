@@ -469,7 +469,7 @@ void kdb_dump_stack_on_cpu(int cpu)
 	/*
 	 * In general, architectures don't support dumping the stack of a
 	 * "running" process that's not the current one.  From the point of
-	 * view of the Linux, kernel processes that are looping in the kgdb
+	 * view of the GNU/Linux, kernel processes that are looping in the kgdb
 	 * slave loop are still "running".  There's also no API (that actually
 	 * works across all architectures) that can do a stack crawl based
 	 * on registers passed as a parameter.

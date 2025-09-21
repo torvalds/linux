@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* mvme147.c  : the  Linux/mvme147/lance ethernet driver
+/* mvme147.c  : the  GNU/Linux/mvme147/lance ethernet driver
  *
  * Copyright (C) 05/1998 Peter Maydell <pmaydell@chiark.greenend.org.uk>
  * Based on the Sun Lance driver and the NetBSD HP Lance driver

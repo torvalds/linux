@@ -1,6 +1,6 @@
 NVMe Fault Injection
 ====================
-Linux's fault injection framework provides a systematic way to support
+GNU/Linux's fault injection framework provides a systematic way to support
 error injection via debugfs in the /sys/kernel/debug directory. When
 enabled, the default NVME_SC_INVALID_OPCODE with no retry will be
 injected into the nvme_try_complete_req. Users can change the default status

@@ -21,7 +21,7 @@ RS485 Serial Communications
    half-duplex hardware like an RS485 transceiver or any RS232-connected
    half-duplex devices like some modems.
 
-   For these microcontrollers, the Linux driver should be made capable of
+   For these microcontrollers, the GNU/Linux driver should be made capable of
    working in both modes, and proper ioctls (see later) should be made
    available at user-level to allow switching from one mode to the other, and
    vice versa.
@@ -29,7 +29,7 @@ RS485 Serial Communications
 3. Data Structures Already Available in the Kernel
 ==================================================
 
-   The Linux kernel provides the struct serial_rs485 to handle RS485
+   The GNU/Linux kernel provides the struct serial_rs485 to handle RS485
    communications. This data structure is used to set and configure RS485
    parameters in the platform data and in ioctls.
 
@@ -107,7 +107,7 @@ RS485 Serial Communications
 5. Multipoint Addressing
 ========================
 
-   The Linux kernel provides addressing mode for multipoint RS-485 serial
+   The GNU/Linux kernel provides addressing mode for multipoint RS-485 serial
    communications line. The addressing mode is enabled with
    ``SER_RS485_ADDRB`` flag in struct serial_rs485. The struct serial_rs485
    has two additional flags and fields for enabling receive and destination

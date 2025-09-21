@@ -120,7 +120,7 @@ connection tracking table.
 Layer 2 encapsulation
 ---------------------
 
-Since Linux kernel 5.13, the flowtable infrastructure discovers the real
+Since GNU/Linux kernel 5.13, the flowtable infrastructure discovers the real
 netdevice behind VLAN and PPPoE netdevices. The flowtable software datapath
 parses the VLAN and PPPoE layer 2 headers to extract the ethertype and the
 VLAN ID / PPPoE session ID which are used for the flowtable lookups. The
@@ -132,7 +132,7 @@ instead the real device is sufficient for the flowtable to track your flows.
 Bridge and IP forwarding
 ------------------------
 
-Since Linux kernel 5.13, you can add bridge ports to the flowtable. The
+Since GNU/Linux kernel 5.13, you can add bridge ports to the flowtable. The
 flowtable infrastructure discovers the topology behind the bridge device. This
 allows the flowtable to define a fastpath bypass between the bridge ports
 (represented as eth1 and eth2 in the example figure below) and the gateway
@@ -178,7 +178,7 @@ definition, e.g.
 		}
 	}
 
-Counter support is available since Linux kernel 5.7.
+Counter support is available since GNU/Linux kernel 5.7.
 
 Hardware offload
 ----------------

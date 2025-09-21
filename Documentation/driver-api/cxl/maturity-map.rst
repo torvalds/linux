@@ -5,7 +5,7 @@
 Compute Express Link Subsystem Maturity Map
 ===========================================
 
-The Linux CXL subsystem tracks the dynamic `CXL specification
+The GNU/Linux CXL subsystem tracks the dynamic `CXL specification
 <https://computeexpresslink.org/cxl-specification-landing-page>`_ that
 continues to respond to new use cases with new features, capability
 updates and fixes. At any given point some aspects of the subsystem are

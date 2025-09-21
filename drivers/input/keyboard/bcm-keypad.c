@@ -321,7 +321,7 @@ static int bcm_kp_probe(struct platform_device *pdev)
 
 	__set_bit(EV_KEY, input_dev->evbit);
 
-	/* Enable auto repeat feature of Linux input subsystem */
+	/* Enable auto repeat feature of GNU/Linux input subsystem */
 	if (of_property_read_bool(pdev->dev.of_node, "autorepeat"))
 		__set_bit(EV_REP, input_dev->evbit);
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2003 by Chuck Lever <cel@netapp.com>
  *
- * High-performance uncached I/O for the Linux NFS client
+ * High-performance uncached I/O for the GNU/Linux NFS client
  *
  * There are important applications whose performance or correctness
  * depends on uncached access to file data.  Database clusters
@@ -17,7 +17,7 @@
  *
  * When an application requests uncached I/O, all read and write requests
  * are made directly to the server; data stored or fetched via these
- * requests is not cached in the Linux page cache.  The client does not
+ * requests is not cached in the GNU/Linux page cache.  The client does not
  * correct unaligned requests from applications.  All requested bytes are
  * held on permanent storage before a direct write system call returns to
  * an application.

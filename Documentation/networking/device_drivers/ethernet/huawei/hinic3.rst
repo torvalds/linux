@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================================================
-Linux kernel driver for Huawei Ethernet Device Driver (hinic3) family
+GNU/Linux kernel driver for Huawei Ethernet Device Driver (hinic3) family
 =====================================================================
 
 Overview
@@ -43,7 +43,7 @@ Source Code Structure of Hinic3 Driver
 hinic3_pci_id_tbl.h       Supported device IDs
 hinic3_hw_intf.h          Interface between HW and driver
 hinic3_queue_common.[ch]  Common structures and methods for NIC queues
-hinic3_common.[ch]        Encapsulation of memory operations in Linux
+hinic3_common.[ch]        Encapsulation of memory operations in GNU/Linux
 hinic3_csr.h              Register definitions in the BAR
 hinic3_hwif.[ch]          Interface for BAR
 hinic3_eqs.[ch]           Interface for AEQs and CEQs
@@ -57,9 +57,9 @@ hinic3_hw_comm.[ch]       Interface for common HW operations
 hinic3_mgmt_interface.h   Interface between firmware and driver
 hinic3_hw_cfg.[ch]        Interface for HW configuration
 hinic3_irq.c              Interrupt request
-hinic3_netdev_ops.c       Operations registered to Linux kernel stack
+hinic3_netdev_ops.c       Operations registered to GNU/Linux kernel stack
 hinic3_nic_dev.h          NIC structures and methods abstractions
-hinic3_main.c             Main Linux kernel driver
+hinic3_main.c             Main GNU/Linux kernel driver
 hinic3_nic_cfg.[ch]       NIC service configuration
 hinic3_nic_io.[ch]        Management plane interface for TX and RX
 hinic3_rss.[ch]           Interface for Receive Side Scaling (RSS)

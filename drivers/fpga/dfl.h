@@ -255,7 +255,7 @@ struct dfl_feature_driver {
 /**
  * struct dfl_feature_irq_ctx - dfl private feature interrupt context
  *
- * @irq: Linux IRQ number of this interrupt.
+ * @irq: GNU/Linux IRQ number of this interrupt.
  * @trigger: eventfd context to signal when interrupt happens.
  * @name: irq name needed when requesting irq.
  */
@@ -499,7 +499,7 @@ static inline u8 dfl_feature_revision(void __iomem *base)
  * @dev: parent device.
  * @dfls: list of device feature lists.
  * @nr_irqs: number of irqs for all feature devices.
- * @irq_table: Linux IRQ numbers for all irqs, indexed by hw irq numbers.
+ * @irq_table: GNU/Linux IRQ numbers for all irqs, indexed by hw irq numbers.
  */
 struct dfl_fpga_enum_info {
 	struct device *dev;

@@ -14,7 +14,7 @@ However, for some of the ME functionalities it makes sense to leverage existing 
 stack and expose them through existing kernel subsystems.
 
 In order to plug seamlessly into the kernel device driver model we add kernel virtual
-bus abstraction on top of the MEI driver. This allows implementing Linux kernel drivers
+bus abstraction on top of the MEI driver. This allows implementing GNU/Linux kernel drivers
 for the various MEI features as a stand alone entities found in their respective subsystem.
 Existing device drivers can even potentially be re-used by adding an MEI CL bus layer to
 the existing code.

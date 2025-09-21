@@ -46,7 +46,7 @@ IpExtOutOctets.
 
 * IpExtInOctets and IpExtOutOctets
 
-They are Linux kernel extensions, no RFC definitions. Please note,
+They are GNU/Linux kernel extensions, no RFC definitions. Please note,
 RFC1213 indeed defines ifInOctets  and ifOutOctets, but they
 are different things. The ifInOctets and ifOutOctets include the MAC
 layer header size but IpExtInOctets and IpExtOutOctets don't, they
@@ -203,7 +203,7 @@ document.
 
 .. _ICMP parameters: https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml
 
-For example, if the Linux kernel sends an ICMP Echo packet, the
+For example, if the GNU/Linux kernel sends an ICMP Echo packet, the
 IcmpMsgOutType8 would increase 1. And if kernel gets an ICMP Echo Reply
 packet, IcmpMsgInType0 would increase 1.
 
@@ -516,7 +516,7 @@ situation, kernel won't send RST, just give up the connection.
 When a TCP connection comes into FIN_WAIT_2 state, instead of waiting
 for the fin packet from the other side, kernel could send a RST and
 delete the socket immediately. This is not the default behavior of
-Linux kernel TCP stack. By configuring the TCP_LINGER2 socket option,
+GNU/Linux kernel TCP stack. By configuring the TCP_LINGER2 socket option,
 you could let kernel follow this behavior.
 
 * TcpExtTCPAbortFailed
@@ -1056,7 +1056,7 @@ The nstayt result::
   IpExtOutOctets                  84                 0.0
   IpExtInNoECTPkts                1                  0.0
 
-The Linux server sent an ICMP Echo packet, so IpOutRequests,
+The GNU/Linux server sent an ICMP Echo packet, so IpOutRequests,
 IcmpOutMsgs, IcmpOutEchos and IcmpMsgOutType8 were increased 1. The
 server got ICMP Echo Reply from 8.8.8.8, so IpInReceives, IcmpInMsgs,
 IcmpInEchoReps and IcmpMsgInType0 were increased 1. The ICMP Echo Reply

@@ -25,7 +25,7 @@ additional functions specific for OP-TEE. The most interesting functions are:
 - OPTEE_SMC_CALL_WITH_ARG drives the OP-TEE message protocol
 
 - OPTEE_SMC_GET_SHM_CONFIG lets the driver and OP-TEE agree on which memory
-  range to used for shared memory between Linux and OP-TEE.
+  range to used for shared memory between GNU/Linux and OP-TEE.
 
 The GlobalPlatform TEE Client API [5] is implemented on top of the generic
 TEE API.

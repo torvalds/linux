@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for Linux arch/m68k/sun3 source directory
+# Makefile for GNU/Linux arch/m68k/sun3 source directory
 #
 
 obj-y	:= sun3ints.o sun3dvma.o idprom.o

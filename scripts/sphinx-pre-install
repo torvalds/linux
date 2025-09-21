@@ -413,7 +413,7 @@ sub give_redhat_hints()
 	my $old = 0;
 	my $rel;
 	my $noto_sans_redhat = "google-noto-sans-cjk-ttc-fonts";
-	$rel = $1 if ($system_release =~ /(release|Linux)\s+(\d+)/);
+	$rel = $1 if ($system_release =~ /(release|GNU/Linux)\s+(\d+)/);
 
 	if (!($system_release =~ /Fedora/)) {
 		$map{"virtualenv"} = "python-virtualenv";
@@ -634,7 +634,7 @@ sub give_gentoo_hints()
 sub check_distros()
 {
 	# Distro-specific hints
-	if ($system_release =~ /Red Hat Enterprise Linux/) {
+	if ($system_release =~ /Red Hat Enterprise GNU/Linux/) {
 		give_redhat_hints;
 		return;
 	}
@@ -642,11 +642,11 @@ sub check_distros()
 		give_redhat_hints;
 		return;
 	}
-	if ($system_release =~ /Scientific Linux/) {
+	if ($system_release =~ /Scientific GNU/Linux/) {
 		give_redhat_hints;
 		return;
 	}
-	if ($system_release =~ /Oracle Linux Server/) {
+	if ($system_release =~ /Oracle GNU/Linux Server/) {
 		give_redhat_hints;
 		return;
 	}
@@ -674,7 +674,7 @@ sub check_distros()
 		give_mageia_hints;
 		return;
 	}
-	if ($system_release =~ /Arch Linux/) {
+	if ($system_release =~ /Arch GNU/Linux/) {
 		give_arch_linux_hints;
 		return;
 	}

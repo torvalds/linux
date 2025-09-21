@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (C) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2016, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2016-2021, AngeloGioacchino Del Regno
  *                     <angelogioacchino.delregno@somainline.org>
  */

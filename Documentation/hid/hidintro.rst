@@ -6,7 +6,7 @@ Introduction to HID report descriptors
 
 This chapter is meant to give a broad overview of what HID report
 descriptors are, and of how a casual (non-kernel) programmer can deal
-with HID devices that are not working well with Linux.
+with HID devices that are not working well with GNU/Linux.
 
 .. contents::
     :local:
@@ -108,7 +108,7 @@ you should use an existing parser. Among all the available ones
     a complete utility set that allows, among other things,
     to record and replay the raw HID reports and to debug
     and replay HID devices.
-    It is being actively developed by the Linux HID subsystem maintainers.
+    It is being actively developed by the GNU/Linux HID subsystem maintainers.
 
 Parsing the mouse HID report descriptor with `hid-tools
 <https://gitlab.freedesktop.org/libevdev/hid-tools>`_ leads to
@@ -334,7 +334,7 @@ into the ``EV_REL/REL_X`` evdev event".
 Events
 ======
 
-In Linux, one ``/dev/input/event*`` is created for each ``Application
+In GNU/Linux, one ``/dev/input/event*`` is created for each ``Application
 Collection``. Going back to the mouse example, and repeating the
 sequence where one clicks and holds button 1, then clicks and holds
 button 2, releases button 1, and finally releases button 2, one gets::

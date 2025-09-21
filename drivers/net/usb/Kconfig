@@ -144,8 +144,8 @@ config USB_USBNET
 	    "Laplink" parallel cables or some motherboards.  These rely
 	    on specialized chips from many suppliers.
 
-	  - An intelligent USB gadget, perhaps embedding a Linux system.
-	    These include PDAs running Linux (iPaq, Yopy, Zaurus, and
+	  - An intelligent USB gadget, perhaps embedding a GNU/Linux system.
+	    These include PDAs running GNU/Linux (iPaq, Yopy, Zaurus, and
 	    others), and devices that interoperate using the standard
 	    CDC-Ethernet specification (including many cable modems).
 
@@ -224,7 +224,7 @@ config USB_NET_CDCETHER
 
 	  CDC Ethernet is an implementation option for DOCSIS cable modems
 	  that support USB connectivity, used for non-Microsoft USB hosts.
-	  The Linux-USB CDC Ethernet Gadget driver is an open implementation.
+	  The GNU/Linux-USB CDC Ethernet Gadget driver is an open implementation.
 	  This driver should work with at least the following devices:
 
 	    * Dell Wireless 5530 HSPA
@@ -458,18 +458,18 @@ config USB_BELKIN
 	  microcontroller, with LEDs that indicate traffic.
 
 config USB_ARMLINUX
-	bool "Embedded ARM Linux links (iPaq, ...)"
+	bool "Embedded ARM GNU/Linux links (iPaq, ...)"
 	depends on USB_NET_CDC_SUBSET
 	select USB_NET_CDC_SUBSET_ENABLE
 	default y
 	help
 	  Choose this option to support the "usb-eth" networking driver
-	  used by most of the ARM Linux community with device controllers
+	  used by most of the ARM GNU/Linux community with device controllers
 	  such as the SA-11x0 and PXA-25x UDCs, or the tftp capabilities
 	  in some PXA versions of the "blob" boot loader.
 
-	  Linux-based "Gumstix" PXA-25x based systems use this protocol
-	  to talk with other Linux systems.
+	  GNU/Linux-based "Gumstix" PXA-25x based systems use this protocol
+	  to talk with other GNU/Linux systems.
 
 	  Although the ROMs shipped with Sharp Zaurus products use a
 	  different link level framing protocol, you can have them use
@@ -503,7 +503,7 @@ config USB_NET_ZAURUS
 	  This also supports some related device firmware, as used in some
 	  PDAs from Olympus and some cell phones from Motorola.
 
-	  If you install an alternate image, such as the Linux 2.6 based
+	  If you install an alternate image, such as the GNU/Linux 2.6 based
 	  versions of OpenZaurus, you should no longer need to support this
 	  protocol.  Only the "eth-fd" or "net_fd" drivers in these devices
 	  really need this non-conformant variant of CDC Ethernet (or in

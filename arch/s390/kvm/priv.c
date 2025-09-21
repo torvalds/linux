@@ -875,7 +875,7 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 	mem->vm[0].caf = 1000;
 	memcpy(mem->vm[0].name, "KVMguest", 8);
 	ASCEBC(mem->vm[0].name, 8);
-	memcpy(mem->vm[0].cpi, "KVM/Linux       ", 16);
+	memcpy(mem->vm[0].cpi, "KVM/GNU/Linux       ", 16);
 	ASCEBC(mem->vm[0].cpi, 16);
 }
 

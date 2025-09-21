@@ -2839,7 +2839,7 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
 {
 	int ret = 0;
 
-	/* This interface is for dGPU Navi1x.Linux dc-pplib interface depends
+	/* This interface is for dGPU Navi1x.GNU/Linux dc-pplib interface depends
 	 * on window driver dc implementation.
 	 * For Navi1x, clock settings of dcn watermarks are fixed. the settings
 	 * should be passed to smu during boot up and resume from s3.
@@ -2857,12 +2857,12 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
 	 * dcn10_init_hw
 	 * notify_wm_ranges
 	 * set_wm_ranges
-	 * -- Linux
+	 * -- GNU/Linux
 	 * smu_set_watermarks_for_clock_ranges
 	 * renoir_set_watermarks_table
 	 * smu_write_watermarks_table
 	 *
-	 * For Linux,
+	 * For GNU/Linux,
 	 * dc_hardware_init -> amdgpu_dm_init
 	 * dc_set_power_state --> dm_resume
 	 *

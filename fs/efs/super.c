@@ -43,8 +43,8 @@ static struct pt_types sgi_pt_types[] = {
 	{0x0A,		"SGI xfs"},
 	{0x0B,		"SGI xfslog"},
 	{0x0C,		"SGI xlv"},
-	{0x82,		"Linux swap"},
-	{0x83,		"Linux native"},
+	{0x82,		"GNU/Linux swap"},
+	{0x83,		"GNU/Linux native"},
 	{0,		NULL}
 };
 

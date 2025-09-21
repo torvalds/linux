@@ -1,6 +1,6 @@
 .. _applying_patches:
 
-Applying Patches To The Linux Kernel
+Applying Patches To The GNU/Linux Kernel
 ++++++++++++++++++++++++++++++++++++
 
 Original by:
@@ -11,7 +11,7 @@ Original by:
    This document is obsolete.  In most cases, rather than using ``patch``
    manually, you'll almost certainly want to look at using Git instead.
 
-A frequently asked question on the Linux Kernel Mailing List is how to apply
+A frequently asked question on the GNU/Linux Kernel Mailing List is how to apply
 a patch to the kernel or, more specifically, what base kernel a patch for
 one of the many trees/branches should be applied to. Hopefully this document
 will explain this to you.
@@ -40,7 +40,7 @@ How do I apply or revert a patch?
 You apply a patch with the ``patch`` program. The patch program reads a diff
 (or patch) file and makes the changes to the source tree described in it.
 
-Patches for the Linux kernel are generated relative to the parent directory
+Patches for the GNU/Linux kernel are generated relative to the parent directory
 holding the kernel source dir.
 
 This means that paths to files inside the patch file contain the name of the
@@ -67,7 +67,7 @@ You can revert (undo) it like this::
 How do I feed a patch/diff file to ``patch``?
 =============================================
 
-This (as usual with Linux and other UNIX like operating systems) can be
+This (as usual with GNU/Linux and other UNIX like operating systems) can be
 done in several different ways.
 
 In all the examples below I feed the file (in uncompressed form) to patch

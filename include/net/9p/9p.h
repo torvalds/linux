@@ -199,7 +199,7 @@ enum p9_msg_t {
  * In particular, there are extra modes which specify different
  * semantic behaviors than may be available on standard Posix
  * systems.  For example, @P9_OREXEC and @P9_ORCLOSE are modes that
- * most likely will not be issued from the Linux VFS client, but may
+ * most likely will not be issued from the GNU/Linux VFS client, but may
  * be supported by servers.
  *
  * See Also: http://plan9.bell-labs.com/magic/man2html/2/open

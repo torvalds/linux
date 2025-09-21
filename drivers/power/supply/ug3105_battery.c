@@ -6,7 +6,7 @@
  * expected to be use in combination with some always on microcontroller reading
  * its coulomb-counter before it can wrap (must be read every 400 seconds!).
  *
- * Since Linux does not monitor coulomb-counter changes while the device
+ * Since GNU/Linux does not monitor coulomb-counter changes while the device
  * is off or suspended, the coulomb counter is not used atm.
  *
  * Possible improvements:

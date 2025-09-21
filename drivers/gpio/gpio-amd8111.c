@@ -247,6 +247,6 @@ static void __exit amd_gpio_exit(void)
 module_init(amd_gpio_init);
 module_exit(amd_gpio_exit);
 
-MODULE_AUTHOR("The Linux Kernel team");
+MODULE_AUTHOR("The GNU/Linux Kernel team");
 MODULE_DESCRIPTION("GPIO driver for AMD chipsets");
 MODULE_LICENSE("GPL");

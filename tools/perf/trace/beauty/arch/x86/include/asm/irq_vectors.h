@@ -4,14 +4,14 @@
 
 #include <linux/threads.h>
 /*
- * Linux IRQ vector layout.
+ * GNU/Linux IRQ vector layout.
  *
  * There are 256 IDT entries (per CPU - each entry is 8 bytes) which can
- * be defined by Linux. They are used as a jump table by the CPU when a
+ * be defined by GNU/Linux. They are used as a jump table by the CPU when a
  * given vector is triggered - by a CPU-external, CPU-internal or
  * software-triggered event.
  *
- * Linux sets the kernel code address each entry jumps to early during
+ * GNU/Linux sets the kernel code address each entry jumps to early during
  * bootup, and never changes them. This is the general layout of the
  * IDT entries:
  *

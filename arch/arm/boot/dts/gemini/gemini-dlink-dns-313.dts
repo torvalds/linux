@@ -232,7 +232,7 @@
 						groups = "gmii_gmac0_grp";
 					};
 					/*
-					 * In the vendor Linux tree, these values are set for the C3
+					 * In the vendor GNU/Linux tree, these values are set for the C3
 					 * version of the SL3512 ASIC with the comment "benson suggest"
 					 */
 					conf0 {

@@ -60,7 +60,7 @@
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
 /*
- * "Linux" PTE definitions for LPAE.
+ * "GNU/Linux" PTE definitions for LPAE.
  *
  * These bits overlap with the hardware bits but the naming is preserved for
  * consistency with the classic page table format.

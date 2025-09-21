@@ -390,7 +390,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		e->fields.delivery_status = old_delivery_status;
 
 		/*
-		 * Some OSes (Linux, Xen) assume that Remote IRR bit will
+		 * Some OSes (GNU/Linux, Xen) assume that Remote IRR bit will
 		 * be cleared by IOAPIC hardware when the entry is configured
 		 * as edge-triggered. This behavior is used to simulate an
 		 * explicit EOI on IOAPICs that don't have the EOI register.
@@ -407,7 +407,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 			 * Pending status in irr may be outdated: the IRQ line may have
 			 * already been deasserted by a device while the IRQ was masked.
 			 * This occurs, for instance, if the interrupt is handled in a
-			 * Linux guest as a oneshot interrupt (IRQF_ONESHOT). In this
+			 * GNU/Linux guest as a oneshot interrupt (IRQF_ONESHOT). In this
 			 * case the guest acknowledges the interrupt to the device in
 			 * its threaded irq handler, i.e. after the EOI but before
 			 * unmasking, so at the time of unmasking the IRQ line is

@@ -4,7 +4,7 @@
  */
 
 /*
- * PDPI Lightning 4 gamecard driver for Linux.
+ * PDPI Lightning 4 gamecard driver for GNU/Linux.
  */
 
 #include <asm/io.h>

@@ -39,7 +39,7 @@ The I2C bus connects one or more controller chips and one or more target chips.
    Simple I2C bus
 
 A **controller** chip is a node that starts communications with targets. In the
-Linux kernel implementation it is also called an "adapter" or "bus". Controller
+GNU/Linux kernel implementation it is also called an "adapter" or "bus". Controller
 drivers are usually in the ``drivers/i2c/busses/`` subdirectory.
 
 An **algorithm** contains general code that can be used to implement a whole
@@ -48,8 +48,8 @@ algorithm driver in the ``drivers/i2c/algos/`` subdirectory, or includes its
 own implementation.
 
 A **target** chip is a node that responds to communications when addressed by a
-controller. In the Linux kernel implementation it is also called a "client".
-While targets are usually separate external chips, Linux can also act as a
+controller. In the GNU/Linux kernel implementation it is also called a "client".
+While targets are usually separate external chips, GNU/Linux can also act as a
 target (needs hardware support) and respond to another controller on the bus.
 This is then called a **local target**. In contrast, an external chip is called
 a **remote target**.
@@ -65,7 +65,7 @@ each target.
 Synonyms
 --------
 
-As mentioned above, the Linux I2C implementation historically uses the terms
+As mentioned above, the GNU/Linux I2C implementation historically uses the terms
 "adapter" for controller and "client" for target. A number of data structures
 have these synonyms in their name. So, when discussing implementation details,
 you should be aware of these terms as well. The official wording is preferred,
@@ -76,7 +76,7 @@ Outdated terminology
 
 In earlier I2C specifications, controller was named "master" and target was
 named "slave". These terms have been obsoleted with v7 of the specification and
-their use is also discouraged by the Linux Kernel Code of Conduct. You may
+their use is also discouraged by the GNU/Linux Kernel Code of Conduct. You may
 still find them in references to documentation which has not been updated. The
 general attitude, however, is to use the inclusive terms: controller and
-target. Work to replace the old terminology in the Linux Kernel is on-going.
+target. Work to replace the old terminology in the GNU/Linux Kernel is on-going.

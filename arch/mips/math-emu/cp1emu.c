@@ -770,7 +770,7 @@ int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 }
 
 /*
- * In the Linux kernel, we support selection of FPR format on the
+ * In the GNU/Linux kernel, we support selection of FPR format on the
  * basis of the Status.FR bit.	If an FPU is not present, the FR bit
  * is hardwired to zero, which would imply a 32-bit FPU even for
  * 64-bit CPUs so we rather look at TIF_32BIT_FPREGS.
@@ -1010,7 +1010,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		 * would have had a trap for that instruction, and would not
 		 * come through this route.
 		 *
-		 * Linux MIPS branch emulator operates on context, updating the
+		 * GNU/Linux MIPS branch emulator operates on context, updating the
 		 * cp0_epc.
 		 */
 		ir = dec_insn.next_insn;  /* process delay slot instr */

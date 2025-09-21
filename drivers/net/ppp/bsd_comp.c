@@ -45,7 +45,7 @@
  */
 
 /*
- * This version is for use with contiguous buffers on Linux-derived systems.
+ * This version is for use with contiguous buffers on GNU/Linux-derived systems.
  *
  *  ==FILEVERSION 20000226==
  *

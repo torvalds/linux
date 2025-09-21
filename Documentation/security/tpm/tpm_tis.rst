@@ -9,7 +9,7 @@ based on sequenced read and write operations,  and the latter is based on a
 buffer containing the full command or response.
 
 FIFO (First-In-First-Out) interface is used by the tpm_tis_core dependent
-drivers. Originally Linux had only a driver called tpm_tis, which covered
+drivers. Originally GNU/Linux had only a driver called tpm_tis, which covered
 memory mapped (aka MMIO) interface but it was later on extended to cover other
 physical interfaces supported by the TCG standard.
 

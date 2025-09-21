@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Anycast support for IPv6
- *	Linux INET6 implementation
+ *	GNU/Linux INET6 implementation
  *
  *	Authors:
  *	David L Stevens (dlstevens@us.ibm.com)

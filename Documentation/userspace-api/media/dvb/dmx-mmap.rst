@@ -63,7 +63,7 @@ Arguments
 
     .. note::
 
-       The Linux Digital TV applications should not set the
+       The GNU/Linux Digital TV applications should not set the
        ``MAP_PRIVATE``, ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_ANON``
        flags.
 

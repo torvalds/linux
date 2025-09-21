@@ -2327,7 +2327,7 @@ enum nl80211_commands {
  *	u8 attribute.
  *
  * @NL80211_ATTR_VENDOR_ID: The vendor ID, either a 24-bit OUI or, if
- *	%NL80211_VENDOR_ID_IS_LINUX is set, a special Linux ID (not used yet)
+ *	%NL80211_VENDOR_ID_IS_LINUX is set, a special GNU/Linux ID (not used yet)
  * @NL80211_ATTR_VENDOR_SUBCMD: vendor sub-command
  * @NL80211_ATTR_VENDOR_DATA: data for the vendor command, if any; this
  *	attribute is also used for vendor command feature advertisement
@@ -7004,7 +7004,7 @@ enum nl80211_rxmgmt_flags {
 
 /*
  * If this flag is unset, the lower 24 bits are an OUI, if set
- * a Linux nl80211 vendor ID is used (no such IDs are allocated
+ * a GNU/Linux nl80211 vendor ID is used (no such IDs are allocated
  * yet, so that's not valid so far)
  */
 #define NL80211_VENDOR_ID_IS_LINUX	0x80000000

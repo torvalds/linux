@@ -283,7 +283,7 @@ You can use the :c:func:`usb_fill_int_urb` macro to fill INT transfer fields.
 The :c:func:`usb_submit_urb` call modifies ``urb->interval`` to the implemented
 interval value that is less than or equal to the requested interval value.
 
-In Linux 2.6, unlike earlier versions, interrupt URBs are not automagically
+In GNU/Linux 2.6, unlike earlier versions, interrupt URBs are not automagically
 restarted when they complete.  They end when the completion handler is
 called, just like other URBs.  If you want an interrupt URB to be restarted,
 your completion handler must resubmit it.

@@ -14,7 +14,7 @@ Introduction
 
 Some Armv9 SoCs suffer from a big.LITTLE misfeature where only a subset
 of the CPUs are capable of executing 32-bit user applications. On such
-a system, Linux by default treats the asymmetry as a "mismatch" and
+a system, GNU/Linux by default treats the asymmetry as a "mismatch" and
 disables support for both the ``PER_LINUX32`` personality and
 ``execve(2)`` of 32-bit ELF binaries, with the latter returning
 ``-ENOEXEC``. If the mismatch is detected during late onlining of a
@@ -23,7 +23,7 @@ unavailable for scheduling.
 
 Surprisingly, these SoCs have been produced with the intention of
 running legacy 32-bit binaries. Unsurprisingly, that doesn't work very
-well with the default behaviour of Linux.
+well with the default behaviour of GNU/Linux.
 
 It seems inevitable that future SoCs will drop 32-bit support
 altogether, so if you're stuck in the unenviable position of needing to
@@ -40,7 +40,7 @@ explicit "opt-in" and can be enabled by passing the
 ``allow_mismatched_32bit_el0`` parameter on the kernel command-line.
 
 For the remainder of this document we will refer to an *asymmetric
-system* to mean an asymmetric 32-bit SoC running Linux with this kernel
+system* to mean an asymmetric 32-bit SoC running GNU/Linux with this kernel
 command-line option enabled.
 
 Userspace impact

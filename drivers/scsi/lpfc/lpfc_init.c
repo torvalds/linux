@@ -1,5 +1,5 @@
 /*******************************************************************
- * This file is part of the Emulex Linux Device Driver for         *
+ * This file is part of the Emulex GNU/Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
@@ -14705,7 +14705,7 @@ out:
  * @phba: pointer to lpfc hba data structure.
  * @fw_upgrade: which firmware to update.
  *
- * This routine is called to perform Linux generic firmware upgrade on device
+ * This routine is called to perform GNU/Linux generic firmware upgrade on device
  * that supports such feature.
  **/
 int

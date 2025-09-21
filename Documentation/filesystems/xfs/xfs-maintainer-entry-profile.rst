@@ -3,7 +3,7 @@ XFS Maintainer Entry Profile
 
 Overview
 --------
-XFS is a well known high-performance filesystem in the Linux kernel.
+XFS is a well known high-performance filesystem in the GNU/Linux kernel.
 The aim of this project is to provide and maintain a robust and
 performant filesystem.
 

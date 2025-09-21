@@ -400,7 +400,7 @@ struct qla_buf_dsc {
  * SCSI Request Block
  */
 struct srb_cmd {
-	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
+	struct scsi_cmnd *cmd;		/* GNU/Linux SCSI command pkt */
 	uint32_t request_sense_length;
 	uint32_t fw_sense_length;
 	uint8_t *request_sense_ptr;

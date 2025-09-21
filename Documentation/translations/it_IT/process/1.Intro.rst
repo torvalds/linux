@@ -18,7 +18,7 @@ per il kernel debba essere incorporato nel kernel ufficiale, fra le quali:
 disponibilità immediata agli utilizzatori, supporto della comunità in
 differenti modalità, e la capacità di influenzare la direzione dello sviluppo
 del kernel.
-Il codice che contribuisce al kernel Linux deve essere reso disponibile sotto
+Il codice che contribuisce al kernel GNU/Linux deve essere reso disponibile sotto
 una licenza GPL-compatibile.
 
 La sezione :ref:`it_development_process` introduce il processo di sviluppo,
@@ -65,7 +65,7 @@ del kernel.
 Di cosa parla questo documento
 ------------------------------
 
-Il kernel Linux, ha oltre 8 milioni di linee di codice e ben oltre 1000
+Il kernel GNU/Linux, ha oltre 8 milioni di linee di codice e ben oltre 1000
 contributori ad ogni rilascio; è uno dei più vasti e più attivi software
 liberi progettati mai esistiti.  Sin dal sul modesto inizio nel 1991,
 questo kernel si è evoluto nel miglior componente per sistemi operativi
@@ -73,20 +73,20 @@ che fanno funzionare piccoli riproduttori musicali, PC, grandi super computer
 e tutte le altre tipologie di sistemi fra questi estremi.  È una soluzione
 robusta, efficiente ed adattabile a praticamente qualsiasi situazione.
 
-Con la crescita di Linux è arrivato anche un aumento di sviluppatori
+Con la crescita di GNU/Linux è arrivato anche un aumento di sviluppatori
 (ed aziende) desiderosi di partecipare a questo sviluppo. I produttori di
-hardware vogliono assicurarsi che il loro prodotti siano supportati da Linux,
-rendendo questi prodotti attrattivi agli utenti Linux.  I produttori di
-sistemi integrati, che usano Linux come componente di un prodotto integrato,
-vogliono che Linux sia capace ed adeguato agli obiettivi ed il più possibile
+hardware vogliono assicurarsi che il loro prodotti siano supportati da GNU/Linux,
+rendendo questi prodotti attrattivi agli utenti GNU/Linux.  I produttori di
+sistemi integrati, che usano GNU/Linux come componente di un prodotto integrato,
+vogliono che GNU/Linux sia capace ed adeguato agli obiettivi ed il più possibile
 alla mano. Fornitori ed altri produttori di software che basano i propri
-prodotti su Linux hanno un chiaro interesse verso capacità, prestazioni ed
-affidabilità del kernel Linux.  E gli utenti finali, anche, spesso vorrebbero
-cambiare Linux per renderlo più aderente alle proprie necessità.
+prodotti su GNU/Linux hanno un chiaro interesse verso capacità, prestazioni ed
+affidabilità del kernel GNU/Linux.  E gli utenti finali, anche, spesso vorrebbero
+cambiare GNU/Linux per renderlo più aderente alle proprie necessità.
 
-Una delle caratteristiche più coinvolgenti di Linux è quella dell'accessibilità
+Una delle caratteristiche più coinvolgenti di GNU/Linux è quella dell'accessibilità
 per gli sviluppatori; chiunque con le capacità richieste può migliorare
-Linux ed influenzarne la direzione di sviluppo.  Prodotti non open-source non
+GNU/Linux ed influenzarne la direzione di sviluppo.  Prodotti non open-source non
 possono offrire questo tipo di apertura, che è una caratteristica del software
 libero.  Ma, anzi, il kernel è persino più aperto rispetto a molti altri
 progetti di software libero.  Un classico ciclo di sviluppo trimestrale può
@@ -125,7 +125,7 @@ Questo documento è stato scritto da Jonathan Corbet, corbet@lwn.net.
 Dreier, Randy Dunlap, Jake Edge, Jiri Kosina, Matt Mackall, Arthur Marsh,
 Amanda McPherson, Andrew Morton, Andrew Price, Tsugikazu Shibata e Jochen Voß.
 
-Questo lavoro è stato supportato dalla Linux Foundation; un ringraziamento
+Questo lavoro è stato supportato dalla GNU/Linux Foundation; un ringraziamento
 speciale ad Amanda McPherson, che ha visto il valore di questo lavoro e lo ha
 reso possibile.
 
@@ -136,7 +136,7 @@ Alcune aziende e sviluppatori ogni tanto si domandano perché dovrebbero
 preoccuparsi di apprendere come lavorare con la comunità del kernel e di
 inserire il loro codice nel ramo di sviluppo principale (per ramo principale
 s'intende quello mantenuto da Linus Torvalds e usato come base dai
-distributori Linux). Nel breve termine, contribuire al codice può sembrare
+distributori GNU/Linux). Nel breve termine, contribuire al codice può sembrare
 un costo inutile; può sembra più facile tenere separato il proprio codice e
 supportare direttamente i suoi utilizzatori. La verità è che il tenere il
 codice separato ("fuori dai sorgenti", *"out-of-tree"*) è un falso risparmio.
@@ -147,7 +147,7 @@ di essi saranno approfonditi dettagliatamente più avanti in questo documento.
 Considerate:
 
 - Il codice che è stato inserito nel ramo principale del kernel è disponibile
-  a tutti gli utilizzatori Linux. Sarà automaticamente presente in tutte le
+  a tutti gli utilizzatori GNU/Linux. Sarà automaticamente presente in tutte le
   distribuzioni che lo consentono. Non c'è bisogno di: driver per dischi,
   scaricare file, o della scocciatura del dover supportare diverse versioni di
   diverse distribuzioni; funziona già tutto, per gli sviluppatori e per gli
@@ -201,7 +201,7 @@ Considerate:
 - Contribuire al codice è l'azione fondamentale che fa funzionare tutto il
   processo. Contribuendo attraverso il vostro codice potete aggiungere nuove
   funzioni al kernel e fornire competenze ed esempi che saranno utili ad
-  altri sviluppatori.  Se avete sviluppato del codice Linux (o state pensando
+  altri sviluppatori.  Se avete sviluppato del codice GNU/Linux (o state pensando
   di farlo), avete chiaramente interesse nel far proseguire il successo di
   questa piattaforma. Contribuire al codice è une delle migliori vie per
   aiutarne il successo.
@@ -256,7 +256,7 @@ pronto per essere distribuito.
 Licenza
 -------
 
-IL codice Linux utilizza diverse licenze, ma il codice completo deve essere
+IL codice GNU/Linux utilizza diverse licenze, ma il codice completo deve essere
 compatibile con la seconda versione della licenza GNU General Public License
 (GPLv2), che è la licenza che copre la distribuzione del kernel.
 Nella pratica, ciò significa che tutti i contributi al codice sono coperti
@@ -288,10 +288,10 @@ da processi di ingegneria inversa senza le opportune tutele), non può essere
 diffuso.
 
 Domande relative a questioni legate al copyright sono frequenti nelle liste
-di discussione dedicate allo sviluppo di Linux.  Tali quesiti, normalmente,
+di discussione dedicate allo sviluppo di GNU/Linux.  Tali quesiti, normalmente,
 non riceveranno alcuna risposta, ma una cosa deve essere tenuta presente:
 le persone che risponderanno a quelle domande non sono avvocati e non possono
 fornire supporti legali.  Se avete questioni legali relative ai sorgenti
-del codice Linux, non esiste alternativa che quella di parlare con un
+del codice GNU/Linux, non esiste alternativa che quella di parlare con un
 avvocato esperto nel settore.  Fare affidamento sulle risposte ottenute da
 una lista di discussione tecnica è rischioso.

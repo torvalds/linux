@@ -4,7 +4,7 @@
  * Driver for Keitley das800 series boards and compatibles
  * Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 /*

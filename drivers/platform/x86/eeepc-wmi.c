@@ -174,7 +174,7 @@ static int eeepc_wmi_probe(struct platform_device *pdev)
 		pr_warn("Found legacy ATKD device (%s)\n", EEEPC_ACPI_HID);
 		pr_warn("WMI device present, but legacy ATKD device is also "
 			"present and enabled\n");
-		pr_warn("You probably booted with acpi_osi=\"Linux\" or "
+		pr_warn("You probably booted with acpi_osi=\"GNU/Linux\" or "
 			"acpi_osi=\"!Windows 2009\"\n");
 		pr_warn("Can't load eeepc-wmi, use default acpi_osi "
 			"(preferred) or eeepc-laptop\n");

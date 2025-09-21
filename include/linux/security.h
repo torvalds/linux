@@ -1,5 +1,5 @@
 /*
- * Linux Security plug
+ * GNU/Linux Security plug
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001 Greg Kroah-Hartman <greg@kroah.com>

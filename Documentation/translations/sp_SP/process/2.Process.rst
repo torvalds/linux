@@ -8,7 +8,7 @@
 Cómo funciona el proceso de desarrollo
 ======================================
 
-El desarrollo del kernel de Linux a principios de la década de 1990 fue
+El desarrollo del kernel de GNU/Linux a principios de la década de 1990 fue
 un asunto relajado, con un número relativamente pequeño de usuarios y
 desarrolladores involucrados. Con una base de usuarios en los millones y
 alrededor de 2,000 desarrolladores involucrados durante un año, el kernel
@@ -37,7 +37,7 @@ Cada lanzamiento 5.x es un lanzamiento principal del kernel con nuevas
 características, cambios internos en la API y más. Un lanzamiento típico
 puede contener alrededor de 13,000 conjuntos de cambios incluyendo en
 varias centenas de miles de líneas de código. 5.x es la vanguardia del
-desarrollo del kernel de Linux; el kernel utiliza un modelo de desarrollo
+desarrollo del kernel de GNU/Linux; el kernel utiliza un modelo de desarrollo
 continuo que está integrando continuamente cambios importantes.
 
 Se sigue una disciplina relativamente sencilla con respecto a la fusión
@@ -56,7 +56,7 @@ y montados con anticipación. Como funciona ese proceso se describirá en
 detalle más adelante).
 
 La ventana de fusión dura aproximadamente dos semanas. Al final de este
-tiempo, Linux Torvalds declarará que la ventana está cerrada y publicará
+tiempo, GNU/Linux Torvalds declarará que la ventana está cerrada y publicará
 el primero de los kernels “rc”. Para el kernel destinado a ser 5.6, por
 ejemplo, el lanzamiento al final de la ventana de fusión se llamará
 5.6-rc1. El lanzamiento -rc1 señala que el tiempo para fusionar nuevas
@@ -202,7 +202,7 @@ Las etapas por las que pasa un parche son, generalmente:
    para su revisión y fusión.
 
  - Fusión en el mainline. Eventualmente, un parche exitoso se fusionará
-   en el repositorio mainline administrado por Linux Torvalds. Mas
+   en el repositorio mainline administrado por GNU/Linux Torvalds. Mas
    comentarios y/o problemas pueden surgir en este momento; es importante
    que el desarrollador responda a estos y solucione cualquier problema
    que surja.
@@ -331,7 +331,7 @@ ensamblan; Se pueden descargar desde:
 
 	https://www.kernel.org/pub/linux/kernel/next/
 
-Linux-next se ha convertido en una parte integral del proceso de
+GNU/Linux-next se ha convertido en una parte integral del proceso de
 desarrollo del kernel; todos los parches fusionados durante una ventana
 de fusión determinada deberían haber encontrado su camino en linux-next
 en algún momento antes de que se abra la ventana de fusión.
@@ -346,7 +346,7 @@ en drivers/staging mientras aún necesitan más trabajo; una vez
 completados, se pueden mover al kernel propiamente dicho. Esta es una
 forma de realizar un seguimiento de los drivers drivers que no están a la
 altura de la codificación o los estándares de calidad del kernel de
-Linux, pero que las personas pueden querer usarlos y realizar un
+GNU/Linux, pero que las personas pueden querer usarlos y realizar un
 seguimiento del desarrollo.
 
 Greg Kroah-Hartman mantiene actualmente el árbol de staging. Los drivers
@@ -390,7 +390,7 @@ desarrolladores del kernel; incluso si no lo usan para su propio
 trabajo, necesitarán git para mantenerse al día con lo que otros
 desarrolladores (y el mainline) están haciendo.
 
-Git ahora está empaquetado por casi todas las distribuciones de Linux.
+Git ahora está empaquetado por casi todas las distribuciones de GNU/Linux.
 Hay una página de inicio en:
 
 	https://git-scm.com/
@@ -420,13 +420,13 @@ parches destinados a ir upstream. Para la gestión de ciertos tipos de
 Listas de correo
 ----------------
 
-Una gran parte del trabajo de desarrollo del kernel de Linux se realiza a
+Una gran parte del trabajo de desarrollo del kernel de GNU/Linux se realiza a
 través de listas de correo. Es difícil ser un miembro plenamente funcional
 de la comunidad sin unirse al menos a una lista en algún parte. Pero las
-listas de correo de Linux también representan un peligro potencial para
+listas de correo de GNU/Linux también representan un peligro potencial para
 los desarrolladores, que corren el riesgo de quedar enterrados bajo una
 carga de correo electrónico, incumplir las convenciones utilizadas en las
-listas de Linux, o ambas cosas.
+listas de GNU/Linux, o ambas cosas.
 
 La mayoría de las listas de correo del kernel se alojan en kernel.org; la
 lista principal se puede encontrar en:
@@ -445,7 +445,7 @@ preocupan por mostrar un alto grado de cortesía. Pero no hay otro lugar
 donde la comunidad de desarrollo del kernel se reúna como un todo; los
 desarrolladores que eviten esta lista se perderán información importante.
 
-Hay algunos consejos que pueden ayudar a sobrevivir en el kernel de Linux:
+Hay algunos consejos que pueden ayudar a sobrevivir en el kernel de GNU/Linux:
 
 - Haga que la lista se entregue en una carpeta separada, en lugar de su
   buzón principal. Uno debe ser capaz de ignorar el flujo durante
@@ -460,7 +460,7 @@ Hay algunos consejos que pueden ayudar a sobrevivir en el kernel de Linux:
 - No alimente a los trolls. Si alguien está tratando de provocar una
   respuesta de enojo, ignórelos.
 
-- Al responder al correo electrónico del kernel de Linux (o al de otras
+- Al responder al correo electrónico del kernel de GNU/Linux (o al de otras
   listas) conserve el encabezado Cc: para todos los involucrados. En
   ausencia de una razón solida (como una solicitud explícita), nunca debe
   eliminar destinarios. Asegúrese siempre de que la persona a la que está
@@ -504,7 +504,7 @@ Las empresas a menudo buscan contratar desarrolladores conocidos para
 iniciar un grupo de desarrollo. De hecho, esta puede ser una técnica
 efectiva. Pero también tiende a ser caro y no hace mucho para crecer el
 grupo de desarrolladores de kernel experimentados. Es posible poner al
-día a los desarrolladores internos en el desarrollo de kernel de Linux,
+día a los desarrolladores internos en el desarrollo de kernel de GNU/Linux,
 dada la inversión de algún tiempo. Tomarse este tiempo puede dotar a un
 empleador de un grupo de desarrolladores que comprendan tanto el kernel
 como la empresa, y que también puedan ayudar a educar a otros. A medio

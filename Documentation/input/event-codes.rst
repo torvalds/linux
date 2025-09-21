@@ -16,7 +16,7 @@ the same moment in time. In the following, the term "event" refers to a single
 input event encompassing a type, code, and value.
 
 The input protocol is a stateful protocol. Events are emitted only when values
-of event codes have changed. However, the state is maintained within the Linux
+of event codes have changed. However, the state is maintained within the GNU/Linux
 input subsystem; drivers do not need to maintain the state and may attempt to
 emit unchanged values without harm. Userspace may obtain the current state of
 event code values using the EVIOCG* ioctls defined in linux/input.h. The event

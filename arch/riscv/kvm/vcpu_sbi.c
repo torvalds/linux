@@ -477,7 +477,7 @@ int kvm_riscv_vcpu_sbi_ecall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	}
 
 	/*
-	 * When the SBI extension returns a Linux error code, it exits the ioctl
+	 * When the SBI extension returns a GNU/Linux error code, it exits the ioctl
 	 * loop and forwards the error to userspace.
 	 */
 	if (ret < 0) {

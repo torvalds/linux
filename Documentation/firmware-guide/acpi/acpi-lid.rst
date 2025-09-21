@@ -21,7 +21,7 @@ For most platforms, both the _LID method and the lid notifications are
 reliable. However, there are exceptions. In order to work with these
 exceptional buggy platforms, special restrictions and exceptions should be
 taken into account. This document describes the restrictions and the
-exceptions of the Linux ACPI lid device driver.
+exceptions of the GNU/Linux ACPI lid device driver.
 
 
 Restrictions of the returning value of the _LID control method
@@ -68,7 +68,7 @@ firmware cannot make sure "opened"/"closed" events are paired, the ACPI
 button driver uses the following 3 modes in order not to trigger issues.
 
 If the userspace hasn't been prepared to ignore the unreliable "opened"
-events and the unreliable initial state notification, Linux users can use
+events and the unreliable initial state notification, GNU/Linux users can use
 the following kernel parameters to handle the possible issues:
 
 A. button.lid_init_state=method:
@@ -94,7 +94,7 @@ B. button.lid_init_state=open:
    missing.
 
 If the userspace has been prepared to ignore the unreliable "opened" events
-and the unreliable initial state notification, Linux users should always
+and the unreliable initial state notification, GNU/Linux users should always
 use the following kernel parameter:
 
 C. button.lid_init_state=ignore:

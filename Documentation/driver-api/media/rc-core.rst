@@ -12,7 +12,7 @@ remote controller keyboard keystrokes and mouse events.
 Every time a key is pressed on a remote controller, a scan code is produced.
 Also, on most hardware, keeping a key pressed for more than a few dozens of
 milliseconds produce a repeat key event. That's somewhat similar to what
-a normal keyboard or mouse is handled internally on Linux\ [#f1]_. So, the
+a normal keyboard or mouse is handled internally on GNU/Linux\ [#f1]_. So, the
 remote controller core is implemented on the top of the linux input/evdev
 interface.
 
@@ -72,7 +72,7 @@ defined at enum :c:type:`rc_proto`.
 
 When the RC code receives a scan code (either directly, by a driver
 of the type ``RC_DRIVER_SCANCODE``, or via its IR decoders), it needs
-to convert into a Linux input event code. This is done via a mapping
+to convert into a GNU/Linux input event code. This is done via a mapping
 table.
 
 The Kernel has support for mapping tables available on most media

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Linux Security Module interface to other subsystems.
+ * GNU/Linux Security Module interface to other subsystems.
  * BPF may present a single u32 value.
  */
 #ifndef __LINUX_LSM_BPF_H

@@ -52,7 +52,7 @@ card.
 
 4. Boot the VM.
 
-   In the Linux guest VM, with no hardware on the host, the device appears
+   In the GNU/Linux guest VM, with no hardware on the host, the device appears
    as  follows::
 
      # lspci -s 00:05.0 -xxvv
@@ -72,14 +72,14 @@ card.
      20: 00 00 00 00 00 00 00 00 00 00 00 00 48 43 53 32
      30: 00 00 00 00 00 00 00 00 00 00 00 00 0a 01 00 00
 
-     In the Linux guest VM, dmesg output for the device is as follows:
+     In the GNU/Linux guest VM, dmesg output for the device is as follows:
 
      serial 0000:00:05.0: PCI INT A -> Link[LNKA] -> GSI 10 (level, high) -> IRQ 10
      0000:00:05.0: ttyS1 at I/O 0xc150 (irq = 10) is a 16550A
      0000:00:05.0: ttyS2 at I/O 0xc158 (irq = 10) is a 16550A
 
 
-5. In the Linux guest VM, check the serial ports::
+5. In the GNU/Linux guest VM, check the serial ports::
 
      # setserial -g /dev/ttyS*
      /dev/ttyS0, UART: 16550A, Port: 0x03f8, IRQ: 4

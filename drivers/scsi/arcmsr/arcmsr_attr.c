@@ -1,6 +1,6 @@
 /*
 *******************************************************************************
-**        O.S   : Linux
+**        O.S   : GNU/Linux
 **   FILE NAME  : arcmsr_attr.c
 **        BY    : Nick Cheng
 **   Description: attributes exported to sysfs and device host

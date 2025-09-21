@@ -4,7 +4,7 @@
  */
 
 /*
- * Microsoft SideWinder joystick family driver for Linux
+ * Microsoft SideWinder joystick family driver for GNU/Linux
  */
 
 #include <linux/delay.h>

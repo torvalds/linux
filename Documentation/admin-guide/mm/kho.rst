@@ -4,7 +4,7 @@
 Kexec Handover Usage
 ====================
 
-Kexec HandOver (KHO) is a mechanism that allows Linux to preserve memory
+Kexec HandOver (KHO) is a mechanism that allows GNU/Linux to preserve memory
 regions, which could contain serialized system states, across kexec.
 
 This document expects that you are familiar with the base KHO
@@ -70,7 +70,7 @@ interfaces may change in the future. They will be moved to sysfs once KHO is
 stabilized.
 
 ``/sys/kernel/debug/kho/out/finalize``
-    Kexec HandOver (KHO) allows Linux to transition the state of
+    Kexec HandOver (KHO) allows GNU/Linux to transition the state of
     compatible drivers into the next kexec'ed kernel. To do so,
     device drivers will instruct KHO to preserve memory regions,
     which could contain serialized kernel state.

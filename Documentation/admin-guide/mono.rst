@@ -1,7 +1,7 @@
-Mono(tm) Binary Kernel Support for Linux
+Mono(tm) Binary Kernel Support for GNU/Linux
 -----------------------------------------
 
-To configure Linux to automatically execute Mono-based .NET binaries
+To configure GNU/Linux to automatically execute Mono-based .NET binaries
 (in the form of .exe files) without the need to use the mono CLR
 wrapper, you can use the BINFMT_MISC kernel support.
 

@@ -10,7 +10,7 @@
 	*******************
 
 	saa7164_core.c/buffer.c/cards.c/i2c.c/dvb.c
-		|	: Standard Linux driver framework for creating
+		|	: Standard GNU/Linux driver framework for creating
 		|	: exposing and managing interfaces to the rest
 		|	: of the kernel or userland. Also uses _fw.c to load
 		|	: firmware direct into the PCIe bus, bypassing layers.

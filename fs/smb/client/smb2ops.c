@@ -2043,7 +2043,7 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 	struct inode *inode;
 
 	/*
-	 * If extending file more than one page make sparse. Many Linux fs
+	 * If extending file more than one page make sparse. Many GNU/Linux fs
 	 * make files sparse by default when extending via ftruncate
 	 */
 	inode = d_inode(cfile->dentry);

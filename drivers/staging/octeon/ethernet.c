@@ -424,7 +424,7 @@ int cvm_oct_common_init(struct net_device *dev)
 	if (priv->queue != -1)
 		dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 
-	/* We do our own locking, Linux doesn't need to */
+	/* We do our own locking, GNU/Linux doesn't need to */
 	dev->lltx = true;
 	dev->ethtool_ops = &cvm_oct_ethtool_ops;
 

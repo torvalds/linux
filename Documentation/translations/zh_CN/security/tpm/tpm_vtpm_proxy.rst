@@ -7,18 +7,18 @@
  赵硕 Shuo Zhao <zhaoshuo@cqsoftware.com.cn>
 
 ==========================
-Linux容器的虚拟TPM代理驱动
+GNU/Linux容器的虚拟TPM代理驱动
 ==========================
 
 | 作者：
 | Stefan Berger <stefanb@linux.vnet.ibm.com>
 
-本文档描述了用于Linux容器的虚拟可信平台模块（vTPM）代理设备驱动。
+本文档描述了用于GNU/Linux容器的虚拟可信平台模块（vTPM）代理设备驱动。
 
 介绍
 ====
 
-这项工作的目标是为每个Linux容器提供TPM功能。这使得程序能够像与物理系统
+这项工作的目标是为每个GNU/Linux容器提供TPM功能。这使得程序能够像与物理系统
 上的TPM交互一样，与容器中的TPM进行交互。每个容器都会获得一个唯一的、模
 拟的软件TPM。
 

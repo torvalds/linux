@@ -5,18 +5,18 @@
 :Translator: Avadhut Naik <avadhut.naik@amd.com>
 
 ====================================================
-Modelo de Madurez de Contribución al Kernel de Linux
+Modelo de Madurez de Contribución al Kernel de GNU/Linux
 ====================================================
 
 
 Los Antecedentes
 ================
 
-Como parte de la cumbre de mantenedores del kernel de Linux 2021, hubo
+Como parte de la cumbre de mantenedores del kernel de GNU/Linux 2021, hubo
 una `discusión <https://lwn.net/Articles/870581/>`_ sobre los desafíos
 en el reclutamiento de mantenedores del kernel, así como la sucesión de
 los mantenedores. Algunas de las conclusiones de esa discusión incluyeron
-que las empresas que forman parte de la comunidad del kernel de Linux
+que las empresas que forman parte de la comunidad del kernel de GNU/Linux
 necesitan permitir que los ingenieros sean mantenedores como parte de su
 trabajo, para que puedan convertirse en lideres respetados y finalmente,
 en mantenedores del kernel. Para apoyar una fuente solida de talento, se
@@ -24,12 +24,12 @@ debe permitir y alentar a los desarrolladores a asumir contribuciones
 upstream, como revisar los parches de otras personas, reestructurar la
 infraestructura del kernel y escribir documentación.
 
-Con ese fin, Technical Advisory Board (TAB) de la Fundación Linux propone
-este Modelo de Madurez de Contribución al Kernel de Linux. Estas
+Con ese fin, Technical Advisory Board (TAB) de la Fundación GNU/Linux propone
+este Modelo de Madurez de Contribución al Kernel de GNU/Linux. Estas
 expectativas comunes para la participación con la comunidad upstream
 tienen como objetivo aumentar la influencia de los desarrolladores
 individuales, aumentar la colaboración de las organizaciones y mejorar
-la salud general del ecosistema del kernel de Linux.
+la salud general del ecosistema del kernel de GNU/Linux.
 
 El TAB insta a las organizaciones a evaluar continuamente su modelo de
 madurez de Código Abierto y comprometerse a realizar mejoras para
@@ -44,22 +44,22 @@ Nivel 0
 =======
 
 * A los ingenieros de software no se les permite contribuir con parches
-  al kernel de Linux.
+  al kernel de GNU/Linux.
 
 Nivel 1
 =======
 
 * A los ingenieros de software se les permite contribuir con parches al
-  kernel de Linux, ya sea como parte de sus responsabilidades de trabajo
+  kernel de GNU/Linux, ya sea como parte de sus responsabilidades de trabajo
   o en su propio tiempo.
 
 Nivel 2
 =======
 
-* Se espera que los ingenieros de software contribuyan al kernel de Linux
+* Se espera que los ingenieros de software contribuyan al kernel de GNU/Linux
   como parte de sus responsabilidades de trabajo.
 * Se proporcionará apoyo a los ingenieros de software para asistir a
-  conferencias relacionadas con Linux como parte de su trabajo.
+  conferencias relacionadas con GNU/Linux como parte de su trabajo.
 * Las contribuciones de código upstream de un ingeniero de software se
   considerarán en la promoción y las revisiones de rendimiento.
 
@@ -70,7 +70,7 @@ Nivel 3
   los parches escritos por ingenieros de otras empresas) como parte de
   sus responsabilidades de trabajo.
 * Contribuir con presentaciones o ponencias a conferencias relacionadas
-  con Linux o académicas (como las organizadas por la Fundación Linux,
+  con GNU/Linux o académicas (como las organizadas por la Fundación GNU/Linux,
   Usenix, ACM, etc.), se consideran parte del trabajo de un ingeniero.
 * Las contribuciones a la comunidad de un ingeniero de software se
   considerarán en la promoción y las revisiones de rendimiento.
@@ -102,7 +102,7 @@ Nivel 4
   del proyecto central como escribir o mantener pruebas, reducir la deuda
   de tecnología upstream, escribir documentación, etc.
 * Los ingenieros de software son apoyados para ayudar a organizar
-  conferencias relacionadas con Linux.
+  conferencias relacionadas con GNU/Linux.
 * Las organizaciones considerarán los comentarios de los miembros de la
   comunidad en las revisiones oficiales de rendimiento.
 

@@ -2,7 +2,7 @@
 /*
  * drivers/base/devres.c - device resource management
  *
- * Copyright (c) 2006  SUSE Linux Products GmbH
+ * Copyright (c) 2006  SUSE GNU/Linux Products GmbH
  * Copyright (c) 2006  Tejun Heo <teheo@suse.de>
  */
 

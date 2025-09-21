@@ -209,7 +209,7 @@ static int power_supply_hwmon_read_string(struct device *dev,
 		 * gcc bug #51513 [1] and clang bug #978 [2]
 		 *
 		 * [1] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51513
-		 * [2] https://github.com/ClangBuiltLinux/linux/issues/978
+		 * [2] https://github.com/ClangBuiltGNU/Linux/linux/issues/978
 		 */
 		break;
 	}

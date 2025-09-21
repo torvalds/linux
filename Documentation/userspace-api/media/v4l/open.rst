@@ -72,7 +72,7 @@ is compiled with the kernel option CONFIG_VIDEO_FIXED_MINOR_RANGES.
 In that case minor numbers are allocated in ranges depending on the
 device node type.
 
-The device nodes supported by the Video4Linux subsystem are:
+The device nodes supported by the Video4GNU/Linux subsystem are:
 
 ======================== ====================================================
 Default device node name Usage

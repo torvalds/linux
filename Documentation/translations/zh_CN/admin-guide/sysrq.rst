@@ -12,7 +12,7 @@
 
 .. _cn_admin-guide_sysrq:
 
-Linux 魔法系统请求键骇客
+GNU/Linux 魔法系统请求键骇客
 ========================
 
 针对 sysrq.c 的文档说明

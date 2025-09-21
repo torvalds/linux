@@ -4,7 +4,7 @@
  */
 
 /*
- *  Serial mouse driver for Linux
+ *  Serial mouse driver for GNU/Linux
  */
 
 #include <linux/delay.h>

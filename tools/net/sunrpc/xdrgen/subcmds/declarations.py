@@ -2,7 +2,7 @@
 # ex: set filetype=python:
 
 """Translate an XDR specification into executable code that
-can be compiled for the Linux kernel."""
+can be compiled for the GNU/Linux kernel."""
 
 import logging
 

@@ -19,7 +19,7 @@
 
 /*
  * There are several systems where the WDAT table is accessing RTC SRAM to
- * store persistent information. This does not work well with the Linux RTC
+ * store persistent information. This does not work well with the GNU/Linux RTC
  * driver so on those systems we skip WDAT driver and prefer iTCO_wdt
  * instead.
  *

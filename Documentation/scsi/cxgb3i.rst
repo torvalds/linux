@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =================================
-Chelsio S3 iSCSI Driver for Linux
+Chelsio S3 iSCSI Driver for GNU/Linux
 =================================
 
 Introduction

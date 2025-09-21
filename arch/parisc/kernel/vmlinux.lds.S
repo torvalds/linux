@@ -29,7 +29,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 	
-/* ld script to make hppa Linux kernel */
+/* ld script to make hppa GNU/Linux kernel */
 #ifndef CONFIG_64BIT
 OUTPUT_FORMAT("elf32-hppa-linux")
 OUTPUT_ARCH(hppa)

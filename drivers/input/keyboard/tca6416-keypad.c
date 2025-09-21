@@ -222,7 +222,7 @@ static int tca6416_keypad_probe(struct i2c_client *client)
 	input->id.product = 0x0001;
 	input->id.version = 0x0100;
 
-	/* Enable auto repeat feature of Linux input subsystem */
+	/* Enable auto repeat feature of GNU/Linux input subsystem */
 	if (pdata->rep)
 		__set_bit(EV_REP, input->evbit);
 

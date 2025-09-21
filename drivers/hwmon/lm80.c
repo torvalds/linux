@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * lm80.c - From lm_sensors, Linux kernel modules for hardware
+ * lm80.c - From lm_sensors, GNU/Linux kernel modules for hardware
  *	    monitoring
  * Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
  *			     and Philip Edelbrock <phil@netroedge.com>
  *
- * Ported to Linux 2.6 by Tiago Sousa <mirage@kaotik.org>
+ * Ported to GNU/Linux 2.6 by Tiago Sousa <mirage@kaotik.org>
  */
 
 #include <linux/module.h>

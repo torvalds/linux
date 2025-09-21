@@ -88,7 +88,7 @@ static void __init dma_ops_init(void)
 		 * We've got way too many dependencies on 1.1 semantics
 		 * to support 1.0 boxes at this point.
 		 */
-		panic(	"PA-RISC Linux currently only supports machines that conform to\n"
+		panic(	"PA-RISC GNU/Linux currently only supports machines that conform to\n"
 			"the PA-RISC 1.1 or 2.0 architecture specification.\n");
 
 	case pcxl2:
@@ -244,7 +244,7 @@ static int __init parisc_init(void)
 	/* set up a new led state on systems shipped LED State panel */
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BSTART);
 
-	/* tell PDC we're Linux. Nevermind failure. */
+	/* tell PDC we're GNU/Linux. Nevermind failure. */
 	pdc_stable_write(0x40, &osid, sizeof(osid));
 	
 	/* start with known state */

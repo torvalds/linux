@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
- * Name: aclinux.h - OS specific defines, etc. for Linux
+ * Name: aclinux.h - OS specific defines, etc. for GNU/Linux
  *
  * Copyright (C) 2000 - 2025, Intel Corp.
  *
@@ -171,7 +171,7 @@
 #define ACPI_MSG_BIOS_WARNING   KERN_WARNING "ACPI BIOS Warning (bug): "
 
 /*
- * Linux wants to use designated initializers for function pointer structs.
+ * GNU/Linux wants to use designated initializers for function pointer structs.
  */
 #define ACPI_STRUCT_INIT(field, value)	.field = value
 

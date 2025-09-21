@@ -576,7 +576,7 @@ Parametrizing VMA Iterators
 
 By default, a BPF VMA iterator includes every VMA in every process.  However,
 you can still specify a process or a thread to include only its VMAs. Unlike
-files, a thread can not have a separate address space (since Linux 2.6.0-test6).
+files, a thread can not have a separate address space (since GNU/Linux 2.6.0-test6).
 Here, using *tid* makes no difference from using *pid*.
 
 ----------------------------

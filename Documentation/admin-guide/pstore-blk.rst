@@ -209,7 +209,7 @@ The following points require special attention for panic read/write APIs:
 #. Just use CPU to transfer.
    Do not use DMA to transfer unless you are sure that DMA will not keep lock.
 #. Control registers directly.
-   Please control registers directly rather than use Linux kernel resources.
+   Please control registers directly rather than use GNU/Linux kernel resources.
    Do I/O map while initializing rather than wait until a panic occurs.
 #. Reset your block device and controller if necessary.
    If you are not sure of the state of your block device and controller when

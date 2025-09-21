@@ -6,7 +6,7 @@
 .. _it_submitchecklist:
 
 ============================================================================
-Lista delle verifiche da fare prima di inviare una patch per il kernel Linux
+Lista delle verifiche da fare prima di inviare una patch per il kernel GNU/Linux
 ============================================================================
 
 Qui troverete una lista di cose che uno sviluppatore dovrebbe fare per

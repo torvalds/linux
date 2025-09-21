@@ -4,7 +4,7 @@
  * Generic 8254 timer/counter support
  * Copyright (C) 2014 H Hartley Sweeten <hsweeten@visionengravers.com>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 

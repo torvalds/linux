@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Intel CPU Microcode Update Driver for Linux
+ * Intel CPU Microcode Update Driver for GNU/Linux
  *
  * Copyright (C) 2000-2006 Tigran Aivazian <aivazian.tigran@gmail.com>
  *		 2006 Shaohua Li <shaohua.li@intel.com>
  *
- * Intel CPU microcode early update for Linux
+ * Intel CPU microcode early update for GNU/Linux
  *
  * Copyright (C) 2012 Fenghua Yu <fenghua.yu@intel.com>
  *		      H Peter Anvin" <hpa@zytor.com>

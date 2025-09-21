@@ -55,7 +55,7 @@ Board Specific Properties:
 - pull-up-enabled: An optional property indicating the Keypad scan mode.
   If specified implies the keypad scan pull-up has been enabled.
 
-- autorepeat: Boolean, Enable auto repeat feature of Linux input
+- autorepeat: Boolean, Enable auto repeat feature of GNU/Linux input
 	  subsystem (optional).
 
 - linux,keymap: The keymap for keys as described in the binding document

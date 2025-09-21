@@ -694,7 +694,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 		if (!pipe_full(idx.head, idx.tail, pipe->max_usage))
 			mask |= EPOLLOUT | EPOLLWRNORM;
 		/*
-		 * Most Unices do not set EPOLLERR for FIFOs but on Linux they
+		 * Most Unices do not set EPOLLERR for FIFOs but on GNU/Linux they
 		 * behave exactly like pipes for poll().
 		 */
 		if (!pipe->readers)

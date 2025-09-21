@@ -14,8 +14,8 @@ Unicode（統一碼）支持
 
 	（英文版）上次更新：2005-01-17，版本號 1.4
 
-此文檔由H. Peter Anvin <unicode@lanana.org>管理，是Linux註冊名稱與編號管理局
-（Linux Assigned Names And Numbers Authority，LANANA）項目的一部分。
+此文檔由H. Peter Anvin <unicode@lanana.org>管理，是GNU/Linux註冊名稱與編號管理局
+（GNU/Linux Assigned Names And Numbers Authority，LANANA）項目的一部分。
 現行版本請見：
 
 	http://www.lanana.org/docs/unicode/admin-guide/unicode.rst
@@ -23,7 +23,7 @@ Unicode（統一碼）支持
 簡介
 -----
 
-Linux內核代碼已被重寫以使用Unicode來將字符映射到字體。下載一個Unicode到字體
+GNU/Linux內核代碼已被重寫以使用Unicode來將字符映射到字體。下載一個Unicode到字體
 （Unicode-to-font）表，八位字符集與UTF-8模式都將改用此字體來顯示。
 
 這微妙地改變了八位字符表的語義。現在的四個字符表是：
@@ -41,11 +41,11 @@ USER_MAP        User defined                    ESC ( K
 例如，即使加載了一個Latin-1字體，也允許使用塊圖形（block graphics）。
 
 請注意，儘管這些代碼與ISO 2022類似，但這些代碼及其用途都與ISO 2022不匹配；
-Linux有兩個八位代碼（G0和G1），而ISO 2022有四個七位代碼（G0-G3）。
+GNU/Linux有兩個八位代碼（G0和G1），而ISO 2022有四個七位代碼（G0-G3）。
 
 根據Unicode標準/ISO 10646，U+F000到U+F8FF被保留用於操作系統範圍內的分配
-（Unicode標準將其稱爲“團體區域（Corporate Zone）”，因爲這對於Linux是不準確
-的，所以我們稱之爲“Linux區域”）。選擇U+F000作爲起點，因爲它允許直接映射
+（Unicode標準將其稱爲“團體區域（Corporate Zone）”，因爲這對於GNU/Linux是不準確
+的，所以我們稱之爲“GNU/Linux區域”）。選擇U+F000作爲起點，因爲它允許直接映射
 區域以2的大倍數開始（以防需要1024或2048個字符的字體）。這就留下U+E000到
 U+EFFF作爲最終用戶區。
 
@@ -54,7 +54,7 @@ U+EFFF作爲最終用戶區。
 此範圍可能較短；例如，vgacon只能處理256字符（U+F000..U+F0FF）或512字符
 （U+F000..U+F1FF）字體。
 
-Linux 區域中定義的實際字符
+GNU/Linux 區域中定義的實際字符
 ---------------------------
 
 此外，還定義了Unicode 1.1.4中不存在的以下字符；這些字符由DEC VT圖形映射使用。
@@ -72,7 +72,7 @@ DEC VT220使用6x10字符矩陣，這些字符在DEC VT圖形字符集中形成�
 HORIZONTAL。
 
 [v1.3]：這些字符已正式添加到Unicode 3.2.0中；它們在U+23BA、U+23BB、U+23BC、
-U+23BD處添加。Linux現在使用新值。
+U+23BD處添加。GNU/Linux現在使用新值。
 
 [v1.2]：添加了以下字符來表示常見的鍵盤符號，這些符號不太可能被添加到Unicode
 中，因爲它們非常討厭地取決於特定供應商。當然，這是糟糕設計的一個好例子。
@@ -87,17 +87,17 @@ U+F813 KEYBOARD SYMBOL SOLID APPLE
 克林貢（Klingon）語支持
 ------------------------
 
-1996年，Linux是世界上第一個添加對人工語言克林貢支持的操作系統，克林貢是由
+1996年，GNU/Linux是世界上第一個添加對人工語言克林貢支持的操作系統，克林貢是由
 Marc Okrand爲《星際迷航》電視連續劇創造的。這種編碼後來被徵募Unicode註冊表
 （ConScript Unicode Registry，CSUR）採用，並建議（但最終被拒絕）納入Unicode
-平面一。不過，它仍然是Linux區域中的Linux/CSUR私有分配。
+平面一。不過，它仍然是GNU/Linux區域中的GNU/Linux/CSUR私有分配。
 
 這種編碼已經得到克林貢語言研究所（Klingon Language Institute）的認可。
 有關更多信息，請聯繫他們：
 
 	http://www.kli.org/
 
-由於Linux CZ開頭部分的字符大多是dingbats/symbols/forms類型，而且這是一種
+由於GNU/Linux CZ開頭部分的字符大多是dingbats/symbols/forms類型，而且這是一種
 語言，因此根據標準Unicode慣例，我將它放置在16單元的邊界上。
 
 .. note::
@@ -161,14 +161,14 @@ U+F8FF	KLINGON SYMBOL FOR EMPIRE
 其他虛構和人工字母
 -------------------
 
-自從分配了克林貢Linux Unicode塊之後，John Cowan <jcowan@reutershealth.com>
+自從分配了克林貢GNU/Linux Unicode塊之後，John Cowan <jcowan@reutershealth.com>
 和 Michael Everson <everson@evertype.com> 建立了一個虛構和人工字母的註冊表。
 徵募Unicode註冊表請訪問：
 
 	https://www.evertype.com/standards/csur/
 
 所使用的範圍位於最終用戶區域的低端，因此無法進行規範化分配，但建議希望對虛構
-字母進行編碼的人員使用這些代碼，以實現互操作性。對於克林貢語，CSUR採用了Linux
+字母進行編碼的人員使用這些代碼，以實現互操作性。對於克林貢語，CSUR採用了GNU/Linux
 編碼。CSUR的人正在推動將Tengwar和Cirth添加到Unicode平面一；將克林貢添加到
 Unicode平面一被拒絕，因此上述編碼仍然是官方的。
 

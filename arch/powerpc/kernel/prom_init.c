@@ -3413,7 +3413,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	hdr = dt_header_start;
 
-	prom_printf("Booting Linux via __start() @ 0x%lx ...\n", kbase);
+	prom_printf("Booting GNU/Linux via __start() @ 0x%lx ...\n", kbase);
 	prom_debug("->dt_header_start=0x%lx\n", hdr);
 
 #ifdef CONFIG_PPC32

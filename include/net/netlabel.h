@@ -34,7 +34,7 @@ struct calipso_doi;
  *
  * Network protocols such as CIPSO and RIPSO require a label translation layer
  * to convert the label on the packet into something meaningful on the host
- * machine.  In the current Linux implementation these mapping tables live
+ * machine.  In the current GNU/Linux implementation these mapping tables live
  * inside the kernel; NetLabel provides a mechanism for user space applications
  * to manage these mapping tables.
  *
@@ -137,7 +137,7 @@ struct netlbl_lsm_cache {
  * This structure is used to represent category bitmaps.  Due to the large
  * number of categories supported by most labeling protocols it is not
  * practical to transfer a full bitmap internally so NetLabel adopts a sparse
- * bitmap structure modeled after SELinux's ebitmap structure.
+ * bitmap structure modeled after SEGNU/Linux's ebitmap structure.
  * The catmap bitmap field MUST be a power of two in length and large
  * enough to hold at least 240 bits.  Special care (i.e. check the code!)
  * should be used when changing these values as the LSM implementation

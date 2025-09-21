@@ -262,11 +262,11 @@ static int acpi_irq_parse_one(acpi_handle handle, unsigned int index,
  * acpi_irq_get - Lookup an ACPI IRQ resource and use it to initialize resource.
  * @handle: ACPI device handle
  * @index:  ACPI IRQ resource index to lookup
- * @res:    Linux IRQ resource to initialize
+ * @res:    GNU/Linux IRQ resource to initialize
  *
  * Description:
  * Look for the ACPI IRQ resource with the given index and use it to initialize
- * the given Linux IRQ resource.
+ * the given GNU/Linux IRQ resource.
  *
  * Return:
  * 0 on success

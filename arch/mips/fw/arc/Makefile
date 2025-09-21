@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the ARC prom monitor library routines under Linux.
+# Makefile for the ARC prom monitor library routines under GNU/Linux.
 #
 
 ifdef CONFIG_ARC_CMDLINE_ONLY

@@ -1,11 +1,11 @@
 What:		/sys/kernel/mm/numa/
 Date:		June 2021
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Interface for NUMA
 
 What:		/sys/kernel/mm/numa/demotion_enabled
 Date:		June 2021
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Enable/disable demoting pages during reclaim
 
 		Page migration during reclaim is intended for systems

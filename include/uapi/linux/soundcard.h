@@ -36,7 +36,7 @@
 #define SOUND_VERSION	0x030802
 #define OPEN_SOUND_SYSTEM
 
-/* In Linux we need to be prepared for cross compiling */
+/* In GNU/Linux we need to be prepared for cross compiling */
 #include <linux/ioctl.h>
 
 /* Endian macros. */
@@ -233,7 +233,7 @@ struct patch_info {
 #define WAVE_ENVELOPES	0x40	/* bit 6 = Enable envelopes - 1 */
 #define WAVE_FAST_RELEASE 0x80	/* bit 7 = Shut off immediately after note off */
 				/* 	(use the env_rate/env_offs fields). */
-/* Linux specific bits */
+/* GNU/Linux specific bits */
 #define WAVE_VIBRATO	0x00010000	/* The vibrato info is valid */
 #define WAVE_TREMOLO	0x00020000	/* The tremolo info is valid */
 #define WAVE_SCALE	0x00040000	/* The scaling info is valid */

@@ -9,7 +9,7 @@ if [ ! -f /proc/kallsyms ]; then
   echo "Can not check the target symbol - please enable CONFIG_KALLSYMS"
   exit_unresolved
 elif ! grep "$SYMBOL\$" /proc/kallsyms; then
-  echo "Linux banner is not exported - please enable CONFIG_KALLSYMS_ALL"
+  echo "GNU/Linux banner is not exported - please enable CONFIG_KALLSYMS_ALL"
   exit_unresolved
 fi
 

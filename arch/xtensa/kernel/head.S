@@ -214,7 +214,7 @@ ENTRY(_startup)
 
 	/* Unpack data sections
 	 *
-	 * The linker script used to build the Linux kernel image
+	 * The linker script used to build the GNU/Linux kernel image
 	 * creates a table located at __boot_reloc_table_start
 	 * that contains the information what data needs to be unpacked.
 	 *

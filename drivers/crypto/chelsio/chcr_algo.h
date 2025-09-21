@@ -1,5 +1,5 @@
 /*
- * This file is part of the Chelsio T6 Crypto driver for Linux.
+ * This file is part of the Chelsio T6 Crypto driver for GNU/Linux.
  *
  * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *

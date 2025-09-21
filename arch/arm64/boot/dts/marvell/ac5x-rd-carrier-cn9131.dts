@@ -22,7 +22,7 @@
  *
  * There is no CPU booting in this mode on the carrier, only on the
  * CN9131 COM Express CPU module.
- * What runs the Linux is the CN9131 on the COM Express CPU module,
+ * What runs the GNU/Linux is the CN9131 on the COM Express CPU module,
  * And it accesses the switch end-point on the AC5X RD portion of the carrier
  * via PCIe.
  */

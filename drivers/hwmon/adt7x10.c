@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * adt7x10.c - Part of lm_sensors, Linux kernel modules for hardware
+ * adt7x10.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	 monitoring
  * This driver handles the ADT7410 and compatible digital temperature sensors.
  * Hartmut Knaack <knaack.h@gmx.de> 2012-07-22

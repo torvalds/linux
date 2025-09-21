@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH GNU/Linux-syscall-note) OR BSD-3-Clause) */
 /*
- *  Video for Linux Two header file
+ *  Video for GNU/Linux Two header file
  *
  *  Copyright (C) 1999-2012 the contributors
  *

@@ -8,7 +8,7 @@
  *
  * Copyright 2002 MontaVista Software Inc.
  *
- * Cleanup 2004 for Linux 2.6 by Dirk Behme <dirk.behme@de.bosch.com>
+ * Cleanup 2004 for GNU/Linux 2.6 by Dirk Behme <dirk.behme@de.bosch.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

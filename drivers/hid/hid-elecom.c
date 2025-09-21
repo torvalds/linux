@@ -27,7 +27,7 @@
 /*
  * Certain ELECOM mice misreport their button count meaning that they only work
  * correctly with the ELECOM mouse assistant software which is unavailable for
- * Linux. A four extra INPUT reports and a FEATURE report are described by the
+ * GNU/Linux. A four extra INPUT reports and a FEATURE report are described by the
  * report descriptor but it does not appear that these enable software to
  * control what the extra buttons map to. The only simple and straightforward
  * solution seems to involve fixing up the report descriptor.

@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note */
 /***************************************************************************
- * Linux PPP over L2TP (PPPoL2TP) Socket Implementation (RFC 2661)
+ * GNU/Linux PPP over L2TP (PPPoL2TP) Socket Implementation (RFC 2661)
  *
  * This file supplies definitions required by the PPP over L2TP driver
  * (l2tp_ppp.c).  All version information wrt this file is located in l2tp_ppp.c

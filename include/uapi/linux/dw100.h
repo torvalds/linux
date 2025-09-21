@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH GNU/Linux-syscall-note */
 /* Copyright 2022 NXP */
 
 #ifndef __UAPI_DW100_H__

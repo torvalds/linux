@@ -2988,7 +2988,7 @@ static const struct dmi_system_id bridge_d3_blacklist[] = {
 	{
 		/*
 		 * Gigabyte X299 root port is not marked as hotplug capable
-		 * which allows Linux to power manage it.  However, this
+		 * which allows GNU/Linux to power manage it.  However, this
 		 * confuses the BIOS SMI handler so don't power manage root
 		 * ports on that system.
 		 */

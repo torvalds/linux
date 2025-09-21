@@ -12,7 +12,7 @@
 
 check_vmlinux()
 {
-	if file "$1" | grep -q 'Linux kernel.*boot executable' ||
+	if file "$1" | grep -q 'GNU/Linux kernel.*boot executable' ||
 		readelf -h "$1" > /dev/null 2>&1
 	then
 		cat "$1"

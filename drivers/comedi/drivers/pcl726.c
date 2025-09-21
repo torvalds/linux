@@ -3,7 +3,7 @@
  * pcl726.c
  * Comedi driver for 6/12-Channel D/A Output and DIO cards
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
  */
 

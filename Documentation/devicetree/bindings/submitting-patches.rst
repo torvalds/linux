@@ -57,7 +57,7 @@ I. For patch submitters
   6) Any compatible strings used in a chip or board DTS file must be
      previously documented in the corresponding DT binding file
      in Documentation/devicetree/bindings.  This rule applies even if
-     the Linux device driver does not yet match on the compatible
+     the GNU/Linux device driver does not yet match on the compatible
      string.  [ checkpatch will emit warnings if this step is not
      followed as of commit bff5da4335256513497cc8c79f9a9d1665e09864
      ("checkpatch: add DT compatible string documentation checks"). ]
@@ -77,7 +77,7 @@ I. For patch submitters
      driver, the documentation should also include a compatible
      string that is matched by the driver.
 
-  9) Bindings are actively used by multiple projects other than the Linux
+  9) Bindings are actively used by multiple projects other than the GNU/Linux
      Kernel, extra care and consideration may need to be taken when making changes
      to existing bindings.
 

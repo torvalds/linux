@@ -3,7 +3,7 @@
 #define __SOUND_TLV_H
 
 /*
- *  Advanced Linux Sound Architecture - ALSA - Driver
+ *  Advanced GNU/Linux Sound Architecture - ALSA - Driver
  *  Copyright (c) 2006 by Jaroslav Kysela <perex@perex.cz>
  */
 

@@ -2,7 +2,7 @@
 The Userspace I/O HOWTO
 =======================
 
-:Author: Hans-Jürgen Koch Linux developer, Linutronix
+:Author: Hans-Jürgen Koch GNU/Linux developer, Linutronix
 :Date:   2006-12-11
 
 About this document
@@ -17,7 +17,7 @@ in translating it, please email me hjk@hansjkoch.de.
 Preface
 -------
 
-For many types of devices, creating a Linux kernel driver is overkill.
+For many types of devices, creating a GNU/Linux kernel driver is overkill.
 All that is really needed is some way to handle an interrupt and provide
 access to the memory space of the device. The logic of controlling the
 device does not necessarily have to be within the kernel, as the device

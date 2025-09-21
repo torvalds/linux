@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux AX.25 layer.
+# Makefile for the GNU/Linux AX.25 layer.
 #
 
 obj-$(CONFIG_AX25) += ax25.o

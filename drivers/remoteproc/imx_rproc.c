@@ -959,7 +959,7 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 
 		/*
 		 * If Mcore resource is not owned by Acore partition, It is kicked by ROM,
-		 * and Linux could only do IPC with Mcore and nothing else.
+		 * and GNU/Linux could only do IPC with Mcore and nothing else.
 		 */
 		if (imx_sc_rm_is_resource_owned(priv->ipc_handle, priv->rsrc_id)) {
 			if (of_property_read_u32(dev->of_node, "fsl,entry-address", &priv->entry))
@@ -1045,7 +1045,7 @@ static int imx_rproc_clk_enable(struct imx_rproc *priv)
 	struct device *dev = priv->dev;
 	int ret;
 
-	/* Remote core is not under control of Linux or it is managed by SCU API */
+	/* Remote core is not under control of GNU/Linux or it is managed by SCU API */
 	if (dcfg->method == IMX_RPROC_NONE || dcfg->method == IMX_RPROC_SCU_API)
 		return 0;
 

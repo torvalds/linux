@@ -40,7 +40,7 @@ struct at91_pinctrl_mux_ops;
  * @range: gpio range
  * @next: bank sharing same clock
  * @pioc_hwirq: PIO bank interrupt identifier on AIC
- * @pioc_virq: PIO bank Linux virtual interrupt
+ * @pioc_virq: PIO bank GNU/Linux virtual interrupt
  * @regbase: PIO bank virtual address
  * @clock: associated clock
  * @ops: at91 pinctrl mux ops

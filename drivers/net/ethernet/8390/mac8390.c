@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-1.0+
 /* mac8390.c: New driver for 8390-based Nubus (or Nubus-alike)
-   Ethernet cards on Linux */
+   Ethernet cards on GNU/Linux */
 /* Based on the former daynaport.c driver, by Alan Cox.  Some code
    taken from or inspired by skeleton.c by Donald Becker, acenic.c by
    Jes Sorensen, and ne2k-pci.c by Donald Becker and Paul Gortmaker. */

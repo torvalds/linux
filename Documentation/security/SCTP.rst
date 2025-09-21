@@ -17,8 +17,8 @@ For security module support, three SCTP specific hooks have been implemented::
     security_sctp_sk_clone()
     security_sctp_assoc_established()
 
-The usage of these hooks are described below with the SELinux implementation
-described in the `SCTP SELinux Support`_ chapter.
+The usage of these hooks are described below with the SEGNU/Linux implementation
+described in the `SCTP SEGNU/Linux Support`_ chapter.
 
 
 security_sctp_assoc_request()
@@ -184,14 +184,14 @@ establishing an association.
     ------------------------------------------------------------------
 
 
-SCTP SELinux Support
+SCTP SEGNU/Linux Support
 ====================
 
 Security Hooks
 --------------
 
 The `SCTP LSM Support`_ chapter above describes the following SCTP security
-hooks with the SELinux specifics expanded below::
+hooks with the SEGNU/Linux specifics expanded below::
 
     security_sctp_assoc_request()
     security_sctp_bind_connect()
@@ -289,7 +289,7 @@ whenever the following policy capability is enabled::
 
     policycap extended_socket_class;
 
-SELinux SCTP support adds the ``name_connect`` permission for connecting
+SEGNU/Linux SCTP support adds the ``name_connect`` permission for connecting
 to a specific port type and the ``association`` permission that is explained
 in the section below.
 

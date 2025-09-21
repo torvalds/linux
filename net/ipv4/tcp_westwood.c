@@ -2,7 +2,7 @@
 /*
  * TCP Westwood+: end-to-end bandwidth estimation for TCP
  *
- *      Angelo Dell'Aera: author of the first version of TCP Westwood+ in Linux 2.4
+ *      Angelo Dell'Aera: author of the first version of TCP Westwood+ in GNU/Linux 2.4
  *
  * Support at http://c3lab.poliba.it/index.php/Westwood
  * Main references in literature:
@@ -15,7 +15,7 @@
  *     Comm. Review, 2004
  *
  * - A. Dell'Aera, L. Grieco, S. Mascolo.
- *   "Linux 2.4 Implementation of Westwood+ TCP with Rate-Halving :
+ *   "GNU/Linux 2.4 Implementation of Westwood+ TCP with Rate-Halving :
  *    A Performance Evaluation Over the Internet" (ICC 2004), Paris, June 2004
  *
  * Westwood+ employs end-to-end bandwidth measurement to set cwnd and

@@ -9,7 +9,7 @@
 .. _it_kernel_hacking_hack:
 
 =================================================
-L'inaffidabile guida all'hacking del kernel Linux
+L'inaffidabile guida all'hacking del kernel GNU/Linux
 =================================================
 
 :Author: Rusty Russell
@@ -18,7 +18,7 @@ Introduzione
 ============
 
 Benvenuto, gentile lettore, alla notevole ed inaffidabile guida all'hacking
-del kernel Linux ad opera di Rusty. Questo documento descrive le procedure
+del kernel GNU/Linux ad opera di Rusty. Questo documento descrive le procedure
 più usate ed i concetti necessari per scrivere codice per il kernel: lo scopo
 è di fornire ai programmatori C più esperti un manuale di base per sviluppo.
 Eviterò dettagli implementativi: per questo abbiamo il codice,
@@ -163,7 +163,7 @@ Un limite rigido dello stack
     Evitare profonde ricorsioni ad enormi array locali nello stack
     (allocateli dinamicamente).
 
-Il kernel Linux è portabile
+Il kernel GNU/Linux è portabile
     Quindi mantenetelo tale. Il vostro codice dovrebbe essere a 64-bit ed
     indipendente dall'ordine dei byte (endianess) di un processore. Inoltre,
     dovreste minimizzare il codice specifico per un processore; per esempio
@@ -199,7 +199,7 @@ avviene un errore dovete ritornare un valore negativo di errno (consultate
 ritornate 0.
 
 Dopo aver dormito dovreste verificare se ci sono stati dei segnali: il modo
-Unix/Linux di gestire un segnale è di uscire temporaneamente dalla chiamata
+Unix/GNU/Linux di gestire un segnale è di uscire temporaneamente dalla chiamata
 di sistema con l'errore ``-ERESTARTSYS``. La chiamata di sistema ritornerà
 al contesto utente, eseguirà il gestore del segnale e poi la vostra chiamata
 di sistema riprenderà (a meno che l'utente non l'abbia disabilitata). Quindi,
@@ -359,7 +359,7 @@ la MMU vi darà l'impressione che lo sia (quindi, sarà contiguo solo dal punto
 di vista dei processori, non dal punto di vista dei driver dei dispositivi
 esterni).
 Se per qualche strana ragione avete davvero bisogno di una grossa quantità di
-memoria fisica contigua, avete un problema: Linux non ha un buon supporto per
+memoria fisica contigua, avete un problema: GNU/Linux non ha un buon supporto per
 questo caso d'uso perché, dopo un po' di tempo, la frammentazione della memoria
 rende l'operazione difficile. Il modo migliore per allocare un simile blocco
 all'inizio dell'avvio del sistema è attraverso la procedura
@@ -701,7 +701,7 @@ viene impostato. Dovreste fare così perché si mostra meglio.
 Estensioni GNU
 --------------
 
-Le estensioni GNU sono esplicitamente permesse nel kernel Linux. Da notare
+Le estensioni GNU sono esplicitamente permesse nel kernel GNU/Linux. Da notare
 che alcune delle più complesse non sono ben supportate, per via dello scarso
 sviluppo, ma le seguenti sono da considerarsi la norma (per maggiori dettagli,
 leggete la sezione "C Extensions" nella pagina info di GCC - Sì, davvero

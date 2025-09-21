@@ -9,7 +9,7 @@
  * ------------------------------------------------------------
  * Emulation of a SCSI host adapter for Virtual I/O devices
  *
- * This driver allows the Linux SCSI peripheral drivers to directly
+ * This driver allows the GNU/Linux SCSI peripheral drivers to directly
  * access devices in the hosting partition, either on an iSeries
  * hypervisor system or a converged hypervisor system.
  */

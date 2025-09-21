@@ -44,7 +44,7 @@ USB_ETHERNET_MODULE_PARAMETERS();
 
 /***************************** Device Descriptor ****************************/
 
-#define MULTI_VENDOR_NUM	0x1d6b	/* Linux Foundation */
+#define MULTI_VENDOR_NUM	0x1d6b	/* GNU/Linux Foundation */
 #define MULTI_PRODUCT_NUM	0x0104	/* Multifunction Composite Gadget */
 
 

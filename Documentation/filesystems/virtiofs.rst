@@ -10,7 +10,7 @@ virtiofs: virtio-fs host<->guest shared file system
 
 Introduction
 ============
-The virtiofs file system for Linux implements a driver for the paravirtualized
+The virtiofs file system for GNU/Linux implements a driver for the paravirtualized
 VIRTIO "virtio-fs" device for guest<->host file system sharing.  It allows a
 guest to mount a directory that has been exported on the host.
 
@@ -56,7 +56,7 @@ on the host.
 Internals
 =========
 Since the virtio-fs device uses the FUSE protocol for file system requests, the
-virtiofs file system for Linux is integrated closely with the FUSE file system
+virtiofs file system for GNU/Linux is integrated closely with the FUSE file system
 client.  The guest acts as the FUSE client while the host acts as the FUSE
 server.  The /dev/fuse interface between the kernel and userspace is replaced
 with the virtio-fs device interface.

@@ -110,7 +110,7 @@ V4L2 Version 0.20 (1999-09-10)
 Version 0.20 introduced a number of changes which were *not backward
 compatible* with 0.19 and earlier versions. Purpose of these changes was
 to simplify the API, while making it more extensible and following
-common Linux driver API conventions.
+common GNU/Linux driver API conventions.
 
 1. Some typos in ``V4L2_FMT_FLAG`` symbols were fixed. struct v4l2_clip
    was changed for compatibility with v4l. (1999-08-30)
@@ -184,7 +184,7 @@ common Linux driver API conventions.
    units. The UST clock starts at zero when the system is booted and
    runs continuously and uniformly. It takes a little over 292 years for
    UST to overflow. There is no way to set the UST clock. The regular
-   Linux time-of-day clock can be changed periodically, which would
+   GNU/Linux time-of-day clock can be changed periodically, which would
    cause errors if it were being used for timestamping a multimedia
    stream. A real UST style clock will require some support in the
    kernel that is not there yet. But in anticipation, I will change the
@@ -219,14 +219,14 @@ added.
 the ``videodev.h`` header file was renamed to ``v4l2_fourcc``.
 
 2001-01-25: A possible driver-level compatibility problem between the
-``videodev.h`` file in Linux 2.4.0 and the ``videodev.h`` file included
+``videodev.h`` file in GNU/Linux 2.4.0 and the ``videodev.h`` file included
 in the ``videodevX`` patch was fixed. Users of an earlier version of
-``videodevX`` on Linux 2.4.0 should recompile their V4L and V4L2
+``videodevX`` on GNU/Linux 2.4.0 should recompile their V4L and V4L2
 drivers.
 
 2001-01-26: A possible kernel-level incompatibility between the
 ``videodev.h`` file in the ``videodevX`` patch and the ``videodev.h``
-file in Linux 2.2.x with devfs patches applied was fixed.
+file in GNU/Linux 2.2.x with devfs patches applied was fixed.
 
 2001-03-02: Certain V4L ioctls which pass data in both direction
 although they are defined with read-only parameter, did not work
@@ -288,12 +288,12 @@ V4L2 Version 0.20 2002-07-25
 
 Added sliced VBI interface proposal.
 
-V4L2 in Linux 2.5.46, 2002-10
+V4L2 in GNU/Linux 2.5.46, 2002-10
 =============================
 
 Around October-November 2002, prior to an announced feature freeze of
-Linux 2.5, the API was revised, drawing from experience with V4L2 0.20.
-This unnamed version was finally merged into Linux 2.5.46.
+GNU/Linux 2.5, the API was revised, drawing from experience with V4L2 0.20.
+This unnamed version was finally merged into GNU/Linux 2.5.46.
 
 1.  As specified in :ref:`related`, drivers must make related device
     functions available under all minor device numbers.
@@ -675,7 +675,7 @@ V4L2 2003-11-05
    RGB pixel formats differently. These issues have yet to be addressed,
    for details see :ref:`pixfmt-rgb`.
 
-V4L2 in Linux 2.6.6, 2004-05-09
+V4L2 in GNU/Linux 2.6.6, 2004-05-09
 ===============================
 
 1. The :ref:`VIDIOC_CROPCAP` ioctl was incorrectly
@@ -683,7 +683,7 @@ V4L2 in Linux 2.6.6, 2004-05-09
    ioctl, while the read-only version was renamed to
    ``VIDIOC_CROPCAP_OLD``. The old ioctl was removed on Kernel 2.6.39.
 
-V4L2 in Linux 2.6.8
+V4L2 in GNU/Linux 2.6.8
 ===================
 
 1. A new field ``input`` (former ``reserved[0]``) was added to the
@@ -710,14 +710,14 @@ V4L2 spec erratum 2004-08-01
    also missing from examples. Also on the ``VIDIOC_DQBUF`` page the ``EIO``
    error code was not documented.
 
-V4L2 in Linux 2.6.14
+V4L2 in GNU/Linux 2.6.14
 ====================
 
 1. A new sliced VBI interface was added. It is documented in
    :ref:`sliced` and replaces the interface first proposed in V4L2
    specification 0.8.
 
-V4L2 in Linux 2.6.15
+V4L2 in GNU/Linux 2.6.15
 ====================
 
 1. The :ref:`VIDIOC_LOG_STATUS` ioctl was added.
@@ -734,7 +734,7 @@ V4L2 in Linux 2.6.15
    argument was replaced by a struct
    ``v4l2_mpeg_compression`` pointer. (The
    ``VIDIOC_G_MPEGCOMP`` and ``VIDIOC_S_MPEGCOMP`` ioctls where removed
-   in Linux 2.6.25.)
+   in GNU/Linux 2.6.25.)
 
 V4L2 spec erratum 2005-11-27
 ============================
@@ -771,7 +771,7 @@ V4L2 spec erratum 2006-02-04
    a linked list, because drivers ignore the
    struct v4l2_clip. ``next`` pointer.
 
-V4L2 in Linux 2.6.17
+V4L2 in GNU/Linux 2.6.17
 ====================
 
 1. New video standard macros were added: ``V4L2_STD_NTSC_M_KR`` (NTSC M
@@ -809,11 +809,11 @@ V4L2 spec erratum 2006-09-23 (Draft 0.15)
 6. In :ref:`output` and :ref:`raw-vbi` the device file names
    ``/dev/vout`` which never caught on were replaced by ``/dev/video``.
 
-7. With Linux 2.6.15 the possible range for VBI device minor numbers was
+7. With GNU/Linux 2.6.15 the possible range for VBI device minor numbers was
    extended from 224-239 to 224-255. Accordingly device file names
    ``/dev/vbi0`` to ``/dev/vbi31`` are possible now.
 
-V4L2 in Linux 2.6.18
+V4L2 in GNU/Linux 2.6.18
 ====================
 
 1. New ioctls :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`,
@@ -827,7 +827,7 @@ V4L2 in Linux 2.6.18
    ``V4L2_CTRL_FLAG_INACTIVE`` and ``V4L2_CTRL_FLAG_SLIDER``
    (:ref:`control-flags`). See :ref:`extended-controls` for details.
 
-V4L2 in Linux 2.6.19
+V4L2 in GNU/Linux 2.6.19
 ====================
 
 1. In struct v4l2_sliced_vbi_cap a
@@ -854,14 +854,14 @@ V4L2 spec erratum 2006-10-12 (Draft 0.17)
 1. ``V4L2_PIX_FMT_HM12`` (:ref:`reserved-formats`) is a YUV 4:2:0, not
    4:2:2 format.
 
-V4L2 in Linux 2.6.21
+V4L2 in GNU/Linux 2.6.21
 ====================
 
 1. The ``videodev2.h`` header file is now dual licensed under GNU
    General Public License version two or later, and under a 3-clause
    BSD-style license.
 
-V4L2 in Linux 2.6.22
+V4L2 in GNU/Linux 2.6.22
 ====================
 
 1. Two new field orders ``V4L2_FIELD_INTERLACED_TB`` and
@@ -885,14 +885,14 @@ V4L2 in Linux 2.6.22
    This may **break compatibility** with existing applications. Drivers
    supporting the "host order RGB32" format are not known.
 
-V4L2 in Linux 2.6.24
+V4L2 in GNU/Linux 2.6.24
 ====================
 
 1. The pixel formats ``V4L2_PIX_FMT_PAL8``, ``V4L2_PIX_FMT_YUV444``,
    ``V4L2_PIX_FMT_YUV555``, ``V4L2_PIX_FMT_YUV565`` and
    ``V4L2_PIX_FMT_YUV32`` were added.
 
-V4L2 in Linux 2.6.25
+V4L2 in GNU/Linux 2.6.25
 ====================
 
 1. The pixel formats :ref:`V4L2_PIX_FMT_Y16 <V4L2-PIX-FMT-Y16>` and
@@ -915,10 +915,10 @@ V4L2 in Linux 2.6.25
 
 4. The ``VIDIOC_G_MPEGCOMP`` and ``VIDIOC_S_MPEGCOMP`` ioctls, which
    were superseded by the :ref:`extended controls <extended-controls>`
-   interface in Linux 2.6.18, where finally removed from the
+   interface in GNU/Linux 2.6.18, where finally removed from the
    ``videodev2.h`` header file.
 
-V4L2 in Linux 2.6.26
+V4L2 in GNU/Linux 2.6.26
 ====================
 
 1. The pixel formats ``V4L2_PIX_FMT_Y16`` and ``V4L2_PIX_FMT_SBGGR16``
@@ -927,7 +927,7 @@ V4L2 in Linux 2.6.26
 2. Added user controls ``V4L2_CID_CHROMA_AGC`` and
    ``V4L2_CID_COLOR_KILLER``.
 
-V4L2 in Linux 2.6.27
+V4L2 in GNU/Linux 2.6.27
 ====================
 
 1. The :ref:`VIDIOC_S_HW_FREQ_SEEK` ioctl
@@ -938,7 +938,7 @@ V4L2 in Linux 2.6.27
    ``V4L2_PIX_FMT_PCA561``, ``V4L2_PIX_FMT_SGBRG8``,
    ``V4L2_PIX_FMT_PAC207`` and ``V4L2_PIX_FMT_PJPG`` were added.
 
-V4L2 in Linux 2.6.28
+V4L2 in GNU/Linux 2.6.28
 ====================
 
 1. Added ``V4L2_MPEG_AUDIO_ENCODING_AAC`` and
@@ -949,7 +949,7 @@ V4L2 in Linux 2.6.28
 3. The pixel formats ``V4L2_PIX_FMT_SGRBG10`` and
    ``V4L2_PIX_FMT_SGRBG10DPCM8`` were added.
 
-V4L2 in Linux 2.6.29
+V4L2 in GNU/Linux 2.6.29
 ====================
 
 1. The ``VIDIOC_G_CHIP_IDENT`` ioctl was renamed to
@@ -964,18 +964,18 @@ V4L2 in Linux 2.6.29
    ``V4L2_CID_ZOOM_RELATIVE``, ``V4L2_CID_ZOOM_CONTINUOUS`` and
    ``V4L2_CID_PRIVACY``.
 
-V4L2 in Linux 2.6.30
+V4L2 in GNU/Linux 2.6.30
 ====================
 
 1. New control flag ``V4L2_CTRL_FLAG_WRITE_ONLY`` was added.
 
 2. New control ``V4L2_CID_COLORFX`` was added.
 
-V4L2 in Linux 2.6.32
+V4L2 in GNU/Linux 2.6.32
 ====================
 
 1. In order to be easier to compare a V4L2 API and a kernel version, now
-   V4L2 API is numbered using the Linux Kernel version numeration.
+   V4L2 API is numbered using the GNU/Linux Kernel version numeration.
 
 2. Finalized the RDS capture API. See :ref:`rds` for more information.
 
@@ -997,19 +997,19 @@ V4L2 in Linux 2.6.32
 9. Added Remote Controller chapter, describing the default Remote
    Controller mapping for media devices.
 
-V4L2 in Linux 2.6.33
+V4L2 in GNU/Linux 2.6.33
 ====================
 
 1. Added support for Digital Video timings in order to support HDTV
    receivers and transmitters.
 
-V4L2 in Linux 2.6.34
+V4L2 in GNU/Linux 2.6.34
 ====================
 
 1. Added ``V4L2_CID_IRIS_ABSOLUTE`` and ``V4L2_CID_IRIS_RELATIVE``
    controls to the :ref:`Camera controls class <camera-controls>`.
 
-V4L2 in Linux 2.6.37
+V4L2 in GNU/Linux 2.6.37
 ====================
 
 1. Remove the vtx (videotext/teletext) API. This API was no longer used
@@ -1017,7 +1017,7 @@ V4L2 in Linux 2.6.37
    applications found that used it. It was originally scheduled for
    removal in 2.6.35.
 
-V4L2 in Linux 2.6.39
+V4L2 in GNU/Linux 2.6.39
 ====================
 
 1. The old VIDIOC_*_OLD symbols and V4L1 support were removed.
@@ -1026,7 +1026,7 @@ V4L2 in Linux 2.6.39
    drivers and applications. See :ref:`multi-planar API <planar-apis>`
    for details.
 
-V4L2 in Linux 3.1
+V4L2 in GNU/Linux 3.1
 =================
 
 1. VIDIOC_QUERYCAP now returns a per-subsystem version instead of a
@@ -1036,7 +1036,7 @@ V4L2 in Linux 3.1
 
    Added V4L2_CTRL_TYPE_BITMASK.
 
-V4L2 in Linux 3.2
+V4L2 in GNU/Linux 3.2
 =================
 
 1. V4L2_CTRL_FLAG_VOLATILE was added to signal volatile controls to
@@ -1046,7 +1046,7 @@ V4L2 in Linux 3.2
    Does not affect the compatibility of current drivers and
    applications. See :ref:`selection API <selection-api>` for details.
 
-V4L2 in Linux 3.3
+V4L2 in GNU/Linux 3.3
 =================
 
 1. Added ``V4L2_CID_ALPHA_COMPONENT`` control to the
@@ -1055,7 +1055,7 @@ V4L2 in Linux 3.3
 2. Added the device_caps field to struct v4l2_capabilities and added
    the new V4L2_CAP_DEVICE_CAPS capability.
 
-V4L2 in Linux 3.4
+V4L2 in GNU/Linux 3.4
 =================
 
 1. Added :ref:`JPEG compression control class <jpeg-controls>`.
@@ -1065,7 +1065,7 @@ V4L2 in Linux 3.4
    :ref:`VIDIOC_QUERY_DV_TIMINGS` and
    :ref:`VIDIOC_DV_TIMINGS_CAP`.
 
-V4L2 in Linux 3.5
+V4L2 in GNU/Linux 3.5
 =================
 
 1. Added integer menus, the new type will be
@@ -1091,7 +1091,7 @@ V4L2 in Linux 3.5
    ``V4L2_CID_AUTO_FOCUS_START``, ``V4L2_CID_AUTO_FOCUS_STOP``,
    ``V4L2_CID_AUTO_FOCUS_STATUS`` and ``V4L2_CID_AUTO_FOCUS_RANGE``.
 
-V4L2 in Linux 3.6
+V4L2 in GNU/Linux 3.6
 =================
 
 1. Replaced ``input`` in struct v4l2_buffer by
@@ -1103,7 +1103,7 @@ V4L2 in Linux 3.6
 3. Added support for frequency band enumerations:
    :ref:`VIDIOC_ENUM_FREQ_BANDS`.
 
-V4L2 in Linux 3.9
+V4L2 in GNU/Linux 3.9
 =================
 
 1. Added timestamp types to ``flags`` field in
@@ -1112,7 +1112,7 @@ V4L2 in Linux 3.9
 2. Added ``V4L2_EVENT_CTRL_CH_RANGE`` control event changes flag. See
    :ref:`ctrl-changes-flags`.
 
-V4L2 in Linux 3.10
+V4L2 in GNU/Linux 3.10
 ==================
 
 1. Removed obsolete and unused DV_PRESET ioctls VIDIOC_G_DV_PRESET,
@@ -1123,28 +1123,28 @@ V4L2 in Linux 3.10
 2. Added new debugging ioctl
    :ref:`VIDIOC_DBG_G_CHIP_INFO`.
 
-V4L2 in Linux 3.11
+V4L2 in GNU/Linux 3.11
 ==================
 
 1. Remove obsolete ``VIDIOC_DBG_G_CHIP_IDENT`` ioctl.
 
-V4L2 in Linux 3.14
+V4L2 in GNU/Linux 3.14
 ==================
 
 1. In struct v4l2_rect, the type of ``width`` and
    ``height`` fields changed from _s32 to _u32.
 
-V4L2 in Linux 3.15
+V4L2 in GNU/Linux 3.15
 ==================
 
 1. Added Software Defined Radio (SDR) Interface.
 
-V4L2 in Linux 3.16
+V4L2 in GNU/Linux 3.16
 ==================
 
 1. Added event V4L2_EVENT_SOURCE_CHANGE.
 
-V4L2 in Linux 3.17
+V4L2 in GNU/Linux 3.17
 ==================
 
 1. Extended struct v4l2_pix_format. Added
@@ -1153,20 +1153,20 @@ V4L2 in Linux 3.17
 2. Added compound control types and
    :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>`.
 
-V4L2 in Linux 3.18
+V4L2 in GNU/Linux 3.18
 ==================
 
 1. Added ``V4L2_CID_PAN_SPEED`` and ``V4L2_CID_TILT_SPEED`` camera
    controls.
 
-V4L2 in Linux 3.19
+V4L2 in GNU/Linux 3.19
 ==================
 
 1. Rewrote Colorspace chapter, added new enum v4l2_ycbcr_encoding
    and enum v4l2_quantization fields to struct v4l2_pix_format,
    struct v4l2_pix_format_mplane and struct v4l2_mbus_framefmt.
 
-V4L2 in Linux 4.4
+V4L2 in GNU/Linux 4.4
 =================
 
 1. Renamed ``V4L2_TUNER_ADC`` to ``V4L2_TUNER_SDR``. The use of
@@ -1178,7 +1178,7 @@ V4L2 in Linux 4.4
 
 .. _other:
 
-Relation of V4L2 to other Linux multimedia APIs
+Relation of V4L2 to other GNU/Linux multimedia APIs
 ===============================================
 
 .. _xvideo:
@@ -1204,7 +1204,7 @@ with drawing operations or windows moving or changing their stacking
 order.
 
 To combine the advantages of Xv and V4L a special Xv driver exists in
-XFree86 and XOrg, just programming any overlay capable Video4Linux
+XFree86 and XOrg, just programming any overlay capable Video4GNU/Linux
 device it finds. To enable it ``/etc/X11/XF86Config`` must contain these
 lines:
 
@@ -1231,7 +1231,7 @@ Digital Video
 
 V4L2 does not support digital terrestrial, cable or satellite broadcast.
 A separate project aiming at digital receivers exists. You can find its
-homepage at `https://linuxtv.org <https://linuxtv.org>`__. The Linux
+homepage at `https://linuxtv.org <https://linuxtv.org>`__. The GNU/Linux
 DVB API has no connection to the V4L2 API except that drivers for hybrid
 hardware may support both.
 

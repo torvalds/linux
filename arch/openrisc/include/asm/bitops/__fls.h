@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * OpenRISC Linux
+ * OpenRISC GNU/Linux
  *
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  */

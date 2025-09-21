@@ -2,7 +2,7 @@
 /*
  * arch-independent dma-mapping routines
  *
- * Copyright (c) 2006  SUSE Linux Products GmbH
+ * Copyright (c) 2006  SUSE GNU/Linux Products GmbH
  * Copyright (c) 2006  Tejun Heo <teheo@suse.de>
  */
 #include <linux/memblock.h> /* for max_pfn */

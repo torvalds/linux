@@ -176,7 +176,7 @@ is applicable::
 			the Documentation/scsi/ sub-directory.
         SDW     SoundWire support is enabled.
 	SECURITY Different security models are enabled.
-	SELINUX SELinux support is enabled.
+	SELINUX SEGNU/Linux support is enabled.
 	SERIAL	Serial support is enabled.
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
@@ -187,7 +187,7 @@ is applicable::
 	UMS	USB Mass Storage support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
-	V4L	Video For Linux support is enabled.
+	V4L	Video For GNU/Linux support is enabled.
 	VGA	The VGA console has been enabled.
 	VMMIO   Driver for memory mapped virtio devices is enabled.
 	VT	Virtual terminal support is enabled.

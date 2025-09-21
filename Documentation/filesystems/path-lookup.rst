@@ -4,8 +4,8 @@ Pathname lookup
 
 This write-up is based on three articles published at lwn.net:
 
-- <https://lwn.net/Articles/649115/> Pathname lookup in Linux
-- <https://lwn.net/Articles/649729/> RCU-walk: faster pathname lookup in Linux
+- <https://lwn.net/Articles/649115/> Pathname lookup in GNU/Linux
+- <https://lwn.net/Articles/649729/> RCU-walk: faster pathname lookup in GNU/Linux
 - <https://lwn.net/Articles/650786/> A walk among the symlinks
 
 Written by Neil Brown with help from Al Viro and Jon Corbet.
@@ -52,7 +52,7 @@ It is tempting to describe the second kind as starting with a
 component, but that isn't always accurate: a pathname can lack both
 slashes and components, it can be empty, in other words.  This is
 generally forbidden in POSIX, but some of those "``*at()``" system calls
-in Linux permit it when the ``AT_EMPTY_PATH`` flag is given.  For
+in GNU/Linux permit it when the ``AT_EMPTY_PATH`` flag is given.  For
 example, if you have an open file descriptor on an executable file you
 can execute it by calling `execveat() <execveat_>`_ passing
 the file descriptor, an empty path, and the ``AT_EMPTY_PATH`` flag.
@@ -85,7 +85,7 @@ ending in "``/``".  According to POSIX_:
   directory entry that is to be created for a directory immediately
   after the pathname is resolved.
 
-The Linux pathname walking code (mostly in ``fs/namei.c``) deals with
+The GNU/Linux pathname walking code (mostly in ``fs/namei.c``) deals with
 all of these issues: breaking the path into components, handling the
 "everything else" quite separately from the final component, and
 checking that the trailing slash is not used where it isn't
@@ -531,11 +531,11 @@ this retry process in the next article.
 Automount points are locations in the filesystem where an attempt to
 lookup a name can trigger changes to how that lookup should be
 handled, in particular by mounting a filesystem there.  These are
-covered in greater detail in autofs.rst in the Linux documentation
+covered in greater detail in autofs.rst in the GNU/Linux documentation
 tree, but a few notes specifically related to path lookup are in order
 here.
 
-The Linux VFS has a concept of "managed" dentries.  There are three
+The GNU/Linux VFS has a concept of "managed" dentries.  There are three
 potentially interesting things about these dentries corresponding
 to three different flags that might be set in ``dentry->d_flags``:
 
@@ -561,7 +561,7 @@ filesystem, which will then give it a special pass through
 ``DCACHE_MOUNTED``
 ~~~~~~~~~~~~~~~~~~
 
-This flag is set on every dentry that is mounted on.  As Linux
+This flag is set on every dentry that is mounted on.  As GNU/Linux
 supports multiple filesystem namespaces, it is possible that the
 dentry may not be mounted on in *this* namespace, just in some
 other.  So this flag is seen as a hint, not a promise.
@@ -592,10 +592,10 @@ the very real possibility of extended delays.
 This will become more important next time when we examine RCU-walk
 which is particularly sensitive to delays.
 
-RCU-walk - faster pathname lookup in Linux
+RCU-walk - faster pathname lookup in GNU/Linux
 ==========================================
 
-RCU-walk is another algorithm for performing pathname lookup in Linux.
+RCU-walk is another algorithm for performing pathname lookup in GNU/Linux.
 It is in many ways similar to REF-walk and the two share quite a bit
 of code.  The significant difference in RCU-walk is how it allows for
 the possibility of concurrent access.
@@ -987,11 +987,11 @@ The second reason was `outlined recently`_ by Linus:
    true loops, but also to "very deep" non-loops. It's not about memory
    use, it's about users triggering unreasonable CPU resources.
 
-Linux imposes a limit on the length of any pathname: ``PATH_MAX``, which
+GNU/Linux imposes a limit on the length of any pathname: ``PATH_MAX``, which
 is 4096.  There are a number of reasons for this limit; not letting the
 kernel spend too much time on just one path is one of them.  With
 symbolic links you can effectively generate much longer paths so some
-sort of limit is needed for the same reason.  Linux imposes a limit of
+sort of limit is needed for the same reason.  GNU/Linux imposes a limit of
 at most 40 (MAXSYMLINKS) symlinks in any one path lookup.  It previously imposed
 a further limit of eight on the maximum depth of recursion, but that was
 raised to 40 when a separate stack was implemented, so there is now
@@ -1012,7 +1012,7 @@ Storage and lifetime of cached symlinks
 ---------------------------------------
 
 Like other filesystem resources, such as inodes and directory
-entries, symlinks are cached by Linux to avoid repeated costly access
+entries, symlinks are cached by GNU/Linux to avoid repeated costly access
 to external storage.  It is particularly important for RCU-walk to be
 able to find and temporarily hold onto these cached entries, so that
 it doesn't need to drop down into REF-walk.
@@ -1233,7 +1233,7 @@ footprints are best kept to a minimum.
 
 One other place where walking down a symlink can involve leaving
 footprints in a way that doesn't affect directories is in updating access times.
-In Unix (and Linux) every filesystem object has a "last accessed
+In Unix (and GNU/Linux) every filesystem object has a "last accessed
 time", or "``atime``".  Passing through a directory to access a file
 within is not considered to be an access for the purposes of
 ``atime``; only listing the contents of a directory can update its ``atime``.
@@ -1250,9 +1250,9 @@ documented "except that any changes caused by pathname resolution need
 not be documented".  This seems to imply that POSIX doesn't really
 care about access-time updates during pathname lookup.
 
-.. _Linux 1.3.87: https://git.kernel.org/cgit/linux/kernel/git/history/history.git/diff/fs/ext2/symlink.c?id=f806c6db77b8eaa6e00dcfb6b567706feae8dbb8
+.. _GNU/Linux 1.3.87: https://git.kernel.org/cgit/linux/kernel/git/history/history.git/diff/fs/ext2/symlink.c?id=f806c6db77b8eaa6e00dcfb6b567706feae8dbb8
 
-An examination of history shows that prior to `Linux 1.3.87`_, the ext2
+An examination of history shows that prior to `GNU/Linux 1.3.87`_, the ext2
 filesystem, at least, didn't update atime when following a link.
 Unfortunately we have no record of why that behavior was changed.
 
@@ -1260,7 +1260,7 @@ In any case, access time must now be updated and that operation can be
 quite complex.  Trying to stay in RCU-walk while doing it is best
 avoided.  Fortunately it is often permitted to skip the ``atime``
 update.  Because ``atime`` updates cause performance problems in various
-areas, Linux supports the ``relatime`` mount option, which generally
+areas, GNU/Linux supports the ``relatime`` mount option, which generally
 limits the updates of ``atime`` to once per day on files that aren't
 being changed (and symlinks never change once created).  Even without
 ``relatime``, many filesystems record ``atime`` with a one-second

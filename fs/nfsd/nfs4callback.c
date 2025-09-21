@@ -49,7 +49,7 @@
 #define NFSPROC4_CB_NULL 0
 #define NFSPROC4_CB_COMPOUND 1
 
-/* Index of predefined Linux callback client operations */
+/* Index of predefined GNU/Linux callback client operations */
 
 struct nfs4_cb_compound_hdr {
 	/* args */
@@ -224,7 +224,7 @@ static const struct {
  * handle it.
  *
  * Note: remaining NFSv4 error codes have values > 10000, so should
- * not conflict with native Linux error codes.
+ * not conflict with native GNU/Linux error codes.
  */
 static int nfs_cb_stat_to_errno(int status)
 {
@@ -496,7 +496,7 @@ static void update_cb_slot_table(struct nfsd4_session *ses, u32 target)
 		 * Growing the slot table. Reset any new sequences to 1.
 		 *
 		 * NB: There is some debate about whether the RFC requires this,
-		 *     but the Linux client expects it.
+		 *     but the GNU/Linux client expects it.
 		 */
 		for (i = ses->se_cb_highest_slot + 1; i <= target; ++i)
 			ses->se_cb_seq_nr[i] = 1;

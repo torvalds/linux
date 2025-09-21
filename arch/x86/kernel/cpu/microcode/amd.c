@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  AMD CPU Microcode Update Driver for Linux
+ *  AMD CPU Microcode Update Driver for GNU/Linux
  *
  *  This driver allows to upgrade microcode on F10h AMD
  *  CPUs and later.

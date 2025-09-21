@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_SIGCONTEXT_H
 #define _UAPI_ASM_X86_SIGCONTEXT_H
 
 /*
- * Linux signal context definitions. The sigcontext includes a complex
+ * GNU/Linux signal context definitions. The sigcontext includes a complex
  * hierarchy of CPU and FPU state, available to user-space (on the stack) when
  * a signal handler is executed.
  *
@@ -345,7 +345,7 @@ struct sigcontext {
 
 	/*
 	 * Prior to 2.5.64 ("[PATCH] x86-64 updates for 2.5.64-bk3"),
-	 * Linux saved and restored fs and gs in these slots.  This
+	 * GNU/Linux saved and restored fs and gs in these slots.  This
 	 * was counterproductive, as fsbase and gsbase were never
 	 * saved, so arch_prctl was presumably unreliable.
 	 *

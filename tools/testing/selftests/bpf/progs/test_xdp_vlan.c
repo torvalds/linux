@@ -124,7 +124,7 @@ int xdp_drop_vlan_4011(struct xdp_md *ctx)
 	return XDP_PASS;
 }
 /*
-Commands to setup VLAN on Linux to test packets gets dropped:
+Commands to setup VLAN on GNU/Linux to test packets gets dropped:
 
  export ROOTDEV=ixgbe2
  export VLANID=4011
@@ -203,7 +203,7 @@ int xdp_vlan_remove_outer(struct xdp_md *ctx)
 	__builtin_memmove(dest, data, ETH_ALEN * 2);
 	/* Note: LLVM built-in memmove inlining require size to be constant */
 
-	/* Move start of packet header seen by Linux kernel stack */
+	/* Move start of packet header seen by GNU/Linux kernel stack */
 	bpf_xdp_adjust_head(ctx, VLAN_HDR_SZ);
 
 	return XDP_PASS;
@@ -242,7 +242,7 @@ int xdp_vlan_remove_outer2(struct xdp_md *ctx)
 	/* Simply shift down MAC addrs 4 bytes, overwrite h_proto + TCI */
 	shift_mac_4bytes_32bit(data);
 
-	/* Move start of packet header seen by Linux kernel stack */
+	/* Move start of packet header seen by GNU/Linux kernel stack */
 	bpf_xdp_adjust_head(ctx, VLAN_HDR_SZ);
 
 	return XDP_PASS;

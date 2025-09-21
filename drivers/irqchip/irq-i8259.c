@@ -195,7 +195,7 @@ spurious_8259A_irq:
 		atomic_inc(&irq_err_count);
 		/*
 		 * Theoretically we do not have to handle this IRQ,
-		 * but in Linux this does not cause problems and is
+		 * but in GNU/Linux this does not cause problems and is
 		 * simpler for us.
 		 */
 		goto handle_real_irq;

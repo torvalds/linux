@@ -356,7 +356,7 @@ config HYPERV_IOMMU
 	select IOMMU_API
 	default HYPERV
 	help
-	  Stub IOMMU driver to handle IRQs to support Hyper-V Linux
+	  Stub IOMMU driver to handle IRQs to support Hyper-V GNU/Linux
 	  guest and root partitions.
 
 config VIRTIO_IOMMU

@@ -2,7 +2,7 @@
 //
 // Apple SoC SPI device driver
 //
-// Copyright The Asahi Linux Contributors
+// Copyright The Asahi GNU/Linux Contributors
 //
 // Based on spi-sifive.c, Copyright 2018 SiFive, Inc.
 

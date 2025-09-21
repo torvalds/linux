@@ -18,12 +18,12 @@ config FAT_FS
 	  order to make use of it.
 
 	  Another way to read and write MSDOS floppies and hard drive
-	  partitions from within Linux (but not transparently) is with the
+	  partitions from within GNU/Linux (but not transparently) is with the
 	  mtools ("man mtools") program suite. You don't need to say Y here in
 	  order to do that.
 
 	  If you need to move large files on floppies between a DOS and a
-	  Linux box, say Y here, mount the floppy under Linux with an MSDOS
+	  GNU/Linux box, say Y here, mount the floppy under GNU/Linux with an MSDOS
 	  file system and use GNU tar's M option. GNU tar is a program
 	  available for Unix and DOS ("man tar" or "info tar").
 
@@ -41,10 +41,10 @@ config MSDOS_FS
 	help
 	  This allows you to mount MSDOS partitions of your hard drive (unless
 	  they are compressed; to access compressed MSDOS partitions under
-	  Linux, you can either use the DOS emulator DOSEMU, described in the
+	  GNU/Linux, you can either use the DOS emulator DOSEMU, described in the
 	  DOSEMU-HOWTO, available from
 	  <https://www.tldp.org/docs.html#howto>, or try dmsdosfs in
-	  <ftp://ibiblio.org/pub/Linux/system/filesystems/dosfs/>. If you
+	  <ftp://ibiblio.org/pub/GNU/Linux/system/filesystems/dosfs/>. If you
 	  intend to use dosemu with a non-compressed MSDOS partition, say Y
 	  here) and MSDOS floppies. This means that file access becomes
 	  transparent, i.e. the MSDOS files look and behave just like all

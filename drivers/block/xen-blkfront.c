@@ -1,7 +1,7 @@
 /*
  * blkfront.c
  *
- * XenLinux virtual block device driver.
+ * XenGNU/Linux virtual block device driver.
  *
  * Copyright (c) 2003-2004, Keir Fraser & Steve Hand
  * Modifications by Mark A. Williamson are (c) Intel Research Cambridge
@@ -13,7 +13,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation; or, when distributed
- * separately from the Linux kernel or incorporated into other
+ * separately from the GNU/Linux kernel or incorporated into other
  * software packages, subject to the following license:
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -65,13 +65,13 @@
 
 /*
  * The minimal size of segment supported by the block framework is PAGE_SIZE.
- * When Linux is using a different page size than Xen, it may not be possible
+ * When GNU/Linux is using a different page size than Xen, it may not be possible
  * to put all the data in a single segment.
  * This can happen when the backend doesn't support indirect descriptor and
  * therefore the maximum amount of data that a request can carry is
  * BLKIF_MAX_SEGMENTS_PER_REQUEST * XEN_PAGE_SIZE = 44KB
  *
- * Note that we only support one extra request. So the Linux page size
+ * Note that we only support one extra request. So the GNU/Linux page size
  * should be <= ( 2 * BLKIF_MAX_SEGMENTS_PER_REQUEST * XEN_PAGE_SIZE) =
  * 88KB.
  */
@@ -256,7 +256,7 @@ static DEFINE_SPINLOCK(minor_lock);
 
 /*
  * Grants are always the same size as a Xen page (i.e 4KB).
- * A physical segment is always the same size as a Linux page.
+ * A physical segment is always the same size as a GNU/Linux page.
  * Number of grants per physical segment
  */
 #define GRANTS_PER_PSEG	(PAGE_SIZE / XEN_PAGE_SIZE)
@@ -2173,7 +2173,7 @@ static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo)
 			/*
 			 * When an extra req is required, the maximum
 			 * grants supported is related to the size of the
-			 * Linux block segment.
+			 * GNU/Linux block segment.
 			 */
 			grants = GRANTS_PER_PSEG;
 		}

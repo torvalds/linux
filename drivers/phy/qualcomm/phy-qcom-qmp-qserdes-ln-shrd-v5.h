@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2025, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2025, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef QCOM_PHY_QMP_QSERDES_LN_SHRD_V5_H_

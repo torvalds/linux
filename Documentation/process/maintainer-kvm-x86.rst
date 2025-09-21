@@ -159,7 +159,7 @@ The preferred prefix format is ``KVM: <topic>:``, where ``<topic>`` is one of::
   - VMX
   - nVMX
 
-**DO NOT use x86/kvm!**  ``x86/kvm`` is used exclusively for Linux-as-a-KVM-guest
+**DO NOT use x86/kvm!**  ``x86/kvm`` is used exclusively for GNU/Linux-as-a-KVM-guest
 changes, i.e. for arch/x86/kernel/kvm.c.  Do not use file names or complete file
 paths as the subject/shortlog prefix.
 

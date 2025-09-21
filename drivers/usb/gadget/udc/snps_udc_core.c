@@ -2965,7 +2965,7 @@ __acquires(dev->lock)
 	return ret_val;
 }
 
-/* Interrupt Service Routine, see Linux Kernel Doc for parameters */
+/* Interrupt Service Routine, see GNU/Linux Kernel Doc for parameters */
 irqreturn_t udc_irq(int irq, void *pdev)
 {
 	struct udc *dev = pdev;

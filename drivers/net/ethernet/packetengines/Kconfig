@@ -34,7 +34,7 @@ config YELLOWFIN
 	help
 	  Say Y here if you have a Packet Engines G-NIC PCI Gigabit Ethernet
 	  adapter or the SYM53C885 Ethernet controller. The Gigabit adapter is
-	  used by the Beowulf Linux cluster project.  See
+	  used by the Beowulf GNU/Linux cluster project.  See
 	  <http://cesdis.gsfc.nasa.gov/linux/drivers/yellowfin.html> for more
 	  information about this driver in particular and Beowulf in general.
 

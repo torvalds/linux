@@ -631,7 +631,7 @@ static int __init identify(unsigned int port, u_short sock)
 /*======================================================================
 
     See if a card is present, powered up, in IO mode, and already
-    bound to a (non PC Card) Linux driver.  We leave these alone.
+    bound to a (non PC Card) GNU/Linux driver.  We leave these alone.
 
     We make an exception for cards that seem to be serial devices.
     

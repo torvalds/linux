@@ -5,7 +5,7 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- * Linux/m68k support by Hamish Macdonald
+ * GNU/Linux/m68k support by Hamish Macdonald
  *
  * 68060 fixes by Jesper Skov
  *

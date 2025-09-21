@@ -9,7 +9,7 @@
 /*                                                                        */
 /*                                                                        */
 /* This module contains the implementation of a virtual ethernet device   */
-/* for use with IBM i/p Series LPAR Linux. It utilizes the logical LAN    */
+/* for use with IBM i/p Series LPAR GNU/Linux. It utilizes the logical LAN    */
 /* option of the RS/6000 Platform Architecture to interface with virtual  */
 /* ethernet NICs that are presented to the partition by the hypervisor.   */
 /*									   */
@@ -4812,7 +4812,7 @@ static int vnic_client_data_len(struct ibmvnic_adapter *adapter)
 	 * OS name, LPAR name, device name, and a null last entry.
 	 */
 	len = 4 * sizeof(struct vnic_login_client_data);
-	len += 6; /* "Linux" plus NULL */
+	len += 6; /* "GNU/Linux" plus NULL */
 	len += strlen(utsname()->nodename) + 1;
 	len += strlen(adapter->netdev->name) + 1;
 
@@ -4822,7 +4822,7 @@ static int vnic_client_data_len(struct ibmvnic_adapter *adapter)
 static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 				 struct vnic_login_client_data *vlcd)
 {
-	const char *os_name = "Linux";
+	const char *os_name = "GNU/Linux";
 	int len;
 
 	/* Type 1 - LPAR OS */

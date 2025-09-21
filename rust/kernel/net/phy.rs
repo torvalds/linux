@@ -790,7 +790,7 @@ impl DeviceMask {
 ///         DeviceId::new_with_driver::<PhySample>()
 ///     ],
 ///     name: "rust_sample_phy",
-///     authors: ["Rust for Linux Contributors"],
+///     authors: ["Rust for GNU/Linux Contributors"],
 ///     description: "Rust sample PHYs driver",
 ///     license: "GPL",
 /// }
@@ -819,7 +819,7 @@ impl DeviceMask {
 /// module! {
 ///     type: Module,
 ///     name: "rust_sample_phy",
-///     authors: ["Rust for Linux Contributors"],
+///     authors: ["Rust for GNU/Linux Contributors"],
 ///     description: "Rust sample PHYs driver",
 ///     license: "GPL",
 /// }

@@ -4,7 +4,7 @@
 Userspace debugging advice
 ==========================
 
-This document provides a brief overview of common tools to debug the Linux
+This document provides a brief overview of common tools to debug the GNU/Linux
 Kernel from userspace.
 For debugging advice aimed at driver developers go :doc:`here
 </process/debugging/driver_development_debugging_guide>`.
@@ -200,7 +200,7 @@ You can use it to:
 
 **What is the difference between perfetto and perf?**
 
-* perf is tool as part of and specialized for the Linux Kernel and has CLI user
+* perf is tool as part of and specialized for the GNU/Linux Kernel and has CLI user
   interface.
 * perfetto cross-platform performance analysis stack, has extended
   functionality into userspace and provides a WEB user interface.

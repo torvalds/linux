@@ -716,7 +716,7 @@ static int bgx_lmac_sgmii_init(struct bgx *bgx, struct lmac *lmac)
 		cfg |= PCS_MRX_CTL_AN_EN;
 	} else {
 		/* In scenarios where PHY driver is not present or it's a
-		 * non-standard PHY, FW sets AN_EN to inform Linux driver
+		 * non-standard PHY, FW sets AN_EN to inform GNU/Linux driver
 		 * to do auto-neg and link polling or not.
 		 */
 		if (cfg & PCS_MRX_CTL_AN_EN)

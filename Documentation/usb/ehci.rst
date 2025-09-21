@@ -36,7 +36,7 @@ Such new systems have been available since early 2002, and became much
 more typical in the second half of 2002.
 
 Note that USB 2.0 support involves more than just EHCI.  It requires
-other changes to the Linux-USB core APIs, including the hub driver,
+other changes to the GNU/Linux-USB core APIs, including the hub driver,
 but those changes haven't needed to really change the basic "usbcore"
 APIs exposed to USB device drivers.
 
@@ -60,7 +60,7 @@ and interrupt transfers, including requests to USB 1.1 devices through
 transaction translators (TTs) in USB 2.0 hubs.  But you may find bugs.
 
 High Speed Isochronous (ISO) transfer support is also functional, but
-at this writing no Linux drivers have been using that support.
+at this writing no GNU/Linux drivers have been using that support.
 
 Full Speed Isochronous transfer support, through transaction translators,
 is not yet available.  Note that split transaction support for ISO
@@ -198,7 +198,7 @@ it completed in less than 250 usec (depending on transfer size).
 Software Performance
 --------------------
 
-To get even 20 MByte/sec transfer rates, Linux-USB device drivers will
+To get even 20 MByte/sec transfer rates, GNU/Linux-USB device drivers will
 need to keep the EHCI queue full.  That means issuing large requests,
 or using bulk queuing if a series of small requests needs to be issued.
 When drivers don't do that, their performance results will show it.
@@ -214,7 +214,7 @@ I/O be efficient, it's better to just queue up several (bulk) requests
 to the HC, and wait for them all to complete (or be canceled on error).
 Such URB queuing should work with all the USB 1.1 HC drivers too.
 
-In the Linux 2.5 kernels, new usb_sg_*() api calls have been defined; they
+In the GNU/Linux 2.5 kernels, new usb_sg_*() api calls have been defined; they
 queue all the buffers from a scatterlist.  They also use scatterlist DMA
 mapping (which might apply an IOMMU) and IRQ reduction, all of which will
 help make high speed transfers run as fast as they can.

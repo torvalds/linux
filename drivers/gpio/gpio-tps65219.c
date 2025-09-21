@@ -19,13 +19,13 @@
 
 /*
  * TPS65214 GPIO mapping
- * Linux gpio offset 0 -> GPIO (pin16) -> bit_offset 2
- * Linux gpio offset 1 -> GPO1 (pin9 ) -> bit_offset 0
+ * GNU/Linux gpio offset 0 -> GPIO (pin16) -> bit_offset 2
+ * GNU/Linux gpio offset 1 -> GPO1 (pin9 ) -> bit_offset 0
  *
  * TPS65215 & TPS65219 GPIO mapping
- * Linux gpio offset 0 -> GPIO (pin16) -> bit_offset 2
- * Linux gpio offset 1 -> GPO1 (pin8 ) -> bit_offset 0
- * Linux gpio offset 2 -> GPO2 (pin17) -> bit_offset 1
+ * GNU/Linux gpio offset 0 -> GPIO (pin16) -> bit_offset 2
+ * GNU/Linux gpio offset 1 -> GPO1 (pin8 ) -> bit_offset 0
+ * GNU/Linux gpio offset 2 -> GPO2 (pin17) -> bit_offset 1
  */
 
 struct tps65219_gpio {
@@ -114,7 +114,7 @@ static int tps65219_gpio_change_direction(struct gpio_chip *gc, unsigned int off
 	struct device *dev = gpio->tps->dev;
 
 	/*
-	 * Documentation is stating that GPIO0 direction must not be changed in Linux:
+	 * Documentation is stating that GPIO0 direction must not be changed in GNU/Linux:
 	 * Table 8-34. MFP_1_CONFIG(3): MULTI_DEVICE_ENABLE, should only be changed in INITIALIZE
 	 * state (prior to ON Request).
 	 * Set statically by NVM, changing direction in application can cause a hang.

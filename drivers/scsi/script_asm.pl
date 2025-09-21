@@ -7,7 +7,7 @@
 #
 # Copyright 1993, Drew Eckhardt
 #      Visionary Computing 
-#      (Unix and Linux consulting and custom programming)
+#      (Unix and GNU/Linux consulting and custom programming)
 #      drew@Colorado.EDU
 #      +1 (303) 786-7975 
 #

@@ -2,23 +2,23 @@
 
 Confidential Computing VMs
 ==========================
-Hyper-V can create and run Linux guests that are Confidential Computing
+Hyper-V can create and run GNU/Linux guests that are Confidential Computing
 (CoCo) VMs. Such VMs cooperate with the physical processor to better protect
 the confidentiality and integrity of data in the VM's memory, even in the
 face of a hypervisor/VMM that has been compromised and may behave maliciously.
 CoCo VMs on Hyper-V share the generic CoCo VM threat model and security
 objectives described in Documentation/security/snp-tdx-threat-model.rst. Note
-that Hyper-V specific code in Linux refers to CoCo VMs as "isolated VMs" or
+that Hyper-V specific code in GNU/Linux refers to CoCo VMs as "isolated VMs" or
 "isolation VMs".
 
-A Linux CoCo VM on Hyper-V requires the cooperation and interaction of the
+A GNU/Linux CoCo VM on Hyper-V requires the cooperation and interaction of the
 following:
 
 * Physical hardware with a processor that supports CoCo VMs
 
 * The hardware runs a version of Windows/Hyper-V with support for CoCo VMs
 
-* The VM runs a version of Linux that supports being a CoCo VM
+* The VM runs a version of GNU/Linux that supports being a CoCo VM
 
 The physical hardware requirements are as follows:
 
@@ -97,27 +97,27 @@ either mode.
 
 Paravisor Effects
 -----------------
-Running in paravisor mode affects the following areas of generic Linux kernel
+Running in paravisor mode affects the following areas of generic GNU/Linux kernel
 CoCo VM functionality:
 
 * Initial guest memory setup. When a new VM is created in paravisor mode, the
   paravisor runs first and sets up the guest physical memory as encrypted. The
-  guest Linux does normal memory initialization, except for explicitly marking
-  appropriate ranges as decrypted (shared). In paravisor mode, Linux does not
+  guest GNU/Linux does normal memory initialization, except for explicitly marking
+  appropriate ranges as decrypted (shared). In paravisor mode, GNU/Linux does not
   perform the early boot memory setup steps that are particularly tricky with
   AMD SEV-SNP in fully-enlightened mode.
 
 * #VC/#VE exception handling. In paravisor mode, Hyper-V configures the guest
   CoCo VM to route #VC and #VE exceptions to VMPL 0 and the L1 VM,
-  respectively, and not the guest Linux. Consequently, these exception handlers
-  do not run in the guest Linux and are not a required enlightenment for a
-  Linux guest in paravisor mode.
+  respectively, and not the guest GNU/Linux. Consequently, these exception handlers
+  do not run in the guest GNU/Linux and are not a required enlightenment for a
+  GNU/Linux guest in paravisor mode.
 
 * CPUID flags. Both AMD SEV-SNP and Intel TDX provide a CPUID flag in the
   guest indicating that the VM is operating with the respective hardware
   support. While these CPUID flags are visible in fully-enlightened CoCo VMs,
-  the paravisor filters out these flags and the guest Linux does not see them.
-  Throughout the Linux kernel, explicitly testing these flags has mostly been
+  the paravisor filters out these flags and the guest GNU/Linux does not see them.
+  Throughout the GNU/Linux kernel, explicitly testing these flags has mostly been
   eliminated in favor of the cc_platform_has() function, with the goal of
   abstracting the differences between SEV-SNP and TDX. But the
   cc_platform_has() abstraction also allows the Hyper-V paravisor configuration
@@ -157,19 +157,19 @@ CoCo VM functionality:
 
 Hyper-V Hypercalls
 ------------------
-When in fully-enlightened mode, hypercalls made by the Linux guest are routed
+When in fully-enlightened mode, hypercalls made by the GNU/Linux guest are routed
 directly to the hypervisor, just as in a non-CoCo VM. But in paravisor mode,
 normal hypercalls trap to the paravisor first, which may in turn invoke the
 hypervisor. But the paravisor is idiosyncratic in this regard, and a few
-hypercalls made by the Linux guest must always be routed directly to the
+hypercalls made by the GNU/Linux guest must always be routed directly to the
 hypervisor. These hypercall sites test for a paravisor being present, and use
 a special invocation sequence. See hv_post_message(), for example.
 
 Guest communication with Hyper-V
 --------------------------------
-Separate from the generic Linux kernel handling of memory encryption in Linux
+Separate from the generic GNU/Linux kernel handling of memory encryption in GNU/Linux
 CoCo VMs, Hyper-V has VMBus and VMBus devices that communicate using memory
-shared between the Linux guest and the host. This shared memory must be
+shared between the GNU/Linux guest and the host. This shared memory must be
 marked decrypted to enable communication. Furthermore, since the threat model
 includes a compromised and potentially malicious host, the guest must guard
 against leaking any unintended data to the host through this shared memory.
@@ -211,20 +211,20 @@ VM. See vmbus_is_valid_offer() where such devices are excluded.
 
 Two VMBus devices depend on the Hyper-V host to do DMA data transfers:
 storvsc for disk I/O and netvsc for network I/O. storvsc uses the normal
-Linux kernel DMA APIs, and so bounce buffering through decrypted swiotlb
+GNU/Linux kernel DMA APIs, and so bounce buffering through decrypted swiotlb
 memory is done implicitly. netvsc has two modes for data transfers. The first
 mode goes through send and receive buffer space that is explicitly allocated
 by the netvsc driver, and is used for most smaller packets. These send and
 receive buffers are marked decrypted by __vmbus_establish_gpadl(). Because
 the netvsc driver explicitly copies packets to/from these buffers, the
 equivalent of bounce buffering between encrypted and decrypted memory is
-already part of the data path. The second mode uses the normal Linux kernel
+already part of the data path. The second mode uses the normal GNU/Linux kernel
 DMA APIs, and is bounce buffered through swiotlb memory implicitly like in
 storvsc.
 
 Finally, the VMBus virtual PCI driver needs special handling in a CoCo VM.
-Linux PCI device drivers access PCI config space using standard APIs provided
-by the Linux PCI subsystem. On Hyper-V, these functions directly access MMIO
+GNU/Linux PCI device drivers access PCI config space using standard APIs provided
+by the GNU/Linux PCI subsystem. On Hyper-V, these functions directly access MMIO
 space, and the access traps to Hyper-V for emulation. But in CoCo VMs, memory
 encryption prevents Hyper-V from reading the guest instruction stream to
 emulate the access. So in a CoCo VM, these functions must make a hypercall

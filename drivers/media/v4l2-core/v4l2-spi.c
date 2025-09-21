@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * v4l2-spi - SPI helpers for Video4Linux2
+ * v4l2-spi - SPI helpers for Video4GNU/Linux2
  */
 
 #include <linux/module.h>

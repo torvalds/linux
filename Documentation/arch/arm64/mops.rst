@@ -22,8 +22,8 @@ the Arm Architecture Reference Manual DDI 0487K.a (Arm ARM).
 Hypervisor requirements
 -----------------------
 
-A hypervisor running a Linux guest must handle all MOPS exceptions from the
-guest kernel, as Linux may not be able to handle the exception at all times.
+A hypervisor running a GNU/Linux guest must handle all MOPS exceptions from the
+guest kernel, as GNU/Linux may not be able to handle the exception at all times.
 For example, a MOPS exception can be taken when the hypervisor migrates a vCPU
 to another physical CPU with a different MOPS implementation.
 

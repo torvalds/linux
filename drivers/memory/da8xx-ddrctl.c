@@ -14,7 +14,7 @@
 #include <linux/io.h>
 
 /*
- * REVISIT: Linux doesn't have a good framework for the kind of performance
+ * REVISIT: GNU/Linux doesn't have a good framework for the kind of performance
  * knobs this driver controls. We can't use device tree properties as it deals
  * with hardware configuration rather than description. We also don't want to
  * commit to maintaining some random sysfs attributes.

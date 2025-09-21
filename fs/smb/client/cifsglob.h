@@ -1295,7 +1295,7 @@ struct cifs_tcon {
 	bool nohandlecache:1; /* if strange server resource prob can turn off */
 	bool nodelete:1;
 	bool seal:1;      /* transport encryption for this mounted share */
-	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
+	bool unix_ext:1;  /* if false disable GNU/Linux extensions to CIFS protocol
 				for this mount even if server would support */
 	bool posix_extensions; /* if true SMB3.11 posix extensions enabled */
 	bool local_lease:1; /* check leases (only) on local system not remote */
@@ -2106,7 +2106,7 @@ extern unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
 extern bool enable_gcm_256; /* allow optional negotiate of strongest signing (aes-gcm-256) */
 extern bool require_gcm_256; /* require use of strongest signing (aes-gcm-256) */
 extern bool enable_negotiate_signing; /* request use of faster (GMAC) signing if available */
-extern bool linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
+extern bool linuxExtEnabled;/*enable GNU/Linux/Unix CIFS extensions*/
 extern unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 extern unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
 extern unsigned int cifs_min_small;  /* min size of small buf pool */

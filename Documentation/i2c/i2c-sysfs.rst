@@ -1,40 +1,40 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===============
-Linux I2C Sysfs
+GNU/Linux I2C Sysfs
 ===============
 
 Overview
 ========
 
 I2C topology can be complex because of the existence of I2C MUX
-(I2C Multiplexer). The Linux
+(I2C Multiplexer). The GNU/Linux
 kernel abstracts the MUX channels into logical I2C bus numbers. However, there
 is a gap of knowledge to map from the I2C bus physical number and MUX topology
 to logical I2C bus number. This doc is aimed to fill in this gap, so the
 audience (hardware engineers and new software developers for example) can learn
 the concept of logical I2C buses in the kernel, by knowing the physical I2C
-topology and navigating through the I2C sysfs in Linux shell. This knowledge is
+topology and navigating through the I2C sysfs in GNU/Linux shell. This knowledge is
 useful and essential to use ``i2c-tools`` for the purpose of development and
 debugging.
 
 Target audience
 ---------------
 
-People who need to use Linux shell to interact with I2C subsystem on a system
-which the Linux is running on.
+People who need to use GNU/Linux shell to interact with I2C subsystem on a system
+which the GNU/Linux is running on.
 
 Prerequisites
 -------------
 
-1.  Knowledge of general Linux shell file system commands and operations.
+1.  Knowledge of general GNU/Linux shell file system commands and operations.
 
 2.  General knowledge of I2C, I2C MUX and I2C topology.
 
 Location of I2C Sysfs
 =====================
 
-Typically, the Linux Sysfs filesystem is mounted at the ``/sys`` directory,
+Typically, the GNU/Linux Sysfs filesystem is mounted at the ``/sys`` directory,
 so you can find the I2C Sysfs under ``/sys/bus/i2c/devices``
 where you can directly ``cd`` to it.
 There is a list of symbolic links under that directory. The links that
@@ -59,12 +59,12 @@ First, let us define some terms to avoid confusion in later sections.
 (Physical) I2C Bus Controller
 -----------------------------
 
-The hardware system that the Linux kernel is running on may have multiple
+The hardware system that the GNU/Linux kernel is running on may have multiple
 physical I2C bus controllers. The controllers are hardware and physical, and the
 system may define multiple registers in the memory space to manipulate the
-controllers. Linux kernel has I2C bus drivers under source directory
+controllers. GNU/Linux kernel has I2C bus drivers under source directory
 ``drivers/i2c/busses`` to translate kernel I2C API into register
-operations for different systems. This terminology is not limited to Linux
+operations for different systems. This terminology is not limited to GNU/Linux
 kernel only.
 
 I2C Bus Physical Number
@@ -77,7 +77,7 @@ the lowest register addresses may be called ``I2C-0``.
 Logical I2C Bus
 ---------------
 
-Every I2C bus number you see in Linux I2C Sysfs is a logical I2C bus with a
+Every I2C bus number you see in GNU/Linux I2C Sysfs is a logical I2C bus with a
 number assigned. This is similar to the fact that software code is usually
 written upon virtual memory space, instead of physical memory space.
 
@@ -323,7 +323,7 @@ probe this device. Use command ``cat`` to read its content. For example::
   /sys/bus/i2c/devices/i2c-73$ cat 73-0072/name
   pca9547
 
-There is a symbolic link named ``driver`` to tell what Linux kernel driver was
+There is a symbolic link named ``driver`` to tell what GNU/Linux kernel driver was
 used to probe this device::
 
   /sys/bus/i2c/devices/i2c-73$ readlink -f 73-0040/driver

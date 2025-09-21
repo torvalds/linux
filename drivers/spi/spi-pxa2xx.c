@@ -1253,7 +1253,7 @@ static int pxa2xx_spi_fw_translate_cs(struct spi_controller *controller,
 	/*
 	 * For some of Intel Atoms the ACPI DeviceSelection used by the Windows
 	 * driver starts from 1 instead of 0 so translate it here to match what
-	 * Linux expects.
+	 * GNU/Linux expects.
 	 */
 	case LPSS_BYT_SSP:
 	case LPSS_BSW_SSP:

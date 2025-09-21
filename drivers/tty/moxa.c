@@ -6,7 +6,7 @@
  *      Copyright (C) 1999-2000  Moxa Technologies (support@moxa.com).
  *      Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
  *
- *      This code is loosely based on the Linux serial driver, written by
+ *      This code is loosely based on the GNU/Linux serial driver, written by
  *      Linus Torvalds, Theodore T'so and others.
  */
 

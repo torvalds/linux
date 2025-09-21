@@ -6,7 +6,7 @@
  *
  * This library is based on H.225 version 4, H.235 version 2 and H.245
  * version 7. It is extremely optimized to decode only the absolutely
- * necessary objects in a signal for Linux kernel NAT module use, so don't
+ * necessary objects in a signal for GNU/Linux kernel NAT module use, so don't
  * expect it to be a full ASN.1 library.
  *
  * Features:

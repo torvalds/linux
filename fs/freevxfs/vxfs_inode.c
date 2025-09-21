@@ -47,7 +47,7 @@ vxfs_dumpi(struct vxfs_inode_info *vip, ino_t ino)
  * @vip:	VxFS inode
  *
  * Description:
- *  vxfs_transmod returns a Linux mode_t for a given
+ *  vxfs_transmod returns a GNU/Linux mode_t for a given
  *  VxFS inode structure.
  */
 static __inline__ umode_t

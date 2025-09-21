@@ -1,14 +1,14 @@
 .. _admin_devices:
 
-Linux allocated devices (4.x+ version)
+GNU/Linux allocated devices (4.x+ version)
 ======================================
 
-This list is the Linux Device List, the official registry of allocated
-device numbers and ``/dev`` directory nodes for the Linux operating
+This list is the GNU/Linux Device List, the official registry of allocated
+device numbers and ``/dev`` directory nodes for the GNU/Linux operating
 system.
 
 The version of this document at lanana.org is no longer maintained.  This
-version in the mainline Linux kernel is the master document.  Updates
+version in the mainline GNU/Linux kernel is the master document.  Updates
 shall be sent as patches to the kernel maintainers (see the
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` document).
 Specifically explore the sections titled "CHAR and MISC DRIVERS", and
@@ -18,8 +18,8 @@ to involve for character and block devices.
 This document is included by reference into the Filesystem Hierarchy
 Standard (FHS).	 The FHS is available from https://www.pathname.com/fhs/.
 
-Allocations marked (68k/Amiga) apply to Linux/68k on the Amiga
-platform only.	Allocations marked (68k/Atari) apply to Linux/68k on
+Allocations marked (68k/Amiga) apply to GNU/Linux/68k on the Amiga
+platform only.	Allocations marked (68k/Atari) apply to GNU/Linux/68k on
 the Atari platform only.
 
 This document is in the public domain.	The authors requests, however,
@@ -32,7 +32,7 @@ an unreasonable effort.
 
   DEVICE DRIVERS AUTHORS PLEASE READ THIS
 
-  Linux now has extensive support for dynamic allocation of device numbering
+  GNU/Linux now has extensive support for dynamic allocation of device numbering
   and can use ``sysfs`` and ``udev`` (``systemd``) to handle the naming needs.
   There are still some exceptions in the serial and boot device area. Before
   asking   for a device number make sure you actually need one.
@@ -170,8 +170,8 @@ as SLIP and PPP modes.
 All terminal devices are named similarly; this section explains the
 naming and use of the various types of TTYs.  Note that the naming
 conventions include several historical warts; some of these are
-Linux-specific, some were inherited from other systems, and some
-reflect Linux outgrowing a borrowed convention.
+GNU/Linux-specific, some were inherited from other systems, and some
+reflect GNU/Linux outgrowing a borrowed convention.
 
 A hash mark (``#``) in a device name is used here to indicate a decimal
 number without leading zeroes.
@@ -189,7 +189,7 @@ for this purpose.
 
 The console device, ``/dev/console``, is the device to which system
 messages should be sent, and on which logins should be permitted in
-single-user mode.  Starting with Linux 2.1.71, ``/dev/console`` is managed
+single-user mode.  Starting with GNU/Linux 2.1.71, ``/dev/console`` is managed
 by the kernel; for previous versions it should be a symbolic link to
 either ``/dev/tty0``, a specific virtual console such as ``/dev/tty1``, or to
 a serial port primary (``tty*``, not ``cu*``) device, depending on the
@@ -200,7 +200,7 @@ Serial ports
 
 Serial ports are RS-232 serial ports and any device which simulates
 one, either in hardware (such as internal modems) or in software (such
-as the ISDN driver.)  Under Linux, each serial ports has two device
+as the ISDN driver.)  Under GNU/Linux, each serial ports has two device
 names, the primary or callin device and the alternate or callout one.
 Each kind of device is indicated by a different letter.	 For any
 letter X, the names of the devices are ``/dev/ttyX#`` and ``/dev/cux#``,
@@ -216,7 +216,7 @@ The alternate devices provide for kernel-based exclusion and somewhat
 different defaults than the primary devices.  Their main purpose is to
 allow the use of serial ports with programs with no inherent or broken
 support for serial ports.  Their use is deprecated, and they may be
-removed from a future version of Linux.
+removed from a future version of GNU/Linux.
 
 Arbitration of serial ports is provided by the use of lock files with
 the names ``/var/lock/LCK..ttyX#``. The contents of the lock file should
@@ -258,7 +258,7 @@ can be used in the same manner as any TTY device.  The master and
 slave devices are connected by the kernel, generating the equivalent
 of a bidirectional pipe with TTY capabilities.
 
-Recent versions of the Linux kernels and GNU libc contain support for
+Recent versions of the GNU/Linux kernels and GNU libc contain support for
 the System V/Unix98 naming scheme for PTYs, which assigns a common
 device, ``/dev/ptmx``, to all the masters (opening it will automatically
 give you a previously unassigned PTY) and a subdirectory, ``/dev/pts``,

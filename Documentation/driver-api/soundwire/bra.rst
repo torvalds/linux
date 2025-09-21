@@ -144,7 +144,7 @@ Addressing restrictions
 
 The Device Number specified in the Header follows the SoundWire
 definitions, and broadcast and group addressing are permitted. For now
-the Linux implementation only allows for a single BPT transfer to a
+the GNU/Linux implementation only allows for a single BPT transfer to a
 single device at a time. This might be revisited at a later point as
 an optimization to send the same firmware to multiple devices, but
 this would only be beneficial for single-link solutions.
@@ -196,7 +196,7 @@ Each packet will typically have:
 Hardware implementations can check errors at the frame level, and
 retry a transfer in case of errors. However, as for the flow-control
 case, this requires extra buffering and intelligence in the
-hardware. The Linux support assumes that the entire transfer is
+hardware. The GNU/Linux support assumes that the entire transfer is
 cancelled if a single error is detected in one of the responses.
 
 Abstraction required

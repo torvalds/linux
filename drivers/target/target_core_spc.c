@@ -642,7 +642,7 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 *
 	 * Note that this is currently set to 0x00 as mkp says it will be
 	 * changing again.  We can enable this once it has settled in T10
-	 * and is actually used by Linux/SCSI ML code.
+	 * and is actually used by GNU/Linux/SCSI ML code.
 	 */
 	buf[4] = 0x00;
 

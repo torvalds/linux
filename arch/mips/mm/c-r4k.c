@@ -1494,7 +1494,7 @@ static void setup_scache(void)
 	/*
 	 * Do the probing thing on R4000SC and R4400SC processors.  Other
 	 * processors don't have a S-cache that would be relevant to the
-	 * Linux memory management.
+	 * GNU/Linux memory management.
 	 */
 	switch (current_cpu_type()) {
 	case CPU_R4000SC:

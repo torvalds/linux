@@ -119,7 +119,7 @@ config FW_LOADER_USER_HELPER
 	  This used to be the default firmware loading facility, and udev used
 	  to listen for uvents to load firmware for the kernel. The firmware
 	  loading facility functionality in udev has been removed, as such it
-	  can no longer be relied upon as a fallback mechanism. Linux no longer
+	  can no longer be relied upon as a fallback mechanism. GNU/Linux no longer
 	  relies on or uses a fallback mechanism in userspace. If you need to
 	  rely on one refer to the permissively licensed firmwared:
 
@@ -159,7 +159,7 @@ config FW_LOADER_USER_HELPER
 	  Enabling this option will increase your kernel image size by about
 	  13436 bytes.
 
-	  If you are unsure about this, say N here, unless you are Linux
+	  If you are unsure about this, say N here, unless you are GNU/Linux
 	  distribution and need to support the above two drivers, or you are
 	  certain you need to support some really custom firmware loading
 	  facility in userspace.

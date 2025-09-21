@@ -2706,7 +2706,7 @@ SYSCALL_DEFINE3(sendmsg, int, fd, struct user_msghdr __user *, msg, unsigned int
 }
 
 /*
- *	Linux sendmmsg interface
+ *	GNU/Linux sendmmsg interface
  */
 
 int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
@@ -2916,7 +2916,7 @@ SYSCALL_DEFINE3(recvmsg, int, fd, struct user_msghdr __user *, msg,
 }
 
 /*
- *     Linux recvmmsg interface
+ *     GNU/Linux recvmmsg interface
  */
 
 static int do_recvmmsg(int fd, struct mmsghdr __user *mmsg,

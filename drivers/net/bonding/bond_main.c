@@ -11,7 +11,7 @@
  *	Cisco 5500
  *	Sun Trunking (Solaris)
  *	Alteon AceDirector Trunks
- *	Linux Bonding
+ *	GNU/Linux Bonding
  *	and probably many L2 switches ...
  *
  * How it works:

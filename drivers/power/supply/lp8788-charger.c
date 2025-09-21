@@ -80,7 +80,7 @@ enum lp8788_charger_input_state {
 /*
  * struct lp8788_chg_irq
  * @which        : lp8788 interrupt id
- * @virq         : Linux IRQ number from irq_domain
+ * @virq         : GNU/Linux IRQ number from irq_domain
  */
 struct lp8788_chg_irq {
 	enum lp8788_int_id which;

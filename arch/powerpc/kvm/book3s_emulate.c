@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Copyright SUSE Linux Products GmbH 2009
+ * Copyright SUSE GNU/Linux Products GmbH 2009
  *
  * Authors: Alexander Graf <agraf@suse.de>
  */
@@ -248,7 +248,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_vcpu *vcpu,
 		    (inst == swab32(inst_sc))) {
 			/*
 			 * This is the byte reversed syscall instruction of our
-			 * hypercall handler. Early versions of LE Linux didn't
+			 * hypercall handler. Early versions of LE GNU/Linux didn't
 			 * swap the instructions correctly and ended up in
 			 * illegal instructions.
 			 * Just always fail hypercalls on these broken systems.
@@ -1040,7 +1040,7 @@ ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
-	 * Linux's fix_alignment() assumes that DAR is valid, so can we
+	 * GNU/Linux's fix_alignment() assumes that DAR is valid, so can we
 	 */
 	return vcpu->arch.fault_dar;
 #else

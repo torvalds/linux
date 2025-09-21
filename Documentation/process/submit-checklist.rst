@@ -1,7 +1,7 @@
 .. _submitchecklist:
 
 =======================================
-Linux Kernel patch submission checklist
+GNU/Linux Kernel patch submission checklist
 =======================================
 
 Here are some basic things that developers should do if they want to see their
@@ -9,7 +9,7 @@ kernel patch submissions accepted more quickly.
 
 These are all above and beyond the documentation that is provided in
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
-and elsewhere regarding submitting Linux kernel patches.
+and elsewhere regarding submitting GNU/Linux kernel patches.
 
 Review your code
 ================

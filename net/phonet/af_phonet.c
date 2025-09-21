@@ -535,6 +535,6 @@ static void __exit phonet_exit(void)
 
 module_init(phonet_init);
 module_exit(phonet_exit);
-MODULE_DESCRIPTION("Phonet protocol stack for Linux");
+MODULE_DESCRIPTION("Phonet protocol stack for GNU/Linux");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_PHONET);

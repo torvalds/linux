@@ -1,5 +1,5 @@
 =========================================
-Tagged virtual addresses in AArch64 Linux
+Tagged virtual addresses in AArch64 GNU/Linux
 =========================================
 
 Author: Will Deacon <will.deacon@arm.com>
@@ -8,7 +8,7 @@ Date  : 12 June 2013
 
 This document briefly describes the provision of tagged virtual
 addresses in the AArch64 translation system and their potential uses
-in AArch64 Linux.
+in AArch64 GNU/Linux.
 
 The kernel configures the translation tables so that translations made
 via TTBR0 (i.e. userspace mappings) have the top byte (bits 63:56) of

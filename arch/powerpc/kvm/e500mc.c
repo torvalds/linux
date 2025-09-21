@@ -95,7 +95,7 @@ void kvmppc_e500_tlbil_all(struct kvmppc_vcpu_e500 *vcpu_e500)
 	mtspr(SPRN_MAS5, MAS5_SGS | get_lpid(&vcpu_e500->vcpu));
 	/*
 	 * clang-17 and older could not assemble tlbilxlpid.
-	 * https://github.com/ClangBuiltLinux/linux/issues/1891
+	 * https://github.com/ClangBuiltGNU/Linux/linux/issues/1891
 	 */
 	asm volatile (PPC_TLBILX_LPID);
 	mtspr(SPRN_MAS5, 0);

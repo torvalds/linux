@@ -34,7 +34,7 @@ struct user_m68kfp_struct {
 	unsigned long  fpcntl[3];	/* fp control regs */
 };
 
-/* This is the old layout of "struct pt_regs" as of Linux 1.x, and
+/* This is the old layout of "struct pt_regs" as of GNU/Linux 1.x, and
    is still the layout used by user (the new pt_regs doesn't have
    all registers). */
 struct user_regs_struct {

@@ -38,7 +38,7 @@
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 
-#define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
+#define VMWGFX_DRIVER_DESC "GNU/Linux drm driver for VMware graphics devices"
 
 /*
  * Fully encoded drm commands. Might move to vmw_drm.h

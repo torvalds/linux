@@ -173,7 +173,7 @@ check_name(struct dentry *direntry, struct cifs_tcon *tcon)
 }
 
 
-/* Inode operations in similar order to how they appear in Linux file fs.h */
+/* Inode operations in similar order to how they appear in GNU/Linux file fs.h */
 
 static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 			  struct tcon_link *tlink, unsigned int oflags, umode_t mode, __u32 *oplock,

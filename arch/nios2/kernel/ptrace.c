@@ -87,7 +87,7 @@ static int genregs_set(struct task_struct *target,
 }
 
 /*
- * Define the register sets available on Nios2 under Linux
+ * Define the register sets available on Nios2 under GNU/Linux
  */
 enum nios2_regset {
 	REGSET_GENERAL,

@@ -10,7 +10,7 @@ Architecture
 ============
 
 Input subsystem is a collection of drivers that is designed to support
-all input devices under Linux. Most of the drivers reside in
+all input devices under GNU/Linux. Most of the drivers reside in
 drivers/input, although quite a few live in drivers/hid and
 drivers/platform.
 
@@ -153,7 +153,7 @@ mouse and ExplorerPS/2 if you want to use extra (up to 5) buttons.
 joydev
 ~~~~~~
 
-``joydev`` implements v0.x and v1.x Linux joystick API. See
+``joydev`` implements v0.x and v1.x GNU/Linux joystick API. See
 :ref:`joystick-api` for details.
 
 As soon as any joystick is connected, it can be accessed in /dev/input on::

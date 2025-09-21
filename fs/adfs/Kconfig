@@ -7,7 +7,7 @@ config ADFS_FS
 	  The Acorn Disc Filing System is the standard file system of the
 	  RiscOS operating system which runs on Acorn's ARM-based Risc PC
 	  systems and the Acorn Archimedes range of machines. If you say Y
-	  here, Linux will be able to read from ADFS partitions on hard drives
+	  here, GNU/Linux will be able to read from ADFS partitions on hard drives
 	  and from ADFS-formatted floppy discs. If you also want to be able to
 	  write to those devices, say Y to "ADFS write support" below.
 

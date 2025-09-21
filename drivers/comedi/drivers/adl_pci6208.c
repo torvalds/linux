@@ -3,7 +3,7 @@
  * adl_pci6208.c
  * Comedi driver for ADLink 6208 series cards
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 

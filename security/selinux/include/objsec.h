@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  Security-Enhanced Linux (SELinux) security module
+ *  Security-Enhanced GNU/Linux (SEGNU/Linux) security module
  *
- *  This file contains the SELinux security data structures for kernel objects.
+ *  This file contains the SEGNU/Linux security data structures for kernel objects.
  *
  *  Author(s):  Stephen Smalley, <stephen.smalley.work@gmail.com>
  *		Chris Vance, <cvance@nai.com>

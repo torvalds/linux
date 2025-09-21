@@ -30,7 +30,7 @@ config BLK_DEV_MD
 	  combining is done by a dedicated controller; if you have such a
 	  controller, you do not need to say Y here.
 
-	  More information about Software RAID on Linux is contained in the
+	  More information about Software RAID on GNU/Linux is contained in the
 	  Software RAID mini-HOWTO, available from
 	  <https://www.tldp.org/docs.html#howto>. There you will also learn
 	  where to get the supporting user space utilities raidtools.
@@ -84,7 +84,7 @@ config MD_RAID0
 	  up evenly, one chunk here and one chunk there. This will increase
 	  the throughput rate if the partitions reside on distinct disks.
 
-	  Information about Software RAID on Linux is contained in the
+	  Information about Software RAID on GNU/Linux is contained in the
 	  Software-RAID mini-HOWTO, available from
 	  <https://www.tldp.org/docs.html#howto>. There you will also
 	  learn where to get the supporting user space utilities raidtools.
@@ -106,7 +106,7 @@ config MD_RAID1
 	  of a single drive, and the set protects against a failure of (N - 1)
 	  drives.
 
-	  Information about Software RAID on Linux is contained in the
+	  Information about Software RAID on GNU/Linux is contained in the
 	  Software-RAID mini-HOWTO, available from
 	  <https://www.tldp.org/docs.html#howto>.  There you will also
 	  learn where to get the supporting user space utilities raidtools.
@@ -161,7 +161,7 @@ config MD_RAID456
 	  RAID-5, RAID-6 distributes the syndromes across the drives
 	  in one of the available parity distribution methods.
 
-	  Information about Software RAID on Linux is contained in the
+	  Information about Software RAID on GNU/Linux is contained in the
 	  Software-RAID mini-HOWTO, available from
 	  <https://www.tldp.org/docs.html#howto>. There you will also
 	  learn where to get the supporting user space utilities raidtools.

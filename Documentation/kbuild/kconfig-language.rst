@@ -719,7 +719,7 @@ on both of these in the next two subsections.
 Semantics of Kconfig
 ~~~~~~~~~~~~~~~~~~~~
 
-The use of Kconfig is broad, Linux is now only one of Kconfig's users:
+The use of Kconfig is broad, GNU/Linux is now only one of Kconfig's users:
 one study has completed a broad analysis of Kconfig use in 12 projects [0]_.
 Despite its widespread use, and although this document does a reasonable job
 in documenting basic Kconfig syntax a more precise definition of Kconfig
@@ -734,9 +734,9 @@ evaluation of dependencies, for instance one such case was work to
 express in boolean abstraction of the inferred semantics of Kconfig to
 translate Kconfig logic into boolean formulas and run a SAT solver on this to
 find dead code / features (always inactive), 114 dead features were found in
-Linux using this methodology [1]_ (Section 8: Threats to validity).
+GNU/Linux using this methodology [1]_ (Section 8: Threats to validity).
 The kismet tool, based on the semantics in [10]_, finds abuses of reverse
-dependencies and has led to dozens of committed fixes to Linux Kconfig files [11]_.
+dependencies and has led to dozens of committed fixes to GNU/Linux Kconfig files [11]_.
 
 Confirming this could prove useful as Kconfig stands as one of the leading
 industrial variability modeling languages [1]_ [2]_. Its study would help

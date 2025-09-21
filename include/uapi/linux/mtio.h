@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /* 
- * linux/mtio.h header file for Linux. Written by H. Bergman
+ * linux/mtio.h header file for GNU/Linux. Written by H. Bergman
  *
  * Modified for special ioctls provided by zftape in September 1997
  * by C.-J. Heine.

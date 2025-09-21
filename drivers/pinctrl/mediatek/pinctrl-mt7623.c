@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * The MT7623 driver based on Linux generic pinctrl binding.
+ * The MT7623 driver based on GNU/Linux generic pinctrl binding.
  *
  * Copyright (C) 2015 - 2018 MediaTek Inc.
  * Author: Biao Huang <biao.huang@mediatek.com>

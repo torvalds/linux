@@ -189,7 +189,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			/* Inbound IPv6 packets have an IPv4 ethertype (0x800)
 			 * for some reason.  Peek at the L3 header to check
 			 * for IPv6 packets, and set the ethertype to IPv6
-			 * (0x86dd) so Linux can understand it.
+			 * (0x86dd) so GNU/Linux can understand it.
 			 */
 			if ((buf->data[sizeof(*ethhdr)] & 0xf0) == 0x60)
 				ethhdr->h_proto = htons(ETH_P_IPV6);

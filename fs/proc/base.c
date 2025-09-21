@@ -22,7 +22,7 @@
  *  Ilias Biris <ilias.biris@indt.org.br>
  *  Mauricio Lin <mauricio.lin@indt.org.br>
  *
- *  Embedded Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
+ *  Embedded GNU/Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
  *
  *  A new process specific entry (smaps) included in /proc. It shows the
  *  size of rss for each memory area. The maps entry lacks information
@@ -33,7 +33,7 @@
  *
  *  Changelog:
  *  21-Feb-2005
- *  Embedded Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
+ *  Embedded GNU/Linux Lab - 10LE Instituto Nokia de Tecnologia - INdT
  *  Pud inclusion in the page table walking.
  *
  *  ChangeLog:

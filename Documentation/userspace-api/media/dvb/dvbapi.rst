@@ -9,7 +9,7 @@ Part II - Digital TV API
 
 .. note::
 
-   This API is also known as Linux **DVB API**.
+   This API is also known as GNU/Linux **DVB API**.
 
    It it was originally written to support the European digital TV
    standard (DVB), and later extended to support all digital TV standards.

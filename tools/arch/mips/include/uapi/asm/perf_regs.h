@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _ASM_MIPS_PERF_REGS_H
 #define _ASM_MIPS_PERF_REGS_H
 

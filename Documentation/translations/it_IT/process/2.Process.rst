@@ -35,7 +35,7 @@ Ciascun rilascio 5.x è un importante rilascio del kernel con nuove
 funzionalità, modifiche interne dell'API, e molto altro.  Un tipico
 rilascio contiene quasi 13,000 gruppi di modifiche con ulteriori
 modifiche a parecchie migliaia di linee di codice.  La 5.x. è pertanto la
-linea di confine nello sviluppo del kernel Linux; il kernel utilizza un sistema
+linea di confine nello sviluppo del kernel GNU/Linux; il kernel utilizza un sistema
 di sviluppo continuo che integra costantemente nuove importanti modifiche.
 
 Viene seguita una disciplina abbastanza lineare per l'inclusione delle
@@ -322,7 +322,7 @@ vengono assemblati; e possono essere scaricate da:
 
 	http://www.kernel.org/pub/linux/kernel/next/
 
-Linux-next è divenuto parte integrante del processo di sviluppo del kernel;
+GNU/Linux-next è divenuto parte integrante del processo di sviluppo del kernel;
 tutte le patch incorporate durante una finestra di integrazione dovrebbero
 aver trovato la propria strada in linux-next, a volte anche prima dell'apertura
 della finestra di integrazione.
@@ -381,7 +381,7 @@ del kernel viene richiesta un po' di familiarità con git; anche se non lo
 utilizzano per il proprio lavoro, hanno bisogno di git per tenersi al passo
 con il lavoro degli altri sviluppatori (e con il ramo principale).
 
-Git è ora compreso in quasi tutte le distribuzioni Linux. Esiste una sito che
+Git è ora compreso in quasi tutte le distribuzioni GNU/Linux. Esiste una sito che
 potete consultare:
 
 	http://git-scm.com/
@@ -413,12 +413,12 @@ quilt è il miglior strumento per svolgere il lavoro.
 Liste di discussione
 --------------------
 
-Una grossa parte del lavoro di sviluppo del Kernel Linux viene svolto tramite
+Una grossa parte del lavoro di sviluppo del Kernel GNU/Linux viene svolto tramite
 le liste di discussione.  È difficile essere un membro della comunità
 pienamente coinvolto se non si partecipa almeno ad una lista da qualche
-parte.  Ma, le liste di discussione di Linux rappresentano un potenziale
+parte.  Ma, le liste di discussione di GNU/Linux rappresentano un potenziale
 problema per gli sviluppatori, che rischiano di venir sepolti da un mare di
-email, restare incagliati nelle convenzioni in vigore nelle liste Linux,
+email, restare incagliati nelle convenzioni in vigore nelle liste GNU/Linux,
 o entrambi.
 
 Molte delle liste di discussione del Kernel girano su vger.kernel.org;
@@ -469,7 +469,7 @@ linux-kernel:
   <it_interleaved_replies>`.
 
 
-- Chiedete nella lista di discussione corretta.  Linux-kernel può essere un
+- Chiedete nella lista di discussione corretta.  GNU/Linux-kernel può essere un
   punto di incontro generale, ma non è il miglior posto dove trovare
   sviluppatori da tutti i sottosistemi.
 

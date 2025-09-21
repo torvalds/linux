@@ -19,7 +19,7 @@ XFRM proc - /proc/net/xfrm_* 文件
 ------------
 
 `xfrm_proc` 提供一组统计计数器，显示转换过程中丢弃的数据包及其原因。
-这些计数器属于Linux私有MIB的一部分，可通过 `/proc/net/xfrm_stat`
+这些计数器属于GNU/Linux私有MIB的一部分，可通过 `/proc/net/xfrm_stat`
 查看。
 
 入站错误

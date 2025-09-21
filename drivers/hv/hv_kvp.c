@@ -1,5 +1,5 @@
 /*
- * An implementation of key value pair (KVP) functionality for Linux.
+ * An implementation of key value pair (KVP) functionality for GNU/Linux.
  *
  *
  * Copyright (C) 2010, Novell, Inc.
@@ -625,7 +625,7 @@ response_done:
 /*
  * This callback is invoked when we get a KVP message from the host.
  * The host ensures that only one KVP transaction can be active at a time.
- * KVP implementation in Linux needs to forward the key to a user-mde
+ * KVP implementation in GNU/Linux needs to forward the key to a user-mde
  * component to retrieve the corresponding value. Consequently, we cannot
  * respond to the host in the context of this callback. Since the host
  * guarantees that at most only one transaction can be active at a time,

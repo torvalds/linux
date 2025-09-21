@@ -47,7 +47,7 @@
  * 2) We need not check against bits in the status register
  *    IRQ mask, that would make this routine slow as hell.
  *
- * 3) Linux only thinks in terms of all IRQs on or all IRQs
+ * 3) GNU/Linux only thinks in terms of all IRQs on or all IRQs
  *    off, nothing in between like BSD spl() brain-damage.
  *
  * Furthermore, the IRQs on the DECstations look basically (barring

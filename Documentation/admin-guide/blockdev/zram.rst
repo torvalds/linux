@@ -372,7 +372,7 @@ they could write a page index into the interface::
 
 	echo "page_index=1251" > /sys/block/zramX/writeback
 
-In Linux 6.16 this interface underwent some rework.  First, the interface
+In GNU/Linux 6.16 this interface underwent some rework.  First, the interface
 now supports `key=value` format for all of its parameters (`type=huge_idle`,
 etc.)  Second, the support for `page_indexes` was introduced, which specify
 `LOW-HIGH` range (or ranges) of pages to be written-back.  This reduces the

@@ -7,7 +7,7 @@ The need for a document like this one became apparent in the linux-kernel
 mailing list as the same questions, asking for pointers to information,
 appeared again and again.
 
-Fortunately, as more and more people get to GNU/Linux, more and more get
+Fortunately, as more and more people get to GNU/GNU/Linux, more and more get
 interested in the Kernel. But reading the sources is not always enough. It
 is easy to understand the code, but miss the concepts, the philosophy and
 design decisions behind this code.
@@ -32,7 +32,7 @@ the Document.
    periodically retire resources as they become obsolete or outdated; with
    the exception of foundational books.
 
-Docs at the Linux Kernel tree
+Docs at the GNU/Linux Kernel tree
 -----------------------------
 
 The Sphinx books should be built with ``make {htmldocs | pdfdocs | epubdocs}``.
@@ -50,7 +50,7 @@ The Sphinx books should be built with ``make {htmldocs | pdfdocs | epubdocs}``.
 On-line docs
 ------------
 
-    * Title: **Linux Kernel Mailing List Glossary**
+    * Title: **GNU/Linux Kernel Mailing List Glossary**
 
       :Author: various
       :URL: https://kernelnewbies.org/KernelGlossary
@@ -58,9 +58,9 @@ On-line docs
       :Keywords: glossary, terms, linux-kernel.
       :Description: From the introduction: "This glossary is intended as
         a brief description of some of the acronyms and terms you may hear
-        during discussion of the Linux kernel".
+        during discussion of the GNU/Linux kernel".
 
-    * Title: **The Linux Kernel Module Programming Guide**
+    * Title: **The GNU/Linux Kernel Module Programming Guide**
 
       :Author: Peter Jay Salzman, Michael Burian, Ori Pomerantz, Bob Mottram,
         Jim Huang.
@@ -75,7 +75,7 @@ On-line docs
 Published books
 ---------------
 
-    * Title: **The Linux Memory Manager**
+    * Title: **The GNU/Linux Memory Manager**
 
       :Author: Lorenzo Stoakes
       :Publisher: No Starch Press
@@ -86,7 +86,7 @@ Published books
               pre-order, full release scheduled for Fall 2025. See
               https://nostarch.com/linux-memory-manager for further info.
 
-    * Title: **Practical Linux System Administration: A Guide to Installation, Configuration, and Management, 1st Edition**
+    * Title: **Practical GNU/Linux System Administration: A Guide to Installation, Configuration, and Management, 1st Edition**
 
       :Author: Kenneth Hess
       :Publisher: O'Reilly Media
@@ -95,7 +95,7 @@ Published books
       :ISBN: 978-1098109035
       :Notes: System administration
 
-    * Title: **Linux Kernel Debugging: Leverage proven tools and advanced techniques to effectively debug Linux kernels and kernel modules**
+    * Title: **GNU/Linux Kernel Debugging: Leverage proven tools and advanced techniques to effectively debug GNU/Linux kernels and kernel modules**
 
       :Author: Kaiwan N Billimoria
       :Publisher: Packt Publishing Ltd
@@ -104,7 +104,7 @@ Published books
       :ISBN: 978-1801075039
       :Notes: Debugging book
 
-    * Title: **Linux Kernel Programming: A Comprehensive Guide to Kernel Internals, Writing Kernel Modules, and Kernel Synchronization**
+    * Title: **GNU/Linux Kernel Programming: A Comprehensive Guide to Kernel Internals, Writing Kernel Modules, and Kernel Synchronization**
 
       :Author: Kaiwan N Billimoria
       :Publisher: Packt Publishing Ltd
@@ -112,7 +112,7 @@ Published books
       :Pages: 754
       :ISBN: 978-1789953435 (Second Edition ISBN is 978-1803232225)
 
-    * Title: **Linux Kernel Programming Part 2 - Char Device Drivers and Kernel Synchronization: Create user-kernel interfaces, work with peripheral I/O, and handle hardware interrupts**
+    * Title: **GNU/Linux Kernel Programming Part 2 - Char Device Drivers and Kernel Synchronization: Create user-kernel interfaces, work with peripheral I/O, and handle hardware interrupts**
 
       :Author: Kaiwan N Billimoria
       :Publisher: Packt Publishing Ltd
@@ -120,7 +120,7 @@ Published books
       :Pages: 452
       :ISBN: 978-1801079518
 
-    * Title: **Linux System Programming: Talking Directly to the Kernel and C Library**
+    * Title: **GNU/Linux System Programming: Talking Directly to the Kernel and C Library**
 
       :Author: Robert Love
       :Publisher: O'Reilly Media
@@ -129,7 +129,7 @@ Published books
       :ISBN: 978-1449339531
       :Notes: Foundational book
 
-    * Title: **Linux Kernel Development, 3rd Edition**
+    * Title: **GNU/Linux Kernel Development, 3rd Edition**
 
       :Author: Robert Love
       :Publisher: Addison-Wesley
@@ -140,7 +140,7 @@ Published books
 
 .. _ldd3_published:
 
-    * Title: **Linux Device Drivers, 3rd Edition**
+    * Title: **GNU/Linux Device Drivers, 3rd Edition**
 
       :Authors: Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman
       :Publisher: O'Reilly & Associates
@@ -163,15 +163,15 @@ Published books
 Miscellaneous
 -------------
 
-    * Name: **Cross-Referencing Linux**
+    * Name: **Cross-Referencing GNU/Linux**
 
       :URL: https://elixir.bootlin.com/
       :Keywords: Browsing source code.
-      :Description: Another web-based Linux kernel source code browser.
+      :Description: Another web-based GNU/Linux kernel source code browser.
         Lots of cross references to variables and functions. You can see
         where they are defined and where they are used.
 
-    * Name: **Linux Weekly News**
+    * Name: **GNU/Linux Weekly News**
 
       :URL: https://lwn.net
       :Keywords: latest kernel news.
@@ -179,13 +179,13 @@ Miscellaneous
         summarizing developers' work, bug fixes, new features and versions
         produced during the week.
 
-    * Name: **The home page of Linux-MM**
+    * Name: **The home page of GNU/Linux-MM**
 
-      :Author: The Linux-MM team.
+      :Author: The GNU/Linux-MM team.
       :URL: https://linux-mm.org/
-      :Keywords: memory management, Linux-MM, mm patches, TODO, docs,
+      :Keywords: memory management, GNU/Linux-MM, mm patches, TODO, docs,
         mailing list.
-      :Description: Site devoted to Linux Memory Management development.
+      :Description: Site devoted to GNU/Linux Memory Management development.
         Memory related patches, HOWTOs, links, mm developers... Don't miss
         it if you are interested in memory management development!
 
@@ -211,26 +211,26 @@ Miscellaneous
       :Description: Some of the linux-kernel mailing list archivers. If
         you have a better/another one, please let me know.
 
-    * Name: **The Linux Foundation YouTube channel**
+    * Name: **The GNU/Linux Foundation YouTube channel**
 
       :URL: https://www.youtube.com/user/thelinuxfoundation
       :Keywords: linux, videos, linux-foundation, youtube.
-      :Description: The Linux Foundation uploads video recordings of their
-        collaborative events, Linux conferences including LinuxCon, and
-        other original research and content related to Linux and software
+      :Description: The GNU/Linux Foundation uploads video recordings of their
+        collaborative events, GNU/Linux conferences including GNU/LinuxCon, and
+        other original research and content related to GNU/Linux and software
         development.
 
 Rust
 ----
 
-    * Title: **Rust for Linux**
+    * Title: **Rust for GNU/Linux**
 
       :Author: various
       :URL: https://rust-for-linux.com/
       :Date: rolling version
       :Keywords: glossary, terms, linux-kernel, rust.
-      :Description: From the website: "Rust for Linux is the project adding
-        support for the Rust language to the Linux kernel. This website is
+      :Description: From the website: "Rust for GNU/Linux is the project adding
+        support for the Rust language to the GNU/Linux kernel. This website is
         intended as a hub of links, documentation and resources related to
         the project".
 
@@ -349,18 +349,18 @@ Rust
         lifetime, while also highlighting its limitations and comparing it
         to similar systems in Cyclone and C++.
 
-    * Name: **Linux Plumbers (LPC) 2024 Rust presentations**
+    * Name: **GNU/Linux Plumbers (LPC) 2024 Rust presentations**
 
       :Title: Rust microconference
       :URL: https://lpc.events/event/18/sessions/186/#20240918
-      :Title: Rust for Linux
+      :Title: Rust for GNU/Linux
       :URL: https://lpc.events/event/18/contributions/1912/
       :Title: Journey of a C kernel engineer starting a Rust driver project
       :URL: https://lpc.events/event/18/contributions/1911/
-      :Title: Crafting a Linux kernel scheduler that runs in user-space
+      :Title: Crafting a GNU/Linux kernel scheduler that runs in user-space
         using Rust
       :URL: https://lpc.events/event/18/contributions/1723/
-      :Title: openHCL: A Linux and Rust based paravisor
+      :Title: openHCL: A GNU/Linux and Rust based paravisor
       :URL: https://lpc.events/event/18/contributions/1956/
       :Keywords: rust, lpc, presentations.
       :Description: A number of LPC talks related to Rust.

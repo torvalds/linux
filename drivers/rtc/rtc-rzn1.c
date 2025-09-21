@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Renesas RZ/N1 Real Time Clock interface for Linux
+ * Renesas RZ/N1 Real Time Clock interface for GNU/Linux
  *
  * Copyright:
  * - 2014 Renesas Electronics Europe Limited

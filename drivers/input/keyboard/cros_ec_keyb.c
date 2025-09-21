@@ -64,7 +64,7 @@ struct cros_ec_keyb {
 };
 
 /**
- * struct cros_ec_bs_map - Mapping between Linux keycodes and EC button/switch
+ * struct cros_ec_bs_map - Mapping between GNU/Linux keycodes and EC button/switch
  *	bitmap #defines
  *
  * @ev_type: The type of the input event to generate (e.g., EV_KEY).

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =======================================
-v9fs: Plan 9 Resource Sharing for Linux
+v9fs: Plan 9 Resource Sharing for GNU/Linux
 =======================================
 
 About
@@ -15,7 +15,7 @@ and Maya Gokhale.  Additional development by Greg Watson
 <ericvh@gmail.com>, Latchesar Ionkov <lucho@ionkov.net> and Russ Cox
 <rsc@swtch.com>.
 
-The best detailed explanation of the Linux implementation and applications of
+The best detailed explanation of the GNU/Linux implementation and applications of
 the 9p client is available in the form of a USENIX paper:
 
    https://www.usenix.org/events/usenix05/tech/freenix/hensbergen.html
@@ -106,7 +106,7 @@ Then start the python transport::
 After that the gadget driver can be used as described above.
 
 One use-case is to use it as an alternative to NFS root booting during
-the development of embedded Linux devices.
+the development of embedded GNU/Linux devices.
 
 Options
 =======
@@ -274,4 +274,4 @@ For more information on the Plan 9 Operating System check out
 http://plan9.bell-labs.com/plan9
 
 For information on Plan 9 from User Space (Plan 9 applications and libraries
-ported to Linux/BSD/OSX/etc) check out https://9fans.github.io/plan9port/
+ported to GNU/Linux/BSD/OSX/etc) check out https://9fans.github.io/plan9port/

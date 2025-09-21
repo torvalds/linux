@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * Compatibility interface for userspace libc header coordination:
  *
@@ -71,7 +71,7 @@
 
 #else /* _NET_IF_H */
 
-/* Linux headers included first, and we must define everything
+/* GNU/Linux headers included first, and we must define everything
  * we need. The expectation is that glibc will check the
  * __UAPI_DEF_* defines and adjust appropriately. */
 
@@ -117,7 +117,7 @@
 
 #else
 
-/* Linux headers included first, and we must define everything
+/* GNU/Linux headers included first, and we must define everything
  * we need. The expectation is that glibc will check the
  * __UAPI_DEF_* defines and adjust appropriately. */
 #define __UAPI_DEF_IN_ADDR		1

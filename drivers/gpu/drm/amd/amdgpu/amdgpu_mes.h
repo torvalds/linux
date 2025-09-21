@@ -416,7 +416,7 @@ int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
  * A bit more detail about why to set no-FS reclaim with MES lock:
  *
  * The purpose of the MMU notifier is to stop GPU access to memory so
- * that the Linux VM subsystem can move pages around safely. This is
+ * that the GNU/Linux VM subsystem can move pages around safely. This is
  * done by preempting user mode queues for the affected process. When
  * MES is used, MES lock needs to be taken to preempt the queues.
  *

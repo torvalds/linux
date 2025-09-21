@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* Frontend part of the Linux driver for the Afatech 9005
+/* Frontend part of the GNU/Linux driver for the Afatech 9005
  * USB1.1 DVB-T receiver.
  *
  * Copyright (C) 2007 Luca Olivetti (luca@ventoso.org)

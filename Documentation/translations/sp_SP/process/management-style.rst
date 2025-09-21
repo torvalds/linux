@@ -6,11 +6,11 @@
 .. _sp_managementstyle:
 
 
-Estilo de gestión del kernel de Linux
+Estilo de gestión del kernel de GNU/Linux
 =====================================
 
 Este es un documento breve que describe el estilo de gestión preferido (o
-inventado, dependiendo de a quién le preguntes) para el kernel de Linux.
+inventado, dependiendo de a quién le preguntes) para el kernel de GNU/Linux.
 Está destinado a reflejar el documento
 :ref:`translations/sp_SP/process/coding-style.rst <sp_codingstyle>` hasta
 cierto punto y está escrito principalmente para evitar responder a [#f1]_

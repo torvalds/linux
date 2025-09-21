@@ -34,7 +34,7 @@
  *
  * These struct definitions and the forming of the
  * mode page were taken from the LSI RDAC 2.4 GPL'd
- * driver, and then converted to Linux conventions.
+ * driver, and then converted to GNU/Linux conventions.
  */
 #define RDAC_QUIESCENCE_TIME 20
 /*

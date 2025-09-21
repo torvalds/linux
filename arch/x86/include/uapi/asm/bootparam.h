@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _ASM_X86_BOOTPARAM_H
 #define _ASM_X86_BOOTPARAM_H
 
@@ -170,9 +170,9 @@ struct boot_params {
  * sequences. This enum represents accepted values for the x86
  * hardware_subarch.  Custom x86 boot sequences (not X86_SUBARCH_PC) do not
  * have or simply *cannot* make use of natural stubs like BIOS or EFI, the
- * hardware_subarch can be used on the Linux entry path to revector to a
+ * hardware_subarch can be used on the GNU/Linux entry path to revector to a
  * subarchitecture stub when needed. This subarchitecture stub can be used to
- * set up Linux boot parameters or for special care to account for nonstandard
+ * set up GNU/Linux boot parameters or for special care to account for nonstandard
  * handling of page tables.
  *
  * These enums should only ever be used by x86 code, and the code that uses

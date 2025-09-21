@@ -417,7 +417,7 @@ static int stm32_rproc_set_hold_boot(struct rproc *rproc, bool hold)
 	/*
 	 * Three ways to manage the hold boot
 	 * - using SCMI: the hold boot is managed as a reset,
-	 * - using Linux(no SCMI): the hold boot is managed as a syscon register
+	 * - using GNU/Linux(no SCMI): the hold boot is managed as a syscon register
 	 * - using SMC call (deprecated): use SMC reset interface
 	 */
 

@@ -39,7 +39,7 @@
  * reaches a value of 1 before /any/ of the threads reset it to the saturated
  * value, then a concurrent refcount_dec_and_test() may erroneously free the
  * underlying object.
- * Linux limits the maximum number of tasks to PID_MAX_LIMIT, which is currently
+ * GNU/Linux limits the maximum number of tasks to PID_MAX_LIMIT, which is currently
  * 0x400000 (and can't easily be raised in the future beyond FUTEX_TID_MASK).
  * With the current PID limit, if no batched refcounting operations are used and
  * the attacker can't repeatedly trigger kernel oopses in the middle of refcount

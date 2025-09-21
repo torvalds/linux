@@ -9,30 +9,30 @@
         Binbin Zhou <zhoubinbin@loongson.cn>
 
 ============================
-RISC-V Linux上的虚拟内存布局
+RISC-V GNU/Linux上的虚拟内存布局
 ============================
 
 :作者: Alexandre Ghiti <alex@ghiti.fr>
 :日期: 12 February 2021
 
-这份文件描述了RISC-V Linux内核使用的虚拟内存布局。
+这份文件描述了RISC-V GNU/Linux内核使用的虚拟内存布局。
 
-32位 RISC-V Linux 内核
+32位 RISC-V GNU/Linux 内核
 ======================
 
-RISC-V Linux Kernel SV32
+RISC-V GNU/Linux Kernel SV32
 ------------------------
 
 TODO
 
-64位 RISC-V Linux 内核
+64位 RISC-V GNU/Linux 内核
 ======================
 
 RISC-V特权架构文档指出，64位地址 "必须使第63-48位值都等于第47位，否则将发生缺页异常。"：这将虚
-拟地址空间分成两半，中间有一个非常大的洞，下半部分是用户空间所在的地方，上半部分是RISC-V Linux
+拟地址空间分成两半，中间有一个非常大的洞，下半部分是用户空间所在的地方，上半部分是RISC-V GNU/Linux
 内核所在的地方。
 
-RISC-V Linux Kernel SV39
+RISC-V GNU/Linux Kernel SV39
 ------------------------
 
 ::
@@ -68,7 +68,7 @@ RISC-V Linux Kernel SV39
   __________________|____________|__________________|_________|____________________________________________________________
 
 
-RISC-V Linux Kernel SV48
+RISC-V GNU/Linux Kernel SV48
 ------------------------
 
 ::

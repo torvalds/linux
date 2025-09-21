@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * acenic.c: Linux driver for the Alteon AceNIC Gigabit Ethernet card
+ * acenic.c: GNU/Linux driver for the Alteon AceNIC Gigabit Ethernet card
  *           and other Tigon based cards.
  *
  * Copyright 1998-2002 by Jes Sorensen, <jes@trained-monkey.org>.
@@ -14,7 +14,7 @@
  * see how to subscribe.
  *
  * Additional credits:
- *   Pete Wyckoff <wyckoff@ca.sandia.gov>: Initial Linux/Alpha and trace
+ *   Pete Wyckoff <wyckoff@ca.sandia.gov>: Initial GNU/Linux/Alpha and trace
  *       dump support. The trace dump support has not been
  *       integrated yet however.
  *   Troy Benjegerdes: Big Endian (PPC) patches.
@@ -24,7 +24,7 @@
  *   David S. Miller <davem@redhat.com>: conversion to new PCI dma mapping
  *                                       infrastructure and Sparc support
  *   Pierrick Pinasseau (CERN): For lending me an Ultra 5 to test the
- *                              driver under Linux/Sparc64
+ *                              driver under GNU/Linux/Sparc64
  *   Matt Domsch <Matt_Domsch@dell.com>: Detect Alteon 1000baseT cards
  *                                       ETHTOOL_GDRVINFO support
  *   Chip Salzenberg <chip@valinux.com>: Fix race condition between tx
@@ -262,7 +262,7 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  * - NIC dump support.
  * - More tuning parameters.
  *
- * The mini ring is not used under Linux and I am not sure it makes sense
+ * The mini ring is not used under GNU/Linux and I am not sure it makes sense
  * to actually use it.
  *
  * New interrupt handler strategy:

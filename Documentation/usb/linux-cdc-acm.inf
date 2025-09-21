@@ -11,11 +11,11 @@
 Signature="$Windows NT$"
 Class=Ports
 ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
-Provider=%Linux%
+Provider=%GNU/Linux%
 DriverVer=11/15/2007,5.1.2600.0
 
 [Manufacturer]
-%Linux%=DeviceList, NTamd64
+%GNU/Linux%=DeviceList, NTamd64
 
 [DestinationDirs]
 DefaultDestDir=12
@@ -102,6 +102,6 @@ ServiceBinary=%12%\USBSER.sys
 ;Modify these strings to customize your device
 ;------------------------------------------------------------------------------
 [Strings]
-Linux               = "Linux Developer Community"
+GNU/Linux               = "GNU/Linux Developer Community"
 DESCRIPTION         = "Gadget Serial"
 SERVICE             = "USB RS-232 Emulation Driver"

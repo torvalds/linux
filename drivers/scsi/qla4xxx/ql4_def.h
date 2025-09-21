@@ -552,10 +552,10 @@ struct ql4_boot_tgt_info {
 };
 
 /*
- * Linux Host Adapter structure
+ * GNU/Linux Host Adapter structure
  */
 struct scsi_qla_host {
-	/* Linux adapter configuration data */
+	/* GNU/Linux adapter configuration data */
 	unsigned long flags;
 
 #define AF_ONLINE			0 /* 0x00000001 */
@@ -665,11 +665,11 @@ struct scsi_qla_host {
 	uint32_t firmware_state;
 	uint32_t addl_fw_state;
 
-	/* Linux kernel thread */
+	/* GNU/Linux kernel thread */
 	struct workqueue_struct *dpc_thread;
 	struct work_struct dpc_work;
 
-	/* Linux timer thread */
+	/* GNU/Linux timer thread */
 	struct timer_list timer;
 	uint32_t timer_active;
 

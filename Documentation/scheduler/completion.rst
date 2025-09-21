@@ -23,7 +23,7 @@ until the result is actually needed, and both the waiting and the signalling
 is highly efficient using low level scheduler sleep/wakeup facilities.
 
 Completions are built on top of the waitqueue and wakeup infrastructure of
-the Linux scheduler. The event the threads on the waitqueue are waiting for
+the GNU/Linux scheduler. The event the threads on the waitqueue are waiting for
 is reduced to a simple flag in 'struct completion', appropriately called "done".
 
 As completions are scheduling related, the code can be found in

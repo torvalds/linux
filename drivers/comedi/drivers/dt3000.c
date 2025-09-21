@@ -3,7 +3,7 @@
  * dt3000.c
  * Data Translation DT3000 series driver
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1999 David A. Schleef <ds@schleef.org>
  */
 

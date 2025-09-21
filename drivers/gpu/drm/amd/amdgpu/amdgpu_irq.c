@@ -760,17 +760,17 @@ void amdgpu_irq_remove_domain(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_irq_create_mapping - create mapping between domain Linux IRQs
+ * amdgpu_irq_create_mapping - create mapping between domain GNU/Linux IRQs
  *
  * @adev: amdgpu device pointer
  * @src_id: IH source id
  *
- * Creates mapping between a domain IRQ (GPU IH src id) and a Linux IRQ
+ * Creates mapping between a domain IRQ (GPU IH src id) and a GNU/Linux IRQ
  * Use this for components that generate a GPU interrupt, but are driven
  * by a different driver (e.g., ACP).
  *
  * Returns:
- * Linux IRQ
+ * GNU/Linux IRQ
  */
 unsigned int amdgpu_irq_create_mapping(struct amdgpu_device *adev, unsigned int src_id)
 {

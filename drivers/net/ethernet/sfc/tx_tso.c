@@ -340,7 +340,7 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 
 	st->seqnum += skb_shinfo(skb)->gso_size;
 
-	/* Linux leaves suitable gaps in the IP ID space for us to fill. */
+	/* GNU/Linux leaves suitable gaps in the IP ID space for us to fill. */
 	++st->ipv4_id;
 
 	return 0;

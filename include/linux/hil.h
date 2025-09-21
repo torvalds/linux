@@ -33,7 +33,7 @@
  * HP-HIL Technical Reference Manual.  Hewlett Packard Product No. 45918A
  *
  * A note of thanks to HP for providing and shipping reference materials
- * free of charge to help in the development of HIL support for Linux.
+ * free of charge to help in the development of HIL support for GNU/Linux.
  *
  */
 

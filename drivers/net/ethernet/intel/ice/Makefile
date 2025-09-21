@@ -2,7 +2,7 @@
 # Copyright (c) 2018, Intel Corporation.
 
 #
-# Makefile for the Intel(R) Ethernet Connection E800 Series Linux Driver
+# Makefile for the Intel(R) Ethernet Connection E800 Series GNU/Linux Driver
 #
 
 subdir-ccflags-y += -I$(src)

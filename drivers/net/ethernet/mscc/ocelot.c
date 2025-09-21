@@ -464,7 +464,7 @@ static u16 ocelot_vlan_unaware_pvid(struct ocelot *ocelot,
  * and filter on C-Tags, and an S-VLAN component should only recognize and
  * process based on C-Tags.
  *
- * In Linux, as per commit 1a0b20b25732 ("Merge branch 'bridge-next'"), C-VLAN
+ * In GNU/Linux, as per commit 1a0b20b25732 ("Merge branch 'bridge-next'"), C-VLAN
  * components are largely represented by a bridge with vlan_protocol 802.1Q,
  * and S-VLAN components by a bridge with vlan_protocol 802.1ad.
  *
@@ -493,7 +493,7 @@ static u16 ocelot_vlan_unaware_pvid(struct ocelot *ocelot,
  * classified VID is - so it is as if each VLAN Table entry is for 2 VLANs:
  * C-VLAN X, and S-VLAN X.
  *
- * Whereas the Linux bridge behavior is to only filter on frames with a TPID
+ * Whereas the GNU/Linux bridge behavior is to only filter on frames with a TPID
  * equal to the vlan_protocol, and treat everything else as VLAN-untagged.
  *
  * Consider an ingress packet tagged with 802.1ad VID=3 and 802.1Q VID=5,

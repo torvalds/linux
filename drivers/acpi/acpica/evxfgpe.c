@@ -297,7 +297,7 @@ ACPI_EXPORT_SYMBOL(acpi_mask_gpe)
  *
  * Some potential callers of acpi_setup_gpe_for_wake may know in advance that
  * there won't be any notify handlers installed for device wake notifications
- * from the given GPE (one example is a button GPE in Linux). For these cases,
+ * from the given GPE (one example is a button GPE in GNU/Linux). For these cases,
  * acpi_mark_gpe_for_wake should be used instead of acpi_setup_gpe_for_wake.
  * This will set the ACPI_GPE_CAN_WAKE flag for the GPE without trying to
  * setup implicit wake notification for it (since there's no handler method).

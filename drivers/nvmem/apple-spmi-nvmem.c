@@ -2,7 +2,7 @@
 /*
  * Apple SPMI NVMEM driver
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 #include <linux/kernel.h>

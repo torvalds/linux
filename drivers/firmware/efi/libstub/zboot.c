@@ -52,7 +52,7 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 	if (status != EFI_SUCCESS)
 		return status;
 
-	efi_info("Decompressing Linux Kernel...\n");
+	efi_info("Decompressing GNU/Linux Kernel...\n");
 
 	status = efi_zboot_decompress_init(&alloc_size);
 	if (status != EFI_SUCCESS)

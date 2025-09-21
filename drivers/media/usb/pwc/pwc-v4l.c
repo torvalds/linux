@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* Linux driver for Philips webcam
-   USB and Video4Linux interface part.
+/* GNU/Linux driver for Philips webcam
+   USB and Video4GNU/Linux interface part.
    (C) 1999-2004 Nemosoft Unv.
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
    (C) 2011 Hans de Goede <hdegoede@redhat.com>

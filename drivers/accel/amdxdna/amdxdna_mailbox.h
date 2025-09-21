@@ -80,7 +80,7 @@ struct mailbox *xdnam_mailbox_create(struct drm_device *ddev,
  * @x2i: host to firmware mailbox resources
  * @i2x: firmware to host mailbox resources
  * @xdna_mailbox_intr_reg: register addr of MSI-X interrupt
- * @mb_irq: Linux IRQ number associated with mailbox MSI-X interrupt vector index
+ * @mb_irq: GNU/Linux IRQ number associated with mailbox MSI-X interrupt vector index
  *
  * Return: If success, return a handle of mailbox channel. Otherwise, return NULL.
  */

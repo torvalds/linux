@@ -39,7 +39,7 @@ bpftool btf { show | list } [id *BTF_ID*]
     information only about given BTF object, otherwise list all BTF objects
     currently loaded on the system.
 
-    Since Linux 5.8 bpftool is able to discover information about processes
+    Since GNU/Linux 5.8 bpftool is able to discover information about processes
     that hold open file descriptors (FDs) against BTF objects. On such kernels
     bpftool will automatically emit this information as well.
 

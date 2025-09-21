@@ -4,7 +4,7 @@
  *
  * Qualcomm MSM Camera Subsystem - V4L2 device node
  *
- * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2015, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2018 Linaro Ltd.
  */
 #ifndef QC_MSM_CAMSS_VIDEO_H

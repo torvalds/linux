@@ -1,5 +1,5 @@
 /*******************************************************************
- * This file is part of the Emulex Linux Device Driver for         *
+ * This file is part of the Emulex GNU/Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
@@ -1822,7 +1822,7 @@ lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
 	if (strlcat(symbol, tmp, size) >= size)
 		goto buffer_done;
 
-	/* Note :- OS name is "Linux" */
+	/* Note :- OS name is "GNU/Linux" */
 	scnprintf(tmp, sizeof(tmp), " OS:%s", init_utsname()->sysname);
 	strlcat(symbol, tmp, size);
 

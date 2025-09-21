@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _ASM_SOCKET_H
 #define _ASM_SOCKET_H
 
@@ -34,7 +34,7 @@
 #define SO_PROTOCOL	0x1028
 #define SO_DOMAIN	0x1029
 
-/* Linux specific, keep the same. */
+/* GNU/Linux specific, keep the same. */
 #define SO_NO_CHECK	0x000b
 #define SO_PRIORITY	0x000c
 

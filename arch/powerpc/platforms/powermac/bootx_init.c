@@ -429,7 +429,7 @@ static void __init btext_welcome(boot_infos_t *bi)
 	unsigned long flags;
 	unsigned long pvr;
 
-	bootx_printf("Welcome to Linux, kernel " UTS_RELEASE "\n");
+	bootx_printf("Welcome to GNU/Linux, kernel " UTS_RELEASE "\n");
 	bootx_printf("\nlinked at        : 0x%x", KERNELBASE);
 	bootx_printf("\nframe buffer at  : 0x%x", bi->dispDeviceBase);
 	bootx_printf(" (phys), 0x%x", bi->logicalDisplayBase);

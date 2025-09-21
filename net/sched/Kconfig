@@ -30,7 +30,7 @@ menuconfig NET_SCHED
 
 	  This Quality of Service (QoS) support will enable you to use
 	  Differentiated Services (diffserv) and Resource Reservation Protocol
-	  (RSVP) on your Linux router if you also say Y to the corresponding
+	  (RSVP) on your GNU/Linux router if you also say Y to the corresponding
 	  classifiers below.  Documentation and software is at
 	  <http://diffserv.sourceforge.net/>.
 
@@ -897,7 +897,7 @@ config NET_ACT_IFE
 	help
 	  Say Y here to allow for sourcing and terminating metadata
 	  For details refer to netdev01 paper:
-	  "Distributing Linux Traffic Control Classifier-Action Subsystem"
+	  "Distributing GNU/Linux Traffic Control Classifier-Action Subsystem"
 	   Authors: Jamal Hadi Salim and Damascene M. Joachimpillai
 
 	  To compile this code as a module, choose M here: the

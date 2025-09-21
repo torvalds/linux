@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/SuperH SH-3 backends.
+# Makefile for the GNU/Linux/SuperH SH-3 backends.
 #
 
 obj-y	:= ex.o probe.o entry.o setup-sh3.o

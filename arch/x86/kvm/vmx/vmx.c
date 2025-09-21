@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Kernel-based Virtual Machine driver for Linux
+ * Kernel-based Virtual Machine driver for GNU/Linux
  *
  * This module enables machines with Intel VT-x extensions to run virtual
  * machines without emulation or binary translation.
@@ -1434,7 +1434,7 @@ void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu)
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 
 		/*
-		 * Linux uses per-cpu TSS and GDT, so set these when switching
+		 * GNU/Linux uses per-cpu TSS and GDT, so set these when switching
 		 * processors.  See 22.2.4.
 		 */
 		vmcs_writel(HOST_TR_BASE,

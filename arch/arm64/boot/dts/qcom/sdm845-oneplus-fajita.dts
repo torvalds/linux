@@ -2,7 +2,7 @@
 /*
  * SDM845 OnePlus 6T (fajita) device tree.
  *
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include "sdm845-oneplus-common.dtsi"

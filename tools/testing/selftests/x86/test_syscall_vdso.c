@@ -153,7 +153,7 @@ int check_regs64(void)
 			 * Therefore it must preserve R12+
 			 * (they are callee-saved registers in 64-bit C ABI).
 			 *
-			 * Starting in Linux 4.17 (and any kernel that
+			 * Starting in GNU/Linux 4.17 (and any kernel that
 			 * backports the change), R8..11 are preserved.
 			 * Historically (and probably unintentionally), they
 			 * were clobbered or zeroed.

@@ -630,7 +630,7 @@
 
 		/* uefi region can be reused by apps */
 
-		/* Linux kernel image is loaded at 0xa8000000 */
+		/* GNU/Linux kernel image is loaded at 0xa8000000 */
 
 		rmtfs_mem: rmtfs-region@d4a80000 {
 			compatible = "qcom,rmtfs-mem";

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  * Copyright (C) 2018-2023 Collabora Ltd.
  * Copyright (C) 2014-2018 Broadcom
  */

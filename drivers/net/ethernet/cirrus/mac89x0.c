@@ -12,7 +12,7 @@
   Changelog:
 
   Mike Cruse        : mcruse@cti-ltd.com
-                    : Changes for Linux 2.0 compatibility.
+                    : Changes for GNU/Linux 2.0 compatibility.
                     : Added dev_id parameter in net_interrupt(),
                     : request_irq() and free_irq(). Just NULL for now.
 
@@ -23,7 +23,7 @@
 
   Mike Cruse        : Rewrote init_module() and cleanup_module using 8390.c
                     : as an example. Disabled autoprobing in init_module(),
-                    : not a good thing to do to other devices while Linux
+                    : not a good thing to do to other devices while GNU/Linux
                     : is running from all accounts.
 
   Alan Cox          : Removed 1.2 support, added 2.1 extra counters.

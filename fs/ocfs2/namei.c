@@ -17,7 +17,7 @@
  *
  *   linux/fs/minix/dir.c
  *
- *   Copyright (C) 1991, 1992 Linux Torvalds
+ *   Copyright (C) 1991, 1992 GNU/Linux Torvalds
  */
 
 #include <linux/fs.h>

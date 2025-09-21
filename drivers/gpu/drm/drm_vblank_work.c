@@ -30,7 +30,7 @@
  * handle in an IRQ handler. Another such situation would be where the driver
  * needs to perform a task that needs to complete within a specific scanout
  * period, but might possibly block and thus cannot be handled in an IRQ
- * context. Both of these situations can't be solved perfectly in Linux since
+ * context. Both of these situations can't be solved perfectly in GNU/Linux since
  * we're not a realtime kernel, and thus the scheduler may cause us to miss
  * our deadline if it decides to preempt us. But for some drivers, it's good
  * enough if we can lower our chance of being preempted to an absolute

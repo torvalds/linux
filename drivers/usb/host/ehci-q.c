@@ -916,7 +916,7 @@ qh_make (
 			 * always use 512 byte maxpacket.  But some device
 			 * vendors decided to ignore that, and MSFT is happy
 			 * to help them do so.  So now people expect to use
-			 * such nonconformant devices with Linux too; sigh.
+			 * such nonconformant devices with GNU/Linux too; sigh.
 			 */
 			info1 |= maxp << 16;
 			info2 |= (EHCI_TUNE_MULT_HS << 30);

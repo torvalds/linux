@@ -1,5 +1,5 @@
 ===========================
-Linux for S/390 and zSeries
+GNU/Linux for S/390 and zSeries
 ===========================
 
 Common Device Support (CDS)
@@ -14,7 +14,7 @@ Copyright, IBM Corp. 1999-2002
 Introduction
 ============
 
-This document describes the common device support routines for Linux/390.
+This document describes the common device support routines for GNU/Linux/390.
 Different than other hardware architectures, ESA/390 has defined a unified
 I/O access method. This gives relief to the device drivers as they don't
 have to deal with different bus types, polling versus interrupt
@@ -34,7 +34,7 @@ functional layer was introduced that provides generic I/O access methods to
 the hardware.
 
 The common device support layer comprises the I/O support routines defined
-below. Some of them implement common Linux device driver interfaces, while
+below. Some of them implement common GNU/Linux device driver interfaces, while
 some of them are ESA/390 platform specific.
 
 Note:
@@ -80,7 +80,7 @@ do_IRQ()
    initiation with do_IO().
 
 The next chapters describe the functions other than do_IRQ() in more details.
-The do_IRQ() interface is not described, as it is called from the Linux/390
+The do_IRQ() interface is not described, as it is called from the GNU/Linux/390
 first level interrupt handler only and does not comprise a device driver
 callable interface. Instead, the functional description of do_IO() also
 describes the input to the device specific interrupt handler.
@@ -89,19 +89,19 @@ Note:
 	All explanations apply also to the 64 bit architecture s390x.
 
 
-Common Device Support (CDS) for Linux/390 Device Drivers
+Common Device Support (CDS) for GNU/Linux/390 Device Drivers
 ========================================================
 
 General Information
 -------------------
 
 The following chapters describe the I/O related interface routines the
-Linux/390 common device support (CDS) provides to allow for device specific
+GNU/Linux/390 common device support (CDS) provides to allow for device specific
 driver implementations on the IBM ESA/390 hardware platform. Those interfaces
 intend to provide the functionality required by every device driver
 implementation to allow to drive a specific hardware device on the ESA/390
-platform. Some of the interface routines are specific to Linux/390 and some
-of them can be found on other Linux platforms implementations too.
+platform. Some of the interface routines are specific to GNU/Linux/390 and some
+of them can be found on other GNU/Linux platforms implementations too.
 Miscellaneous function prototypes, data declarations, and macro definitions
 can be found in the architecture specific C header file
 linux/arch/s390/include/asm/irq.h.
@@ -121,7 +121,7 @@ they are presenting I/O completion a unified way : I/O interruptions. Every
 single device is uniquely identified to the system by a so called subchannel,
 where the ESA/390 architecture allows for 64k devices be attached.
 
-Linux, however, was first built on the Intel PC architecture, with its two
+GNU/Linux, however, was first built on the Intel PC architecture, with its two
 cascaded 8259 programmable interrupt controllers (PICs), that allow for a
 maximum of 15 different interrupt lines. All devices attached to such a system
 share those 15 interrupt levels. Devices attached to the ISA bus system must
@@ -132,11 +132,11 @@ present their hardware status by the same (shared) IRQ, the operating system
 has to call every single device driver registered on this IRQ in order to
 determine the device driver owning the device that raised the interrupt.
 
-Up to kernel 2.4, Linux/390 used to provide interfaces via the IRQ (subchannel).
+Up to kernel 2.4, GNU/Linux/390 used to provide interfaces via the IRQ (subchannel).
 For internal use of the common I/O layer, these are still there. However,
 device drivers should use the new calling interface via the ccw_device only.
 
-During its startup the Linux/390 system checks for peripheral devices. Each
+During its startup the GNU/Linux/390 system checks for peripheral devices. Each
 of those devices is uniquely defined by a so called subchannel by the ESA/390
 channel subsystem. While the subchannel numbers are system generated, each
 subchannel also takes a user defined attribute, the so called device number.
@@ -146,7 +146,7 @@ imply specific I/O commands (channel command words - CCWs) in order to operate
 the device are gathered. Device drivers can retrieve this set of hardware
 information during their initialization step to recognize the devices they
 support using the information saved in the struct ccw_device given to them.
-This methods implies that Linux/390 doesn't require to probe for free (not
+This methods implies that GNU/Linux/390 doesn't require to probe for free (not
 armed) interrupt request lines (IRQs) to drive its devices with. Where
 applicable, the device drivers can use issue the READ DEVICE CHARACTERISTICS
 ccw to retrieve device characteristics in its online routine.
@@ -158,7 +158,7 @@ and initiates an I/O request on behalf of the device driver. The
 ccw_device_start() routine allows to specify whether it expects the CDS layer
 to notify the device driver for every interrupt it observes, or with final status
 only. See ccw_device_start() for more details. A device driver must never issue
-ESA/390 I/O commands itself, but must use the Linux/390 CDS interfaces instead.
+ESA/390 I/O commands itself, but must use the GNU/Linux/390 CDS interfaces instead.
 
 For long running I/O request to be canceled, the CDS layer provides the
 ccw_device_halt() function. Some devices require to initially issue a HALT
@@ -372,7 +372,7 @@ ccw_device_start() must be called disabled and with the ccw device lock held.
 The device driver is allowed to issue the next ccw_device_start() call from
 within its interrupt handler already. It is not required to schedule a
 bottom-half, unless a non deterministically long running error recovery procedure
-or similar needs to be scheduled. During I/O processing the Linux/390 generic
+or similar needs to be scheduled. During I/O processing the GNU/Linux/390 generic
 I/O device driver support has already obtained the IRQ lock, i.e. the handler
 must not try to obtain it again when calling ccw_device_start() or we end in a
 deadlock situation!
@@ -515,7 +515,7 @@ The ccw_device_clear() function returns:
 Miscellaneous Support Routines
 ------------------------------
 
-This chapter describes various routines to be used in a Linux/390 device
+This chapter describes various routines to be used in a GNU/Linux/390 device
 driver programming environment.
 
 get_ccwdev_lock()

@@ -21,7 +21,7 @@ We fully support reading files from these filesystems, and writing to
 existing files within their existing allocation.  Essentially, we do
 not support changing any of the filesystem metadata.
 
-This is intended to support loopback mounted Linux native filesystems
+This is intended to support loopback mounted GNU/Linux native filesystems
 on a RISC OS Filecore filesystem, but will allow the data within files
 to be changed.
 
@@ -45,7 +45,7 @@ Mount options for ADFS
 		the RISC OS file type will be added.  Default 0.
   ============  ======================================================
 
-Mapping of ADFS permissions to Linux permissions
+Mapping of ADFS permissions to GNU/Linux permissions
 ------------------------------------------------
 
   ADFS permissions consist of the following:
@@ -56,7 +56,7 @@ Mapping of ADFS permissions to Linux permissions
 	- Other write
 
   (In older versions, an 'execute' permission did exist, but this
-  does not hold the same meaning as the Linux 'execute' permission
+  does not hold the same meaning as the GNU/Linux 'execute' permission
   and is now obsolete).
 
   The mapping is performed as follows::
@@ -90,7 +90,7 @@ Mapping of ADFS permissions to Linux permissions
 			-rw-r--r--
 
   You can therefore tailor the permission translation to whatever you
-  desire the permissions should be under Linux.
+  desire the permissions should be under GNU/Linux.
 
 RISC OS file type suffix
 ------------------------

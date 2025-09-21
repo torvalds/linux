@@ -129,7 +129,7 @@ config LD_SCRIPT_DYN_RPATH
 config HOSTFS
 	tristate "Host filesystem"
 	help
-	  While the User-Mode Linux port uses its own root file system for
+	  While the User-Mode GNU/Linux port uses its own root file system for
 	  booting and normal file access, this module lets the UML user
 	  access files stored on the host.  It does not require any
 	  network connection between the Host and UML.  An example use of

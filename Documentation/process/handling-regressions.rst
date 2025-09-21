@@ -5,7 +5,7 @@ Handling regressions
 ++++++++++++++++++++
 
 *We don't cause regressions* -- this document describes what this "first rule of
-Linux kernel development" means in practice for developers. It complements
+GNU/Linux kernel development" means in practice for developers. It complements
 Documentation/admin-guide/reporting-regressions.rst, which covers the topic from a
 user's point of view; if you never read that text, go and at least skim over it
 before continuing here.
@@ -23,7 +23,7 @@ The important bits (aka "The TL;DR")
 
     * Forward or bounce any reports submitted in bug trackers to the list.
 
-#. Make the Linux kernel regression tracking bot "regzbot" track the issue (this
+#. Make the GNU/Linux kernel regression tracking bot "regzbot" track the issue (this
    is optional, but recommended):
 
     * For mailed reports, check if the reporter included a line like ``#regzbot
@@ -53,7 +53,7 @@ The important bits (aka "The TL;DR")
    resolved within two or three days.
 
 
-All the details on Linux kernel regressions relevant for developers
+All the details on GNU/Linux kernel regressions relevant for developers
 ===================================================================
 
 
@@ -64,7 +64,7 @@ The important basics in more detail
 What to do when receiving regression reports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Ensure the Linux kernel's regression tracker and others subscribers of the
+Ensure the GNU/Linux kernel's regression tracker and others subscribers of the
 `regression mailing list <https://lore.kernel.org/regressions/>`_
 (regressions@lists.linux.dev) become aware of any newly reported regression:
 
@@ -78,7 +78,7 @@ Ensure the Linux kernel's regression tracker and others subscribers of the
    already forwarded the report as instructed by
    Documentation/admin-guide/reporting-issues.rst.
 
-When doing either, consider making the Linux kernel regression tracking bot
+When doing either, consider making the GNU/Linux kernel regression tracking bot
 "regzbot" immediately start tracking the issue:
 
  * For mailed reports, check if the reporter included a "regzbot command" like
@@ -132,14 +132,14 @@ Documentation/process/stable-kernel-rules.rst already explain in more detail:
 All this is expected from you and important when it comes to regression, as
 these tags are of great value for everyone (you included) that might be looking
 into the issue weeks, months, or years later. These tags are also crucial for
-tools and scripts used by other kernel developers or Linux distributions; one of
+tools and scripts used by other kernel developers or GNU/Linux distributions; one of
 these tools is regzbot, which heavily relies on the "Closes:" tags to associate
 reports for regression with changes resolving them.
 
 Expectations and best practices for fixing regressions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As a Linux kernel developer, you are expected to give your best to prevent
+As a GNU/Linux kernel developer, you are expected to give your best to prevent
 situations where a regression caused by a recent change of yours leaves users
 only these options:
 
@@ -158,7 +158,7 @@ rules of thumb as a guide.
 
 In general:
 
- * Prioritize work on regressions over all other Linux kernel work, unless the
+ * Prioritize work on regressions over all other GNU/Linux kernel work, unless the
    latter concerns a severe issue (e.g. acute security vulnerability, data loss,
    bricked hardware, ...).
 
@@ -272,7 +272,7 @@ How to deal with changes where a risk of regression is known
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Evaluate how big the risk of regressions is, for example by performing a code
-search in Linux distributions and Git forges. Also consider asking other
+search in GNU/Linux distributions and Git forges. Also consider asking other
 developers or projects likely to be affected to evaluate or even test the
 proposed change; if problems surface, maybe some solution acceptable for all
 can be found.
@@ -280,7 +280,7 @@ can be found.
 If the risk of regressions in the end seems to be relatively small, go ahead
 with the change, but let all involved parties know about the risk. Hence, make
 sure your patch description makes this aspect obvious. Once the change is
-merged, tell the Linux kernel's regression tracker and the regressions mailing
+merged, tell the GNU/Linux kernel's regression tracker and the regressions mailing
 list about the risk, so everyone has the change on the radar in case reports
 trickle in. Depending on the risk, you also might want to ask the subsystem
 maintainer to mention the issue in his mainline pull request.
@@ -304,7 +304,7 @@ Whom to ask for advice when it comes to regressions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send a mail to the regressions mailing list (regressions@lists.linux.dev) while
-CCing the Linux kernel's regression tracker (regressions@leemhuis.info); if the
+CCing the GNU/Linux kernel's regression tracker (regressions@leemhuis.info); if the
 issue might better be dealt with in private, feel free to omit the list.
 
 
@@ -312,13 +312,13 @@ More about regression tracking and regzbot
 ------------------------------------------
 
 
-Why the Linux kernel has a regression tracker, and why is regzbot used?
+Why the GNU/Linux kernel has a regression tracker, and why is regzbot used?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Rules like "no regressions" need someone to ensure they are followed, otherwise
 they are broken either accidentally or on purpose. History has shown this to be
-true for the Linux kernel as well. That's why Thorsten Leemhuis volunteered to
-keep an eye on things as the Linux kernel's regression tracker, who's
+true for the GNU/Linux kernel as well. That's why Thorsten Leemhuis volunteered to
+keep an eye on things as the GNU/Linux kernel's regression tracker, who's
 occasionally helped by other people. Neither of them are paid to do this,
 that's why regression tracking is done on a best effort basis.
 
@@ -360,7 +360,7 @@ Do I have to tell regzbot about every regression I stumble upon?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Ideally yes: we are all humans and easily forget problems when something more
-important unexpectedly comes up -- for example a bigger problem in the Linux
+important unexpectedly comes up -- for example a bigger problem in the GNU/Linux
 kernel or something in real life that's keeping us away from keyboards for a
 while. Hence, it's best to tell regzbot about every regression, except when you
 immediately write a fix and commit it to a tree regularly merged to the affected
@@ -371,21 +371,21 @@ How to see which regressions regzbot tracks currently?
 
 Check `regzbot's web-interface <https://linux-regtracking.leemhuis.info/regzbot/>`_
 for the latest info; alternatively, `search for the latest regression report
-<https://lore.kernel.org/lkml/?q=%22Linux+regressions+report%22+f%3Aregzbot>`_,
+<https://lore.kernel.org/lkml/?q=%22GNU/Linux+regressions+report%22+f%3Aregzbot>`_,
 which regzbot normally sends out once a week on Sunday evening (UTC), which is a
 few hours before Linus usually publishes new (pre-)releases.
 
 What places is regzbot monitoring?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Regzbot is watching the most important Linux mailing lists as well as the git
+Regzbot is watching the most important GNU/Linux mailing lists as well as the git
 repositories of linux-next, mainline, and stable/longterm.
 
 What kind of issues are supposed to be tracked by regzbot?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The bot is meant to track regressions, hence please don't involve regzbot for
-regular issues. But it's okay for the Linux kernel's regression tracker if you
+regular issues. But it's okay for the GNU/Linux kernel's regression tracker if you
 use regzbot to track severe issues, like reports about hangs, corrupted data,
 or internal errors (Panic, Oops, BUG(), warning, ...).
 
@@ -451,7 +451,7 @@ or itself is a reply to that mail:
 Is there more to tell about regzbot and its commands?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-More detailed and up-to-date information about the Linux
+More detailed and up-to-date information about the GNU/Linux
 kernel's regression tracking bot can be found on its
 `project page <https://gitlab.com/knurd42/regzbot>`_, which among others
 contains a `getting started guide <https://gitlab.com/knurd42/regzbot/-/blob/main/docs/getting_started.md>`_
@@ -786,11 +786,11 @@ be handled:
 ..
    This text is available under GPL-2.0+ or CC-BY-4.0, as stated at the top
    of the file. If you want to distribute this text under CC-BY-4.0 only,
-   please use "The Linux kernel developers" for author attribution and link
+   please use "The GNU/Linux kernel developers" for author attribution and link
    this as source:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/process/handling-regressions.rst
 ..
-   Note: Only the content of this RST file as found in the Linux kernel sources
+   Note: Only the content of this RST file as found in the GNU/Linux kernel sources
    is available under CC-BY-4.0, as versions of this text that were processed
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.

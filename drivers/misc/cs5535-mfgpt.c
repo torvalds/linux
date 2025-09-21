@@ -109,7 +109,7 @@ int cs5535_mfgpt_set_irq(struct cs5535_mfgpt_timer *timer, int cmp, int *irq,
 	 * Unfortunately, MFGPTs come in pairs sharing their IRQ lines. If VSA
 	 * is using the same CMP of the timer's Siamese twin, the IRQ is set to
 	 * 2, and we mustn't use nor change it.
-	 * XXX: Likewise, 2 Linux drivers might clash if the 2nd overwrites the
+	 * XXX: Likewise, 2 GNU/Linux drivers might clash if the 2nd overwrites the
 	 * IRQ of the 1st. This can only happen if forcing an IRQ, calling this
 	 * with *irq==0 is safe. Currently there _are_ no 2 drivers.
 	 */

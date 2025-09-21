@@ -1,7 +1,7 @@
 /*
  * Defines, structures, APIs for edac_device
  *
- * (C) 2007 Linux Networx (http://lnxi.com)
+ * (C) 2007 GNU/Linux Networx (http://lnxi.com)
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *

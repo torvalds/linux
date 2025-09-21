@@ -73,7 +73,7 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 		spin_unlock(&eeprom->buffer_lock);
 		/*
 		 * Do not increment buffer_idx here, because we don't know if
-		 * this byte will be actually used. Read Linux I2C slave docs
+		 * this byte will be actually used. Read GNU/Linux I2C slave docs
 		 * for details.
 		 */
 		break;

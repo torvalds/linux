@@ -61,7 +61,7 @@
 	- Clean up locking in probe path
     Rev  3.23.36 October 1, 2003, Christoph Hellwig
 	- queuecommand only ever receives new commands - clear flags
-	- Reintegrate lost fixes from Linux 2.5
+	- Reintegrate lost fixes from GNU/Linux 2.5
     Rev  3.23.35 August 14, 2003, Jes Sorensen
 	- Build against 2.6
     Rev  3.23.34 July 23, 2003, Jes Sorensen
@@ -86,7 +86,7 @@
 	- Eliminate duplicate marker commands on bus resets
 	- Handle outstanding commands appropriately on bus/device resets
     Rev  3.23.27 May 28, 2003, Jes Sorensen
-	- Remove bogus input queue code, let the Linux SCSI layer do the work
+	- Remove bogus input queue code, let the GNU/Linux SCSI layer do the work
 	- Clean up NVRAM handling, only read it once from the card
 	- Add a number of missing default nvram parameters
     Rev  3.23.26 Beta May 28, 2003, Jes Sorensen
@@ -169,10 +169,10 @@
 	- Remove dummy_buffer that was never modified nor printed
 	- ENTER()/LEAVE() are noops unless QL_DEBUG_LEVEL_3, hence remove
 	  #ifdef QL_DEBUG_LEVEL_3/#endif around ENTER()/LEAVE() calls
-	- Remove \r from print statements, this is Linux, not DOS
+	- Remove \r from print statements, this is GNU/Linux, not DOS
 	- Remove obsolete QLA1280_{SCSILU,INTR,RING}_{LOCK,UNLOCK}
 	  dummy macros
-	- Remove C++ compile hack in header file as Linux driver are not
+	- Remove C++ compile hack in header file as GNU/Linux driver are not
 	  supposed to be compiled as C++
 	- Kill MS_64BITS macro as it makes the code more readable
 	- Remove unnecessary flags.in_interrupts bit
@@ -198,14 +198,14 @@
 	- Reduce size of kernel version dependent device probe code
 	- Move duplicate probe/init code to separate function
 	- Handle error if qla1280_mem_alloc() fails
-	- Kill OFFSET() macro and use Linux's PCI definitions instead
+	- Kill OFFSET() macro and use GNU/Linux's PCI definitions instead
         - Kill private structure defining PCI config space (struct config_reg)
 	- Only allocate I/O port region if not in MMIO mode
 	- Remove duplicate (unused) sanity check of sife of srb_t
     Rev  3.23.2 Beta August 6, 2001, Jes Sorensen
 	- Change home-brew memset() implementations to use memset()
         - Remove all references to COMTRACE() - accessing a PC's COM2 serial
-          port directly is not legal under Linux.
+          port directly is not legal under GNU/Linux.
     Rev  3.23.1 Beta April 24, 2001, Jes Sorensen
         - Remove pre 2.2 kernel support
         - clean up 64 bit DMA setting to use 2.4 API (provide backwards compat)
@@ -797,7 +797,7 @@ qla1280_wait_for_pending_commands(struct scsi_qla_host *ha, int bus, int target)
  *    wait for the results (or time out).
  *
  * Input:
- *      cmd = Linux SCSI command packet of the command that cause the
+ *      cmd = GNU/Linux SCSI command packet of the command that cause the
  *            bus reset.
  *      action = error action to take (see action_t)
  *
@@ -1278,7 +1278,7 @@ qla1280_done(struct scsi_qla_host *ha)
 }
 
 /*
- * Translates a ISP error to a Linux SCSI error
+ * Translates a ISP error to a GNU/Linux SCSI error
  */
 static int
 qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)

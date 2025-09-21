@@ -2,7 +2,7 @@
 /*
  *  linux/kernel/acct.c
  *
- *  BSD Process Accounting for Linux
+ *  BSD Process Accounting for GNU/Linux
  *
  *  Author: Marco van Wieringen <mvw@planets.elm.net>
  *

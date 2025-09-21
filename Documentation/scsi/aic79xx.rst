@@ -5,7 +5,7 @@
 Adaptec Ultra320 Family Manager Set
 ===================================
 
-README for The Linux Operating System
+README for The GNU/Linux Operating System
 
 .. The following information is available in this file:
 
@@ -100,7 +100,7 @@ README for The Linux Operating System
  * 1.3.9 (May 22nd, 2003)
         - Fix compiler errors.
         - Remove S/G splitting for segments that cross a 4GB boundary.
-          This is guaranteed not to happen in Linux.
+          This is guaranteed not to happen in GNU/Linux.
         - Add support for scsi_report_device_reset() found in
           2.5.X kernels.
         - Add 7901B support.
@@ -190,7 +190,7 @@ README for The Linux Operating System
         only be used at the customer's own risk.
 
  * 1.1.1 (September 24th, 2002)
-        - Added support for the Linux 2.5.X kernel series
+        - Added support for the GNU/Linux 2.5.X kernel series
 
  * 1.1.0 (September 17th, 2002)
         - Added support for four additional SCSI products:
@@ -213,8 +213,8 @@ README for The Linux Operating System
         - Domain Validation
 
  * 2.2. Operating System Support:
-        - Redhat Linux 7.2, 7.3, 8.0, Advanced Server 2.1
-        - SuSE Linux 7.3, 8.0, 8.1, Enterprise Server 7
+        - Redhat GNU/Linux 7.2, 7.3, 8.0, Advanced Server 2.1
+        - SuSE GNU/Linux 7.3, 8.0, 8.1, Enterprise Server 7
         - only Intel and AMD x86 supported at this time
         - >4GB memory configurations supported.
 
@@ -476,9 +476,9 @@ for targets 0 and 6 of Controller 0.
 4.1. Known/Unresolved or FYI Issues
 -----------------------------------
 
-        * Under SuSE Linux Enterprise 7, the driver may fail to operate
+        * Under SuSE GNU/Linux Enterprise 7, the driver may fail to operate
           correctly due to a problem with PCI interrupt routing in the
-          Linux kernel.  Please contact SuSE for an updated Linux
+          GNU/Linux kernel.  Please contact SuSE for an updated GNU/Linux
           kernel.
 
 4.2. Third-Party Compatibility Issues
@@ -496,7 +496,7 @@ for targets 0 and 6 of Controller 0.
           to stop responding.
         * Luns that are not numbered contiguously starting with 0 might not
           be automatically probed during system startup.  This is a limitation
-          of the OS.  Please contact your Linux vendor for instructions on
+          of the OS.  Please contact your GNU/Linux vendor for instructions on
           manually probing non-contiguous luns.
         * Using the Driver Update Disk version of this package during OS
           installation under RedHat might result in two versions of this

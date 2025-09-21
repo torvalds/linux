@@ -5,9 +5,9 @@
 Introduction
 ============
 
-The joystick driver for Linux provides support for a variety of joysticks
+The joystick driver for GNU/Linux provides support for a variety of joysticks
 and similar devices. It is based on a larger project aiming to support all
-input devices in Linux.
+input devices in GNU/Linux.
 
 The mailing list for the project is:
 
@@ -434,7 +434,7 @@ Game console and 8-bit pads and joysticks
 -----------------------------------------
 
 These pads and joysticks are not designed for PCs and other computers
-Linux runs on, and usually require a special connector for attaching
+GNU/Linux runs on, and usually require a special connector for attaching
 them through a parallel port.
 
 See :ref:`joystick-parport` for more info.

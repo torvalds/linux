@@ -1,5 +1,5 @@
 	This is at least a partial credits-file of people that have
-	contributed to the Linux project.  It is sorted by name and
+	contributed to the GNU/Linux project.  It is sorted by name and
 	formatted to allow easy grepping and beautification by
 	scripts.  The fields are: name (N), email (E), web-address
 	(W), PGP key ID and fingerprint (P), description (D), and
@@ -112,7 +112,7 @@ S: USA
 N: Michael Ang
 E: mang@subcarrier.org
 W: http://www.subcarrier.org/mang
-D: Linux/PA-RISC hacker
+D: GNU/Linux/PA-RISC hacker
 S: 85 Frank St.
 S: Ottawa, Ontario
 S: Canada K2P 0X3
@@ -122,7 +122,7 @@ E: hpa@zytor.com
 W: https://www.zytor.com/~hpa/
 P: 2047/2A960705 BA 03 D3 2C 14 A8 A8 BD  1E DF FE 69 EE 35 BD 74
 D: Author of the SYSLINUX boot loader, maintainer of the linux.* news
-D: hierarchy and the Linux Device List; various kernel hacks
+D: hierarchy and the GNU/Linux Device List; various kernel hacks
 S: 4390 Albany Drive #46
 S: San Jose, California 95129
 S: USA
@@ -135,7 +135,7 @@ P: 1024R/CB4660B9 CC A0 71 81 F4 A0 63 AC  C0 4B 81 1D 8C 15 C8 E5
 D: Parport hacker
 D: Implemented a workaround for some interrupt buggy printers
 D: Author of pscan that helps to fix lp/parport bugs
-D: Author of lil (Linux Interrupt Latency benchmark)
+D: Author of lil (GNU/Linux Interrupt Latency benchmark)
 D: Fixed the shm swap deallocation at swapoff time (try_to_unuse message)
 D: VM hacker
 D: Various other kernel hacks
@@ -144,7 +144,7 @@ S: Italy
 
 N: Derek Atkins
 E: warlord@MIT.EDU
-D: Linux-AFS Port, random kernel hacker,
+D: GNU/Linux-AFS Port, random kernel hacker,
 D: VFS fixes (new notify_change in particular)
 D: Moving all VFS access checks into the file systems
 S: MIT Room E15-341
@@ -159,7 +159,7 @@ D: VIA MVP-3/TX Pro III chipset IDE
 
 N: Jens Axboe
 E: axboe@suse.de
-D: Linux CD-ROM maintainer, DVD support
+D: GNU/Linux CD-ROM maintainer, DVD support
 D: elevator + block layer rewrites
 D: highmem I/O support
 D: misc hacking on IDE, SCSI, block drivers, etc
@@ -186,8 +186,8 @@ S: Japan
 N: Ralf Baechle
 E: ralf@gnu.org
 P: 1024/AF7B30C1 CF 97 C2 CC 6D AE A7 FE  C8 BA 9C FC 88 DE 32 C3
-D: Linux/MIPS port
-D: Linux/68k hacker
+D: GNU/Linux/MIPS port
+D: GNU/Linux/68k hacker
 D: AX25 maintainer
 D: EDAC-CAVIUM OCTEON maintainer
 D: IOC3 ETHERNET DRIVER maintainer
@@ -323,7 +323,7 @@ D: configfs
 
 N: Adam Belay
 E: ambx1@neo.rr.com
-D: Linux Plug and Play Support
+D: GNU/Linux Plug and Play Support
 S: USA
 
 N: Daniele Bellucci
@@ -412,7 +412,7 @@ D: Maintainer of VMware virtual PTP clock driver (ptp_vmw)
 
 N: Ross Biro
 E: ross.biro@gmail.com
-D: Original author of the Linux networking code
+D: Original author of the GNU/Linux networking code
 
 N: Anton Blanchard
 E: anton@samba.org
@@ -430,7 +430,7 @@ S: Australia
 
 N: Philip Blundell
 E: philb@gnu.org
-D: Linux/ARM hacker
+D: GNU/Linux/ARM hacker
 D: Device driver hacker (eexpress, 3c505, c-qcam, ...)
 D: m68k port to HP9000/300
 D: AUN network protocols
@@ -444,8 +444,8 @@ N: Thomas Bogendörfer
 E: tsbogend@alpha.franken.de
 D: PCnet32 driver, SONIC driver, JAZZ_ESP driver
 D: newport abscon driver, g364 framebuffer driver
-D: strace for Linux/Alpha
-D: Linux/MIPS hacker
+D: strace for GNU/Linux/Alpha
+D: GNU/Linux/MIPS hacker
 S: Schafhofstr. 40
 S: 90556 Cadolzburg
 S: Germany
@@ -458,7 +458,7 @@ N: Axel Boldt
 E: axel@uni-paderborn.de
 W: http://math-www.uni-paderborn.de/~axel/
 D: Configuration help text support
-D: Linux CD and Support Giveaway List
+D: GNU/Linux CD and Support Giveaway List
 
 N: Erik Inge Bolsø
 E: knan@mo.himolde.no
@@ -511,7 +511,7 @@ S: Canada, T1W 2R9
 
 N: Ryan Bradetich
 E: rbradetich@uswest.net
-D: Linux/PA-RISC hacker
+D: GNU/Linux/PA-RISC hacker
 S: 1200 Goldenrod Dr.
 S: Nampa, Idaho 83686
 S: USA
@@ -549,7 +549,7 @@ S: Sweden
 
 N: Daniel Bristot de Oliveira
 D: Scheduler contributions, notably: SCHED_DEADLINE
-D: Real-time Linux Analysis
+D: Real-time GNU/Linux Analysis
 D: Runtime Verification
 D: OS Noise and Latency Tracers
 S: Brazil and Italy
@@ -572,7 +572,7 @@ S: Tuebingen, Germany
 
 N: Andries Brouwer
 E: aeb@cwi.nl
-D: random Linux hacker
+D: random GNU/Linux hacker
 S: Bessemerstraat 21
 S: Amsterdam
 S: The Netherlands
@@ -594,7 +594,7 @@ N: David Brownell
 D: Kernel engineer, mentor, and friend.  Maintained USB EHCI and
 D: gadget layers, SPI subsystem, GPIO subsystem, and more than a few
 D: device drivers.  His encouragement also helped many engineers get
-D: started working on the Linux kernel.  David passed away in early
+D: started working on the GNU/Linux kernel.  David passed away in early
 D: 2011, and will be greatly missed.
 W: https://lore.kernel.org/lkml/20110405034819.GA7872@kroah.com
 
@@ -632,7 +632,7 @@ S: The Netherlands
 
 N: Michael Callahan
 E: callahan@maths.ox.ac.uk
-D: PPP for Linux
+D: PPP for GNU/Linux
 S: The Mathematical Institute
 S: 25-29 St Giles
 S: Oxford
@@ -745,7 +745,7 @@ D: Author of HSI Subsystem
 
 N: Randolph Chung
 E: tausq@debian.org
-D: Linux/PA-RISC hacker
+D: GNU/Linux/PA-RISC hacker
 S: Hong Kong
 
 N: Juan Jose Ciarlante
@@ -829,13 +829,13 @@ D: TI OMAP HWMOD boards
 
 N: Alan Cox
 W: http://www.linux.org.uk/diary/
-D: Linux Networking (0.99.10->2.0.29)
+D: GNU/Linux Networking (0.99.10->2.0.29)
 D: Original Appletalk, AX.25, and IPX code
 D: 3c501 hacker
 D: Watchdog timer drivers
-D: Linux/SMP x86 (up to 2.0 only)
+D: GNU/Linux/SMP x86 (up to 2.0 only)
 D: Initial Mac68K port
-D: Video4Linux design, bw-qcam and PMS driver ports.
+D: Video4GNU/Linux design, bw-qcam and PMS driver ports.
 D: IDE modularisation work
 D: Z85230 driver
 D: Former security contact point (please use vendor-sec@lst.de)
@@ -886,7 +886,7 @@ N: Ray Dassen
 E: jdassen@wi.LeidenUniv.nl
 W: http://www.wi.leidenuniv.nl/~jdassen/
 P: 1024/672D05C1 DD 60 32 60 F7 90 64 80  E7 6F D4 E4 F8 C9 4A 58
-D: Debian GNU/Linux: www.debian.org maintainer, FAQ co-maintainer,
+D: Debian GNU/GNU/Linux: www.debian.org maintainer, FAQ co-maintainer,
 D: packages testing, nit-picking & fixing. Enjoying BugFree (TM) kernels.
 S: Zuidsingel 10A
 S: 2312 SB  Leiden
@@ -929,7 +929,7 @@ D: PWM fan driver
 N: Helge Deller
 E: deller@gmx.de
 W: http://www.parisc-linux.org/
-D: PA-RISC Linux architecture maintainer
+D: PA-RISC GNU/Linux architecture maintainer
 D: LASI-, ASP-, WAX-, LCD/LED-driver
 S: Germany
 
@@ -969,7 +969,7 @@ D: HTB qdisc and random networking hacks
 
 N: Alex deVries
 E: alex@onefishtwo.ca
-D: Various SGI parts, bits of HAL2 and Newport, PA-RISC Linux.
+D: Various SGI parts, bits of HAL2 and Newport, PA-RISC GNU/Linux.
 S: 41.5 William Street
 S: Ottawa, Ontario
 S: K1N 6Z9
@@ -992,7 +992,7 @@ N: Matt Domsch
 E: Matt_Domsch@dell.com
 W: https://www.dell.com/linux
 W: https://domsch.com/linux
-D: Linux/IA-64
+D: GNU/Linux/IA-64
 D: Dell PowerEdge server, SCSI layer, misc drivers, and other patches
 S: Dell Inc.
 S: One Dell Way
@@ -1026,7 +1026,7 @@ S: Haarlem, The Netherlands
 
 N: John G Dorsey
 E: john+@cs.cmu.edu
-D: ARM Linux ports to Assabet/Neponset, Spot
+D: ARM GNU/Linux ports to Assabet/Neponset, Spot
 S: Department of Electrical and Computer Engineering
 S: Carnegie Mellon University
 S: Pittsburgh, PA  15213
@@ -1034,8 +1034,8 @@ S: USA
 
 N: Eddie C. Dost
 E: ecd@skynet.be
-D: Linux/Sparc kernel hacker
-D: Linux/Sparc maintainer
+D: GNU/Linux/Sparc kernel hacker
+D: GNU/Linux/Sparc maintainer
 S: Rue de la Chapelle 51
 S: 4850 Moresnet
 S: Belgium
@@ -1062,7 +1062,7 @@ S: UKRAINE, 334320
 
 N: Walt Drummond
 E: drummond@valinux.com
-D: Linux/IA-64
+D: GNU/Linux/IA-64
 S: 1382 Bordeaux Drive
 S: Sunnyvale, CA 94087
 S: USA
@@ -1074,7 +1074,7 @@ S: Mougin, France
 
 N: Don Dugger
 E: n0ano@valinux.com
-D: Linux/IA-64
+D: GNU/Linux/IA-64
 S: 1209 Pearl Street, #12
 S: Boulder, CO 80302
 S: USA
@@ -1090,7 +1090,7 @@ S: USA
 N: Randy Dunlap
 E: rdunlap@infradead.org
 W: https://www.infradead.org/~rdunlap/
-D: Linux-USB subsystem, USB core/UHCI/printer/storage drivers
+D: GNU/Linux-USB subsystem, USB core/UHCI/printer/storage drivers
 D: x86 SMP, ACPI, bootflag hacking
 D: documentation, builds
 S: (ask for current address)
@@ -1115,7 +1115,7 @@ D: implemented kmod
 N: Torsten Duwe
 E: Torsten.Duwe@informatik.uni-erlangen.de
 D: Part-time kernel hacker
-D: The Linux Support Team Erlangen
+D: The GNU/Linux Support Team Erlangen
 S: Grevenbroicher Str. 17
 S: 47807 Krefeld
 S: Germany
@@ -1167,7 +1167,7 @@ S: Finland
 
 N: David Engebretsen
 E: engebret@us.ibm.com
-D: Linux port to 64-bit PowerPC architecture
+D: GNU/Linux port to 64-bit PowerPC architecture
 
 N: Michael Engel
 E: engel@unix-ag.org
@@ -1183,14 +1183,14 @@ S: USA
 
 N: Stephane Eranian
 E: eranian@hpl.hp.com
-D: Linux/ia64
+D: GNU/Linux/ia64
 S: 1501 Page Mill Rd, MS 1U17
 S: Palo Alto, CA 94304
 S: USA
 
 N: Johannes Erdfelt
 E: johannes@erdfelt.com
-D: Linux/IA-64 bootloader and kernel goop, USB
+D: GNU/Linux/IA-64 bootloader and kernel goop, USB
 S: 6350 Stoneridge Mall Road
 S: Pleasanton, CA 94588
 S: USA
@@ -1279,7 +1279,7 @@ S: USA
 
 N: Ralf Flaxa
 E: rfflaxa@immd4.informatik.uni-erlangen.de
-D: The Linux Support Team Erlangen
+D: The GNU/Linux Support Team Erlangen
 D: Creator of LST distribution
 D: Author of installation tool LISA
 S: Pfitznerweg 6
@@ -1295,7 +1295,7 @@ S: USA
 
 N: Karl Fogel
 E: kfogel@cs.oberlin.edu
-D: Contributor, Linux User's Guide
+D: Contributor, GNU/Linux User's Guide
 S: 1123 North Oak Park Avenue
 S: Oak Park, Illinois 60302
 S: USA
@@ -1616,7 +1616,7 @@ D: ATA-Disconnect, ATA-TCQ
 D: ATA-Smart Kernel Daemon
 D: Serial ATA
 D: ATA Command Block and Taskfile
-S: Linux ATA Development (LAD)
+S: GNU/Linux ATA Development (LAD)
 S: Concord, CA
 
 N: Jochen Hein
@@ -1624,8 +1624,8 @@ E: jochen@jochen.org
 P: 1024/4A27F015 25 72 FB E3 85 9F DE 3B  CB 0A DA DA 40 77 05 6C
 P: 1024D/77D4FC9B F5C5 1C20 1DFC DEC3 3107  54A4 2332 ADFC 77D4 FC9B
 D: National Language Support
-D: Linux Internationalization Project
-D: German Localization for Linux and GNU software
+D: GNU/Linux Internationalization Project
+D: German Localization for GNU/Linux and GNU software
 S: Auf der Fittel 18
 S: 53347 Alfter
 S: Germany
@@ -1669,8 +1669,8 @@ S: Germany
 
 N: Sebastian Hetze
 E: she@lunetix.de
-D: German Linux Documentation,
-D: Organization of German Linux Conferences
+D: German GNU/Linux Documentation,
+D: Organization of German GNU/Linux Conferences
 S: Danckelmannstr. 48
 S: 14059 Berlin
 S: Germany
@@ -1744,7 +1744,7 @@ N: Nick Holloway
 E: Nick.Holloway@pyrites.org.uk
 W: https://www.pyrites.org.uk/
 P: 1024/36115A04 F4E1 3384 FCFD C055 15D6  BA4C AB03 FBF8 3611 5A04
-D: Occasional Linux hacker...
+D: Occasional GNU/Linux hacker...
 S: (ask for current address)
 S: United Kingdom
 
@@ -1763,7 +1763,7 @@ S: USA
 N: Marcel Holtmann
 E: marcel@holtmann.org
 W: http://www.holtmann.org
-D: Maintainer of the Linux Bluetooth Subsystem
+D: Maintainer of the GNU/Linux Bluetooth Subsystem
 D: Author and maintainer of the various Bluetooth HCI drivers
 D: Author and maintainer of the CAPI message transport protocol driver
 D: Author and maintainer of the Bluetooth HID protocol driver
@@ -1852,7 +1852,7 @@ D: "Hexium Orion", "Hexium Gemini"
 
 N: Miguel de Icaza Amozurrutia
 E: miguel@nuclecu.unam.mx
-D: Linux/SPARC team, Midnight Commander maintainer
+D: GNU/Linux/SPARC team, Midnight Commander maintainer
 S: Avenida Copilco 162, 22-1003
 S: Mexico, DF
 S: Mexico
@@ -1916,8 +1916,8 @@ N: Michael Kerrisk
 E: mtk.manpages@gmail.com
 W: https://man7.org/
 P: 4096R/3A35CE5E E522 595B 52ED A4E6 BFCC  CB5E 8561 9911 3A35 CE5E
-D: Maintainer of the Linux man-pages project
-D: Linux man pages online, at <https://man7.org/linux/man-pages/>
+D: Maintainer of the GNU/Linux man-pages project
+D: GNU/Linux man pages online, at <https://man7.org/linux/man-pages/>
 
 N: Niels Kristian Bech Jensen
 E: nkbj1970@hotmail.com
@@ -1927,7 +1927,7 @@ N: Michael K. Johnson
 E: johnsonm@redhat.com
 W: http://www.redhat.com/~johnsonm
 P: 1024/4536A8DD 2A EC 88 08 40 64 CE D8  DD F8 12 2B 61 43 83 15
-D: The Linux Documentation Project
+D: The GNU/Linux Documentation Project
 D: Kernel Hackers' Guide
 D: Procps
 D: Proc filesystem
@@ -2093,14 +2093,14 @@ D: Samsung PMIC (RTC, regulators, MFD) drivers
 
 N: Russell King
 E: rmk@arm.linux.org.uk
-D: Linux/arm integrator, maintainer & hacker
+D: GNU/Linux/arm integrator, maintainer & hacker
 D: Acornfb, Cyber2000fb author
 S: Burgh Heath, Tadworth, Surrey.
 S: England
 
 N: Olaf Kirch
 E: okir@monad.swb.de
-D: Author of the Linux Network Administrators' Guide
+D: Author of the GNU/Linux Network Administrators' Guide
 S: Kattreinstr 38
 S: D-64295
 S: Germany
@@ -2169,7 +2169,7 @@ S: Germany
 
 N: Rudolf Koenig
 E: rfkoenig@immd4.informatik.uni-erlangen.de
-D: The Linux Support Team Erlangen
+D: The GNU/Linux Support Team Erlangen
 
 N: Andreas Koensgen
 E: ajk@comnets.uni-bremen.de
@@ -2177,7 +2177,7 @@ D: 6pack driver for AX.25
 
 N: Harald Koerfgen
 E: hkoerfg@web.de
-D: Linux/MIPS kernel hacks and fixes,
+D: GNU/Linux/MIPS kernel hacks and fixes,
 D: DECstation port, Sharp Mobilon port
 S: D-50931 Koeln
 S: Germany
@@ -2226,7 +2226,7 @@ E: maxk@qualcomm.com
 W: http://vtun.sf.net
 W: http://bluez.sf.net
 D: Author of the Universal TUN/TAP driver
-D: Author of the Linux Bluetooth Subsystem (BlueZ)
+D: Author of the GNU/Linux Bluetooth Subsystem (BlueZ)
 D: Various other kernel patches, cleanups and fixes
 S: 2213 La Terrace Circle
 S: San Jose, CA 95123
@@ -2250,7 +2250,7 @@ D: USB I/O Edgeport driver, USB Serial IrDA driver
 D: USB Bluetooth driver, USB Skeleton driver
 D: bits and pieces of USB core code.
 D: PCI Hotplug core, PCI Hotplug Compaq driver modifications
-D: portions of the Linux Security Module (LSM) framework
+D: portions of the GNU/Linux Security Module (LSM) framework
 D: parts of the driver core, debugfs.
 
 N: Russell Kroll
@@ -2392,7 +2392,7 @@ S: Australia
 
 N: Hans Lermen
 E: lermen@elserv.ffm.fgan.de
-D: Author of the LOADLIN Linux loader, hacking on boot stuff
+D: Author of the LOADLIN GNU/Linux loader, hacking on boot stuff
 D: Coordinator of DOSEMU releases
 S: Am Muehlenweg 38
 S: D53424 Remagen
@@ -2481,7 +2481,7 @@ S: Canada K2H 6S3
 
 N: Warner Losh
 E: imp@village.org
-D: Linux/MIPS Deskstation support, Provided OI/OB for Linux
+D: GNU/Linux/MIPS Deskstation support, Provided OI/OB for GNU/Linux
 S: 8786 Niwot Road
 S: Niwot, Colorado 80503
 S: USA
@@ -2533,7 +2533,7 @@ D: dv1394
 
 N: Hamish Macdonald
 E: hamishm@lucent.com
-D: Linux/68k port
+D: GNU/Linux/68k port
 S: 32 Clydesdale Avenue
 S: Kanata, Ontario
 S: Canada K2M-2G7
@@ -2556,8 +2556,8 @@ D: SLOB slab allocator
 N: Paul Mackerras
 E: paulus@samba.org
 D: PPP driver
-D: Linux for PowerPC
-D: Linux port for PCI Power Macintosh
+D: GNU/Linux for PowerPC
+D: GNU/Linux port for PCI Power Macintosh
 
 N: Pat Mackinlay
 E: pat@it.com.au
@@ -2582,7 +2582,7 @@ D: SCSI Tape Driver
 
 N: Asit Mallick
 E: asit.k.mallick@intel.com
-D: Linux/IA-64
+D: GNU/Linux/IA-64
 S: 2200 Mission College Blvd
 S: Santa Clara, CA 95052
 S: USA
@@ -2717,7 +2717,7 @@ S: USA
 
 N: Kyle McMartin
 E: kyle@mcmartin.ca
-D: Linux/PARISC hacker
+D: GNU/Linux/PARISC hacker
 D: AD1889 sound driver
 S: Ottawa, Canada
 
@@ -2787,7 +2787,7 @@ N: Pauline Middelink
 E: middelin@polyware.nl
 D: General low-level bug fixes, /proc fixes, identd support
 D: Author of IP masquerading
-D: Zoran ZR36120 Video For Linux driver
+D: Zoran ZR36120 Video For GNU/Linux driver
 S: Boterkorfhoek 34
 S: 7546 JA  Enschede
 S: Netherlands
@@ -2795,8 +2795,8 @@ S: Netherlands
 N: David S. Miller
 E: davem@davemloft.net
 D: Sparc and blue box hacker
-D: Vger Linux mailing list co-maintainer
-D: Linux Emacs elf/qmagic support + other libc/gcc things
+D: Vger GNU/Linux mailing list co-maintainer
+D: GNU/Linux Emacs elf/qmagic support + other libc/gcc things
 D: Yee bore de yee bore! ;-)
 S: 575 Harrison St. #103
 S: San Francisco, CA 94105
@@ -2805,7 +2805,7 @@ S: USA
 N: Rick Miller
 E: rdmiller@execpc.com
 W: http://www.execpc.com/~rdmiller/
-D: Original Linux Device Registrar (Major/minor numbers)
+D: Original GNU/Linux Device Registrar (Major/minor numbers)
 D: au-play, bwBASIC
 S: S78 W16203 Woods Road
 S: Muskego, Wisconsin 53150
@@ -2813,8 +2813,8 @@ S: USA
 
 N: Harald Milz
 E: hm@seneca.linux.de
-D: Linux Projects Map, Linux Commercial-HOWTO
-D: general Linux publicity in Germany, vacation port
+D: GNU/Linux Projects Map, GNU/Linux Commercial-HOWTO
+D: general GNU/Linux publicity in Germany, vacation port
 D: UUCP and CNEWS binary packages for LST
 S: Editorial Board iX Mag
 S: Helstorfer Str. 7
@@ -2872,12 +2872,12 @@ D: bug fixes, documentation, minor hackery
 N: Paul Moore
 E: paul@paul-moore.com
 W: https://www.paul-moore.com
-D: NetLabel, SELinux, audit
+D: NetLabel, SEGNU/Linux, audit
 
 N: James Morris
 E: jmorris@namei.org
 W: http://namei.org/
-D: Netfilter, Linux Security Modules (LSM), SELinux, IPSec,
+D: Netfilter, GNU/Linux Security Modules (LSM), SEGNU/Linux, IPSec,
 D: Crypto API, general networking, miscellaneous.
 S: PO Box 707
 S: Spit Junction NSW 2088
@@ -2885,7 +2885,7 @@ S: Australia
 
 N: David Mosberger-Tang
 E: davidm@hpl.hp.com if IA-64 related, else David.Mosberger@acm.org
-D: Linux/Alpha and Linux/ia64
+D: GNU/Linux/Alpha and GNU/Linux/ia64
 S: 35706 Runckel Lane
 S: Fremont, California 94536
 S: USA
@@ -3019,7 +3019,7 @@ N: David C. Niemi
 E: niemi@tux.org
 W: http://www.tux.org/~niemi/
 D: Assistant maintainer of Mtools, fdutils, and floppy driver
-D: Administrator of Tux.Org Linux Server, https://www.tux.org
+D: Administrator of Tux.Org GNU/Linux Server, https://www.tux.org
 S: 2364 Old Trail Drive
 S: Reston, Virginia 20191
 S: USA
@@ -3205,7 +3205,7 @@ P: 1024/B42868C1 D9 59 B9 98 BB 93 05 38  2E 3E 31 79 C3 65 5D E1
 D: Driver for Laser Magnetic Storage CD-ROM
 D: Some kernel bug fixes
 D: Port of the database Postgres
-D: Book: "Linux verstehen und anwenden" (Hanser-Verlag)
+D: Book: "GNU/Linux verstehen und anwenden" (Hanser-Verlag)
 S: Triftstra=DFe 55
 S: 13353 Berlin
 S: Germany
@@ -3219,7 +3219,7 @@ D: Synopsys DesignWare xData traffic generator
 N: Emanuel Pirker
 E: epirker@edu.uni-klu.ac.at
 D: AIC5800 IEEE 1394, RAW I/O on 1394
-D: Starter of Linux1394 effort
+D: Starter of GNU/Linux1394 effort
 S: ask per mail for current address
 
 N: Boris Pismenny
@@ -3250,7 +3250,7 @@ S: Paimpont, France
 
 N: Pete Popov
 E: pete_popov@yahoo.com
-D: Linux/MIPS AMD/Alchemy Port and mips hacking and debugging
+D: GNU/Linux/MIPS AMD/Alchemy Port and mips hacking and debugging
 S: San Jose, CA 95134
 S: USA
 
@@ -3276,7 +3276,7 @@ D: Bridge co-maintainer, vxlan and networking contributor
 
 N: Stefan Probst
 E: sp@caldera.de
-D: The Linux Support Team Erlangen, 1993-97
+D: The GNU/Linux Support Team Erlangen, 1993-97
 S: Caldera (Deutschland) GmbH
 S: Lazarettstrasse 8
 S: 91054 Erlangen
@@ -3301,7 +3301,7 @@ N: Daniel Quinlan
 E: quinlan@pathname.com
 W: https://www.pathname.com/~quinlan/
 D: FSSTND coordinator; FHS editor
-D: random Linux documentation, patches, and hacks
+D: random GNU/Linux documentation, patches, and hacks
 S: 4390 Albany Drive #41A
 S: San Jose, California 95129
 S: USA
@@ -3327,7 +3327,7 @@ S: Brazil
 
 N: Goutham Rao
 E: goutham.rao@intel.com
-D: Linux/IA-64
+D: GNU/Linux/IA-64
 S: 2200 Mission College Blvd
 S: Santa Clara, CA 95052
 S: USA
@@ -3362,7 +3362,7 @@ D: DCCP protocol support.
 N: Thomas Renninger
 E: trenn@suse.de
 D: cpupowerutils
-S: SUSE Linux GmbH
+S: SUSE GNU/Linux GmbH
 S: Germany
 
 N: Joerg Reuter
@@ -3399,7 +3399,7 @@ S: France
 N: Rik van Riel
 E: riel@redhat.com
 W: https://www.surriel.com/
-D: Linux-MM site, Documentation/admin-guide/sysctl/*, swap/mm readaround
+D: GNU/Linux-MM site, Documentation/admin-guide/sysctl/*, swap/mm readaround
 D: kswapd fixes, random kernel hacker, rmap VM,
 D: nl.linux.org administrator, minor scheduler additions
 S: Red Hat Boston
@@ -3560,7 +3560,7 @@ D: Firmware loader (request_firmware)
 N: Wayne Salamon
 E: wsalamon@tislabs.com
 E: wsalamon@nai.com
-D: portions of the Linux Security Module (LSM) framework and security modules
+D: portions of the GNU/Linux Security Module (LSM) framework and security modules
 
 N: Robert Sanders
 E: gt8134b@prism.gatech.edu
@@ -3628,9 +3628,9 @@ S: Belgium
 N: Martin Schulze
 E: joey@linux.de
 W: http://home.pages.de/~joey/
-D: Random Linux Hacker, Linux Promoter
+D: Random GNU/Linux Hacker, GNU/Linux Promoter
 D: CD-List, Books-List, Ex-FAQ
-D: Linux-Support, -Mailbox, -Stammtisch
+D: GNU/Linux-Support, -Mailbox, -Stammtisch
 D: several improvements to system programs
 S: Oldenburg
 S: Germany
@@ -3639,7 +3639,7 @@ N: Robert Schwebel
 E: robert@schwebel.de
 W: https://www.schwebel.de
 D: Embedded hacker and book author,
-D: AMD Elan support for Linux
+D: AMD Elan support for GNU/Linux
 S: Pengutronix
 S: Braunschweiger Strasse 79
 S: 31134 Hildesheim
@@ -3647,7 +3647,7 @@ S: Germany
 
 N: Martin Schwidefsky
 D: Martin was the most significant contributor to the initial s390
-D: port of the Linux Kernel and later the maintainer of the s390
+D: port of the GNU/Linux Kernel and later the maintainer of the s390
 D: architecture backend for almost two decades.
 D: He passed away in 2019, and will be greatly missed.
 S: Germany
@@ -3734,7 +3734,7 @@ S: Canada
 
 N: Haavard Skinnemoen
 M: Haavard Skinnemoen <hskinnemoen@gmail.com>
-D: AVR32 architecture port to Linux and maintainer.
+D: AVR32 architecture port to GNU/Linux and maintainer.
 
 N: Rick Sladkey
 E: jrs@world.std.com
@@ -3756,7 +3756,7 @@ S: Australia
 
 N: Stephen Smalley
 E: sds@tycho.nsa.gov
-D: portions of the Linux Security Module (LSM) framework and security modules
+D: portions of the GNU/Linux Security Module (LSM) framework and security modules
 
 N: Chris Smith
 E: csmith@convex.com
@@ -3823,7 +3823,7 @@ E: storner@image.dk
 W: http://www.image.dk/~storner/
 W: https://www.sslug.dk/
 D: Configure script: Invented tristate for module-configuration
-D: vfat/msdos integration, kerneld docs, Linux promotion
+D: vfat/msdos integration, kerneld docs, GNU/Linux promotion
 D: Miscellaneous bug-fixes
 S: Chr. Winthersvej 1 B, st.th.
 S: DK-1860 Frederiksberg C
@@ -3958,10 +3958,10 @@ D: kernel tinification
 N: Winfried Trümper
 E: winni@xpilot.org
 W: http://www.shop.de/~winni/
-D: German HOWTO, Crash-Kurs Linux (German, 100 comprehensive pages)
+D: German HOWTO, Crash-Kurs GNU/Linux (German, 100 comprehensive pages)
 D: CD-Writing HOWTO, various mini-HOWTOs
-D: One-week tutorials on Linux twice a year (free of charge)
-D: Linux-Workshop Köln (aka LUG Cologne, Germany), Installfests
+D: One-week tutorials on GNU/Linux twice a year (free of charge)
+D: GNU/Linux-Workshop Köln (aka LUG Cologne, Germany), Installfests
 S: Tacitusstr. 6
 S: D-50968 Köln
 
@@ -3978,7 +3978,7 @@ S: USA
 
 N: Theodore Ts'o
 E: tytso@mit.edu
-D: Random Linux hacker
+D: Random GNU/Linux hacker
 D: Maintainer of tsx-11.mit.edu ftp archive
 D: Maintainer of c.o.l.* Usenet<->mail gateway
 D: Author of serial driver
@@ -4017,8 +4017,8 @@ S: United Kingdom
 N: Thomas Uhl
 E: uhl@sun1.rz.fh-heilbronn.de
 D: Application programmer
-D: Linux promoter
-D: Author of a German book on Linux
+D: GNU/Linux promoter
+D: Author of a German book on GNU/Linux
 S: Obere Heerbergstrasse 17
 S: 97078 Wuerzburg
 S: Germany
@@ -4041,7 +4041,7 @@ N: Jeffrey A. Uphoff
 E: juphoff@transmeta.com
 E: jeff.uphoff@linux.org
 P: 1024/9ED505C5 D7 BB CA AA 10 45 40 1B  16 19 0A C0 38 A0 3E CB
-D: Linux Security/Alert mailing lists' moderator/maintainer.
+D: GNU/Linux Security/Alert mailing lists' moderator/maintainer.
 D: NSM (rpc.statd) developer.
 D: PAM S/Key module developer.
 D: 'dip' contributor.
@@ -4056,7 +4056,7 @@ E: smurf@smurf.noris.de
 E: smurf@debian.org
 E: matthias@urlichs.de
 D: Consultant, developer, kernel hacker
-D: In a previous life, worked on Streams/ISDN/BSD networking code for Linux
+D: In a previous life, worked on Streams/ISDN/BSD networking code for GNU/Linux
 S: Schleiermacherstrasse 12
 S: 90491 Nuernberg
 S: Germany
@@ -4080,7 +4080,7 @@ S: Belgium
 N: Chris Vance
 E: cvance@tislabs.com
 E: cvance@nai.com
-D: portions of the Linux Security Module (LSM) framework and security modules
+D: portions of the GNU/Linux Security Module (LSM) framework and security modules
 
 N: Petr Vandrovec
 E: petr@vandrovec.name
@@ -4116,8 +4116,8 @@ D: Turtle Beach MultiSound sound driver
 S: USA
 
 N: Dirk Verworner
-D: Co-author of German book ``Linux-Kernel-Programmierung''
-D: Co-founder of Berlin Linux User Group
+D: Co-author of German book ``GNU/Linux-Kernel-Programmierung''
+D: Co-founder of Berlin GNU/Linux User Group
 
 N: Andrew Victor
 E: linux@maxim.org.za
@@ -4186,7 +4186,7 @@ S: United Kingdom
 
 N: Juergen Weigert
 E: jnweiger@immd4.informatik.uni-erlangen.de
-D: The Linux Support Team Erlangen
+D: The GNU/Linux Support Team Erlangen
 
 N: David Weinehall
 E: tao@acc.umu.se
@@ -4204,10 +4204,10 @@ D: VME subsystem maintainer
 N: Matt Welsh
 E: mdw@metalab.unc.edu
 W: http://www.cs.berkeley.edu/~mdw
-D: Original Linux Documentation Project coordinator
-D: Author, "Running Linux" (O'Reilly)
-D: Author, "Linux Installation and Getting Started" (LDP) and several HOWTOs
-D: Linuxdoc-SGML formatting system (now SGML-Tools)
+D: Original GNU/Linux Documentation Project coordinator
+D: Author, "Running GNU/Linux" (O'Reilly)
+D: Author, "GNU/Linux Installation and Getting Started" (LDP) and several HOWTOs
+D: GNU/Linuxdoc-SGML formatting system (now SGML-Tools)
 D: Device drivers for various high-speed network interfaces (Myrinet, ATM)
 D: Keithley DAS1200 device driver
 D: Original maintainer of sunsite WWW and FTP sites
@@ -4250,7 +4250,7 @@ D: Filesystem valid flag for MINIX filesystem.
 D: Minor kernel debugging.
 D: Development and maintenance of sysklogd.
 D: Monitoring of development kernels for long-term stability.
-D: Early implementations of Linux in a commercial environment.
+D: Early implementations of GNU/Linux in a commercial environment.
 S: Dr. Greg Wettstein, Ph.D.
 S: Oncology Research Division Computing Facility
 S: Roger Maris Cancer Center
@@ -4261,7 +4261,7 @@ S: USA
 N: Steven Whitehouse
 E: steve@chygwyn.com
 W: http://www.chygwyn.com/~steve
-D: Linux DECnet project
+D: GNU/Linux DECnet project
 D: Minor debugging of other networking protocols.
 D: Misc bug fixes and GFS2 filesystem development
 
@@ -4286,7 +4286,7 @@ S: The Netherlands
 N: Matthew Wilcox
 E: matthew@wil.cx
 W: ftp://ftp.uk.linux.org/pub/linux/people/willy/
-D: Linux/PARISC hacker.  Filesystem hacker.  Random other hacking.  Custom
+D: GNU/Linux/PARISC hacker.  Filesystem hacker.  Random other hacking.  Custom
 D: PPC port hacking.
 
 N: G\"unter Windau
@@ -4300,7 +4300,7 @@ S: The Netherlands
 N: Ulrich Windl
 E: Ulrich.Windl@rz.uni-regensburg.de
 P: 1024/E843660D CF D7 43 A1 5A 49 14 25  7C 04 A0 6E 4C 3A AC 6D
-D: Supports NTP on Linux.  Added PPS code.  Fixed bugs in adjtimex().
+D: Supports NTP on GNU/Linux.  Added PPS code.  Fixed bugs in adjtimex().
 S: Alte Regensburger Str. 11a
 S: 93149 Nittenau
 S: Germany
@@ -4314,12 +4314,12 @@ S: The Netherlands
 
 N: Lars Wirzenius
 E: liw@iki.fi
-D: Linux System Administrator's Guide, author, former maintainer
+D: GNU/Linux System Administrator's Guide, author, former maintainer
 D: comp.os.linux.announce, former moderator
-D: Linux Documentation Project, co-founder
+D: GNU/Linux Documentation Project, co-founder
 D: Original sprintf in kernel
 D: Original kernel README (for version 0.97)
-D: Linux News (electronic magazine, now dead), founder and former editor
+D: GNU/Linux News (electronic magazine, now dead), founder and former editor
 D: Meta-FAQ, originator, former maintainer
 D: INFO-SHEET, former maintainer
 D: Author of the longest-living linux bug
@@ -4409,7 +4409,7 @@ D: Kernel TLS implementation and offload support.
 
 N: Victor Yodaiken
 E: yodaiken@fsmlabs.com
-D: RTLinux (RealTime Linux)
+D: RTGNU/Linux (RealTime GNU/Linux)
 S: POB 1822
 S: Socorro NM, 87801
 S: USA
@@ -4495,7 +4495,7 @@ E: zippel@linux-m68k.org
 D: AFFS and HFS filesystems, m68k maintainer, new kernel configuration in 2.5
 
 N: Leonard N. Zubkoff
-W: http://www.dandelion.com/Linux/
+W: http://www.dandelion.com/GNU/Linux/
 D: BusLogic SCSI driver
 D: Mylex DAC960 PCI RAID driver
 D: Miscellaneous kernel fixes

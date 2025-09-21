@@ -1274,7 +1274,7 @@ void *nfp_cpp_priv(struct nfp_cpp *cpp)
 }
 
 /**
- * nfp_cpp_device() - Get the Linux device handle of a CPP handle
+ * nfp_cpp_device() - Get the GNU/Linux device handle of a CPP handle
  * @cpp:	CPP handle
  *
  * Return: Device for the NFP CPP bus

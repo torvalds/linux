@@ -2,7 +2,7 @@
 /*
  * Hexagon VM page table entry definitions
  *
- * Copyright (c) 2010-2011,2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011,2013 The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _ASM_VM_MMU_H

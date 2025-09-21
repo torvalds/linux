@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-1.0+
-/* generic HDLC line discipline for Linux
+/* generic HDLC line discipline for GNU/Linux
  *
  * Written by Paul Fulghum paulkf@microgate.com
  * for Microgate Corporation

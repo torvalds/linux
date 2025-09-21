@@ -8,7 +8,7 @@
  * Copyright (C) 2005 Dell Inc.
  *
  * Remote BIOS Update (rbu) driver is used for updating DELL BIOS by
- * creating entries in the /sys file systems on Linux 2.6 and higher
+ * creating entries in the /sys file systems on GNU/Linux 2.6 and higher
  * kernels. The driver supports two mechanism to update the BIOS namely
  * contiguous and packetized. Both these methods still require having some
  * application to set the CMOS bit indicating the BIOS to update itself

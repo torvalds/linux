@@ -20,15 +20,15 @@ software-defined networks (such as OpenVSwitch) to these NICs to specify the
 network connectivity of each function.  The resulting designs are variously
 called SmartNICs or DPUs.
 
-Network function representors bring the standard Linux networking stack to
-virtual switches and IOV devices.  Just as each physical port of a Linux-
+Network function representors bring the standard GNU/Linux networking stack to
+virtual switches and IOV devices.  Just as each physical port of a GNU/Linux-
 controlled switch has a separate netdev, so does each virtual port of a virtual
 switch.
 When the system boots, and before any offload is configured, all packets from
 the virtual functions appear in the networking stack of the PF via the
 representors.  The PF can thus always communicate freely with the virtual
 functions.
-The PF can configure standard Linux forwarding between representors, the uplink
+The PF can configure standard GNU/Linux forwarding between representors, the uplink
 or any other netdev (routing, bridging, TC classifiers).
 
 Thus, a representor is both a control plane object (representing the function in
@@ -72,7 +72,7 @@ A representor has three main roles.
    be received on the representor netdevice.  (That is, there is a virtual pipe
    connecting the representor to the representee, similar in concept to a veth
    pair.)
-   This allows software switch implementations (such as OpenVSwitch or a Linux
+   This allows software switch implementations (such as OpenVSwitch or a GNU/Linux
    bridge) to forward packets between representees and the rest of the network.
 3. It acts as a handle by which switching rules (such as TC filters) can refer
    to the representee, allowing these rules to be offloaded.

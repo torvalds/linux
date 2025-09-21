@@ -2084,7 +2084,7 @@ static int dualshock4_led_set_brightness(struct led_classdev *led, enum led_brig
 	case 3:
 		ds4->lightbar_enabled = !!value;
 
-		/* brightness = 0 also cancels blinking in Linux. */
+		/* brightness = 0 also cancels blinking in GNU/Linux. */
 		if (!ds4->lightbar_enabled) {
 			ds4->lightbar_blink_off = 0;
 			ds4->lightbar_blink_on = 0;

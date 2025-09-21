@@ -11,7 +11,7 @@ interfaces, but have similar sorts of communication needs. The two big
 examples for this are power devices (especially uninterruptible power
 supplies) and monitor control on higher end monitors.
 
-To support these disparate requirements, the Linux USB system provides
+To support these disparate requirements, the GNU/Linux USB system provides
 HID events to two separate interfaces:
 * the input subsystem, which converts HID events into normal input
 device interfaces (such as keyboard, mouse and joystick) and a

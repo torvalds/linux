@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * smsc47b397.c - Part of lm_sensors, Linux kernel modules
+ * smsc47b397.c - Part of lm_sensors, GNU/Linux kernel modules
  * for hardware monitoring
  *
  * Supports the SMSC LPC47B397-NC Super-I/O chip.

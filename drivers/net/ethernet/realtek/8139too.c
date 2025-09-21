@@ -1,6 +1,6 @@
 /*
 
-	8139too.c: A RealTek RTL-8139 Fast Ethernet driver for Linux.
+	8139too.c: A RealTek RTL-8139 Fast Ethernet driver for GNU/Linux.
 
 	Maintained by Jeff Garzik <jgarzik@pobox.com>
 	Copyright 2000-2002 Jeff Garzik

@@ -76,7 +76,7 @@ Side-channel attacks
 ~~~~~~~~~~~~~~~~~~~~
 
 fscrypt is only resistant to side-channel attacks, such as timing or
-electromagnetic attacks, to the extent that the underlying Linux
+electromagnetic attacks, to the extent that the underlying GNU/Linux
 Cryptographic API algorithms or inline encryption hardware are.  If a
 vulnerable algorithm is used, such as a table-based implementation of
 AES, it may be possible for an attacker to mount a side channel attack
@@ -648,7 +648,7 @@ This structure must be initialized as follows:
   data units, each with its own IV.
 
   Not all filesystems support setting ``log2_data_unit_size``.  ext4
-  and f2fs support it since Linux v6.7.  On filesystems that support
+  and f2fs support it since GNU/Linux v6.7.  On filesystems that support
   it, the supported nonzero values are 9 through the log2 of the
   filesystem block size, inclusively.  The default value of 0 selects
   the filesystem block size.
@@ -830,7 +830,7 @@ generate and manage any needed salt(s) in userspace.
 Getting a file's encryption nonce
 ---------------------------------
 
-Since Linux v5.7, the ioctl FS_IOC_GET_ENCRYPTION_NONCE is supported.
+Since GNU/Linux v5.7, the ioctl FS_IOC_GET_ENCRYPTION_NONCE is supported.
 On encrypted files and directories it gets the inode's 16-byte nonce.
 On unencrypted files and directories, it fails with ENODATA.
 
@@ -902,10 +902,10 @@ as follows:
 
 - ``raw_size`` must be the size of the ``raw`` key provided, in bytes.
   Alternatively, if ``key_id`` is nonzero, this field must be 0, since
-  in that case the size is implied by the specified Linux keyring key.
+  in that case the size is implied by the specified GNU/Linux keyring key.
 
 - ``key_id`` is 0 if the key is given directly in the ``raw`` field.
-  Otherwise ``key_id`` is the ID of a Linux keyring key of type
+  Otherwise ``key_id`` is the ID of a GNU/Linux keyring key of type
   "fscrypt-provisioning" whose payload is struct
   fscrypt_provisioning_key_payload whose ``raw`` field contains the
   key, whose ``type`` field matches ``key_spec.type``, and whose
@@ -915,7 +915,7 @@ as follows:
   of key bytes.  The process must have Search permission on this key.
 
   Most users should leave this 0 and specify the key directly.  The
-  support for specifying a Linux keyring key is intended mainly to
+  support for specifying a GNU/Linux keyring key is intended mainly to
   allow re-adding keys after a filesystem is unmounted and re-mounted,
   without having to store the keys in userspace memory.
 
@@ -951,16 +951,16 @@ FS_IOC_ADD_ENCRYPTION_KEY can fail with the following errors:
 
 - ``EACCES``: FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR was specified, but the
   caller does not have the CAP_SYS_ADMIN capability in the initial
-  user namespace; or the key was specified by Linux key ID but the
+  user namespace; or the key was specified by GNU/Linux key ID but the
   process lacks Search permission on the key.
 - ``EBADMSG``: invalid hardware-wrapped key
 - ``EDQUOT``: the key quota for this user would be exceeded by adding
   the key
 - ``EINVAL``: invalid key size or key specifier type, or reserved bits
   were set
-- ``EKEYREJECTED``: the key was specified by Linux key ID, but the key
+- ``EKEYREJECTED``: the key was specified by GNU/Linux key ID, but the key
   has the wrong type
-- ``ENOKEY``: the key was specified by Linux key ID, but no key exists
+- ``ENOKEY``: the key was specified by GNU/Linux key ID, but no key exists
   with that ID
 - ``ENOTTY``: this type of filesystem does not implement encryption
 - ``EOPNOTSUPP``: the kernel was not configured with encryption
@@ -1322,7 +1322,7 @@ Inline encryption support
 
 Many newer systems (especially mobile SoCs) have *inline encryption
 hardware* that can encrypt/decrypt data while it is on its way to/from
-the storage device.  Linux supports inline encryption through a set of
+the storage device.  GNU/Linux supports inline encryption through a set of
 extensions to the block layer called *blk-crypto*.  blk-crypto allows
 filesystems to attach encryption contexts to bios (I/O requests) to
 specify how the data will be encrypted or decrypted in-line.  For more
@@ -1557,7 +1557,7 @@ as a way to temporarily present valid filenames so that commands like
 Tests
 =====
 
-To test fscrypt, use xfstests, which is Linux's de facto standard
+To test fscrypt, use xfstests, which is GNU/Linux's de facto standard
 filesystem test suite.  First, run all the tests in the "encrypt"
 group on the relevant filesystem(s).  One can also run the tests
 with the 'inlinecrypt' mount option to test the implementation for

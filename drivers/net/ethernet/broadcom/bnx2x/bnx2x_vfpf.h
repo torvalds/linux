@@ -125,7 +125,7 @@ struct vfpf_acquire_tlv {
 	struct vf_pf_vfdev_info {
 		/* the following fields are for debug purposes */
 		u8  vf_id;		/* ME register value */
-		u8  vf_os;		/* e.g. Linux, W2K8 */
+		u8  vf_os;		/* e.g. GNU/Linux, W2K8 */
 #define VF_OS_SUBVERSION_MASK	(0x1f)
 #define VF_OS_MASK		(0xe0)
 #define VF_OS_SHIFT		(5)
@@ -264,7 +264,7 @@ struct vfpf_setup_q_tlv {
 		u16 tpa_agg_sz;
 		u8 max_sge_pkt;
 
-		u8 drop_flags;		/* VFPF_QUEUE_DROP_X, for Linux VMs
+		u8 drop_flags;		/* VFPF_QUEUE_DROP_X, for GNU/Linux VMs
 					 * all the flags are turned off
 					 */
 

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===================================
-File management in the Linux kernel
+File management in the GNU/Linux kernel
 ===================================
 
 This document describes how locking for files (struct file)

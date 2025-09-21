@@ -1,17 +1,17 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===========================
-The Linux/x86 Boot Protocol
+The GNU/Linux/x86 Boot Protocol
 ===========================
 
-On the x86 platform, the Linux kernel uses a rather complicated boot
+On the x86 platform, the GNU/Linux kernel uses a rather complicated boot
 convention.  This has evolved partially due to historical aspects, as
 well as the desire in the early days to have the kernel itself be a
 bootable image, the complicated PC memory model and due to changed
 expectations in the PC industry caused by the effective demise of
 real-mode DOS as a mainstream operating system.
 
-Currently, the following versions of the Linux/x86 boot protocol exist.
+Currently, the following versions of the GNU/Linux/x86 boot protocol exist.
 
 =============	============================================================
 Old kernels	zImage/Image support only.  Some very early kernels
@@ -82,7 +82,7 @@ Protocol 2.15	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
      is changed. There is no need to update the version number if boot_params
      or kernel_info are changed. Additionally, it is recommended to use
      xloadflags (in this case the protocol version number should not be
-     updated either) or kernel_info to communicate supported Linux kernel
+     updated either) or kernel_info to communicate supported GNU/Linux kernel
      features to the boot loader. Due to very limited space available in
      the original setup header every update to it should be considered
      with great care. Starting from the protocol 2.15 the primary way to
@@ -175,7 +175,7 @@ In the following text, and anywhere in the kernel boot sequence, "a
 sector" refers to 512 bytes.  It is independent of the actual sector
 size of the underlying medium.
 
-The first step in loading a Linux kernel should be to load the
+The first step in loading a GNU/Linux kernel should be to load the
 real-mode code (boot sector and setup code) and then examine the
 following header at offset 0x01f1.  The real-mode code can total up to
 32K, although the boot loader may choose to load only the first two
@@ -335,7 +335,7 @@ Offset/size:	0x1fe/2
 Protocol:	ALL
 ============	=========
 
-  Contains 0xAA55.  This is the closest thing old Linux kernels have
+  Contains 0xAA55.  This is the closest thing old GNU/Linux kernels have
   to a magic number.
 
 ============	=======
@@ -452,7 +452,7 @@ Protocol:	2.00+
 	E  Extended (see ext_loader_type)
 	F  Special (0xFF = undefined)
 	10 Reserved
-	11 Minimal Linux Bootloader
+	11 Minimal GNU/Linux Bootloader
 	   <http://sebastian-plotz.blogspot.de>
 	12 OVMF UEFI virtualization stack
 	13 barebox
@@ -930,7 +930,7 @@ Protocol:	2.15+
 ============	==================
 
   This field is the offset from the beginning of the kernel image to the
-  kernel_info. The kernel_info structure is embedded in the Linux image
+  kernel_info. The kernel_info structure is embedded in the GNU/Linux image
   in the uncompressed protected mode region.
 
 
@@ -975,7 +975,7 @@ after kernel_info_var_len_data label. Each chunk of variable size data has to
 be prefixed with header/magic and its size, e.g.::
 
   kernel_info:
-  	.ascii  "LToP"		/* Header, Linux top (structure). */
+  	.ascii  "LToP"		/* Header, GNU/Linux top (structure). */
   	.long   kernel_info_var_len_data - kernel_info
   	.long   kernel_info_end - kernel_info
   	.long   0x01234567	/* Some fixed size data for the bootloaders. */
@@ -1325,11 +1325,11 @@ IMPORTANT: All the hooks are required to preserve %esp, %ebp, %esi and
 ====================
 
 For machine with some new BIOS other than legacy BIOS, such as EFI,
-LinuxBIOS, etc, and kexec, the 16-bit real mode setup code in kernel
+GNU/LinuxBIOS, etc, and kexec, the 16-bit real mode setup code in kernel
 based on legacy BIOS can not be used, so a 32-bit boot protocol needs
 to be defined.
 
-In 32-bit boot protocol, the first step in loading a Linux kernel
+In 32-bit boot protocol, the first step in loading a GNU/Linux kernel
 should be to setup the boot parameters (struct boot_params,
 traditionally known as "zero page"). The memory for struct boot_params
 should be allocated and initialized to all zero. Then the setup header
@@ -1365,7 +1365,7 @@ address of the struct boot_params; %ebp, %edi and %ebx must be zero.
 For machine with 64bit cpus and 64bit kernel, we could use 64bit bootloader
 and we need a 64-bit boot protocol.
 
-In 64-bit boot protocol, the first step in loading a Linux kernel
+In 64-bit boot protocol, the first step in loading a GNU/Linux kernel
 should be to setup the boot parameters (struct boot_params,
 traditionally known as "zero page"). The memory for struct boot_params
 could be allocated anywhere (even above 4G) and initialized to all zero.

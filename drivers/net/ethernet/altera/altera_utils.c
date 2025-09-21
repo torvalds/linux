@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Altera TSE SGDMA and MSGDMA Linux driver
+/* Altera TSE SGDMA and MSGDMA GNU/Linux driver
  * Copyright (C) 2014 Altera Corporation. All rights reserved
  */
 

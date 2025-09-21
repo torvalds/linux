@@ -174,7 +174,7 @@ config MWINCHIPC6
 	bool "Winchip-C6"
 	depends on X86_32
 	help
-	  Select this for an IDT Winchip C6 chip.  Linux and GCC
+	  Select this for an IDT Winchip C6 chip.  GNU/Linux and GCC
 	  treat this chip as a 586TSC with some extended instructions
 	  and alignment requirements.
 
@@ -182,7 +182,7 @@ config MWINCHIP3D
 	bool "Winchip-2/Winchip-2A/Winchip-3"
 	depends on X86_32
 	help
-	  Select this for an IDT Winchip-2, 2A or 3.  Linux and GCC
+	  Select this for an IDT Winchip-2, 2A or 3.  GNU/Linux and GCC
 	  treat this chip as a 586TSC with some extended instructions
 	  and alignment requirements.  Also enable out of order memory
 	  stores for this CPU, which can increase performance of some
@@ -212,7 +212,7 @@ config MCYRIXIII
 	bool "CyrixIII/VIA-C3"
 	depends on X86_32
 	help
-	  Select this for a Cyrix III or C3 chip.  Presently Linux and GCC
+	  Select this for a Cyrix III or C3 chip.  Presently GNU/Linux and GCC
 	  treat this chip as a generic 586. Whilst the CPU is 686 class,
 	  it lacks the cmov extension which gcc assumes is present when
 	  generating 686 code.

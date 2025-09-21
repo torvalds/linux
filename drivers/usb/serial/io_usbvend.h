@@ -105,7 +105,7 @@
 
 /*
  *  DANGER DANGER The 0x20 bit was used to indicate a 8251/netchip GEN 2 device.
- *  Since the MAC, Linux, and Optimal drivers still used the old code
+ *  Since the MAC, GNU/Linux, and Optimal drivers still used the old code
  *  I suggest that you skip the 0x20 bit when creating new PIDs
  */
 

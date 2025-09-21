@@ -4,7 +4,7 @@
  *
  * Other names: H13J, "Jade"
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 #include <dt-bindings/gpio/gpio.h>

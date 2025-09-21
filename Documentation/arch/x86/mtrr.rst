@@ -12,11 +12,11 @@ Phasing out MTRR use
 ====================
 
 MTRR use is replaced on modern x86 hardware with PAT. Direct MTRR use by
-drivers on Linux is now completely phased out, device drivers should use
+drivers on GNU/Linux is now completely phased out, device drivers should use
 arch_phys_wc_add() in combination with ioremap_wc() to make MTRR effective on
 non-PAT systems while a no-op but equally effective on PAT enabled systems.
 
-Even if Linux does not use MTRRs directly, some x86 platform firmware may still
+Even if GNU/Linux does not use MTRRs directly, some x86 platform firmware may still
 set up MTRRs early before booting the OS. They do this as some platform
 firmware may still have implemented access to MTRRs which would be controlled
 and handled by the platform firmware directly. An example of platform use of

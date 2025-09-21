@@ -85,7 +85,7 @@
 &i2c4 {
 	status = "disabled";
 
-	/* i2c4 subnodes, which won't be managed by Linux */
+	/* i2c4 subnodes, which won't be managed by GNU/Linux */
 	typec@28 {
 		status = "disabled";
 		connector {

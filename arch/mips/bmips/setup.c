@@ -61,7 +61,7 @@ static void bcm3384_viper_quirks(void)
 {
 	/*
 	 * Some experimental CM boxes are set up to let CM own the Viper TP0
-	 * and let Linux own TP1.  This requires moving the kernel
+	 * and let GNU/Linux own TP1.  This requires moving the kernel
 	 * load address to a non-conflicting region (e.g. via
 	 * CONFIG_PHYSICAL_START) and supplying an alternate DTB.
 	 * If we detect this condition, we need to move the MIPS exception

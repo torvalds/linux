@@ -82,7 +82,7 @@ config PCIEASPM
 	  state L0/L0s/L1.
 
 	  ASPM is initially set up by the firmware. With this option enabled,
-	  Linux can modify this state in order to disable ASPM on known-bad
+	  GNU/Linux can modify this state in order to disable ASPM on known-bad
 	  hardware or configurations and enable it when known-safe.
 
 	  ASPM can be disabled or enabled at runtime via

@@ -2800,7 +2800,7 @@ int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 
 		switch (ent->function) {
 		case HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS:
-			memcpy(signature, "Linux KVM Hv", 12);
+			memcpy(signature, "GNU/Linux KVM Hv", 12);
 
 			ent->eax = HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES;
 			ent->ebx = signature[0];
@@ -2897,7 +2897,7 @@ int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 			break;
 
 		case HYPERV_CPUID_SYNDBG_VENDOR_AND_MAX_FUNCTIONS:
-			memcpy(signature, "Linux KVM Hv", 12);
+			memcpy(signature, "GNU/Linux KVM Hv", 12);
 
 			ent->eax = 0;
 			ent->ebx = signature[0];

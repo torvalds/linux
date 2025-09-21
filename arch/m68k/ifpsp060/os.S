@@ -65,7 +65,7 @@
 | The result is that Unix processes are allowed to sleep as a consequence
 | of a page fault during a _copyout.
 |
-| Linux/68k: The _060_[id]mem_{read,write}_{byte,word,long} functions
+| GNU/Linux/68k: The _060_[id]mem_{read,write}_{byte,word,long} functions
 | (i.e. all the known length <= 4) are implemented by single moves
 | statements instead of (more expensive) copy{in,out} calls, if
 | working in user space
@@ -305,7 +305,7 @@ dmwls:	move.l		%d0,(%a0)		| store super longword
 | Assumes that D0/D1/A0/A1 are scratch registers. The _copyin/_copyout
 | below assume that the SFC/DFC have been set previously.
 |
-| Linux/68k: These are basically non-inlined versions of
+| GNU/Linux/68k: These are basically non-inlined versions of
 | memcpy_{to,from}fs, but without long-transfer optimization
 | Note: Assumed that SFC/DFC are pointing correctly to user data
 | space... Should be right, or are there any exceptions?

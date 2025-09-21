@@ -1,5 +1,5 @@
 #
-# gdb helper commands and functions for Linux kernel debugging
+# gdb helper commands and functions for GNU/Linux kernel debugging
 #
 #  kernel log buffer dump
 #
@@ -24,7 +24,7 @@ prb_data_ring_type = utils.CachedType("struct prb_data_ring")
 printk_ringbuffer_type = utils.CachedType("struct printk_ringbuffer")
 
 class LxDmesg(gdb.Command):
-    """Print Linux kernel log buffer."""
+    """Print GNU/Linux kernel log buffer."""
 
     def __init__(self):
         super(LxDmesg, self).__init__("lx-dmesg", gdb.COMMAND_DATA)

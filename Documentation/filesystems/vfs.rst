@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================================
-Overview of the Linux Virtual File System
+Overview of the GNU/Linux Virtual File System
 =========================================
 
 Original author: Richard Gooch <rgooch@atnf.csiro.au>
@@ -1561,14 +1561,14 @@ Resources
 (Note some of these resources are not up-to-date with the latest kernel
  version.)
 
-Creating Linux virtual filesystems. 2002
+Creating GNU/Linux virtual filesystems. 2002
     <https://lwn.net/Articles/13325/>
 
-The Linux Virtual File-system Layer by Neil Brown. 1999
+The GNU/Linux Virtual File-system Layer by Neil Brown. 1999
     <http://www.cse.unsw.edu.au/~neilb/oss/linux-commentary/vfs.html>
 
-A tour of the Linux VFS by Michael K. Johnson. 1996
+A tour of the GNU/Linux VFS by Michael K. Johnson. 1996
     <https://www.tldp.org/LDP/khg/HyperNews/get/fs/vfstour.html>
 
-A small trail through the Linux kernel by Andries Brouwer. 2001
+A small trail through the GNU/Linux kernel by Andries Brouwer. 2001
     <https://www.win.tue.nl/~aeb/linux/vfs/trail.html>

@@ -2,7 +2,7 @@
 Memory Hot(Un)Plug
 ==================
 
-This document describes generic Linux support for memory hot(un)plug with
+This document describes generic GNU/Linux support for memory hot(un)plug with
 a focus on System RAM, including ZONE_MOVABLE support.
 
 .. contents:: :local:
@@ -26,19 +26,19 @@ Memory hot(un)plug is used for various purposes:
   example is replacing failing memory modules.
 
 - Reducing energy consumption either by physically unplugging memory modules or
-  by logically unplugging (parts of) memory modules from Linux.
+  by logically unplugging (parts of) memory modules from GNU/Linux.
 
-Further, the basic memory hot(un)plug infrastructure in Linux is nowadays also
+Further, the basic memory hot(un)plug infrastructure in GNU/Linux is nowadays also
 used to expose persistent memory, other performance-differentiated memory and
-reserved memory regions as ordinary system RAM to Linux.
+reserved memory regions as ordinary system RAM to GNU/Linux.
 
-Linux only supports memory hot(un)plug on selected 64 bit architectures, such as
+GNU/Linux only supports memory hot(un)plug on selected 64 bit architectures, such as
 x86_64, arm64, ppc64 and s390x.
 
 Memory Hot(Un)Plug Granularity
 ------------------------------
 
-Memory hot(un)plug in Linux uses the SPARSEMEM memory model, which divides the
+Memory hot(un)plug in GNU/Linux uses the SPARSEMEM memory model, which divides the
 physical memory address space into chunks of the same size: memory sections. The
 size of a memory section is architecture dependent. For example, x86_64 uses
 128 MiB and ppc64 uses 16 MiB.
@@ -55,7 +55,7 @@ Phases of Memory Hotplug
 
 Memory hotplug consists of two phases:
 
-(1) Adding the memory to Linux
+(1) Adding the memory to GNU/Linux
 (2) Onlining memory blocks
 
 In the first phase, metadata, such as the memory map ("memmap") and page tables
@@ -73,7 +73,7 @@ Phases of Memory Hotunplug
 Memory hotunplug consists of two phases:
 
 (1) Offlining memory blocks
-(2) Removing the memory from Linux
+(2) Removing the memory from GNU/Linux
 
 In the first phase, memory is "hidden" from the page allocator again, for
 example, by migrating busy memory to other memory locations and removing all
@@ -85,7 +85,7 @@ In the second phase, the memory blocks are removed and metadata is freed.
 Memory Hotplug Notifications
 ============================
 
-There are various ways how Linux is notified about memory hotplug events such
+There are various ways how GNU/Linux is notified about memory hotplug events such
 that it can start adding hotplugged memory. This description is limited to
 systems that support ACPI; mechanisms specific to other firmware interfaces or
 virtual machines are not described.
@@ -98,15 +98,15 @@ notifications via ACPI.
 
 In general, a firmware supporting memory hotplug defines a memory class object
 HID "PNP0C80". When notified about hotplug of a new memory device, the ACPI
-driver will hotplug the memory to Linux.
+driver will hotplug the memory to GNU/Linux.
 
 If the firmware supports hotplug of NUMA nodes, it defines an object _HID
 "ACPI0004", "PNP0A05", or "PNP0A06". When notified about an hotplug event, all
-assigned memory devices are added to Linux by the ACPI driver.
+assigned memory devices are added to GNU/Linux by the ACPI driver.
 
-Similarly, Linux can be notified about requests to hotunplug a memory device or
+Similarly, GNU/Linux can be notified about requests to hotunplug a memory device or
 a NUMA node via ACPI. The ACPI driver will try offlining all relevant memory
-blocks, and, if successful, hotunplug the memory from Linux.
+blocks, and, if successful, hotunplug the memory from GNU/Linux.
 
 Manual Probing
 --------------
@@ -130,19 +130,19 @@ being created.
 .. note::
 
   Using the probe interface is discouraged as it is easy to crash the kernel,
-  because Linux cannot validate user input; this interface might be removed in
+  because GNU/Linux cannot validate user input; this interface might be removed in
   the future.
 
 Onlining and Offlining Memory Blocks
 ====================================
 
-After a memory block has been created, Linux has to be instructed to actually
+After a memory block has been created, GNU/Linux has to be instructed to actually
 make use of that memory: the memory block has to be "online".
 
-Before a memory block can be removed, Linux has to stop using any memory part of
+Before a memory block can be removed, GNU/Linux has to stop using any memory part of
 the memory block: the memory block has to be "offlined".
 
-The Linux kernel can be configured to automatically online added memory blocks
+The GNU/Linux kernel can be configured to automatically online added memory blocks
 and drivers automatically trigger offlining of memory blocks when trying
 hotunplug of memory. Memory blocks can only be removed once offlining succeeded
 and drivers may trigger offlining of memory blocks when attempting hotunplug of
@@ -214,7 +214,7 @@ memory blocks only.
 Offlining Memory Blocks
 -----------------------
 
-In the current implementation, Linux's memory offlining will try migrating all
+In the current implementation, GNU/Linux's memory offlining will try migrating all
 movable pages off the affected memory block. As most kernel allocations, such as
 page tables, are unmovable, page migration can fail and, therefore, inhibit
 memory offlining from succeeding.

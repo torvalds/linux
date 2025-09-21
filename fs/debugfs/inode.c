@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2004,2019 Greg Kroah-Hartman <greg@kroah.com>
  *  Copyright (C) 2004 IBM Inc.
- *  Copyright (C) 2019 Linux Foundation <gregkh@linuxfoundation.org>
+ *  Copyright (C) 2019 GNU/Linux Foundation <gregkh@linuxfoundation.org>
  *
  *  debugfs is for people to use instead of /proc or /sys.
  *  See ./Documentation/core-api/kernel-api.rst for more details.

@@ -3,7 +3,7 @@
  * comedi/drivers/daqboard2000.c
  * hardware driver for IOtech DAQboard/2000
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
  */
 /*

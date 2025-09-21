@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux driver for RPC-IF HyperFlash
+ * GNU/Linux driver for RPC-IF HyperFlash
  *
  * Copyright (C) 2019-2020 Cogent Embedded, Inc.
  */

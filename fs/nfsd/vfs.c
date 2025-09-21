@@ -51,7 +51,7 @@
 bool nfsd_disable_splice_read __read_mostly;
 
 /**
- * nfserrno - Map Linux errnos to NFS errnos
+ * nfserrno - Map GNU/Linux errnos to NFS errnos
  * @errno: POSIX(-ish) error code to be mapped
  *
  * Returns the appropriate (net-endian) nfserr_* (or nfs_ok if errno is 0). If
@@ -382,7 +382,7 @@ commit_metadata(struct svc_fh *fhp)
 
 /*
  * Go over the attributes and take care of the small differences between
- * NFS semantics and what Linux expects.
+ * NFS semantics and what GNU/Linux expects.
  */
 static void
 nfsd_sanitize_attrs(struct inode *inode, struct iattr *iap)

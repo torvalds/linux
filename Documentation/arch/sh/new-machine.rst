@@ -1,13 +1,13 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =============================
-Adding a new board to LinuxSH
+Adding a new board to GNU/LinuxSH
 =============================
 
                Paul Mundt <lethal@linux-sh.org>
 
 This document attempts to outline what steps are necessary to add support
-for new boards to the LinuxSH port under the new 2.5 and 2.6 kernels. This
+for new boards to the GNU/LinuxSH port under the new 2.5 and 2.6 kernels. This
 also attempts to outline some of the noticeable changes between the 2.4
 and the 2.5/2.6 SH backend.
 

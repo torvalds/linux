@@ -510,7 +510,7 @@ put_bcc(__u16 count, struct smb_hdr *hdr)
  *  smb command code name for the struct and this is typedef to the
  *  uppercase version of the same name with the prefix SMB_ removed
  *  for brevity.  Although typedefs are not commonly used for
- *  structure definitions in the Linux kernel, their use in the
+ *  structure definitions in the GNU/Linux kernel, their use in the
  *  CIFS standards document, which this code is based on, may
  *  make this one of the cases where typedefs for structures make
  *  sense to improve readability for readers of the standards doc.
@@ -709,7 +709,7 @@ struct ntlmv2_resp {
 } __attribute__((packed));
 
 
-#define CIFS_NETWORK_OPSYS "CIFS VFS Client for Linux"
+#define CIFS_NETWORK_OPSYS "CIFS VFS Client for GNU/Linux"
 
 /* Capabilities bits (for NTLM SessSetup request) */
 #define CAP_UNICODE            0x00000004
@@ -2146,7 +2146,7 @@ typedef struct {
 #define CIFS_UNIX_MAJOR_VERSION 1
 #define CIFS_UNIX_MINOR_VERSION 0
 
-/* Linux/Unix extensions capability flags */
+/* GNU/Linux/Unix extensions capability flags */
 #define CIFS_UNIX_FCNTL_CAP             0x00000001 /* support for fcntl locks */
 #define CIFS_UNIX_POSIX_ACL_CAP         0x00000002 /* support getfacl/setfacl */
 #define CIFS_UNIX_XATTR_CAP             0x00000004 /* support new namespace   */
@@ -2603,7 +2603,7 @@ struct data_blob {
 
 #ifdef CONFIG_CIFS_POSIX
 /*
-	For better POSIX semantics from Linux client, (even better
+	For better POSIX semantics from GNU/Linux client, (even better
 	than the existing CIFS Unix Extensions) we need updated PDUs for:
 
 	1) PosixCreateX - to set and return the mode, inode#, device info and
@@ -2648,7 +2648,7 @@ struct data_blob {
 
 	COPY (note support for copy across directories) - FUTURE, OPTIONAL
 	setting/getting OS/2 EAs - FUTURE (BB can this handle
-	setting Linux xattrs perfectly)         - OPTIONAL
+	setting GNU/Linux xattrs perfectly)         - OPTIONAL
 	dnotify                                 - FUTURE, OPTIONAL
 	quota                                   - FUTURE, OPTIONAL
 

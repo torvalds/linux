@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Linux Security Module interface to other subsystems.
+ * GNU/Linux Security Module interface to other subsystems.
  * AppArmor presents single pointer to an aa_label structure.
  */
 #ifndef __LINUX_LSM_APPARMOR_H

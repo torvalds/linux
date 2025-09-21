@@ -4,14 +4,14 @@
  * by Ken Hollis (khollis@bitgate.com)
  *
  * Permission granted from Simon Machell (smachell@berkprod.com)
- * Written for the Linux Kernel, and GPLed by Ken Hollis
+ * Written for the GNU/Linux Kernel, and GPLed by Ken Hollis
  *
  * 960107	Added request_region routines, modulized the whole thing.
  * 960108	Fixed end-of-file pointer (Thanks to Dan Hollis), added
  *		WD_TIMEOUT define.
  * 960216	Added eof marker on the file, and changed verbose messages.
  * 960716	Made functional and cosmetic changes to the source for
- *		inclusion in Linux 2.0.x kernels, thanks to Alan Cox.
+ *		inclusion in GNU/Linux 2.0.x kernels, thanks to Alan Cox.
  * 960717	Removed read/seek routines, replaced with ioctl.  Also, added
  *		check_region command due to Alan's suggestion.
  * 960821	Made changes to compile in newer 2.0.x kernels.  Added

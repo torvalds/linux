@@ -13,9 +13,9 @@ menuconfig IPV6
 
 	  For general information about IPv6, see
 	  <https://en.wikipedia.org/wiki/IPv6>.
-	  For specific information about IPv6 under Linux, see
+	  For specific information about IPv6 under GNU/Linux, see
 	  Documentation/networking/ipv6.rst and read the HOWTO at
-	  <https://www.tldp.org/HOWTO/Linux+IPv6-HOWTO/>
+	  <https://www.tldp.org/HOWTO/GNU/Linux+IPv6-HOWTO/>
 
 	  To compile this protocol support as a module, choose M here: the
 	  module will be called ipv6.
@@ -223,7 +223,7 @@ config IPV6_GRE
 	  GRE (Generic Routing Encapsulation) and at this time allows
 	  encapsulating of IPv4 or IPv6 over existing IPv6 infrastructure.
 	  This driver is useful if the other endpoint is a Cisco router: Cisco
-	  likes GRE much better than the other Linux tunneling driver ("IP
+	  likes GRE much better than the other GNU/Linux tunneling driver ("IP
 	  tunneling" above). In addition, GRE allows multicast redistribution
 	  through the tunnel.
 

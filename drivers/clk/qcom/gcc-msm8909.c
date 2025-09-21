@@ -5,7 +5,7 @@
  * Based on gcc-msm8916.c:
  *   Copyright 2015 Linaro Limited
  * adapted with data from clock-gcc-8909.c in Qualcomm's msm-3.18 release:
- *   Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+ *   Copyright (c) 2014-2016, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>

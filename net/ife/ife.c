@@ -4,7 +4,7 @@
  * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
  *
  * Refer to: draft-ietf-forces-interfelfb-03 and netdev01 paper:
- * "Distributing Linux Traffic Control Classifier-Action Subsystem"
+ * "Distributing GNU/Linux Traffic Control Classifier-Action Subsystem"
  * Authors: Jamal Hadi Salim and Damascene M. Joachimpillai
  *
  * This program is free software; you can redistribute it and/or modify

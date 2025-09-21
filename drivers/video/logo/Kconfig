@@ -19,54 +19,54 @@ config FB_LOGO_EXTRA
 	default y if SPU_BASE
 
 config LOGO_LINUX_MONO
-	bool "Standard black and white Linux logo"
+	bool "Standard black and white GNU/Linux logo"
 	default y
 
 config LOGO_LINUX_VGA16
-	bool "Standard 16-color Linux logo"
+	bool "Standard 16-color GNU/Linux logo"
 	default y
 
 config LOGO_LINUX_CLUT224
-	bool "Standard 224-color Linux logo"
+	bool "Standard 224-color GNU/Linux logo"
 	default y
 
 config LOGO_DEC_CLUT224
-	bool "224-color Digital Equipment Corporation Linux logo"
+	bool "224-color Digital Equipment Corporation GNU/Linux logo"
 	depends on MACH_DECSTATION || ALPHA
 	default y
 
 config LOGO_MAC_CLUT224
-	bool "224-color Macintosh Linux logo"
+	bool "224-color Macintosh GNU/Linux logo"
 	depends on MAC
 	default y
 
 config LOGO_PARISC_CLUT224
-	bool "224-color PA-RISC Linux logo"
+	bool "224-color PA-RISC GNU/Linux logo"
 	depends on PARISC
 	default y
 
 config LOGO_SGI_CLUT224
-	bool "224-color SGI Linux logo"
+	bool "224-color SGI GNU/Linux logo"
 	depends on SGI_IP22 || SGI_IP27 || SGI_IP32
 	default y
 
 config LOGO_SUN_CLUT224
-	bool "224-color Sun Linux logo"
+	bool "224-color Sun GNU/Linux logo"
 	depends on SPARC
 	default y
 
 config LOGO_SUPERH_MONO
-	bool "Black and white SuperH Linux logo"
+	bool "Black and white SuperH GNU/Linux logo"
 	depends on SUPERH
 	default y
 
 config LOGO_SUPERH_VGA16
-	bool "16-color SuperH Linux logo"
+	bool "16-color SuperH GNU/Linux logo"
 	depends on SUPERH
 	default y
 
 config LOGO_SUPERH_CLUT224
-	bool "224-color SuperH Linux logo"
+	bool "224-color SuperH GNU/Linux logo"
 	depends on SUPERH
 	default y
 

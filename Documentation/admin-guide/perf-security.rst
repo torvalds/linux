@@ -6,7 +6,7 @@ Perf events and tool security
 Overview
 --------
 
-Usage of Performance Counters for Linux (perf_events) [1]_ , [2]_ , [3]_
+Usage of Performance Counters for GNU/Linux (perf_events) [1]_ , [2]_ , [3]_
 can impose a considerable risk of leaking sensitive data accessed by
 monitored processes. The data leakage is possible both in scenarios of
 direct usage of perf_events system call API [2]_ and over data files
@@ -49,7 +49,7 @@ the subject for security access control management [5]_ .
 perf_events access control
 -------------------------------
 
-To perform security checks, the Linux implementation splits processes
+To perform security checks, the GNU/Linux implementation splits processes
 into two categories [6]_ : a) privileged processes (whose effective user
 ID is 0, referred to as superuser or root), and b) unprivileged
 processes (whose effective UID is nonzero). Privileged processes bypass
@@ -61,7 +61,7 @@ Unprivileged processes are subject to a full security permission check
 based on the process's credentials [5]_ (usually: effective UID,
 effective GID, and supplementary group list).
 
-Linux divides the privileges traditionally associated with superuser
+GNU/Linux divides the privileges traditionally associated with superuser
 into distinct units, known as capabilities [6]_ , which can be
 independently enabled and disabled on per-thread basis for processes and
 files of unprivileged users.
@@ -84,11 +84,11 @@ capabilities then providing the process with CAP_PERFMON capability singly
 is recommended as the preferred secure approach to resolve double access
 denial logging related to usage of performance monitoring and observability.
 
-Prior Linux v5.9 unprivileged processes using perf_events system call
+Prior GNU/Linux v5.9 unprivileged processes using perf_events system call
 are also subject for PTRACE_MODE_READ_REALCREDS ptrace access mode check
 [7]_ , whose outcome determines whether monitoring is permitted.
 So unprivileged processes provided with CAP_SYS_PTRACE capability are
-effectively permitted to pass the check. Starting from Linux v5.9
+effectively permitted to pass the check. Starting from GNU/Linux v5.9
 CAP_SYS_PTRACE capability is not required and CAP_PERFMON is enough to
 be provided for processes to make performance monitoring and observability
 operations.
@@ -214,7 +214,7 @@ environment:
 
 As a result, members of perf_users group have access to the privileged
 environment where they can use tools employing performance monitoring APIs
-governed by CAP_PERFMON Linux capability.
+governed by CAP_PERFMON GNU/Linux capability.
 
 This specific access control management is only available to superuser
 or root running processes with CAP_SETPCAP, CAP_SETFCAP [6]_

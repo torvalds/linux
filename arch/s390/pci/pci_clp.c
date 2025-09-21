@@ -233,7 +233,7 @@ out:
  * @nr_dma_as: DMA address space number
  * @command: The command code to execute
  *
- * Returns: 0 on success, < 0 for Linux errors (e.g. -ENOMEM), and
+ * Returns: 0 on success, < 0 for GNU/Linux errors (e.g. -ENOMEM), and
  * > 0 for non-success platform responses
  */
 static int clp_set_pci_fn(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as, u8 command)

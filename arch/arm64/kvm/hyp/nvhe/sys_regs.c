@@ -79,7 +79,7 @@ static bool vm_has_sve(const struct kvm *kvm)
  * these are used to generate the guest's view of the feature registers.
  *
  * The approach for protected VMs is to at least support features that are:
- * - Needed by common Linux distributions (e.g., floating point)
+ * - Needed by common GNU/Linux distributions (e.g., floating point)
  * - Trivial to support, e.g., supporting the feature does not introduce or
  * require tracking of additional state in KVM
  * - Cannot be trapped or prevent the guest from using anyway

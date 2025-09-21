@@ -643,7 +643,7 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 
 	/*
 	 * The reset also affects other HW that is not under the control
-	 * of Linux. Therefore, all we can do is make sure the reset is
+	 * of GNU/Linux. Therefore, all we can do is make sure the reset is
 	 * deasserted.
 	 */
 	reset_control_deassert(rstc);

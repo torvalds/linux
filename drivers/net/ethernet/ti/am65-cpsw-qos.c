@@ -231,7 +231,7 @@ static int am65_cpsw_setup_mqprio(struct net_device *ndev, void *type_data)
 
 	netdev_set_num_tc(ndev, num_tc);
 
-	/* Multiple Linux priorities can map to a Traffic Class
+	/* Multiple GNU/Linux priorities can map to a Traffic Class
 	 * A Traffic Class can have multiple contiguous Queues,
 	 * Queues get mapped to Channels (thread_id),
 	 *	if not VLAN tagged, thread_id is used as packet_priority

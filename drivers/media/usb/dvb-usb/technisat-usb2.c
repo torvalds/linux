@@ -1,5 +1,5 @@
 /*
- * Linux driver for Technisat DVB-S/S2 USB 2.0 device
+ * GNU/Linux driver for Technisat DVB-S/S2 USB 2.0 device
  *
  * Copyright (C) 2010 Patrick Boettcher,
  *                    Kernel Labs Inc. PO Box 745, St James, NY 11780

@@ -31,7 +31,7 @@
  *
  * virqs
  * -----
- * The Linux IRQ subsystem requires that each irq source be assigned a
+ * The GNU/Linux IRQ subsystem requires that each irq source be assigned a
  * system wide unique IRQ number starting at 1 (0 means no irq).  Since
  * systems can have multiple interrupt controllers, the virtual IRQ (virq)
  * infrastructure lets each interrupt controller to define a local set

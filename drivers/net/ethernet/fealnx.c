@@ -16,7 +16,7 @@
 	Support information and updates available at
 	http://www.scyld.com/network/pci-skeleton.html
 
-	Linux kernel updates:
+	GNU/Linux kernel updates:
 
 	Version 2.51, Nov 17, 2001 (jgarzik):
 	- Add ethtool support

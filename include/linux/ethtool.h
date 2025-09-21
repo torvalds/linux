@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * ethtool.h: Defines for Linux ethtool.
+ * ethtool.h: Defines for GNU/Linux ethtool.
  *
  * Copyright (C) 1998 David S. Miller (davem@redhat.com)
  * Copyright 2001 Jeff Garzik <jgarzik@pobox.com>
@@ -147,7 +147,7 @@ struct ethtool_link_ext_state_info {
 };
 
 struct ethtool_link_ext_stats {
-	/* Custom Linux statistic for PHY level link down events.
+	/* Custom GNU/Linux statistic for PHY level link down events.
 	 * In a simpler world it should be equal to netdev->carrier_down_count
 	 * unfortunately netdev also counts local reconfigurations which don't
 	 * actually take the physical link down, not to mention NC-SI which,

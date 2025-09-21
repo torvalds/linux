@@ -2464,7 +2464,7 @@ void __init paging_init(void)
 		free_area_init(max_zone_pfns);
 	}
 
-	printk("Booting Linux...\n");
+	printk("Booting GNU/Linux...\n");
 }
 
 int page_in_phys_avail(unsigned long paddr)

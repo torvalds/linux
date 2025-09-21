@@ -399,7 +399,7 @@ void __ref play_dead(void)
 
 	/*
 	 * Wakeup is on SW0 or SW1; disable everything else
-	 * Use BEV !IV (BMIPS_WARM_RESTART_VEC) to avoid the regular Linux
+	 * Use BEV !IV (BMIPS_WARM_RESTART_VEC) to avoid the regular GNU/Linux
 	 * IRQ handlers; this clears ST0_IE and returns immediately.
 	 */
 	clear_c0_cause(CAUSEF_IV | C_SW0 | C_SW1);

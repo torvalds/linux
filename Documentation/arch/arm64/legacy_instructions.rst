@@ -2,7 +2,7 @@
 Legacy instructions
 ===================
 
-The arm64 port of the Linux kernel provides infrastructure to support
+The arm64 port of the GNU/Linux kernel provides infrastructure to support
 emulation of instructions which have been deprecated, or obsoleted in
 the architecture. The infrastructure code uses undefined instruction
 hooks to support emulation. Where available it also allows turning on

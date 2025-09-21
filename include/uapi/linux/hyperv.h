@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  *
  * Copyright (c) 2011, Microsoft Corporation.
@@ -77,7 +77,7 @@ struct hv_vss_hdr {
 
 
 /*
- * Flag values for the hv_vss_check_feature. Linux supports only
+ * Flag values for the hv_vss_check_feature. GNU/Linux supports only
  * one value.
  */
 #define VSS_HBU_NO_AUTO_RECOVERY	0x00000005
@@ -91,14 +91,14 @@ struct hv_vss_check_dm_info {
 } __attribute__((packed));
 
 /*
- * struct hv_vss_msg encodes the fields that the Linux VSS
+ * struct hv_vss_msg encodes the fields that the GNU/Linux VSS
  * driver accesses. However, FREEZE messages from Hyper-V contain
- * additional LUN information that Linux doesn't use and are not
+ * additional LUN information that GNU/Linux doesn't use and are not
  * represented in struct hv_vss_msg. A received FREEZE message may
  * be as large as 6,260 bytes, so the driver must allocate at least
  * that much space, not sizeof(struct hv_vss_msg). Other messages
  * such as AUTO_RECOVER may be as large as 12,500 bytes. However,
- * because the Linux VSS driver responds that it doesn't support
+ * because the GNU/Linux VSS driver responds that it doesn't support
  * auto-recovery, it should not receive such messages.
  */
 struct hv_vss_msg {
@@ -159,7 +159,7 @@ struct hv_do_fcopy {
 } __attribute__((packed));
 
 /*
- * An implementation of HyperV key value pair (KVP) functionality for Linux.
+ * An implementation of HyperV key value pair (KVP) functionality for GNU/Linux.
  *
  *
  * Copyright (C) 2010, Novell, Inc.
@@ -197,7 +197,7 @@ struct hv_do_fcopy {
 #define HV_KVP_EXCHANGE_MAX_KEY_SIZE            (512)
 
 /*
- * In Linux, we implement the KVP functionality in two components:
+ * In GNU/Linux, we implement the KVP functionality in two components:
  * 1) The kernel component which is packaged as part of the hv_utils driver
  * is responsible for communicating with the host and responsible for
  * implementing the host/guest protocol. 2) A user level daemon that is

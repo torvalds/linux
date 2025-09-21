@@ -112,7 +112,7 @@ subsys_initcall(dns323_pci_init);
  * Layout as used by D-Link:
  *  0x00000000-0x00010000 : "MTD1"
  *  0x00010000-0x00020000 : "MTD2"
- *  0x00020000-0x001a0000 : "Linux Kernel"
+ *  0x00020000-0x001a0000 : "GNU/Linux Kernel"
  *  0x001a0000-0x007d0000 : "File System"
  *  0x007d0000-0x00800000 : "u-boot"
  */
@@ -130,7 +130,7 @@ static struct mtd_partition dns323_partitions[] = {
 		.size	= 0x00010000,
 		.offset = 0x00010000,
 	}, {
-		.name	= "Linux Kernel",
+		.name	= "GNU/Linux Kernel",
 		.size	= 0x00180000,
 		.offset	= 0x00020000,
 	}, {

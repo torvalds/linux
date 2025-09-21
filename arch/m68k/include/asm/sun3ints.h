@@ -1,5 +1,5 @@
 /*
- * sun3ints.h -- Linux/Sun3 interrupt handling code definitions
+ * sun3ints.h -- GNU/Linux/Sun3 interrupt handling code definitions
  *
  * Erik Verbruggen (erik@bigmama.xtdnet.nl)
  *

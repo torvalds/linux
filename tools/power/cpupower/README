@@ -13,7 +13,7 @@ libcpupower
 ----------
 
 "libcpupower" is a library which offers a unified access method for userspace
-tools and programs to the cpufreq core and drivers in the Linux kernel. This
+tools and programs to the cpufreq core and drivers in the GNU/Linux kernel. This
 allows for code reduction in userspace tools, a clean implementation of
 the interaction to the cpufreq core, and support for both the sysfs and proc
 interfaces [depending on configuration, see below].

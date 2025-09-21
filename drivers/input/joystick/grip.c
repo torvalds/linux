@@ -4,7 +4,7 @@
  */
 
 /*
- * Gravis/Kensington GrIP protocol joystick and gamepad driver for Linux
+ * Gravis/Kensington GrIP protocol joystick and gamepad driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

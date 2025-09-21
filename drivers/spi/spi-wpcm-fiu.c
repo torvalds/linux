@@ -218,7 +218,7 @@ static int wpcm_fiu_4ba_exec(struct spi_mem *mem, const struct spi_mem_op *op)
 }
 
 /*
- * RDID (Read Identification) needs special handling because Linux expects to
+ * RDID (Read Identification) needs special handling because GNU/Linux expects to
  * be able to read 6 ID bytes and FIU can only read up to 4 at once.
  *
  * We're lucky in this case, because executing the RDID instruction twice will

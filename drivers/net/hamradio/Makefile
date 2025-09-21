@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux AX.25 and HFMODEM device drivers.
+# Makefile for the GNU/Linux AX.25 and HFMODEM device drivers.
 #
 #
 # 19971130 	Moved the amateur radio related network drivers from 

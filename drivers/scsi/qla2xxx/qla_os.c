@@ -1224,7 +1224,7 @@ qla2x00_wait_for_chip_reset(scsi_qla_host_t *vha)
 *    The abort function will abort the specified command.
 *
 * Input:
-*    cmd = Linux SCSI command packet to be aborted.
+*    cmd = GNU/Linux SCSI command packet to be aborted.
 *
 * Returns:
 *    Either SUCCESS or FAILED.
@@ -1576,7 +1576,7 @@ eh_reset_failed:
 *    commands.
 *
 * Input:
-*    cmd = Linux SCSI command packet of the command that cause the
+*    cmd = GNU/Linux SCSI command packet of the command that cause the
 *          bus reset.
 *
 * Returns:
@@ -1643,7 +1643,7 @@ eh_bus_reset_done:
 *    The reset function will reset the Adapter.
 *
 * Input:
-*      cmd = Linux SCSI command packet of the command that cause the
+*      cmd = GNU/Linux SCSI command packet of the command that cause the
 *            adapter reset.
 *
 * Returns:

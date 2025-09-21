@@ -9,7 +9,7 @@
  *   11-Oct-1997 RMK	Corrected problem with queue_remove_exclude
  *			not updating internal linked list properly
  *			(was causing commands to go missing).
- *   30-Aug-2000 RMK	Use Linux list handling and spinlocks
+ *   30-Aug-2000 RMK	Use GNU/Linux list handling and spinlocks
  */
 #include <linux/module.h>
 #include <linux/blkdev.h>

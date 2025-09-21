@@ -27,7 +27,7 @@ Contents
 
 Most legacy operating system kernels support an abstraction of threads
 as multiple execution contexts within a process. These kernels provide
-special resources and mechanisms to maintain these "threads". The Linux
+special resources and mechanisms to maintain these "threads". The GNU/Linux
 kernel, in a clever and simple manner, does not make distinction
 between processes and "threads". The kernel allows processes to share
 resources and thus they can achieve legacy "threads" behavior without
@@ -35,18 +35,18 @@ requiring additional data structures and mechanisms in the kernel. The
 power of implementing threads in this manner comes not only from
 its simplicity but also from allowing application programmers to work
 outside the confinement of all-or-nothing shared resources of legacy
-threads. On Linux, at the time of thread creation using the clone system
+threads. On GNU/Linux, at the time of thread creation using the clone system
 call, applications can selectively choose which resources to share
 between threads.
 
-unshare() system call adds a primitive to the Linux thread model that
+unshare() system call adds a primitive to the GNU/Linux thread model that
 allows threads to selectively 'unshare' any resources that were being
 shared at the time of their creation. unshare() was conceptualized by
-Al Viro in the August of 2000, on the Linux-Kernel mailing list, as part
-of the discussion on POSIX threads on Linux.  unshare() augments the
-usefulness of Linux threads for applications that would like to control
+Al Viro in the August of 2000, on the GNU/Linux-Kernel mailing list, as part
+of the discussion on POSIX threads on GNU/Linux.  unshare() augments the
+usefulness of GNU/Linux threads for applications that would like to control
 shared resources without creating a new process. unshare() is a natural
-addition to the set of available primitives on Linux that implement
+addition to the set of available primitives on GNU/Linux that implement
 the concept of process/thread as a virtual machine.
 
 2) Benefits
@@ -71,7 +71,7 @@ processes when working with these directories. Using unshare(), a PAM
 module can easily setup a private namespace for a user at login.
 Polyinstantiated directories are required for Common Criteria certification
 with Labeled System Protection Profile, however, with the availability
-of shared-tree feature in the Linux kernel, even regular Linux systems
+of shared-tree feature in the GNU/Linux kernel, even regular GNU/Linux systems
 can benefit from setting up private namespaces at login and
 polyinstantiating /tmp, /var/tmp and other directories deemed
 appropriate by system administrators.
@@ -175,7 +175,7 @@ ERRORS
 	EINVAL	Invalid flag was specified as an argument.
 
 CONFORMING TO
-	The unshare() call is Linux-specific and  should  not be used
+	The unshare() call is GNU/Linux-specific and  should  not be used
 	in programs intended to be portable.
 
 SEE ALSO

@@ -4924,7 +4924,7 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
 }
 
 /*
- * Linux network device functions
+ * GNU/Linux network device functions
  */
 
 
@@ -6347,7 +6347,7 @@ static void dev_monitor(struct timer_list *t)
 }
 
 /*
- * Linux network device interface functions
+ * GNU/Linux network device interface functions
  */
 
 /* Driver exported variables */

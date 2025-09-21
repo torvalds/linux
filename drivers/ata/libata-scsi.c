@@ -2753,7 +2753,7 @@ static unsigned int ata_scsiop_report_luns(struct ata_device *dev,
  * ATAPI devices typically report zero for their SCSI version, and sometimes
  * deviate from the spec WRT response data format.  If SCSI version is
  * reported as zero like normal, then we make the following fixups:
- *   1) Fake MMC-5 version, to indicate to the Linux scsi midlayer this is a
+ *   1) Fake MMC-5 version, to indicate to the GNU/Linux scsi midlayer this is a
  *	modern device.
  *   2) Ensure response data format / ATAPI information are always correct.
  */

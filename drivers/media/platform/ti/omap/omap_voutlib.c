@@ -8,7 +8,7 @@
  * kind, whether express or implied.
  *
  * Based on the OMAP2 camera driver
- * Video-for-Linux (Version 2) camera capture driver for
+ * Video-for-GNU/Linux (Version 2) camera capture driver for
  * the OMAP24xx camera controller.
  *
  * Author: Andy Lowe (source@mvista.com)

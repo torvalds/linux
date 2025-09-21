@@ -85,7 +85,7 @@
 #define PMSAv8_XIP_REGION	0
 #define PMSAv8_KERNEL_REGION	1
 
-/* Maximum number of regions Linux is interested in */
+/* Maximum number of regions GNU/Linux is interested in */
 #define MPU_MAX_REGIONS	16
 
 #define PMSAv7_DATA_SIDE	0

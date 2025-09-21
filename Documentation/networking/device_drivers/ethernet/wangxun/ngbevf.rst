@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ==================================================================
-Linux Base Virtual Function Driver for Wangxun(R) Gigabit Ethernet
+GNU/Linux Base Virtual Function Driver for Wangxun(R) Gigabit Ethernet
 ==================================================================
 
-WangXun Gigabit Virtual Function Linux driver.
+WangXun Gigabit Virtual Function GNU/Linux driver.
 Copyright(c) 2015 - 2025 Beijing WangXun Technology Co., Ltd.
 
 Support

@@ -668,7 +668,7 @@
 	clearcpuid=X[,X...] [X86]
 			Disable CPUID feature X for the kernel. See
 			arch/x86/include/asm/cpufeatures.h for the valid bit
-			numbers X. Note the Linux-specific bits are not necessarily
+			numbers X. Note the GNU/Linux-specific bits are not necessarily
 			stable over kernel options, but the vendor-specific
 			ones should be.
 			X can also be a string as appearing in the flags: line
@@ -686,7 +686,7 @@
 	clk_ignore_unused
 			[CLK]
 			Prevents the clock framework from automatically gating
-			clocks that have not been explicitly enabled by a Linux
+			clocks that have not been explicitly enabled by a GNU/Linux
 			device driver but are enabled in hardware at reset or
 			by the bootloader/firmware. Note that this does not
 			force such clocks to be always-on nor does it reserve
@@ -950,7 +950,7 @@
 			like Hyper-V, PowerPC (fadump) and AMD SEV-SNP.
 
 	crashkernel=size[KMG][@offset[KMG]]
-			[KNL,EARLY] Using kexec, Linux can switch to a 'crash kernel'
+			[KNL,EARLY] Using kexec, GNU/Linux can switch to a 'crash kernel'
 			upon panic. This parameter reserves the physical
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
@@ -1522,7 +1522,7 @@
 			fulfills the spec otherwise your board may brick.
 
 	efivar_ssdt=	[EFI; X86] Name of an EFI variable that contains an SSDT
-			that is to be dynamically loaded by Linux. If there are
+			that is to be dynamically loaded by GNU/Linux. If there are
 			multiple variables with the same name but with different
 			vendor GUIDs, all of them will be loaded. See
 			Documentation/admin-guide/acpi/ssdt-overlays.rst for details.
@@ -3421,7 +3421,7 @@
 			depending on the number of CPUs. See init/Kconfig
 			for more details.
 
-	logo.nologo	[FB] Disables display of the built-in Linux logo.
+	logo.nologo	[FB] Disables display of the built-in GNU/Linux logo.
 			This may be used to provide more screen space for
 			kernel log messages and is useful when debugging
 			kernel boot problems.
@@ -3542,8 +3542,8 @@
 
 		bios_cmci_threshold
 			don't overwrite the bios-set CMCI threshold. This boot
-			option prevents Linux from overwriting the CMCI
-			threshold set by the bios.  Without this option, Linux
+			option prevents GNU/Linux from overwriting the CMCI
+			threshold set by the bios.  Without this option, GNU/Linux
 			always sets the CMCI threshold to 1. Enabling this may
 			make memory predictive failure analysis less effective
 			if the bios sets thresholds for memory errors since we
@@ -6614,7 +6614,7 @@
 			enable at boot. This has been deprecated by the
 			"lsm=" parameter.
 
-	selinux=	[SELINUX] Disable or enable SELinux at boot time.
+	selinux=	[SELINUX] Disable or enable SEGNU/Linux at boot time.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.
 			0 -- disable.

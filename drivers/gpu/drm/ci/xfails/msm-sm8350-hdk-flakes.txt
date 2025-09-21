@@ -2,5 +2,5 @@
 # Bug Report: https://gitlab.freedesktop.org/drm/msm/-/issues/65
 # Failure Rate: 100
 # IGT Version: 1.28-ga73311079
-# Linux Version: 6.12.0-rc1
+# GNU/Linux Version: 6.12.0-rc1
 msm/msm_recovery@gpu-fault

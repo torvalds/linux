@@ -1690,7 +1690,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 }
 
 
-static char sdebug_inq_vendor_id[9] = "Linux   ";
+static char sdebug_inq_vendor_id[9] = "GNU/Linux   ";
 static char sdebug_inq_product_id[17] = "scsi_debug      ";
 static char sdebug_inq_product_rev[5] = SDEBUG_VERSION;
 /* Use some locally assigned NAAs for SAS addresses. */
@@ -5714,7 +5714,7 @@ fini:
 #define RL_BUCKET_ELEMS 8
 
 /* Even though each pseudo target has a REPORT LUNS "well known logical unit"
- * (W-LUN), the normal Linux scanning logic does not associate it with a
+ * (W-LUN), the normal GNU/Linux scanning logic does not associate it with a
  * device (e.g. /dev/sg7). The following magic will make that association:
  *   "cd /sys/class/scsi_host/host<n> ; echo '- - 49409' > scan"
  * where <n> is a host number. If there are multiple targets in a host then
@@ -7089,7 +7089,7 @@ static void sdebug_build_parts(unsigned char *ramp, unsigned long store_size)
 
 		pp->start_sect = cpu_to_le32(start_sec);
 		pp->nr_sects = cpu_to_le32(end_sec - start_sec + 1);
-		pp->sys_ind = 0x83;	/* plain Linux partition */
+		pp->sys_ind = 0x83;	/* plain GNU/Linux partition */
 	}
 }
 
@@ -7409,7 +7409,7 @@ MODULE_PARM_DESC(host_max_queue,
 MODULE_PARM_DESC(inq_product, "SCSI INQUIRY product string (def=\"scsi_debug\")");
 MODULE_PARM_DESC(inq_rev, "SCSI INQUIRY revision string (def=\""
 		 SDEBUG_VERSION "\")");
-MODULE_PARM_DESC(inq_vendor, "SCSI INQUIRY vendor string (def=\"Linux\")");
+MODULE_PARM_DESC(inq_vendor, "SCSI INQUIRY vendor string (def=\"GNU/Linux\")");
 MODULE_PARM_DESC(lbprz,
 		 "on read unmapped LBs return 0 when 1 (def), return 0xff when 2");
 MODULE_PARM_DESC(lbpu, "enable LBP, support UNMAP command (def=0)");

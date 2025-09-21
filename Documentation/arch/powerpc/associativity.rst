@@ -7,7 +7,7 @@ domains of substantially similar mean performance relative to resources outside
 of that domain. Resources subsets of a given domain that exhibit better
 performance relative to each other than relative to other resources subsets
 are represented as being members of a sub-grouping domain. This performance
-characteristic is presented in terms of NUMA node distance within the Linux kernel.
+characteristic is presented in terms of NUMA node distance within the GNU/Linux kernel.
 From the platform view, these groups are also referred to as domains.
 
 PAPR interface currently supports different ways of communicating these resource
@@ -38,8 +38,8 @@ The list of domainID indexes represents an increasing hierarchy of resource grou
 ex:
 { primary domainID index, secondary domainID index, tertiary domainID index.. }
 
-Linux kernel uses the domainID at the primary domainID index as the NUMA node id.
-Linux kernel computes NUMA distance between two domains by recursively comparing
+GNU/Linux kernel uses the domainID at the primary domainID index as the NUMA node id.
+GNU/Linux kernel computes NUMA distance between two domains by recursively comparing
 if they belong to the same higher-level domains. For mismatch at every higher
 level of the resource group, the kernel doubles the NUMA distance between the
 comparing domains.

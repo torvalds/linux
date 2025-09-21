@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /*
- * aht10.c - Linux hwmon driver for AHT10/AHT20 Temperature and Humidity sensors
+ * aht10.c - GNU/Linux hwmon driver for AHT10/AHT20 Temperature and Humidity sensors
  * Copyright (C) 2020 Johannes Cornelis Draaijer
  */
 

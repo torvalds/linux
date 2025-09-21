@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -17,21 +17,21 @@
 
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
-#define __NR_Linux	4000
+#define __NR_GNU/Linux	4000
 #include <asm/unistd_o32.h>
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
-#define __NR_Linux	5000
+#define __NR_GNU/Linux	5000
 #include <asm/unistd_n64.h>
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
-#define __NR_Linux	6000
+#define __NR_GNU/Linux	6000
 #include <asm/unistd_n32.h>
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */

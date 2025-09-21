@@ -20,7 +20,7 @@
  *   Authors: Maxim Locktyukhin <maxim.locktyukhin@intel.com>
  *            Ronen Zohar <ronen.zohar@intel.com>
  *
- * Converted to AT&T syntax and adapted for inclusion in the Linux kernel:
+ * Converted to AT&T syntax and adapted for inclusion in the GNU/Linux kernel:
  *   Author: Mathias Krause <minipli@googlemail.com>
  */
 

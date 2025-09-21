@@ -75,7 +75,7 @@ without the platform firmware assistance, and devices that need to be described
 by the platform firmware so that they can be discovered.  Still, for any device
 known to the platform firmware, regardless of which category it falls into,
 there can be a corresponding ACPI device object in the ACPI Namespace in which
-case the Linux kernel will create a struct acpi_device object based on it for
+case the GNU/Linux kernel will create a struct acpi_device object based on it for
 that device.
 
 Those struct acpi_device objects are never used for binding drivers to natively
@@ -402,8 +402,8 @@ For example::
 	}
 
 These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
-specifies the path to the controller. In order to use these GPIOs in Linux
-we need to translate them to the corresponding Linux GPIO descriptors.
+specifies the path to the controller. In order to use these GPIOs in GNU/Linux
+we need to translate them to the corresponding GNU/Linux GPIO descriptors.
 
 There is a standard GPIO API for that and it is documented in
 Documentation/admin-guide/gpio/.
@@ -462,7 +462,7 @@ MFD devices
 
 The MFD devices register their children as platform devices. For the child
 devices there needs to be an ACPI handle that they can use to reference
-parts of the ACPI namespace that relate to them. In the Linux MFD subsystem
+parts of the ACPI namespace that relate to them. In the GNU/Linux MFD subsystem
 we provide two ways:
 
   - The children share the parent ACPI handle.

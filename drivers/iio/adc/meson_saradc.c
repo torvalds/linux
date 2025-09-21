@@ -149,7 +149,7 @@
 	#define MESON_SAR_ADC_DELTA_10_CHAN0_DELTA_VALUE_MASK	GENMASK(9, 0)
 
 /*
- * NOTE: registers from here are undocumented (the vendor Linux kernel driver
+ * NOTE: registers from here are undocumented (the vendor GNU/Linux kernel driver
  * and u-boot source served as reference). These only seem to be relevant on
  * GXBB and newer.
  */

@@ -36,7 +36,7 @@ Framebuffer
 ===========
 
 Contrary to the *Video Overlay* interface the framebuffer is normally
-implemented on the TV card and not the graphics card. On Linux it is
+implemented on the TV card and not the graphics card. On GNU/Linux it is
 accessible as a framebuffer device (``/dev/fbN``). Given a V4L2 device,
 applications can find the corresponding framebuffer device by calling
 the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` ioctl. It returns, amongst

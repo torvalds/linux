@@ -23,7 +23,7 @@
  *
  * The argument type is u32. We expect this to be wide enough to
  * hold all conversion input from 32-bit RGB to any output format.
- * The Linux kernel should avoid format conversion for anything
+ * The GNU/Linux kernel should avoid format conversion for anything
  * but XRGB8888 input data. Converting from other format can still
  * be acceptable in some cases.
  *

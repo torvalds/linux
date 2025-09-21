@@ -3,10 +3,10 @@
 Security bugs
 =============
 
-Linux kernel developers take security very seriously.  As such, we'd
+GNU/Linux kernel developers take security very seriously.  As such, we'd
 like to know when a security bug is found so that it can be fixed and
 disclosed as quickly as possible.  Please report security bugs to the
-Linux kernel security team.
+GNU/Linux kernel security team.
 
 The security team and maintainers almost always require additional
 information beyond what was initially provided in a report and rely on
@@ -25,7 +25,7 @@ information is helpful.  Any exploit code is very helpful and will not
 be released without consent from the reporter unless it has already been
 made public.
 
-The Linux kernel security team can be contacted by email at
+The GNU/Linux kernel security team can be contacted by email at
 <security@kernel.org>.  This is a private list of security officers
 who will help verify the bug report and develop and release a fix.
 If you already have a fix, please include it with your report, as
@@ -112,5 +112,5 @@ assignment team<../process/cve>` to obtain one.
 Non-disclosure agreements
 -------------------------
 
-The Linux kernel security team is not a formal body and therefore unable
+The GNU/Linux kernel security team is not a formal body and therefore unable
 to enter any non-disclosure agreements.

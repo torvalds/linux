@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * lm93.c - Part of lm_sensors, Linux kernel modules for hardware monitoring
+ * lm93.c - Part of lm_sensors, GNU/Linux kernel modules for hardware monitoring
  *
  * Author/Maintainer: Mark M. Hoffman <mhoffman@lightlink.com>
  *	Copyright (c) 2004 Utilitek Systems, Inc.
@@ -15,7 +15,7 @@
  * derived in part from w83l785ts.c:
  *	Copyright (c) 2003-2004 Jean Delvare <jdelvare@suse.de>
  *
- * Ported to Linux 2.6 by Eric J. Bowersox <ericb@aspsys.com>
+ * Ported to GNU/Linux 2.6 by Eric J. Bowersox <ericb@aspsys.com>
  *	Copyright (c) 2005 Aspen Systems, Inc.
  *
  * Adapted to 2.6.20 by Carsten Emde <cbe@osadl.org>

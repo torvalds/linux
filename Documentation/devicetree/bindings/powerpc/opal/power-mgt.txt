@@ -1,7 +1,7 @@
 IBM Power-Management Bindings
 =============================
 
-Linux running on baremetal POWER machines has access to the processor
+GNU/Linux running on baremetal POWER machines has access to the processor
 idle states. The description of these idle states is exposed via the
 node @power-mgt in the device-tree by the firmware.
 

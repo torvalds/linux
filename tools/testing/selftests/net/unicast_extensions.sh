@@ -197,18 +197,18 @@ segmenttest 0.0.1.5       0.0.0.0         16 "assigning 0.0.0.0 (is forbidden)"
 segmenttest 255.255.255.1 255.255.255.255 16 "assigning 255.255.255.255 (is forbidden)"
 #
 # Test support for not having all of 127 be loopback
-# Currently Linux does not allow this, so this should fail too
+# Currently GNU/Linux does not allow this, so this should fail too
 segmenttest 127.99.4.5 127.99.4.6 16 "assign and ping inside 127/8 (is forbidden)"
 #
 # Test support for unicast use of class D
-# Currently Linux does not allow this, so this should fail too
+# Currently GNU/Linux does not allow this, so this should fail too
 segmenttest 225.1.2.3 225.1.2.200 24 "assign and ping class D address (is forbidden)"
 #
 # Routing using class D as a gateway
 route_test 225.1.42.1 225.1.42.2 9.8.7.6 9.8.7.1 24 "routing using class D (is forbidden)"
 #
 # Routing using 127/8
-# Currently Linux does not allow this, so this should fail too
+# Currently GNU/Linux does not allow this, so this should fail too
 route_test 127.99.2.3 127.99.2.4 200.1.2.3 200.1.2.4 24 "routing using 127/8 (is forbidden)"
 #
 unset expect_failure

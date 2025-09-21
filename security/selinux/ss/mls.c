@@ -615,7 +615,7 @@ int mls_export_netlbl_cat(struct policydb *p, struct context *context,
  * @secattr: the NetLabel security attributes
  *
  * Description:
- * Copy the NetLabel security attributes into the SELinux context; since the
+ * Copy the NetLabel security attributes into the SEGNU/Linux context; since the
  * NetLabel security attribute only contains a single MLS category use it for
  * both the low and high categories of the context.  Returns zero on success,
  * negative values on failure.

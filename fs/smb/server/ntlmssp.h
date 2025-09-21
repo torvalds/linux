@@ -81,7 +81,7 @@ enum av_field_type {
 };
 
 /* Although typedefs are not commonly used for structure definitions */
-/* in the Linux kernel, in this particular case they are useful      */
+/* in the GNU/Linux kernel, in this particular case they are useful      */
 /* to more closely match the standards document for NTLMSSP from     */
 /* OpenGroup and to make the code more closely match the standard in */
 /* appearance */

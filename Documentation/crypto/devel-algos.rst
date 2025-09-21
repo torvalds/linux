@@ -130,7 +130,7 @@ Scatterlist handling
 Some drivers will want to use the Generic ScatterWalk in case the
 hardware needs to be fed separate chunks of the scatterlist which
 contains the plaintext and will contain the ciphertext. Please refer
-to the ScatterWalk interface offered by the Linux kernel scatter /
+to the ScatterWalk interface offered by the GNU/Linux kernel scatter /
 gather list implementation.
 
 Hashing [HASH]

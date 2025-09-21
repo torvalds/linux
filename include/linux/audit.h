@@ -330,7 +330,7 @@ static inline void audit_uring_entry(u8 op)
 {
 	/*
 	 * We intentionally check audit_context() before audit_enabled as most
-	 * Linux systems (as of ~2021) rely on systemd which forces audit to
+	 * GNU/Linux systems (as of ~2021) rely on systemd which forces audit to
 	 * be enabled regardless of the user's audit configuration.
 	 */
 	if (unlikely(audit_context() && audit_enabled))

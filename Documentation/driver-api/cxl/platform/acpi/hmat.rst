@@ -13,7 +13,7 @@ SLLBI
 The System Locality Latency and Bandwidth Information records latency and
 bandwidth information for proximity domains.
 
-This table is used by Linux to configure interleave weights and memory tiers.
+This table is used by GNU/Linux to configure interleave weights and memory tiers.
 
 Example (Heavily truncated for brevity) ::
 

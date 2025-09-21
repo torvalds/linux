@@ -404,7 +404,7 @@ $config_help{"SSH_USER"} = << "EOF"
 EOF
     ;
 $config_help{"BUILD_DIR"} = << "EOF"
- The directory that contains the Linux source code (full path).
+ The directory that contains the GNU/Linux source code (full path).
  You can use \${PWD} that will be the path where ktest.pl is run, or use
  \${THIS_DIR} which is assigned \${PWD} but may be changed later.
 EOF
@@ -1529,7 +1529,7 @@ sub reboot {
 	$ignore_errors = 1;
 
 	# Look for the good kernel to boot
-	if (wait_for_monitor($time, "Linux version")) {
+	if (wait_for_monitor($time, "GNU/Linux version")) {
 	    # reboot got stuck?
 	    doprint "Reboot did not finish. Forcing power cycle\n";
 	    run_command "$power_cycle";
@@ -2297,15 +2297,15 @@ sub monitor {
 	}
 
 	# Detect triple faults by testing the banner
-	if ($full_line =~ /\bLinux version (\S+).*\n/) {
+	if ($full_line =~ /\bGNU/Linux version (\S+).*\n/) {
 	    if ($1 eq $version) {
 		$version_found = 1;
 	    } elsif ($version_found && $detect_triplefault) {
 		# We already booted into the kernel we are testing,
 		# but now we booted into another kernel?
 		# Consider this a triple fault.
-		doprint "Already booted in Linux kernel $version, but now\n";
-		doprint "we booted into Linux kernel $1.\n";
+		doprint "Already booted in GNU/Linux kernel $version, but now\n";
+		doprint "we booted into GNU/Linux kernel $1.\n";
 		doprint "Assuming that this is a triple fault.\n";
 		doprint "To disable this: set DETECT_TRIPLE_FAULT to 0\n";
 		last;
@@ -3753,7 +3753,7 @@ sub read_depends {
 	dodie "Failed to read $output_config";
     my $arch;
     while (<IN>) {
-	if (m,Linux/(\S+)\s+\S+\s+Kernel Configuration,) {
+	if (m,GNU/Linux/(\S+)\s+\S+\s+Kernel Configuration,) {
 	    $arch = $1;
 	    last;
 	}

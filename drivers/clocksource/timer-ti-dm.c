@@ -394,7 +394,7 @@ static int omap_dm_timer_reset(struct dmtimer *timer)
 /*
  * Functions exposed to PWM and remoteproc drivers via platform_data.
  * Do not use these in the driver, these will get deprecated and will
- * will be replaced by Linux generic framework functions such as
+ * will be replaced by GNU/Linux generic framework functions such as
  * chained interrupts and clock framework.
  */
 static struct dmtimer *to_dmtimer(struct omap_dm_timer *cookie)

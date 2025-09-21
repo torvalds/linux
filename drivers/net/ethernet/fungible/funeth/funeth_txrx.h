@@ -219,7 +219,7 @@ struct fun_irq {
 	struct funeth_rxq *rxq;
 	u8 state;
 	u16 irq_idx;              /* index of MSI-X interrupt */
-	int irq;                  /* Linux IRQ vector */
+	int irq;                  /* GNU/Linux IRQ vector */
 	cpumask_t affinity_mask;  /* IRQ affinity */
 	struct irq_affinity_notify aff_notify;
 	char name[FUN_INT_NAME_LEN];

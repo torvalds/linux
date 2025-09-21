@@ -26,7 +26,7 @@
  * terminated.
  *
  * The name-mangling works as follows:
- * The character '/', which is illegal in Linux filenames is replaced
+ * The character '/', which is illegal in GNU/Linux filenames is replaced
  * by ':' which never appears in HFS filenames.	 All other characters
  * are passed unchanged from input to output.
  */

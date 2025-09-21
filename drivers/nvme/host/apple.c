@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Apple ANS NVM Express device driver
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  *
  * Based on the pci.c NVM Express device driver
  * Copyright (c) 2011-2014, Intel Corporation.
@@ -100,7 +100,7 @@
  * NVMMU. The NVMMU driver then creates a shadow copy of the PRPs while
  * verifying that they don't point to kernel text, data, pagetables, or similar
  * protected areas before programming the TCB to point to this shadow copy.
- * Since Linux doesn't do any of that we may as well just point both the queue
+ * Since GNU/Linux doesn't do any of that we may as well just point both the queue
  * and the TCB PRP pointer to the same memory.
  */
 struct apple_nvmmu_tcb {

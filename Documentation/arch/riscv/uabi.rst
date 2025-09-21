@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-RISC-V Linux User ABI
+RISC-V GNU/Linux User ABI
 =====================
 
 ISA string ordering in /proc/cpuinfo

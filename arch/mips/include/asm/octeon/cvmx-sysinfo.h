@@ -42,7 +42,7 @@
  * no versioning is required.
  *
  * This structure must be provided with some fields set in order to
- * use simple executive functions in other applications (Linux kernel,
+ * use simple executive functions in other applications (GNU/Linux kernel,
  * u-boot, etc.)  The cvmx_sysinfo_minimal_initialize() function is
  * provided to set the required values in these cases.
  */

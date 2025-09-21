@@ -2,7 +2,7 @@
 /*
  * Derived from many drivers using generic_serial interface,
  * especially serial_tx3912.c by Steven J. Hill and r39xx_serial.c
- * (was in Linux/VR tree) by Jim Pick.
+ * (was in GNU/Linux/VR tree) by Jim Pick.
  *
  *  Copyright (C) 1999 Harald Koerfgen
  *  Copyright (C) 2000 Jim Pick <jim@jimpick.com>

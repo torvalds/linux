@@ -199,7 +199,7 @@ Changes from 20050201 to 20050208
 	* Removed unused NLP_NS_NODE #define.
 	* Integrated Christoph Hellwig's patch from 1/30: remove unused
 	  lpfc_hba_list; remove unused lpfc_rdrev_wd30; remove
-	  lpfc_get_brd_no and use Linux provided IDR.
+	  lpfc_get_brd_no and use GNU/Linux provided IDR.
 	* Changed board reset procedure so that lpfc_sli_send_reset()
 	  writes the INITFF bit and leaves lpfc_sli_brdreset() to clear
 	  the bit.
@@ -281,7 +281,7 @@ Changes from 20050110 to 20050124
 	* Makefile cleanup.  Use ?= operator for setting default
 	  KERNELVERSION and BASEINCLUDE values.  Use $(PWD) consistently.
 	* Removed call to lpfc_sli_intr from lpfc_config_port_post.  All
-	  Linux systems will service hardware interrupts while bringing up
+	  GNU/Linux systems will service hardware interrupts while bringing up
 	  the driver.
 	* Christoph Hellwig change request: Reorg of contents of
 	  lpfc_hbadisc.c, lpfc_scsi.h, lpfc_init.c, lpfc_sli.c,
@@ -1529,10 +1529,10 @@ Changes from 20040326 to 20040402
 	* Remove nle. reference.
         * Remove support for building 2.4 drivers
 	* Remove elx_util.h and replace elx_disc.h with lpfc_disc.h
-	* Implemented the Linux list macros in the discovery code.
+	* Implemented the GNU/Linux list macros in the discovery code.
 	  Also moved elx_disc.h contents into lpfc_disc.h
 	* Unused variable cleanup
-	* Use Linux list macros for DMABUF_t
+	* Use GNU/Linux list macros for DMABUF_t
 	* Break up ioctls into 3 sections, dfc, util, hbaapi
 	  rearranged code so this could be easily separated into a
 	  different module later. All 3 are currently turned on by
@@ -1630,7 +1630,7 @@ Changes from 20040326 to 20040402
 	* Patched elx_free_scsi_buf
   	* Removed elx_sched.o from 2.6 dependencies
 	* Reworked lpfc_pcimap.
-	* Use Linux swap macros to replace ELX swapping macros
+	* Use GNU/Linux swap macros to replace ELX swapping macros
 	  (SWAP_SHORT, SWAP_LONG, SWAP_DATA, SWAP_DATA16,
 	  PCIMEM_SHORT, PCIMEM_LONG, PCIMEM_DATA).
 	* move in_interrupt() check inside of elx_sleep_ms()
@@ -1718,7 +1718,7 @@ Changes from 20040319 to 20040326
 	* lpfc_els_timeout_handler() now uses system timer.
 	* Further cleanup of #ifdef powerpc
 	* lpfc_scsi_timeout_handler() now uses system timer.
-	* Replace common driver's own defines for endianness w/ Linux's
+	* Replace common driver's own defines for endianness w/ GNU/Linux's
 	  __BIG_ENDIAN etc.
 	* Added #ifdef IPFC for all IPFC specific code.
 	* lpfc_disc_retry_rptlun() now uses system timer.
@@ -1751,9 +1751,9 @@ Changes from 20040319 to 20040326
 	* Remove some unnecessary typecasting.
 	* Remove log message that is no longer used (was used by
 	  elx_str_atox).
-	* Replaced DLINK_t and SLINK_t by standard Linux list_head
+	* Replaced DLINK_t and SLINK_t by standard GNU/Linux list_head
 	* Removed deque macro
-	* Replaced ELX_DLINK_t and ELX_SLINK_t by Linux struct list_head
+	* Replaced ELX_DLINK_t and ELX_SLINK_t by GNU/Linux struct list_head
 	  (except for clock)
 	* Removed following functions from code: linux_kmalloc linux_kfree
 	  elx_alloc_bigbuf elx_free_bigbuf
@@ -1819,7 +1819,7 @@ Changes from 20040312 to 20040319
 	  in lpfc_ValidLun()
 	* Change elx_printf_log to use vsprintf.
 	* Added lpfc_compat.h provides macros to aid compilation in the
-	  Linux 2.4 kernel over various platform architectures.  Initially
+	  GNU/Linux 2.4 kernel over various platform architectures.  Initially
 	  support mapping to a DMA address.
 	* Removed memory pool for nlp/bind buffers and use kmalloc/kfree
 	  directly.
@@ -1843,7 +1843,7 @@ Changes from 20040312 to 20040319
 	* Use linux pci_pools for BPLs.
 	* Minor cleanup of DFC args for PPC64.
 	* Several small indentation cleanups.
-	* New Linux 2.6 style of char device registration.
+	* New GNU/Linux 2.6 style of char device registration.
 	* Migrated members of LPFCHBA_t and LINUX_HBA_t into elxHBA_t
 	* Use strcpy, strncmp, isdigit, strlen instead of abstractions
 	* Cleanup of driver_template.

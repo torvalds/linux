@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Irqdomain for Linux to run as the root partition on Microsoft Hypervisor.
+ * Irqdomain for GNU/Linux to run as the root partition on Microsoft Hypervisor.
  *
  * Authors:
  *  Sunil Muthuswamy <sunilmut@microsoft.com>

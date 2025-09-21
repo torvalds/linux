@@ -13,7 +13,7 @@ Xen的虚拟TPM接口
 作者：Matthew Fioravante (JHUAPL), Daniel De Graaf (NSA)
 
 本文档描述了用于Xen的虚拟可信平台模块（vTPM）子系统。假定读者熟悉
-Xen和Linux的构建和安装，并对TPM和vTPM概念有基本的理解。
+Xen和GNU/Linux的构建和安装，并对TPM和vTPM概念有基本的理解。
 
 介绍
 ----
@@ -35,7 +35,7 @@ TPM的信任链扩展到Xen中的虚拟机。vTPM的每个主要组件都作为�
 vTPM的架构描述如下::
 
   +------------------+
-  |    Linux DomU    | ...
+  |    GNU/Linux DomU    | ...
   |       |  ^       |
   |       v  |       |
   |   xen-tpmfront   |
@@ -68,16 +68,16 @@ vTPM的架构描述如下::
   |   Hardware TPM   |
   +------------------+
 
-* Linux DomU:
-               希望使用vTPM的基于Linux的客户机。可能有多个这样的实例。
+* GNU/Linux DomU:
+               希望使用vTPM的基于GNU/Linux的客户机。可能有多个这样的实例。
 
 * xen-tpmfront.ko:
-               Linux内核虚拟TPM前端驱动程序。该驱动程序为基于Linux的DomU提供
+               GNU/Linux内核虚拟TPM前端驱动程序。该驱动程序为基于GNU/Linux的DomU提供
                vTPM访问。
 
 * mini-os/tpmback:
-               Mini-os TPM后端驱动程序。Linux前端驱动程序通过该后端驱动程序连
-               接，以便在Linux DomU和其vTPM之间进行通信。该驱动程序还被
+               Mini-os TPM后端驱动程序。GNU/Linux前端驱动程序通过该后端驱动程序连
+               接，以便在GNU/Linux DomU和其vTPM之间进行通信。该驱动程序还被
                vtpmmgr-stubdom用于与vtpm-stubdom通信。
 
 * vtpm-stubdom:

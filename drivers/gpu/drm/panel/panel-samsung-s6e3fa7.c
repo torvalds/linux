@@ -2,9 +2,9 @@
 /*
  * Driver for the Samsung S6E3FA7 panel.
  *
- * Copyright (c) 2022-2024, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2024, The GNU/Linux Foundation. All rights reserved.
  * Generated with linux-mdss-dsi-panel-driver-generator from vendor device tree:
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/backlight.h>

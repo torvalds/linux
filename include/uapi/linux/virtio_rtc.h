@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH GNU/Linux-syscall-note) OR BSD-3-Clause) */
 /*
  * Copyright (C) 2022-2024 OpenSynergy GmbH
  * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.

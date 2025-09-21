@@ -1,6 +1,6 @@
 /*
  * This file is part of the Chelsio T4 PCI-E SR-IOV Virtual Function Ethernet
- * driver for Linux.
+ * driver for GNU/Linux.
  *
  * Copyright (c) 2009-2010 Chelsio Communications, Inc. All rights reserved.
  *
@@ -383,7 +383,7 @@ struct adapter {
 	} msix_info[MSIX_ENTRIES];
 	struct sge sge;
 
-	/* Linux network device resources */
+	/* GNU/Linux network device resources */
 	struct net_device *port[MAX_NPORTS];
 	const char *name;
 	unsigned int msg_enable;

@@ -1317,7 +1317,7 @@ static char *get_kernel_version(const char *root_dir)
 	char version[PATH_MAX];
 	FILE *file;
 	char *name, *tmp;
-	const char *prefix = "Linux version ";
+	const char *prefix = "GNU/Linux version ";
 
 	sprintf(version, "%s/proc/version", root_dir);
 	file = fopen(version, "r");

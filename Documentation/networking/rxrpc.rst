@@ -55,7 +55,7 @@ layer which renders structured data to binary blobs and back again using XDR
 AF_RXRPC provides:
 
  (1) Part of an RxRPC facility for both kernel and userspace applications by
-     making the session part of it a Linux network protocol (AF_RXRPC).
+     making the session part of it a GNU/Linux network protocol (AF_RXRPC).
 
  (2) A two-phase protocol.  The client transmits a blob (the request) and then
      receives a blob (the reply), and the server receives the request and then
@@ -64,7 +64,7 @@ AF_RXRPC provides:
  (3) Retention of the reusable bits of the transport system set up for one call
      to speed up subsequent calls.
 
- (4) A secure protocol, using the Linux kernel's key retention facility to
+ (4) A secure protocol, using the GNU/Linux kernel's key retention facility to
      manage security on the client end.  The server end must of necessity be
      more active in security negotiations.
 

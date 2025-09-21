@@ -27,7 +27,7 @@ For those preferring video:
 
 What is RCU?
 
-RCU is a synchronization mechanism that was added to the Linux kernel
+RCU is a synchronization mechanism that was added to the GNU/Linux kernel
 during the 2.5 development effort that is optimized for read-mostly
 situations.  Although RCU is actually quite simple, making effective use
 of it requires you to think differently about your code.  Another part
@@ -129,7 +129,7 @@ SMP computer systems, even in absence of lock contention.
 In the three-step procedure shown above, the updater is performing both
 the removal and the reclamation step, but it is often helpful for an
 entirely different thread to do the reclamation, as is in fact the case
-in the Linux kernel's directory-entry cache (dcache).  Even if the same
+in the GNU/Linux kernel's directory-entry cache (dcache).  Even if the same
 thread performs both the update step (step (a) above) and the reclamation
 step (step (c) above), it is often helpful to think of them separately.
 For example, RCU readers and updaters need not communicate at all,
@@ -397,7 +397,7 @@ The rcu_assign_pointer() and rcu_dereference() invocations communicate
 spatial changes via stores to and loads from the RCU-protected pointer in
 question.
 
-There are at least three flavors of RCU usage in the Linux kernel. The diagram
+There are at least three flavors of RCU usage in the GNU/Linux kernel. The diagram
 above shows the most common one. On the updater side, the rcu_assign_pointer(),
 synchronize_rcu() and call_rcu() primitives used are the same for all three
 flavors. However for protection (on the reader side), the primitives used vary
@@ -633,7 +633,7 @@ Again, see checklist.rst for additional rules governing the use of RCU.
 
 One of the nice things about RCU is that it has extremely simple "toy"
 implementations that are a good first step towards understanding the
-production-quality implementations in the Linux kernel.  This section
+production-quality implementations in the GNU/Linux kernel.  This section
 presents two such "toy" implementations of RCU, one that is implemented
 in terms of familiar locking primitives, and another that more closely
 resembles "classic" RCU.  Both are way too simple for real-world use,
@@ -643,7 +643,7 @@ production-quality implementation, and see:
 
 	https://docs.google.com/document/d/1X0lThx8OK0ZgLMqVoXiR4ZrGURHrXK6NyLRbeXe3Xac/edit
 
-for papers describing the Linux kernel RCU implementation.  The OLS'01
+for papers describing the GNU/Linux kernel RCU implementation.  The OLS'01
 and OLS'02 papers are a good introduction, and the dissertation provides
 more details on the current implementation as of early 2004.
 
@@ -721,7 +721,7 @@ so there can be no deadlock cycle.
 
 Quick Quiz #1:
 		Why is this argument naive?  How could a deadlock
-		occur when using this algorithm in a real-world Linux
+		occur when using this algorithm in a real-world GNU/Linux
 		kernel?  How could this deadlock be avoided?
 
 :ref:`Answers to Quick Quiz <9_whatisRCU>`
@@ -988,7 +988,7 @@ by other tasks.
 may also use locking, including cache-friendly sequence locking.)
 
 With traditional reference counting -- such as that implemented by the
-kref library in Linux -- there is typically code that runs when the last
+kref library in GNU/Linux -- there is typically code that runs when the last
 reference to an object is dropped.  With kref, this is the function
 passed to kref_put().  When RCU is being used, such finalization code
 must not be run until all ``__rcu`` pointers referencing the object have
@@ -1012,7 +1012,7 @@ within whatever whole they are a part of.
 -------------------------
 
 The RCU APIs are documented in docbook-format header comments in the
-Linux-kernel source code, but it helps to have a full list of the
+GNU/Linux-kernel source code, but it helps to have a full list of the
 APIs, since there does not appear to be a way to categorize them
 in docbook.  Here is the list, by category.
 
@@ -1162,7 +1162,7 @@ See the comment headers in the source code (or the docbook generated
 from them) for more information.
 
 However, given that there are no fewer than four families of RCU APIs
-in the Linux kernel, how do you choose which one to use?  The following
+in the GNU/Linux kernel, how do you choose which one to use?  The following
 list can be helpful:
 
 a.	Will readers need to block?  If so, you need SRCU.
@@ -1215,7 +1215,7 @@ the right tool for your job.
 
 Quick Quiz #1:
 		Why is this argument naive?  How could a deadlock
-		occur when using this algorithm in a real-world Linux
+		occur when using this algorithm in a real-world GNU/Linux
 		kernel?  [Referring to the lock-based "toy" RCU
 		algorithm.]
 

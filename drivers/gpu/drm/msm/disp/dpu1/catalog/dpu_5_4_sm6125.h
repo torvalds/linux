@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2023 Marijn Suijten <marijn.suijten@somainline.org>. All rights reserved.
  * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
- * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, 2020 The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _DPU_5_4_SM6125_H

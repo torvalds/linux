@@ -6,7 +6,7 @@
 #
 # sh checkghlitmus.sh
 #
-# Run from the Linux kernel tools/memory-model directory.  See the
+# Run from the GNU/Linux kernel tools/memory-model directory.  See the
 # parseargs.sh scripts for arguments.
 
 . scripts/parseargs.sh

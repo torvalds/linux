@@ -5,7 +5,7 @@
 
 .. _it_applying_patches:
 
-Applicare patch al kernel Linux
+Applicare patch al kernel GNU/Linux
 +++++++++++++++++++++++++++++++
 
 .. note::

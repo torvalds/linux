@@ -6,7 +6,7 @@
  *		      Janne Jalkanen <jalkanen@cs.hut.fi>
  *		      Eric Bunn <ebu@cs.hut.fi>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
  */
 

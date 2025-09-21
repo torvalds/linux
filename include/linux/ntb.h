@@ -47,7 +47,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * PCIe NTB Linux driver
+ * PCIe NTB GNU/Linux driver
  *
  * Contact Information:
  * Allen Hubbe <Allen.Hubbe@emc.com>
@@ -396,7 +396,7 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 
 /**
  * struct ntb_client - client interested in ntb devices
- * @drv:		Linux driver object.
+ * @drv:		GNU/Linux driver object.
  * @ops:		See &ntb_client_ops.
  */
 struct ntb_client {
@@ -407,7 +407,7 @@ struct ntb_client {
 
 /**
  * struct ntb_dev - ntb device
- * @dev:		Linux device object.
+ * @dev:		GNU/Linux device object.
  * @pdev:		PCI device entry of the ntb.
  * @topo:		Detected topology of the ntb.
  * @ops:		See &ntb_dev_ops.

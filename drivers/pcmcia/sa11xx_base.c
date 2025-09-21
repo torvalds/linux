@@ -259,5 +259,5 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 EXPORT_SYMBOL(sa11xx_drv_pcmcia_probe);
 
 MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");
-MODULE_DESCRIPTION("Linux PCMCIA Card Services: SA-11xx core socket driver");
+MODULE_DESCRIPTION("GNU/Linux PCMCIA Card Services: SA-11xx core socket driver");
 MODULE_LICENSE("Dual MPL/GPL");

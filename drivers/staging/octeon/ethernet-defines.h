@@ -15,7 +15,7 @@
  *      Allows the TX path to free an skbuff into the FPA hardware pool. This
  *      can significantly improve performance for forwarding and bridging, but
  *      may be somewhat dangerous. Checks are made, but if any buffer is reused
- *      without the proper Linux cleanup, the networking stack may have very
+ *      without the proper GNU/Linux cleanup, the networking stack may have very
  *      bizarre bugs.
  */
 #ifndef __ETHERNET_DEFINES_H__

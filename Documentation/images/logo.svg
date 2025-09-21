@@ -1521,7 +1521,7 @@
         <dc:subject>
           <rdf:Bag>
             <rdf:li>tux</rdf:li>
-            <rdf:li>Linux</rdf:li>
+            <rdf:li>GNU/Linux</rdf:li>
             <rdf:li>penguin</rdf:li>
             <rdf:li>logo</rdf:li>
           </rdf:Bag>

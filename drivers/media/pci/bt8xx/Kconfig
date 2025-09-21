@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_BT848
-	tristate "BT848 Video For Linux"
+	tristate "BT848 Video For GNU/Linux"
 	depends on PCI && I2C && VIDEO_DEV
 	select I2C_ALGOBIT
 	select VIDEOBUF2_DMA_SG

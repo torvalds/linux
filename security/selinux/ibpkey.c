@@ -2,7 +2,7 @@
 /*
  * Pkey table
  *
- * SELinux must keep a mapping of Infinband PKEYs to labels/SIDs.  This
+ * SEGNU/Linux must keep a mapping of Infinband PKEYs to labels/SIDs.  This
  * mapping is maintained as part of the normal policy but a fast cache is
  * needed to reduce the lookup overhead.
  *

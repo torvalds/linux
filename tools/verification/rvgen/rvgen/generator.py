@@ -37,8 +37,8 @@ class RVGenerator:
             self.rv_dir = kernel_path
             return
 
-        if platform.system() != "Linux":
-            raise OSError("I can only run on Linux.")
+        if platform.system() != "GNU/Linux":
+            raise OSError("I can only run on GNU/Linux.")
 
         kernel_path = os.path.join("/lib/modules/%s/build" % platform.release(), self.rv_dir)
 

@@ -359,7 +359,7 @@ static int iscsi_login_zero_tsih_s2(
 	/*
 	 * Workaround for Initiators that have broken connection recovery logic.
 	 *
-	 * "We would really like to get rid of this." Linux-iSCSI.org team
+	 * "We would really like to get rid of this." GNU/Linux-iSCSI.org team
 	 */
 	if (iscsi_change_param_sprintf(conn, "ErrorRecoveryLevel=%d", na->default_erl))
 		return -1;

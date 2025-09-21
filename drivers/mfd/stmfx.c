@@ -353,7 +353,7 @@ static int stmfx_chip_init(struct i2c_client *client)
 	 * STMFX I2C address follows the 7-bit format (MSB), that's why
 	 * client->addr is shifted.
 	 *
-	 * STMFX_I2C_ADDR|       STMFX         |        Linux
+	 * STMFX_I2C_ADDR|       STMFX         |        GNU/Linux
 	 *   input pin   | I2C device address  | I2C device address
 	 *---------------------------------------------------------
 	 *       0       | b: 1000 010x h:0x84 |       0x42

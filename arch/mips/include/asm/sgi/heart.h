@@ -66,7 +66,7 @@
  *
  * HEART is the main system controller ASIC for IP30 system.  It incorporates
  * a memory controller, interrupt status/cause/set/clear management, basic
- * timer with count/compare, and other functionality.  For Linux, not all of
+ * timer with count/compare, and other functionality.  For GNU/Linux, not all of
  * HEART's functions are fully understood.
  *
  * Implementation note: All HEART registers are 64bits-wide, but the mem_cfg
@@ -137,7 +137,7 @@ struct ip30_heart_regs {		/* 0x0ff00000 */
 
 /*
  * XXX: Everything below this comment will either go away or be cleaned
- *      up to fit in better with Linux.  A lot of the bit definitions for
+ *      up to fit in better with GNU/Linux.  A lot of the bit definitions for
  *      HEART were derived from IRIX's sys/RACER/heart.h header file.
  */
 

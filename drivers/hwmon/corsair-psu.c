@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * corsair-psu.c - Linux driver for Corsair power supplies with HID sensors interface
+ * corsair-psu.c - GNU/Linux driver for Corsair power supplies with HID sensors interface
  * Copyright (C) 2020 Wilken Gottwalt <wilken.gottwalt@posteo.net>
  */
 
@@ -921,4 +921,4 @@ module_exit(corsair_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Wilken Gottwalt <wilken.gottwalt@posteo.net>");
-MODULE_DESCRIPTION("Linux driver for Corsair power supplies with HID sensors interface");
+MODULE_DESCRIPTION("GNU/Linux driver for Corsair power supplies with HID sensors interface");

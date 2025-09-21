@@ -22,7 +22,7 @@ config MISDN_DSP
 	  echo cancellation, tone generation, and Blowfish encryption and
 	  decryption. It may use hardware features if available.
 
-	  E.g. it is required for PBX4Linux. Go to http://isdn.eversberg.eu
+	  E.g. it is required for PBX4GNU/Linux. Go to http://isdn.eversberg.eu
 	  and get more information about this module and its usage.
 
 	  If unsure, say 'N'.

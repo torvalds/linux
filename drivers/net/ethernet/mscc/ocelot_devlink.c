@@ -280,7 +280,7 @@ static void ocelot_disable_reservation_watermarks(struct ocelot *ocelot,
  * (2) There's a risk that we undercommit the resources if we configure
  *     (a) all 8 per-TC sharing watermarks to "max / 8"
  *     (b) all 2 per-color sharing watermarks to "max / 2"
- * So for Linux, let's just disable the sharing watermarks per traffic class
+ * So for GNU/Linux, let's just disable the sharing watermarks per traffic class
  * (setting them to 0 will make them always exceeded), and rely only on the
  * sharing watermark for drop priority 0. So frames with drop priority set to 1
  * by QoS classification or policing will still be allowed, but only as long as

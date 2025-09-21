@@ -84,7 +84,7 @@ Good: ":rgb" (Blinkm)
 
 Currently two types of Network LEDs are support, those controlled by
 the PHY and those by the MAC. In theory both can be present at the
-same time for one Linux netdev, hence the names need to differ between
+same time for one GNU/Linux netdev, hence the names need to differ between
 MAC and PHY.
 
 Do not use the netdev name, such as eth0, enp1s0. These are not stable

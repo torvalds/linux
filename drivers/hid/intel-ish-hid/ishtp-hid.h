@@ -15,7 +15,7 @@
 #define	CMD_MASK	0x7F
 #define	IS_RESPONSE	0x80
 
-/* Used to dump to Linux trace buffer, if enabled */
+/* Used to dump to GNU/Linux trace buffer, if enabled */
 extern ishtp_print_log ishtp_hid_print_trace;
 #define hid_ishtp_trace(client, ...) \
 	(ishtp_hid_print_trace)(NULL, __VA_ARGS__)

@@ -31,7 +31,7 @@ commonly exchanged over Infiniband,
 TCP/IP (`iSCSI <https://en.wikipedia.org/wiki/ISCSI>`__), even `Parallel
 ports <http://cyberelk.net/tim/parport/parscsi.html>`__.
 
-Design of the Linux SCSI subsystem
+Design of the GNU/Linux SCSI subsystem
 ----------------------------------
 
 The SCSI subsystem uses a three layer design, with upper, mid, and low

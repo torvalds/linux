@@ -509,7 +509,7 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
 	vnode->volume		= as->volume;
 	vnode->fid		= vp->fid;
 
-	/* YFS supports 96-bit vnode IDs, but Linux only supports
+	/* YFS supports 96-bit vnode IDs, but GNU/Linux only supports
 	 * 64-bit inode numbers.
 	 */
 	inode->i_ino		= vnode->fid.vnode;

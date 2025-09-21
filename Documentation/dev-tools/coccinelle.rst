@@ -28,7 +28,7 @@ of many distributions, e.g. :
  - Fedora
  - Ubuntu
  - OpenSUSE
- - Arch Linux
+ - Arch GNU/Linux
  - NetBSD
  - FreeBSD
 
@@ -68,7 +68,7 @@ For Semantic Patch Language(SmPL) grammar documentation refer to:
 
 https://coccinelle.gitlabpages.inria.fr/website/docs/main_grammar.html
 
-Using Coccinelle on the Linux kernel
+Using Coccinelle on the GNU/Linux kernel
 ------------------------------------
 
 A Coccinelle-specific target is defined in the top level
@@ -113,7 +113,7 @@ To produce patches, run::
 
 
 The coccicheck target applies every semantic patch available in the
-sub-directories of ``scripts/coccinelle`` to the entire Linux kernel.
+sub-directories of ``scripts/coccinelle`` to the entire GNU/Linux kernel.
 
 For each semantic patch, a commit message is proposed.  It gives a
 description of the problem being checked by the semantic patch, and
@@ -266,8 +266,8 @@ If not using the kernel's coccicheck target, keep the above precedence
 order logic of .cocciconfig reading. If using the kernel's coccicheck target,
 override any of the kernel's .coccicheck's settings using SPFLAGS.
 
-We help Coccinelle when used against Linux with a set of sensible default
-options for Linux with our own Linux .cocciconfig. This hints to coccinelle
+We help Coccinelle when used against GNU/Linux with a set of sensible default
+options for GNU/Linux with our own GNU/Linux .cocciconfig. This hints to coccinelle
 that git can be used for ``git grep`` queries over coccigrep. A timeout of 200
 seconds should suffice for now.
 

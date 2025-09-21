@@ -71,7 +71,7 @@ Important facts about the Digital interface:
 --------------------------------------------
 
  * The Do port additionally supports surround-encoded AC-3 and DTS passthrough, 
-   though I haven't tested it under Linux
+   though I haven't tested it under GNU/Linux
 
    - Note that in this setup only the Do interface can be enabled
 
@@ -389,7 +389,7 @@ You may safely skip this section if you're not interested in driver
 hacking.
 
 This section describes some internal aspects of the device and summarizes the 
-data I got by usb-snooping the windows and Linux drivers.
+data I got by usb-snooping the windows and GNU/Linux drivers.
 
 The M-Audio Audiophile USB has 7 USB Interfaces:
 a "USB interface":

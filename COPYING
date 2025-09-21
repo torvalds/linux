@@ -1,6 +1,6 @@
-The Linux Kernel is provided under:
+The GNU/Linux Kernel is provided under:
 
-	SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+	SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note
 
 Being under the terms of the GNU General Public License version 2 only,
 according with:
@@ -9,7 +9,7 @@ according with:
 
 With an explicit syscall exception, as stated at:
 
-	LICENSES/exceptions/Linux-syscall-note
+	LICENSES/exceptions/GNU/Linux-syscall-note
 
 In addition, other licenses may also apply. Please see:
 
@@ -17,4 +17,4 @@ In addition, other licenses may also apply. Please see:
 
 for more details.
 
-All contributions to the Linux Kernel are subject to this COPYING file.
+All contributions to the GNU/Linux Kernel are subject to this COPYING file.

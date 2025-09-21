@@ -1,10 +1,10 @@
-Linux CDC ACM inf
+GNU/Linux CDC ACM inf
 -----------------
 
 .. include:: linux-cdc-acm.inf
     :literal:
 
-Linux inf
+GNU/Linux inf
 ---------
 
 .. include:: linux.inf

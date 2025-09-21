@@ -186,7 +186,7 @@ static char codec_name[SND_ACPI_I2C_ID_LEN];
 /*
  * to control the HifiBerry Digi+ PRO, it's required to toggle GPIO to
  * select the clock source. On the Up2 board, this means
- * Pin29/BCM5/Linux GPIO 430 and Pin 31/BCM6/ Linux GPIO 404.
+ * Pin29/BCM5/GNU/Linux GPIO 430 and Pin 31/BCM6/ GNU/Linux GPIO 404.
  *
  * Using the ACPI device name is not very nice, but since we only use
  * the value for the Up2 board there is no risk of conflict with other

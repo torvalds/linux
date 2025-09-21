@@ -1,5 +1,5 @@
 /*
- * Adaptec AIC79xx device driver for Linux.
+ * Adaptec AIC79xx device driver for GNU/Linux.
  *
  * Copyright (c) 2000-2001 Adaptec Inc.
  * All rights reserved.

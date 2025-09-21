@@ -10,7 +10,7 @@ Preso da: https://blog.ffwll.ch/2013/11/botching-up-ioctls.html
 
 Scritto da : Daniel Vetter, Copyright © 2013 Intel Corporation
 
-Una cosa che gli sviluppatori del sottosistema grafico del kernel Linux hanno
+Una cosa che gli sviluppatori del sottosistema grafico del kernel GNU/Linux hanno
 imparato negli ultimi anni è l'inutilità di cercare di creare un'interfaccia
 unificata per gestire la memoria e le unità esecutive di diverse GPU. Dunque,
 oggigiorno ogni driver ha il suo insieme di ioctl per allocare memoria ed

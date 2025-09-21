@@ -436,11 +436,11 @@ config USB_DUMMY_HCD
 	  like those from NET2280, PXA2xx, or SA1100 hardware.
 
 	  This may help in some stages of creating a driver to embed in a
-	  Linux device, since it lets you debug several parts of the gadget
+	  GNU/Linux device, since it lets you debug several parts of the gadget
 	  driver without its hardware or drivers being involved.
 
 	  Since such a gadget side driver needs to interoperate with a host
-	  side Linux-USB device driver, this may help to debug both sides
+	  side GNU/Linux-USB device driver, this may help to debug both sides
 	  of a USB protocol stack.
 
 	  Say "y" to link the driver statically, or "m" to build a

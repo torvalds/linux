@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * asb100.c - Part of lm_sensors, Linux kernel modules for hardware
+ * asb100.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	      monitoring
  *
  * Copyright (C) 2004 Mark M. Hoffman <mhoffman@lightlink.com>

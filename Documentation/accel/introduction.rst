@@ -4,7 +4,7 @@
 Introduction
 ============
 
-The Linux compute accelerators subsystem is designed to expose compute
+The GNU/Linux compute accelerators subsystem is designed to expose compute
 accelerators in a common way to user-space and provide a common set of
 functionality.
 

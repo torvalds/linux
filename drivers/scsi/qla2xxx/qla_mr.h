@@ -251,7 +251,7 @@ struct port_info_data {
 #define OS_TYPE_UNKNOWN             0
 #define OS_TYPE_LINUX               2
 
-/* Linux Info */
+/* GNU/Linux Info */
 #define SYSNAME_LENGTH              128
 #define NODENAME_LENGTH             64
 #define RELEASE_LENGTH              64

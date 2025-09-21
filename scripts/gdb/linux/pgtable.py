@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# gdb helper commands and functions for Linux kernel debugging
+# gdb helper commands and functions for GNU/Linux kernel debugging
 #
 #  routines to introspect page table
 #

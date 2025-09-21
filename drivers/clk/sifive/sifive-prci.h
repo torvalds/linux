@@ -252,13 +252,13 @@ struct __prci_wrpll_data {
  * struct __prci_clock - describes a clock device managed by PRCI
  * @name: user-readable clock name string - should match the manual
  * @parent_name: parent name for this clock
- * @ops: struct clk_ops for the Linux clock framework to use for control
- * @hw: Linux-private clock data
+ * @ops: struct clk_ops for the GNU/Linux clock framework to use for control
+ * @hw: GNU/Linux-private clock data
  * @pwd: WRPLL-specific data, associated with this clock (if not NULL)
  * @pd: PRCI-specific data associated with this clock (if not NULL)
  *
  * PRCI clock data.  Used by the PRCI driver to register PRCI-provided
- * clocks to the Linux clock infrastructure.
+ * clocks to the GNU/Linux clock infrastructure.
  */
 struct __prci_clock {
 	const char *name;
@@ -290,7 +290,7 @@ void sifive_prci_corepllsel_use_corepll(struct __prci_data *pd);
 void sifive_prci_hfpclkpllsel_use_hfclk(struct __prci_data *pd);
 void sifive_prci_hfpclkpllsel_use_hfpclkpll(struct __prci_data *pd);
 
-/* Linux clock framework integration */
+/* GNU/Linux clock framework integration */
 long sifive_prci_wrpll_round_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long *parent_rate);
 int sifive_prci_wrpll_set_rate(struct clk_hw *hw, unsigned long rate,

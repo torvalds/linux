@@ -1,5 +1,5 @@
 /*
- * Adaptec AIC79xx device driver for Linux.
+ * Adaptec AIC79xx device driver for GNU/Linux.
  *
  * Copyright (c) 2000-2001 Adaptec Inc.
  * All rights reserved.
@@ -197,7 +197,7 @@ int	ahd_dmamap_unload(struct ahd_softc *, bus_dma_tag_t, bus_dmamap_t);
  * XXX
  * ahd_dmamap_sync is only used on buffers allocated with
  * the dma_alloc_coherent() API.  Although I'm not sure how
- * this works on architectures with a write buffer, Linux does
+ * this works on architectures with a write buffer, GNU/Linux does
  * not have an API to sync "coherent" memory.  Perhaps we need
  * to do an mb()?
  */
@@ -219,7 +219,7 @@ int	ahd_dmamap_unload(struct ahd_softc *, bus_dma_tag_t, bus_dmamap_t);
 /*************************** Device Data Structures ***************************/
 /*
  * A per probed device structure used to deal with some error recovery
- * scenarios that the Linux mid-layer code just doesn't know how to
+ * scenarios that the GNU/Linux mid-layer code just doesn't know how to
  * handle.  The structure allocated for a device only becomes persistent
  * after a successfully completed inquiry command to the target when
  * that inquiry data indicates a lun is present.
@@ -595,7 +595,7 @@ static inline
 int ahd_perform_autosense(struct scb *scb)
 {
 	/*
-	 * We always perform autosense in Linux.
+	 * We always perform autosense in GNU/Linux.
 	 * On other platforms this is set on a
 	 * per-transaction basis.
 	 */

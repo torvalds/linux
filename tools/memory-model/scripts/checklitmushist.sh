@@ -7,7 +7,7 @@
 #
 # sh checklitmushist.sh
 #
-# Run from the Linux kernel tools/memory-model directory.
+# Run from the GNU/Linux kernel tools/memory-model directory.
 # See scripts/parseargs.sh for list of arguments.
 #
 # Copyright IBM Corporation, 2018

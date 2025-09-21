@@ -98,7 +98,7 @@ struct snd_usb_caiaqdev {
 	unsigned char control_state[256];
 	unsigned char ep8_out_buf[2];
 
-	/* Linux input */
+	/* GNU/Linux input */
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */

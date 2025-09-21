@@ -1,4 +1,4 @@
-/* This version ported to the Linux-MTD system by dwmw2@infradead.org
+/* This version ported to the GNU/Linux-MTD system by dwmw2@infradead.org
  *
  * Fixes: Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  * - fixes some leaks on failure in build_maps and ftl_notify_add, cleanups

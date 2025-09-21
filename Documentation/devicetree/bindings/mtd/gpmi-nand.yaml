@@ -84,7 +84,7 @@ properties:
       the data area but rely on the flash based BBT for identifying bad blocks.
       NOTE: this is only valid in conjunction with 'nand-on-flash-bbt'.
       WARNING: on i.MX28 blockmark swapping cannot be disabled for the BootROM
-      in the FCB. Thus, partitions written from Linux with this feature turned
+      in the FCB. Thus, partitions written from GNU/Linux with this feature turned
       on may not be accessible by the BootROM code.
 
 required:

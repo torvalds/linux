@@ -13,10 +13,10 @@ menuconfig WAN
 
 	  Usually, a quite expensive external device called a `WAN router' is
 	  needed to connect to a WAN. As an alternative, a relatively
-	  inexpensive WAN interface card can allow your Linux box to directly
+	  inexpensive WAN interface card can allow your GNU/Linux box to directly
 	  connect to a WAN.
 
-	  If you have one of those cards and wish to use it under Linux,
+	  If you have one of those cards and wish to use it under GNU/Linux,
 	  say Y here and also to the WAN driver for your card.
 
 	  If unsure, say N.
@@ -27,7 +27,7 @@ if WAN
 config HDLC
 	tristate "Generic HDLC layer"
 	help
-	  Say Y to this option if your Linux box contains a WAN (Wide Area
+	  Say Y to this option if your GNU/Linux box contains a WAN (Wide Area
 	  Network) card supported by this driver and you are planning to
 	  connect the box to a WAN.
 

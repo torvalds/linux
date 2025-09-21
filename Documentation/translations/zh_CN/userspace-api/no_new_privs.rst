@@ -22,19 +22,19 @@ execve系统调用可以给一个新启动的程序授予它的父程序本没�
 
  - 执行代码对ptrace有特殊处理。
 
-这些都是临时性的修复。 ``no_new_privs`` 位（从 Linux 3.5 起）是一个新的通
+这些都是临时性的修复。 ``no_new_privs`` 位（从 GNU/Linux 3.5 起）是一个新的通
 用的机制来保证一个进程安全地修改其执行环境并跨execve持久化。任何任务都可以设
 置 ``no_new_privs`` 。一旦该位被设置，它会在fork、clone和execve中继承下去
 ，并且不能被撤销。在 ``no_new_privs`` 被设置的情况下， ``execve()`` 将保证
 不会授予权限去做任何没有execve调用就不能做的事情。比如， setuid 和 setgid
-位不会再改变 uid 或 gid；文件能力不会被添加到授权集合中，并且Linux安全模块（
+位不会再改变 uid 或 gid；文件能力不会被添加到授权集合中，并且GNU/Linux安全模块（
 LSM）不会在execve调用后放松限制。
 
 设置 ``no_new_privs`` 使用::
 
     prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 
-不过要小心，Linux安全模块（LSM）也可能不会在 ``no_new_privs`` 模式下收紧约束。
+不过要小心，GNU/Linux安全模块（LSM）也可能不会在 ``no_new_privs`` 模式下收紧约束。
 （这意味着一个一般的服务启动器在执行守护进程前就去设置 ``no_new_privs`` 可能
 会干扰基于LSM的沙箱。）
 

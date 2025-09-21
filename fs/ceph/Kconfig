@@ -44,7 +44,7 @@ config CEPH_FS_SECURITY_LABEL
 	depends on CEPH_FS && SECURITY
 	help
 	  Security labels support alternative access control models
-	  implemented by security modules like SELinux. This option
+	  implemented by security modules like SEGNU/Linux. This option
 	  enables an extended attribute handler for file security
 	  labels in the Ceph filesystem.
 

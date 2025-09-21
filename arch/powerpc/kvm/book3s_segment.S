@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- * Copyright SUSE Linux Products GmbH 2010
+ * Copyright SUSE GNU/Linux Products GmbH 2010
  *
  * Authors: Alexander Graf <agraf@suse.de>
  */
@@ -345,7 +345,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	/*
-	 * For some interrupts, we need to call the real Linux
+	 * For some interrupts, we need to call the real GNU/Linux
 	 * handler, so it can do work for us. This has to happen
 	 * as if the interrupt arrived from the kernel though,
 	 * so let's fake it here where most state is restored.

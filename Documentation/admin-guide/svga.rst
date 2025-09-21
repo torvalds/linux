@@ -25,7 +25,7 @@ booted through BIOS firmware (as opposed to through UEFI, kexec, etc.).
 The video mode to be used is selected by a kernel parameter which can be
 specified in the kernel Makefile (the SVGA_MODE=... line) or by the "vga=..."
 option of LILO (or some other boot loader you use) or by the "xrandr" utility
-(present in standard Linux utility packages). You can use the following values
+(present in standard GNU/Linux utility packages). You can use the following values
 of this parameter::
 
    NORMAL_VGA - Standard 80x25 mode available on all display adapters.
@@ -65,7 +65,7 @@ The menu looks like::
 	....
 	Enter mode number or ``scan``: <flashing-cursor-here>
 
-<name-of-detected-video-adapter> tells what video adapter did Linux detect
+<name-of-detected-video-adapter> tells what video adapter did GNU/Linux detect
 -- it's either a generic adapter name (MDA, CGA, HGC, EGA, VGA, VESA VGA [a VGA
 with VESA-compliant BIOS]) or a chipset name (e.g., Trident). Direct detection
 of chipsets is turned off by default as it's inherently unreliable due to
@@ -181,10 +181,10 @@ your kernel with the video mode set directly via the kernel parameter.
 In either case, please send me a bug report containing what _exactly_
 happens and how do the configuration switches affect the behaviour of the bug.
 
-If you start Linux from M$-DOS, you might also use some DOS tools for
+If you start GNU/Linux from M$-DOS, you might also use some DOS tools for
 video mode setting. In this case, you must specify the 0x0f04 mode ("leave
-current settings") to Linux, because if you don't and you use any non-standard
-mode, Linux will switch to 80x25 automatically.
+current settings") to GNU/Linux, because if you don't and you use any non-standard
+mode, GNU/Linux will switch to 80x25 automatically.
 
 If you set some extended mode and there's one or more extra lines on the
 bottom of the display containing already scrolled-out text, your VGA BIOS

@@ -69,7 +69,7 @@ Description:
 
 What:		/sys/bus/pci/rescan
 Date:		January 2009
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		Writing a non-zero value to this attribute will
 		force a rescan of all PCI buses in the system, and
@@ -77,7 +77,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../msi_bus
 Date:		September 2014
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		Writing a zero value to this attribute disallows MSI and
 		MSI-X for any future drivers of the device.  If the device
@@ -102,7 +102,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../irq
 Date:		August 2021
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		If a driver has enabled MSI (not MSI-X), "irq" contains the
 		IRQ of the first MSI vector. Otherwise "irq" contains the
@@ -113,14 +113,14 @@ Description:
 
 What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		Writing a non-zero value to this attribute will
 		hot-remove the PCI device and any of its children.
 
 What:		/sys/bus/pci/devices/.../pci_bus/.../rescan
 Date:		May 2011
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		Writing a non-zero value to this attribute will
 		force a rescan of the bus and all child buses,
@@ -129,7 +129,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../rescan
 Date:		January 2009
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		Writing a non-zero value to this attribute will
 		force a rescan of the device's parent bus and all
@@ -443,7 +443,7 @@ Description:	If ASPM is supported for an endpoint, these files can be
 
 What:		/sys/bus/pci/devices/.../power_state
 Date:		November 2020
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		This file contains the current PCI power state of the device.
 		The value comes from the PCI kernel device state and can be one
@@ -586,7 +586,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../doe_features
 Date:		March 2025
-Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Contact:	GNU/Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
 		This directory contains a list of the supported Data Object
 		Exchange (DOE) features. The features are the file name.

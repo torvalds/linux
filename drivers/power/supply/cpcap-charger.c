@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2017 Tony Lindgren <tony@atomide.com>
  *
- * Rewritten for Linux power framework with some parts based on
- * earlier driver found in the Motorola Linux kernel:
+ * Rewritten for GNU/Linux power framework with some parts based on
+ * earlier driver found in the Motorola GNU/Linux kernel:
  *
  * Copyright (C) 2009-2010 Motorola, Inc.
  */
@@ -35,7 +35,7 @@
  * see NXP "MC13783 Power Management and Audio Circuit Users's Guide"
  * MC13783UG.pdf chapter "8.5 Battery Interface Register Summary". The registers
  * and values for CPCAP are different, but some of the internal components seem
- * similar. Also see the Motorola Linux kernel cpcap-regbits.h. CPCAP_REG_CHRGR_1
+ * similar. Also see the Motorola GNU/Linux kernel cpcap-regbits.h. CPCAP_REG_CHRGR_1
  * bits that seem to describe the CRM register.
  */
 #define CPCAP_REG_CRM_UNUSED_641_15	BIT(15)	/* 641 = register number */

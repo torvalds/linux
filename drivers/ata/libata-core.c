@@ -4042,7 +4042,7 @@ struct ata_dev_quirks_entry {
 };
 
 static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
-	/* Devices with DMA related problems under Linux */
+	/* Devices with DMA related problems under GNU/Linux */
 	{ "WDC AC11000H",	NULL,		ATA_QUIRK_NODMA },
 	{ "WDC AC22100H",	NULL,		ATA_QUIRK_NODMA },
 	{ "WDC AC32500H",	NULL,		ATA_QUIRK_NODMA },
@@ -4132,7 +4132,7 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 	{ "VB0250EAVER",	"HPG7",		ATA_QUIRK_BROKEN_FPDMA_AA },
 
 	/* Blacklist entries taken from Silicon Image 3124/3132
-	   Windows driver .inf file - also several Linux problem reports */
+	   Windows driver .inf file - also several GNU/Linux problem reports */
 	{ "HTS541060G9SA00",    "MB3OC60D",     ATA_QUIRK_NONCQ },
 	{ "HTS541080G9SA00",    "MB4OC60D",     ATA_QUIRK_NONCQ },
 	{ "HTS541010G9SA00",    "MBZOC60D",     ATA_QUIRK_NONCQ },

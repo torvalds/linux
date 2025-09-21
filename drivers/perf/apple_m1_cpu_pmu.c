@@ -7,7 +7,7 @@
  * Author: Marc Zyngier <maz@kernel.org>
  *
  * Most of the information used in this driver was provided by the
- * Asahi Linux project. The rest was experimentally discovered.
+ * Asahi GNU/Linux project. The rest was experimentally discovered.
  */
 
 #include <linux/of.h>

@@ -151,7 +151,7 @@ EXPORT_SYMBOL(screen_info_resources);
  *
  *  - DRM format info specifies depth as the number of color
  *    bits; including alpha, but not including filler bits.
- *  - Linux' EFI platform code computes lfb_depth from the
+ *  - GNU/Linux' EFI platform code computes lfb_depth from the
  *    individual color channels, including the reserved bits.
  *  - VBE 1.1 defines lfb_depth for XRGB1555 as 16, but later
  *    versions use 15.

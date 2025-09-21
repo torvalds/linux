@@ -18,7 +18,7 @@ description: |
   An example of such an SoC is K2G, which contains the system control hardware
   block called Power Management Micro Controller (PMMC). This hardware block is
   initialized early into boot process and provides services to Operating Systems
-  on multiple processors including ones running Linux.
+  on multiple processors including ones running GNU/Linux.
 
   See https://software-dl.ti.com/tisci/esd/latest/index.html for protocol definition.
 

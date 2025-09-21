@@ -719,7 +719,7 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 	else
 		irqstat &= (cmos_rtc.suspend_ctrl & RTC_IRQMASK) | RTC_IRQF;
 
-	/* All Linux RTC alarms should be treated as if they were oneshot.
+	/* All GNU/Linux RTC alarms should be treated as if they were oneshot.
 	 * Similar code may be needed in system wakeup paths, in case the
 	 * alarm woke the system.
 	 */

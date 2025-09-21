@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /**
- * eCryptfs: Linux filesystem encryption layer
+ * eCryptfs: GNU/Linux filesystem encryption layer
  * Kernel declarations.
  *
  * Copyright (C) 1997-2003 Erez Zadok

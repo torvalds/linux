@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ============================================
-The Linux Hardware Timestamping Engine (HTE)
+The GNU/Linux Hardware Timestamping Engine (HTE)
 ============================================
 
 The HTE Subsystem

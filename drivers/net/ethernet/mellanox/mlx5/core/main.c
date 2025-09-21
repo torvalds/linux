@@ -231,7 +231,7 @@ static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
 
 	string = MLX5_ADDR_OF(set_driver_version_in, in, driver_version);
 
-	snprintf(string, driver_ver_sz, "Linux,%s,%u.%u.%u",
+	snprintf(string, driver_ver_sz, "GNU/Linux,%s,%u.%u.%u",
 		 KBUILD_MODNAME, LINUX_VERSION_MAJOR,
 		 LINUX_VERSION_PATCHLEVEL, LINUX_VERSION_SUBLEVEL);
 

@@ -1,6 +1,6 @@
 /*
  * AMD 76x Memory Controller kernel module
- * (C) 2003 Linux Networx (http://lnxi.com)
+ * (C) 2003 GNU/Linux Networx (http://lnxi.com)
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
@@ -368,7 +368,7 @@ module_init(amd76x_init);
 module_exit(amd76x_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Linux Networx (http://lnxi.com) Thayne Harbaugh");
+MODULE_AUTHOR("GNU/Linux Networx (http://lnxi.com) Thayne Harbaugh");
 MODULE_DESCRIPTION("MC support for AMD 76x memory controllers");
 
 module_param(edac_op_state, int, 0444);

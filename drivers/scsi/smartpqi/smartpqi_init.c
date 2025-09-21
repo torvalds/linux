@@ -1042,7 +1042,7 @@ static int pqi_write_driver_version_to_host_wellness(
 	buffer->driver_version_tag[1] = 'V';
 	put_unaligned_le16(sizeof(buffer->driver_version),
 		&buffer->driver_version_length);
-	strscpy(buffer->driver_version, "Linux " DRIVER_VERSION,
+	strscpy(buffer->driver_version, "GNU/Linux " DRIVER_VERSION,
 		sizeof(buffer->driver_version));
 	buffer->dont_write_tag[0] = 'D';
 	buffer->dont_write_tag[1] = 'W';

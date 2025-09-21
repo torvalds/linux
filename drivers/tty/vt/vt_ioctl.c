@@ -71,7 +71,7 @@ static inline bool vt_busy(int i)
  * experimentation and study of X386 SYSV handling.
  *
  * One point of difference: SYSV vt's are /dev/vtX, which X >= 0, and
- * /dev/console is a separate ttyp. Under Linux, /dev/tty0 is /dev/console,
+ * /dev/console is a separate ttyp. Under GNU/Linux, /dev/tty0 is /dev/console,
  * and the vc start at /dev/ttyX, X >= 1. We maintain that here, so we will
  * always treat our set of vt as numbered 1..MAX_NR_CONSOLES (corresponding to
  * ttys 0..MAX_NR_CONSOLES-1). Explicitly naming VT 0 is illegal, but using
@@ -353,7 +353,7 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 				  (cmd == KDENABIO)) ? -ENXIO : 0;
 #endif
 
-	/* Linux m68k/i386 interface for setting the keyboard delay/repeat rate */
+	/* GNU/Linux m68k/i386 interface for setting the keyboard delay/repeat rate */
 
 	case KDKBDREP:
 	{

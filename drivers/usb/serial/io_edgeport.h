@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /************************************************************************
  *
- *	io_edgeport.h	Edgeport Linux Interface definitions
+ *	io_edgeport.h	Edgeport GNU/Linux Interface definitions
  *
  *	Copyright (C) 2000 Inside Out Networks, Inc.
  *

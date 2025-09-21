@@ -37,10 +37,10 @@ development `repository <https://gitlab.fel.cvut.cz/canbus/qemu-canbus>`_.
 About SocketCAN
 ---------------
 
-SocketCAN is a standard common interface for CAN devices in the Linux
+SocketCAN is a standard common interface for CAN devices in the GNU/Linux
 kernel. As the name suggests, the bus is accessed via sockets, similarly
 to common network devices. The reasoning behind this is in depth
-described in `Linux SocketCAN <https://www.kernel.org/doc/html/latest/networking/can.html>`_.
+described in `GNU/Linux SocketCAN <https://www.kernel.org/doc/html/latest/networking/can.html>`_.
 In short, it offers a
 natural way to implement and work with higher layer protocols over CAN,
 in the same way as, e.g., UDP/IP over Ethernet.
@@ -218,8 +218,8 @@ NAPI
 
 The frequency of incoming frames can be high and the overhead to invoke
 the interrupt service routine for each frame can cause significant
-system load. There are multiple mechanisms in the Linux kernel to deal
-with this situation. They evolved over the years of Linux kernel
+system load. There are multiple mechanisms in the GNU/Linux kernel to deal
+with this situation. They evolved over the years of GNU/Linux kernel
 development and enhancements. For network devices, the current standard
 is NAPI – *the New API*. It is similar to classical top-half/bottom-half
 interrupt handling in that it only acknowledges the interrupt in the ISR
@@ -465,7 +465,7 @@ later, but not sooner. Note that the timestamp does not participate in
 buffer prioritization – that is decided solely by the mechanism
 described above.
 
-Support for time-based packet transmission was recently merged to Linux
+Support for time-based packet transmission was recently merged to GNU/Linux
 v4.19 `Time-based packet transmission <https://lwn.net/Articles/748879/>`_,
 but it remains yet to be researched
 whether this functionality will be practical for CAN.
@@ -550,7 +550,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
 
 * `Digiteq Automotive <https://www.digiteqautomotive.com/en>`_
 
-  * funding of the project CAN FD Open Cores Support Linux Kernel Based Systems
+  * funding of the project CAN FD Open Cores Support GNU/Linux Kernel Based Systems
   * negotiated and paid CTU to allow public access to the project
   * provided additional funding of the work
 
@@ -558,7 +558,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
   `Faculty of Electrical Engineering <http://www.fel.cvut.cz/en/>`_,
   `Czech Technical University <https://www.cvut.cz/en>`_
 
-  * solving the project CAN FD Open Cores Support Linux Kernel Based Systems
+  * solving the project CAN FD Open Cores Support GNU/Linux Kernel Based Systems
   * providing GitLab management
   * virtual servers and computational power for continuous integration
   * providing hardware for HIL continuous integration tests
@@ -574,7 +574,7 @@ CTU CAN FD IP Core and Driver Development Acknowledgment
 
 * Martin Jerabek <martin.jerabek01@gmail.com>
 
-  * Linux driver development
+  * GNU/Linux driver development
   * continuous integration platform architect and GHDL updates
   * thesis `Open-source and Open-hardware CAN FD Protocol Support <https://dspace.cvut.cz/bitstream/handle/10467/80366/F3-DP-2019-Jerabek-Martin-Jerabek-thesis-2019-canfd.pdf>`_
 

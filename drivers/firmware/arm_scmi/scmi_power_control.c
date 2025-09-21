@@ -17,7 +17,7 @@
  * events.
  *
  * Direct forceful requests are not supported since are not meant to be sent
- * by the SCMI platform to an OSPM like Linux.
+ * by the SCMI platform to an OSPM like GNU/Linux.
  *
  * Additionally, graceful request notifications can carry an optional timeout
  * field stating the maximum amount of time allowed by the platform for

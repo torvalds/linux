@@ -4,7 +4,7 @@ Debugging kernel and modules via gdb
 ====================================
 
 The kernel debugger kgdb, hypervisors like QEMU or JTAG-based hardware
-interfaces allow to debug the Linux kernel and its modules during runtime
+interfaces allow to debug the GNU/Linux kernel and its modules during runtime
 using gdb. Gdb comes with a powerful scripting interface for python. The
 kernel provides a collection of helper scripts that can simplify typical
 kernel debugging steps. This is a short tutorial about how to enable and use
@@ -22,7 +22,7 @@ Requirements
 Setup
 -----
 
-- Create a virtual Linux machine for QEMU/KVM (see www.linux-kvm.org and
+- Create a virtual GNU/Linux machine for QEMU/KVM (see www.linux-kvm.org and
   www.qemu.org for more details). For cross-development,
   https://landley.net/aboriginal/bin keeps a pool of machine images and
   toolchains that can be helpful to start from.
@@ -68,7 +68,7 @@ Setup
     (gdb) target remote :1234
 
 
-Examples of using the Linux-provided gdb helpers
+Examples of using the GNU/Linux-provided gdb helpers
 ------------------------------------------------
 
 - Load module (and main kernel) symbols::
@@ -111,7 +111,7 @@ Examples of using the Linux-provided gdb helpers
     (gdb) lx-dmesg
     [     0.000000] Initializing cgroup subsys cpuset
     [     0.000000] Initializing cgroup subsys cpu
-    [     0.000000] Linux version 3.8.0-rc4-dbg+ (...
+    [     0.000000] GNU/Linux version 3.8.0-rc4-dbg+ (...
     [     0.000000] Command line: root=/dev/sda2 resume=/dev/sda1 vga=0x314
     [     0.000000] e820: BIOS-provided physical RAM map:
     [     0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
@@ -165,11 +165,11 @@ this is just a snapshot of the initial version::
  function lx_current -- Return current task
  function lx_module -- Find module by name and return the module variable
  function lx_per_cpu -- Return per-cpu variable
- function lx_task_by_pid -- Find Linux task by PID and return the task_struct variable
- function lx_thread_info -- Calculate Linux thread_info from task variable
- lx-dmesg -- Print Linux kernel log buffer
+ function lx_task_by_pid -- Find GNU/Linux task by PID and return the task_struct variable
+ function lx_thread_info -- Calculate GNU/Linux thread_info from task variable
+ lx-dmesg -- Print GNU/Linux kernel log buffer
  lx-lsmod -- List currently loaded modules
- lx-symbols -- (Re-)load symbols of Linux kernel and currently loaded modules
+ lx-symbols -- (Re-)load symbols of GNU/Linux kernel and currently loaded modules
 
 Detailed help can be obtained via "help <command-name>" for commands and "help
 function <function-name>" for convenience functions.

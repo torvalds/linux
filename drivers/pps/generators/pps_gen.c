@@ -340,5 +340,5 @@ subsys_initcall(pps_gen_init);
 module_exit(pps_gen_exit);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@enneenne.com>");
-MODULE_DESCRIPTION("LinuxPPS generators support");
+MODULE_DESCRIPTION("GNU/LinuxPPS generators support");
 MODULE_LICENSE("GPL");

@@ -5,7 +5,7 @@ Contact:	selinux@vger.kernel.org
 Description:
 
 	The selinuxfs "user" node allows userspace to request a list
-	of security contexts that can be reached for a given SELinux
+	of security contexts that can be reached for a given SEGNU/Linux
 	user from a given starting context. This was used by libselinux
 	when various login-style programs requested contexts for
 	users, but libselinux stopped using it in 2020.

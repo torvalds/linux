@@ -13,7 +13,7 @@
  * Each type would have an own structure, with instances related one to one.
  * We have only pcic on sparc, but we want to be compatible with sparc64 pbm.h.
  * All three represent different abstractions.
- *   pci_bus  - Linux PCI subsystem view of a PCI bus (including bridged buses)
+ *   pci_bus  - GNU/Linux PCI subsystem view of a PCI bus (including bridged buses)
  *   pbm      - Arch-specific view of a PCI bus (sparc or sparc64)
  *   pcic     - Chip-specific information for PCIC.
  */

@@ -353,7 +353,7 @@ between device driver specific code and shared common code:
 
    Now that the driver knows that this page is being migrated, it can
    invalidate device private MMU mappings and copy device private memory
-   to system memory or another device private page. The core Linux kernel
+   to system memory or another device private page. The core GNU/Linux kernel
    handles CPU page table invalidations so the device driver only has to
    invalidate its own MMU mappings.
 

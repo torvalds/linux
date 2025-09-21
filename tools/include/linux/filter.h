@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Linux Socket Filter Data Structures
+ * GNU/Linux Socket Filter Data Structures
  */
 #ifndef __TOOLS_LINUX_FILTER_H
 #define __TOOLS_LINUX_FILTER_H

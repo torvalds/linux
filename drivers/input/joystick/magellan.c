@@ -4,7 +4,7 @@
  */
 
 /*
- * Magellan and Space Mouse 6dof controller driver for Linux
+ * Magellan and Space Mouse 6dof controller driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

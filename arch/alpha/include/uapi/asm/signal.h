@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_ASMAXP_SIGNAL_H
 #define _UAPI_ASMAXP_SIGNAL_H
 
@@ -17,7 +17,7 @@ typedef unsigned long sigset_t;
 
 
 /*
- * Linux/AXP has different signal numbers that Linux/i386: I'm trying
+ * GNU/Linux/AXP has different signal numbers that GNU/Linux/i386: I'm trying
  * to make it OSF/1 binary compatible, at least for normal binaries.
  */
 #define SIGHUP		 1

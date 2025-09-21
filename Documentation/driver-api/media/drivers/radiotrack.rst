@@ -10,7 +10,7 @@ Date:  Dec 14, 1996
 ACKNOWLEDGMENTS
 ----------------
 
-This document was made based on 'C' code for Linux from Gideon le Grange
+This document was made based on 'C' code for GNU/Linux from Gideon le Grange
 (legrang@active.co.za or legrang@cs.sun.ac.za) in 1994, and elaborations from
 Frans Brinkman (brinkman@esd.nl) in 1996.  The results reported here are from
 experiments that the author performed on his own setup, so your mileage may
@@ -24,14 +24,14 @@ WHY THIS DOCUMENT?
 ------------------
 
 I have a RadioTrack card from back when I ran an MS-Windows platform.  After
-converting to Linux, I found Gideon le Grange's command-line software for
+converting to GNU/Linux, I found Gideon le Grange's command-line software for
 running the card, and found that it was good!  Frans Brinkman made a
 comfortable X-windows interface, and added a scanning feature.  For hack
 value, I wanted to see if the tuner could be tuned beyond the usual FM radio
 broadcast band, so I could pick up the audio carriers from North American
 broadcast TV channels, situated just below and above the 87.0-109.0 MHz range.
 I did not get much success, but I learned about programming ioports under
-Linux and gained some insights about the hardware design used for the card.
+GNU/Linux and gained some insights about the hardware design used for the card.
 
 So, without further delay, here are the details.
 

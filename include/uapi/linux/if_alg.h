@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note */
 /*
  * if_alg: User-space algorithm interface
  *
@@ -25,7 +25,7 @@ struct sockaddr_alg {
 };
 
 /*
- * Linux v4.12 and later removed the 64-byte limit on salg_name[]; it's now an
+ * GNU/Linux v4.12 and later removed the 64-byte limit on salg_name[]; it's now an
  * arbitrary-length field.  We had to keep the original struct above for source
  * compatibility with existing userspace programs, though.  Use the new struct
  * below if support for very long algorithm names is needed.  To do this,

@@ -2,7 +2,7 @@
 Block layer support for Persistent Reservations
 ===============================================
 
-The Linux kernel supports a user space interface for simplified
+The GNU/Linux kernel supports a user space interface for simplified
 Persistent Reservations which map to block devices that support
 these (like SCSI). Persistent Reservations allow restricting
 access to block devices to specific initiators in a shared storage
@@ -16,7 +16,7 @@ Commands standard, specifically the section on Reservations and the
 All implementations are expected to ensure the reservations survive
 a power loss and cover all connections in a multi path environment.
 These behaviors are optional in SPC but will be automatically applied
-by Linux.
+by GNU/Linux.
 
 
 The following types of reservations are supported:

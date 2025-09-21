@@ -4,7 +4,7 @@
 TEE (Trusted Execution Environment)
 ===================================
 
-This document describes the TEE subsystem in Linux.
+This document describes the TEE subsystem in GNU/Linux.
 
 Overview
 ========
@@ -17,6 +17,6 @@ This subsystem deals with:
 
 - Registration of TEE drivers
 
-- Managing shared memory between Linux and the TEE
+- Managing shared memory between GNU/Linux and the TEE
 
 - Providing a generic API to the TEE

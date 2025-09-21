@@ -1833,7 +1833,7 @@ void wsm_txed(struct cw1200_common *priv, u8 *data);
 
 /* ******************************************************************** */
 /* Queue mapping: WSM <---> linux					*/
-/* Linux: VO VI BE BK							*/
+/* GNU/Linux: VO VI BE BK							*/
 /* WSM:   BE BK VI VO							*/
 
 static inline u8 wsm_queue_id_to_linux(u8 queue_id)

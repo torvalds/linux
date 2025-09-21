@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * rrunner.c: Linux driver for the Essential RoadRunner HIPPI board.
+ * rrunner.c: GNU/Linux driver for the Essential RoadRunner HIPPI board.
  *
  * Copyright (C) 1998-2002 by Jes Sorensen, <jes@wildopensource.com>.
  *

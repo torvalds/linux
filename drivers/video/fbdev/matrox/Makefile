@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Makefile for the Linux video drivers.
+# Makefile for the GNU/Linux video drivers.
 # 5 Aug 1999, James Simmons, <mailto:jsimmons@edgeglobal.com>
 # Rewritten to use lists instead of if-statements.
 

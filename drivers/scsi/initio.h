@@ -1,5 +1,5 @@
 /**************************************************************************
- * Initio 9100 device driver for Linux.
+ * Initio 9100 device driver for GNU/Linux.
  *
  * Copyright (c) 1994-1998 Initio Corporation
  * All rights reserved.

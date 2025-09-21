@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2020 Hannes Reinecke, SUSE Linux
+ * Copyright (c) 2020 Hannes Reinecke, SUSE GNU/Linux
  */
 
 #include <linux/module.h>

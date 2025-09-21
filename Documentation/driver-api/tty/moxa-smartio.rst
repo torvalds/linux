@@ -19,7 +19,7 @@ Copyright (C) 2021, Jiri Slaby
 1. Introduction
 ^^^^^^^^^^^^^^^
 
-   The Smartio/Industio/UPCI family Linux driver supports following multiport
+   The Smartio/Industio/UPCI family GNU/Linux driver supports following multiport
    boards:
 
     - 2 ports multiport board

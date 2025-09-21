@@ -11,7 +11,7 @@
 .. _tw_index.rst:
 
 =======================================================
-Linux CPUFreq - Linux(TM)內核中的CPU頻率和電壓升降代碼
+GNU/Linux CPUFreq - GNU/Linux(TM)內核中的CPU頻率和電壓升降代碼
 =======================================================
 
 Author: Dominik Brodowski  <linux@brodo.de>

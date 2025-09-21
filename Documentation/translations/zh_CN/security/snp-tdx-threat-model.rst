@@ -8,7 +8,7 @@
  毛玉贤 Yuxian Mao <maoyuxian@cqsoftware.com.cn>
 
 ==========================
-Linux中x86虚拟化的机密计算
+GNU/Linux中x86虚拟化的机密计算
 ==========================
 
 .. contents:: :local:
@@ -18,11 +18,11 @@ By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao
 动机
 ====
 
-在x86虚拟环境中从事机密计算工作的内核开发人员，是基于一组与传统Linux内核
-威胁模型有所不同的假设条件下开展工作的。传统意义上，Linux威胁模型承认攻
+在x86虚拟环境中从事机密计算工作的内核开发人员，是基于一组与传统GNU/Linux内核
+威胁模型有所不同的假设条件下开展工作的。传统意义上，GNU/Linux威胁模型承认攻
 击者可以存在于用户空间，以及一小部分能够通过各种网络接口或有限的硬件特定
 暴露接口（如USB、Thunderbolt）与内核交互的外部攻击者。本文档的目的是解释
-在机密计算领域中出现的额外攻击向量，并讨论为 Linux 内核提出的保护机制。
+在机密计算领域中出现的额外攻击向量，并讨论为 GNU/Linux 内核提出的保护机制。
 
 概述与术语
 ==========
@@ -73,17 +73,17 @@ By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao
 机密计算（CoCo）安全管理器的具体细节在在不同技术之间存在显著差异。例如，在某
 些情况下，它可能通过硬件（HW）实现，而在其他情况下，它可能是纯软件（SW）实现。
 
-现有的Linux内核威胁模型
+现有的GNU/Linux内核威胁模型
 =======================
 
-当前Linux内核威胁模型的总体组件包括::
+当前GNU/Linux内核威胁模型的总体组件包括::
 
      +-----------------------+      +-------------------+
      |                       |<---->| Userspace         |
      |                       |      +-------------------+
      |   External attack     |         | Interfaces |
      |       vectors         |      +-------------------+
-     |                       |<---->| Linux Kernel      |
+     |                       |<---->| GNU/Linux Kernel      |
      |                       |      +-------------------+
      +-----------------------+      +-------------------+
                                     | Bootloader/BIOS   |
@@ -96,7 +96,7 @@ By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao
 表示这一点。“接口”框表示允许内核与用户空间之间通信的各种接口。 这包括系统调用、
 内核 API、设备驱动程序等。
 
-现有的 Linux 内核威胁模型通常假设其在一个受信任的硬件平台上执行，并且所有固件
+现有的 GNU/Linux 内核威胁模型通常假设其在一个受信任的硬件平台上执行，并且所有固件
 和启动加载程序都包含在该平台的受信任计算基（TCB）中。主要攻击者驻留在用户空间
 中，来自用户空间的所有数据通常被认为是不可信的，除非用户空间具有足够的特权来
 执行受信任的操作。此外，通常还会考虑外部攻击者，包括那些能够访问启用的外部网络
@@ -124,7 +124,7 @@ By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao
    |                       |     |  +-------------------+ |
    |   External attack     |     |     | Interfaces |     |
    |       vectors         |     |  +-------------------+ |
-   |                       |<--->|  | Linux Kernel      | |
+   |                       |<--->|  | GNU/Linux Kernel      | |
    |                       |     |  +-------------------+ |
    +-----------------------+     |  +-------------------+ |
                                  |  | Bootloader/BIOS   | |
@@ -142,15 +142,15 @@ By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao
 拟机。然而，机密计算（CoCo）系统通过添加诸如客户数据保密性和完整性保护等安全
 特性来缓解此类攻击。该威胁模型假设这些安全特性是可用且完好的。
 
-这个 **Linux内核机密计算虚拟机（CoCo VM）的安全目标** 可以总结如下：
+这个 **GNU/Linux内核机密计算虚拟机（CoCo VM）的安全目标** 可以总结如下：
 
 1. 保护CoCo客户机私有内存和寄存器的机密性和完整性。
 
-2. 防止宿主机特权升级到CoCo客户机Linux内核。虽然宿主机（及主机端虚拟机管理程序）
+2. 防止宿主机特权升级到CoCo客户机GNU/Linux内核。虽然宿主机（及主机端虚拟机管理程序）
    确实需要一定的特权来创建、销毁或暂停访客，但防止特权升级的部分目标是确保这些
    操作不会为攻击者提供获取客户机内核访问权限的途径。
 
-上述安全目标导致了两个主要的**Linux内核机密计算虚拟机（CoCo VM）资产**：
+上述安全目标导致了两个主要的**GNU/Linux内核机密计算虚拟机（CoCo VM）资产**：
 
 1. 客户机内核执行上下文。
 2. 客户机内核私有内存。
@@ -159,7 +159,7 @@ By: Elena Reshetova <elena.reshetova@intel.com> and Carlos Bilbao <carlos.bilbao
 括CPU时间、客户机可以消耗的内存、网络带宽等。因此，宿主机对CoCo客户机的拒绝服务
 （DoS）攻击超出了此威胁模型的范围。
 
-Linux CoCo虚拟机攻击面是指从CoCo客户机Linux内核暴露到不受信任的主机的任何接口，
+GNU/Linux CoCo虚拟机攻击面是指从CoCo客户机GNU/Linux内核暴露到不受信任的主机的任何接口，
 这些接口未被CoCo技术的软硬件保护所覆盖。这包括所有可能的侧信道攻击以及瞬态执
 行侧信道攻击。显式（非旁道）接口的示例包括访问端口I/O、内存映射I/O（MMIO）和
 直接内存访问（DMA）接口、访问PCI配置空间、特定于虚拟机管理程序（VMM）的超调用
@@ -168,10 +168,10 @@ CoCo技术的超调用（如果存在）。此外，在CoCo系统中，宿主机
 的过程：它有方法将固件和引导程序镜像、内核镜像以及内核命令行加载到客户机中。所有
 这些数据在通过证明机制确认其完整性和真实性之前，都应视为不可信的。
 
-下表显示了针对CoCo客户机Linux内核的威胁矩阵，但并未讨论潜在的缓解策略。该矩阵涉
+下表显示了针对CoCo客户机GNU/Linux内核的威胁矩阵，但并未讨论潜在的缓解策略。该矩阵涉
 及的是CoCo特定版本的客户机、宿主机和平台。
 
-.. list-table:: CoCo Linux客户机内核威胁矩阵
+.. list-table:: CoCo GNU/Linux客户机内核威胁矩阵
    :widths: auto
    :align: center
    :header-rows: 1

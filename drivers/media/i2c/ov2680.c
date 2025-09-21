@@ -1097,7 +1097,7 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 		return ret;
 
 	/*
-	 * The pin we want is named XSHUTDN in the datasheet. Linux sensor
+	 * The pin we want is named XSHUTDN in the datasheet. GNU/Linux sensor
 	 * drivers have standardized on using "powerdown" as con-id name
 	 * for powerdown or shutdown pins. Older DTB files use "reset",
 	 * so fallback to that if there is no "powerdown" pin.

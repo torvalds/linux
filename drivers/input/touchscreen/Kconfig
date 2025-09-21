@@ -1098,7 +1098,7 @@ config TOUCHSCREEN_TS4800
 	help
 	  Say Y here if you have a touchscreen on a TS-4800 board.
 
-	  On TS-4800, the touchscreen is not handled directly by Linux but by
+	  On TS-4800, the touchscreen is not handled directly by GNU/Linux but by
 	  a companion FPGA.
 
 	  If unsure, say N.

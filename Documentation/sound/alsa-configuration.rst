@@ -1,5 +1,5 @@
 ==============================================================
-Advanced Linux Sound Architecture - Driver Configuration guide
+Advanced GNU/Linux Sound Architecture - Driver Configuration guide
 ==============================================================
 
 
@@ -21,7 +21,7 @@ To make ALSA debug messages more verbose, enable the "Verbose printk"
 and "Debug" options.  To check for memory leaks, turn on "Debug memory"
 too.  "Debug detection" will add checks for the detection of cards.
 
-Please note that all the ALSA ISA drivers support the Linux isapnp API
+Please note that all the ALSA ISA drivers support the GNU/Linux isapnp API
 (if the card supports ISA PnP).  You don't need to configure the cards
 using isapnptools.
 

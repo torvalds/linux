@@ -336,7 +336,7 @@ static struct clk_regmap g12a_sys_pll_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the sys_pll range
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -355,7 +355,7 @@ static struct clk_regmap g12b_sys1_pll_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the sys_pll range
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1262,7 +1262,7 @@ static struct clk_regmap g12a_cpu_clk_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the cpu_clk range
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1281,7 +1281,7 @@ static struct clk_regmap g12b_cpub_clk_div16_en = {
 		.num_parents = 1,
 		/*
 		 * This clock is used to debug the cpu_clk range
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1344,7 +1344,7 @@ static struct clk_regmap g12a_cpu_clk_apb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1381,7 +1381,7 @@ static struct clk_regmap g12a_cpu_clk_atb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1418,7 +1418,7 @@ static struct clk_regmap g12a_cpu_clk_axi = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1455,7 +1455,7 @@ static struct clk_regmap g12a_cpu_clk_trace = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1590,7 +1590,7 @@ static struct clk_regmap g12b_cpub_clk_apb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1633,7 +1633,7 @@ static struct clk_regmap g12b_cpub_clk_atb = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1676,7 +1676,7 @@ static struct clk_regmap g12b_cpub_clk_axi = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };
@@ -1719,7 +1719,7 @@ static struct clk_regmap g12b_cpub_clk_trace = {
 		.num_parents = 1,
 		/*
 		 * This clock is set by the ROM monitor code,
-		 * Linux should not change it at runtime
+		 * GNU/Linux should not change it at runtime
 		 */
 	},
 };

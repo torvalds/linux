@@ -371,7 +371,7 @@ static const struct iio_chan_spec kx132_channels[] = {
 
 /*
  * The sensor HW can support ODR up to 1600 Hz, which is beyond what most of the
- * Linux CPUs can handle without dropping samples. Also, the low power mode is
+ * GNU/Linux CPUs can handle without dropping samples. Also, the low power mode is
  * not available for higher sample rates. Thus, the driver only supports 200 Hz
  * and slower ODRs. The slowest is 0.78 Hz.
  */

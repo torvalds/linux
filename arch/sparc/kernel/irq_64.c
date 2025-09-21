@@ -121,7 +121,7 @@ static int hv_irq_version;
 /* Major version 2.0 of HV_GRP_INTR added support for the VIRQ cookie
  * based interfaces, but:
  *
- * 1) Several OSs, Solaris and Linux included, use them even when only
+ * 1) Several OSs, Solaris and GNU/Linux included, use them even when only
  *    negotiating version 1.0 (or failing to negotiate at all).  So the
  *    hypervisor has a workaround that provides the VIRQ interfaces even
  *    when only verion 1.0 of the API is in use.

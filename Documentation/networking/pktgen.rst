@@ -407,11 +407,11 @@ Current commands and configuration options
 
 References:
 
-- ftp://robur.slu.se/pub/Linux/net-development/pktgen-testing/
-- ftp://robur.slu.se/pub/Linux/net-development/pktgen-testing/examples/
+- ftp://robur.slu.se/pub/GNU/Linux/net-development/pktgen-testing/
+- ftp://robur.slu.se/pub/GNU/Linux/net-development/pktgen-testing/examples/
 
-Paper from Linux-Kongress in Erlangen 2004.
-- ftp://robur.slu.se/pub/Linux/net-development/pktgen-testing/pktgen_paper.pdf
+Paper from GNU/Linux-Kongress in Erlangen 2004.
+- ftp://robur.slu.se/pub/GNU/Linux/net-development/pktgen-testing/pktgen_paper.pdf
 
 Thanks to:
 

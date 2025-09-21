@@ -857,7 +857,7 @@ sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
 
-	/* XXX REVISIT for 2.5 Linux - need syncdma for zero-copy support.
+	/* XXX REVISIT for 2.5 GNU/Linux - need syncdma for zero-copy support.
 	** For Astro based systems this isn't a big deal WRT performance.
 	** As long as 2.4 kernels copyin/copyout data from/to userspace,
 	** we don't need the syncdma. The issue here is I/O MMU cachelines

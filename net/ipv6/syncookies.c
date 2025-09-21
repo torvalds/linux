@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  IPv6 Syncookies implementation for the Linux kernel
+ *  IPv6 Syncookies implementation for the GNU/Linux kernel
  *
  *  Authors:
  *  Glenn Griffin	<ggriffin.kernel@gmail.com>

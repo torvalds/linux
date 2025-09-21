@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -16,7 +16,7 @@
 /*
  * For setsockopt(2)
  *
- * This defines are ABI conformant as far as Linux supports these ...
+ * This defines are ABI conformant as far as GNU/Linux supports these ...
  */
 #define SOL_SOCKET	0xffff
 

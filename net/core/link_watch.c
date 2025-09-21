@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux network device link state notification
+ * GNU/Linux network device link state notification
  *
  * Author:
  *     Stefan Rompf <sux@loplof.de>

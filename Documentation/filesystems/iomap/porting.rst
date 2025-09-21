@@ -19,7 +19,7 @@ Why Convert?
 
 There are several reasons to convert a filesystem to iomap:
 
- 1. The classic Linux I/O path is not terribly efficient.
+ 1. The classic GNU/Linux I/O path is not terribly efficient.
     Pagecache operations lock a single base page at a time and then call
     into the filesystem to return a mapping for only that page.
     Direct I/O operations build I/O requests a single file block at a

@@ -870,7 +870,7 @@ static void send_sigio_to_task(struct task_struct *p,
 		        si.si_code  = reason;
 			/*
 			 * Posix definies POLL_IN and friends to be signal
-			 * specific si_codes for SIG_POLL.  Linux extended
+			 * specific si_codes for SIG_POLL.  GNU/Linux extended
 			 * these si_codes to other signals in a way that is
 			 * ambiguous if other signals also have signal
 			 * specific si_codes.  In that case use SI_SIGIO instead

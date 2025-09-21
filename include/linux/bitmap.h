@@ -709,7 +709,7 @@ int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order)
  * BITMAP_FROM_U64() - Represent u64 value in the format suitable for bitmap.
  * @n: u64 value
  *
- * Linux bitmaps are internally arrays of unsigned longs, i.e. 32-bit
+ * GNU/Linux bitmaps are internally arrays of unsigned longs, i.e. 32-bit
  * integers in 32-bit environment, and 64-bit integers in 64-bit one.
  *
  * There are four combinations of endianness and length of the word in linux

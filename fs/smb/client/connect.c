@@ -3492,7 +3492,7 @@ void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 	if (ctx && ctx->no_linux_ext) {
 		tcon->fsUnixInfo.Capability = 0;
 		tcon->unix_ext = 0; /* Unix Extensions disabled */
-		cifs_dbg(FYI, "Linux protocol extensions disabled\n");
+		cifs_dbg(FYI, "GNU/Linux protocol extensions disabled\n");
 		return;
 	} else if (ctx)
 		tcon->unix_ext = 1; /* Unix Extensions supported */

@@ -1,5 +1,5 @@
 =======================
-ARM Linux 2.6 and upper
+ARM GNU/Linux 2.6 and upper
 =======================
 
     Please check <ftp://ftp.arm.linux.org.uk/pub/armlinux> for
@@ -8,13 +8,13 @@ ARM Linux 2.6 and upper
 Compilation of kernel
 ---------------------
 
-  In order to compile ARM Linux, you will need a compiler capable of
+  In order to compile ARM GNU/Linux, you will need a compiler capable of
   generating ARM ELF code with GNU extensions.  GCC 3.3 is known to be
   a good compiler.  Fortunately, you needn't guess.  The kernel will report
   an error if your compiler is a recognized offender.
 
-  To build ARM Linux natively, you shouldn't have to alter the ARCH = line
-  in the top level Makefile.  However, if you don't have the ARM Linux ELF
+  To build ARM GNU/Linux natively, you shouldn't have to alter the ARCH = line
+  in the top level Makefile.  However, if you don't have the ARM GNU/Linux ELF
   tools installed as default, then you should change the CROSS_COMPILE
   line as detailed below.
 
@@ -177,7 +177,7 @@ Kernel entry (head.S)
   independent code.  The machine is selected by the value of 'r1' on
   entry, which must be kept unique.
 
-  Due to the large number of machines which the ARM port of Linux provides
+  Due to the large number of machines which the ARM port of GNU/Linux provides
   for, we have a method to manage this which ensures that we don't end up
   duplicating large amounts of code.
 

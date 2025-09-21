@@ -353,7 +353,7 @@
 		pinctrl-single,pins = <
 			/* The PLL doesn't react well to the SPI controller reset, so
 			 * we force the CS lines to pull up as GPIOs until we're ready.
-			 * See https://e2e.ti.com/support/processors/f/791/t/276011?Linux-support-for-AM3874-DM8148-in-Arago-linux-omap3
+			 * See https://e2e.ti.com/support/processors/f/791/t/276011?GNU/Linux-support-for-AM3874-DM8148-in-Arago-linux-omap3
 			 */
 			DM814X_IOPAD(0x0b3c, PIN_INPUT_PULLUP | 0x80) /* BP_ARM_GPIO0 */
 			DM814X_IOPAD(0x0b40, PIN_INPUT_PULLUP | 0x80) /* BP_ARM_GPIO1 */

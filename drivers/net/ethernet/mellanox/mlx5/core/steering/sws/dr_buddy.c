@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB
 /* Copyright (c) 2004 Topspin Communications. All rights reserved.
  * Copyright (c) 2005 - 2008 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006 - 2007 Cisco Systems, Inc. All rights reserved.

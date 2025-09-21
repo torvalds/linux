@@ -297,7 +297,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  * CPU feature detected at boot time based on system-wide value of a
  * feature. It is safe for a late CPU to have this feature even though
  * the system hasn't enabled it, although the feature will not be used
- * by Linux in this case. If the system has enabled this feature already,
+ * by GNU/Linux in this case. If the system has enabled this feature already,
  * then every late CPU must have it.
  */
 #define ARM64_CPUCAP_SYSTEM_FEATURE	\
@@ -315,7 +315,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 /*
  * CPU feature detected at boot time and present on all early CPUs. Late CPUs
  * are permitted to have the feature even if it hasn't been enabled, although
- * the feature will not be used by Linux in this case. If all early CPUs have
+ * the feature will not be used by GNU/Linux in this case. If all early CPUs have
  * the feature, then every late CPU must have it.
  */
 #define ARM64_CPUCAP_EARLY_LOCAL_CPU_FEATURE		\
@@ -343,7 +343,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 /*
  * CPU feature used early in the boot based on the boot CPU. It is safe for a
  * late CPU to have this feature even though the boot CPU hasn't enabled it,
- * although the feature will not be used by Linux in this case. If the boot CPU
+ * although the feature will not be used by GNU/Linux in this case. If the boot CPU
  * has enabled this feature already, then every late CPU must have it.
  */
 #define ARM64_CPUCAP_BOOT_CPU_FEATURE                  \

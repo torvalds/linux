@@ -61,7 +61,7 @@ calls in read/write mode will either fail or block, depending on whether
 non-blocking or blocking mode was specified. A front-end device opened
 in blocking mode can later be put into non-blocking mode (and vice
 versa) using the F_SETFL command of the fcntl system call. This is a
-standard system call, documented in the Linux manual page for fcntl.
+standard system call, documented in the GNU/Linux manual page for fcntl.
 When an open() call has succeeded, the device will be ready for use in
 the specified mode. This implies that the corresponding hardware is
 powered up, and that other front-ends may have been powered down to make

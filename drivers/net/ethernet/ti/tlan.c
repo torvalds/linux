@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- *  Linux ThunderLAN Driver
+ *  GNU/Linux ThunderLAN Driver
  *
  *  tlan.c
  *  by James Banks

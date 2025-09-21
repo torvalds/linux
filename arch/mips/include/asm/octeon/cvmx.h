@@ -91,7 +91,7 @@ enum cvmx_mips_space {
 #define CASTPTR(type, v) ((type *)(long)(v))
 
 /*
- * Returns processor ID, different Linux and simple exec versions
+ * Returns processor ID, different GNU/Linux and simple exec versions
  * provided in the cvmx-app-init*.c files.
  */
 static inline uint32_t cvmx_get_proc_id(void) __attribute__ ((pure));

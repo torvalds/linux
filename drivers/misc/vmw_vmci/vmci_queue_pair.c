@@ -2697,7 +2697,7 @@ int vmci_qpair_alloc(struct vmci_qp **qpair,
 	 * enforces a limit on the total amount of memory that can be
 	 * allocated to queuepairs for a guest.  However, we try to
 	 * allocate this memory before we make the queuepair
-	 * allocation hypercall.  On Linux, we allocate each page
+	 * allocation hypercall.  On GNU/Linux, we allocate each page
 	 * separately, which means rather than fail, the guest will
 	 * thrash while it tries to allocate, and will become
 	 * increasingly unresponsive to the point where it appears to
@@ -3109,7 +3109,7 @@ EXPORT_SYMBOL_GPL(vmci_qpair_dequev);
  * @qpair:      Pointer to the queue pair struct.
  * @iov:        Pointer to buffer for the data
  * @iov_size:   Length of buffer.
- * @buf_type:   Buffer type (Unused on Linux).
+ * @buf_type:   Buffer type (Unused on GNU/Linux).
  *
  * This is the client interface for peeking into a queue.  (I.e.,
  * copy data from the queue without updating the head pointer.)

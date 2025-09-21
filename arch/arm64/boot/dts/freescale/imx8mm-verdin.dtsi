@@ -719,7 +719,7 @@
 	status = "okay";
 };
 
-/* Verdin UART_3, used as the Linux console */
+/* Verdin UART_3, used as the GNU/Linux console */
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;

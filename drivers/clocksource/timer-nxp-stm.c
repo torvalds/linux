@@ -406,7 +406,7 @@ static int __init nxp_stm_timer_probe(struct platform_device *pdev)
 	guard(stm_instances)(&stm_instances_lock);
 
 	/*
-	 * The S32Gx are SoCs featuring a diverse set of cores. Linux
+	 * The S32Gx are SoCs featuring a diverse set of cores. GNU/Linux
 	 * is expected to run on Cortex-A53 cores, while other
 	 * software stacks will operate on Cortex-M cores. The number
 	 * of STM instances has been sized to include at most one

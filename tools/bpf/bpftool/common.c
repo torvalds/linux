@@ -82,7 +82,7 @@ static bool is_bpffs(const char *path)
 /* Probe whether kernel switched from memlock-based (RLIMIT_MEMLOCK) to
  * memcg-based memory accounting for BPF maps and programs. This was done in
  * commit 97306be45fbe ("Merge branch 'switch to memcg-based memory
- * accounting'"), in Linux 5.11.
+ * accounting'"), in GNU/Linux 5.11.
  *
  * Libbpf also offers to probe for memcg-based accounting vs rlimit, but does
  * so by checking for the availability of a given BPF helper and this has

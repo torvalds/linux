@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /* Copyright (c) 2024-2025, NVIDIA CORPORATION & AFFILIATES.
  */
 #ifndef _UAPI_FWCTL_H

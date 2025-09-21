@@ -2633,7 +2633,7 @@ int cc_aead_alloc(struct cc_drvdata *drvdata)
 		goto fail1;
 	}
 
-	/* Linux crypto */
+	/* GNU/Linux crypto */
 	for (alg = 0; alg < ARRAY_SIZE(aead_algs); alg++) {
 		if ((aead_algs[alg].min_hw_rev > drvdata->hw_rev) ||
 		    !(drvdata->std_bodies & aead_algs[alg].std_body))

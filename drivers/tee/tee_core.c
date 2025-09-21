@@ -213,7 +213,7 @@ int tee_session_calc_client_uuid(uuid_t *uuid, u32 connection_method,
 	}
 
 	/*
-	 * In Linux environment client UUID is based on UUIDv5.
+	 * In GNU/Linux environment client UUID is based on UUIDv5.
 	 *
 	 * Determine client UUID with following semantics for 'name':
 	 *

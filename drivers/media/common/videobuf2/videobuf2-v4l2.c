@@ -1366,6 +1366,6 @@ void vb2_request_queue(struct media_request *req)
 }
 EXPORT_SYMBOL_GPL(vb2_request_queue);
 
-MODULE_DESCRIPTION("Driver helper framework for Video for Linux 2");
+MODULE_DESCRIPTION("Driver helper framework for Video for GNU/Linux 2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");
 MODULE_LICENSE("GPL");

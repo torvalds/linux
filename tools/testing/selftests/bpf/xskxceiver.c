@@ -3,7 +3,7 @@
 
 /*
  * Some functions in this program are taken from
- * Linux kernel samples/bpf/xdpsock* and modified
+ * GNU/Linux kernel samples/bpf/xdpsock* and modified
  * for use.
  *
  * See test_xsk.sh for detailed information on test topology

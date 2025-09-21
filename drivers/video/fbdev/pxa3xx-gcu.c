@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  pxa3xx-gcu.c - Linux kernel module for PXA3xx graphics controllers
+ *  pxa3xx-gcu.c - GNU/Linux kernel module for PXA3xx graphics controllers
  *
  *  This driver needs a DirectFB counterpart in user space, communication
  *  is handled via mmap()ed memory areas and an ioctl.
@@ -13,7 +13,7 @@
 /*
  * WARNING: This controller is attached to System Bus 2 of the PXA which
  * needs its arbiter to be enabled explicitly (CKENB & 1<<9).
- * There is currently no way to do this from Linux, so you need to teach
+ * There is currently no way to do this from GNU/Linux, so you need to teach
  * your bootloader for now.
  */
 

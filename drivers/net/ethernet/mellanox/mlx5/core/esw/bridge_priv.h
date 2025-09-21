@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
+/* SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB */
 /* Copyright (c) 2021 Mellanox Technologies. */
 
 #ifndef _MLX5_ESW_BRIDGE_PRIVATE_

@@ -39,7 +39,7 @@ static u32 __iomem *mpic_percpu_base_vaddr;
 #define MPIC_EOI  0x00B0
 
 /*
- * Linux descriptor level callbacks
+ * GNU/Linux descriptor level callbacks
  */
 
 static void ehv_pic_unmask_irq(struct irq_data *d)

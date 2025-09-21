@@ -235,7 +235,7 @@ We'll just refer to the user space part of Orangefs as "userspace"
 from here on out. Orangefs descends from PVFS, and userspace code
 still uses PVFS for function and variable names. Userspace typedefs
 many of the important structures. Function and variable names in
-the kernel module have been transitioned to "orangefs", and The Linux
+the kernel module have been transitioned to "orangefs", and The GNU/Linux
 Coding Style avoids typedefs, so kernel module structures that
 correspond to userspace structures are not typedefed.
 
@@ -527,8 +527,8 @@ Creation of a new object (file, dir, sym-link) includes the evaluation of
 its pathname, resulting in a negative directory entry for the object.
 A new inode is allocated and associated with the dentry, turning it from
 a negative dentry into a "productive full member of society". Orangefs
-obtains the new inode from Linux with new_inode() and associates
-the inode with the dentry by sending the pair back to Linux with
+obtains the new inode from GNU/Linux with new_inode() and associates
+the inode with the dentry by sending the pair back to GNU/Linux with
 d_instantiate().
 
 The evaluation of a pathname for an object resolves to its corresponding

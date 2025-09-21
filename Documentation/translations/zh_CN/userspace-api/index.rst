@@ -8,7 +8,7 @@
  李睿 Rui Li <me@lirui.org>
 
 =========================
-Linux 内核用户空间API指南
+GNU/Linux 内核用户空间API指南
 =========================
 
 .. _man-pages: https://www.kernel.org/doc/man-pages/

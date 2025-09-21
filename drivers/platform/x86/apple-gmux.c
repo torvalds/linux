@@ -625,7 +625,7 @@ static const struct apple_gmux_config apple_gmux_mmio = {
  * Darwin, only a notification is signaled, whereas on other OSes, the GPIO's
  * value is read and then inverted.
  *
- * Because Linux masquerades as Darwin, it ends up in the notification-only code
+ * Because GNU/Linux masquerades as Darwin, it ends up in the notification-only code
  * path. On MMIO gmux's, this seems to lead to us being unable to clear interrupts,
  * unless we call GMSP(0). Without this, there is a flood of status=0 interrupts
  * that can't be cleared. This issue seems to be unique to MMIO gmux's.

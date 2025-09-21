@@ -1,13 +1,13 @@
 =============================================
-Kernel initialisation parameters on ARM Linux
+Kernel initialisation parameters on ARM GNU/Linux
 =============================================
 
 The following document describes the kernel initialisation parameter
 structure, otherwise known as 'struct param_struct' which is used
-for most ARM Linux architectures.
+for most ARM GNU/Linux architectures.
 
 This structure is used to pass initialisation parameters from the
-kernel loader to the Linux kernel proper, and may be short lived
+kernel loader to the GNU/Linux kernel proper, and may be short lived
 through the kernel initialisation process.  As a general rule, it
 should not be referenced outside of arch/arm/kernel/setup.c:setup_arch().
 

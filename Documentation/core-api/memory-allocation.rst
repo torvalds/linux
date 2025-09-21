@@ -4,7 +4,7 @@
 Memory Allocation Guide
 =======================
 
-Linux provides a variety of APIs for memory allocation. You can
+GNU/Linux provides a variety of APIs for memory allocation. You can
 allocate small chunks using `kmalloc` or `kmem_cache_alloc` families,
 large virtually contiguous areas using `vmalloc` and its derivatives,
 or you can directly request pages from the page allocator with

@@ -5,7 +5,7 @@ Purpose
 
 What is this benchmark for:
   - Identify worst case performance loss when doing dynamic frequency
-    scaling using Linux kernel governors
+    scaling using GNU/Linux kernel governors
   - Identify average reaction time of a governor to CPU load changes
   - (Stress) Testing whether a cpufreq low level driver or governor works
     as expected

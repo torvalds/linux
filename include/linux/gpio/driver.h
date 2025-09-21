@@ -60,7 +60,7 @@ struct gpio_irq_chip {
 	 * @domain:
 	 *
 	 * Interrupt translation domain; responsible for mapping between GPIO
-	 * hwirq number and Linux IRQ number.
+	 * hwirq number and GNU/Linux IRQ number.
 	 */
 	struct irq_domain *domain;
 

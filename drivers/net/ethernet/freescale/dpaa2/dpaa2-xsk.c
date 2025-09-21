@@ -139,7 +139,7 @@ static void dpaa2_xsk_rx(struct dpaa2_eth_priv *priv,
 		 */
 		goto err_alloc_skb;
 
-	/* Send the skb to the Linux networking stack */
+	/* Send the skb to the GNU/Linux networking stack */
 	dpaa2_eth_receive_skb(priv, ch, fd, vaddr, fq, percpu_stats, skb);
 
 	return;

@@ -4,7 +4,7 @@
  *
  * Author: Lakshmi Ramasubramanian (nramas@linux.microsoft.com)
  *
- * Measure critical data structures maintained by SELinux
+ * Measure critical data structures maintained by SEGNU/Linux
  * using IMA subsystem.
  */
 #include <linux/vmalloc.h>
@@ -65,7 +65,7 @@ static char *selinux_ima_collect_state(void)
 }
 
 /*
- * selinux_ima_measure_state_locked - Measure SELinux state and hash of policy
+ * selinux_ima_measure_state_locked - Measure SEGNU/Linux state and hash of policy
  */
 void selinux_ima_measure_state_locked(void)
 {
@@ -78,7 +78,7 @@ void selinux_ima_measure_state_locked(void)
 
 	state_str = selinux_ima_collect_state();
 	if (!state_str) {
-		pr_err("SELinux: %s: failed to read state.\n", __func__);
+		pr_err("SEGNU/Linux: %s: failed to read state.\n", __func__);
 		return;
 	}
 
@@ -89,14 +89,14 @@ void selinux_ima_measure_state_locked(void)
 	kfree(state_str);
 
 	/*
-	 * Measure SELinux policy only after initialization is completed.
+	 * Measure SEGNU/Linux policy only after initialization is completed.
 	 */
 	if (!selinux_initialized())
 		return;
 
 	rc = security_read_state_kernel(&policy, &policy_len);
 	if (rc) {
-		pr_err("SELinux: %s: failed to read policy %d.\n", __func__, rc);
+		pr_err("SEGNU/Linux: %s: failed to read policy %d.\n", __func__, rc);
 		return;
 	}
 
@@ -108,7 +108,7 @@ void selinux_ima_measure_state_locked(void)
 }
 
 /*
- * selinux_ima_measure_state - Measure SELinux state and hash of policy
+ * selinux_ima_measure_state - Measure SEGNU/Linux state and hash of policy
  */
 void selinux_ima_measure_state(void)
 {

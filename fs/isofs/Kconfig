@@ -26,14 +26,14 @@ config JOLIET
 	  new 16 bit character code, successor to ASCII, which encodes the
 	  characters of almost all languages of the world; see
 	  <http://www.unicode.org/> for more information).  Say Y here if you
-	  want to be able to read Joliet CD-ROMs under Linux.
+	  want to be able to read Joliet CD-ROMs under GNU/Linux.
 
 config ZISOFS
 	bool "Transparent decompression extension"
 	depends on ISO9660_FS
 	select ZLIB_INFLATE
 	help
-	  This is a Linux-specific extension to RockRidge which lets you store
+	  This is a GNU/Linux-specific extension to RockRidge which lets you store
 	  data in compressed form on a CD-ROM and have it transparently
 	  decompressed when the CD-ROM is accessed.  See
 	  <http://www.kernel.org/pub/linux/utils/fs/zisofs/> for the tools

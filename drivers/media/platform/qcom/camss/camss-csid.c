@@ -4,7 +4,7 @@
  *
  * Qualcomm MSM Camera Subsystem - CSID (CSI Decoder) Module
  *
- * Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2018 Linaro Ltd.
  */
 #include <linux/clk.h>

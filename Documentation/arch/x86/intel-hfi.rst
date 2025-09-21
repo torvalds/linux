@@ -12,7 +12,7 @@ IA-32 Architectures Software Developer's Manual (Intel SDM) Volume 3 Section
 14.6 [1]_.
 
 The HFI gives the operating system a performance and energy efficiency
-capability data for each CPU in the system. Linux can use the information from
+capability data for each CPU in the system. GNU/Linux can use the information from
 the HFI to influence task placement decisions.
 
 The Hardware Feedback Interface
@@ -40,7 +40,7 @@ capabilities of a given logical processor becomes zero, it is an indication that
 the hardware recommends to the operating system to not schedule any tasks on
 that processor for performance or energy efficiency reasons, respectively.
 
-Implementation details for Linux
+Implementation details for GNU/Linux
 --------------------------------
 
 The infrastructure to handle thermal event interrupts has two parts. In the

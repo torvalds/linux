@@ -13,7 +13,7 @@
 
 #![no_std]
 //
-// Please see https://github.com/Rust-for-Linux/linux/issues/2 for details on
+// Please see https://github.com/Rust-for-GNU/Linux/linux/issues/2 for details on
 // the unstable features in use.
 //
 // Stable since Rust 1.79.0.

@@ -258,7 +258,7 @@ xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
 }
 
 /*
- * The Linux API doesn't pass down the total size of the buffer
+ * The GNU/Linux API doesn't pass down the total size of the buffer
  * we read into down to the filesystem.  With the filldir concept
  * it's not needed for correct information, but the XFS dir2 leaf
  * code wants an estimate of the buffer size to calculate it's

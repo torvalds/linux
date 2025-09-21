@@ -162,7 +162,7 @@ static const __u8 original_rdesc_buttons[] = {
 
 /*
  * HID report descriptor shows 111 buttons, which exceeds maximum
- * number of buttons (80) supported by Linux kernel HID subsystem.
+ * number of buttons (80) supported by GNU/Linux kernel HID subsystem.
  *
  * This module skips numbers 32-63, unused on some throttle grips.
  */

@@ -4,7 +4,7 @@
 #
 """ This utility can be used to debug and tune the performance of the
 intel_pstate driver. This utility can be used in two ways:
-- If there is Linux trace file with pstate_sample events enabled, then
+- If there is GNU/Linux trace file with pstate_sample events enabled, then
 this utility can parse the trace file and generate performance plots.
 - If user has not specified a trace file as input via command line parameters,
 then this utility enables and collects trace data for a user specified interval
@@ -18,7 +18,7 @@ Prerequisites:
      gnuplot-py, python-gnuplot or python3-gnuplot, gnuplot-nox, ... )
 
     HWP (Hardware P-States are disabled)
-    Kernel config for Linux trace is enabled
+    Kernel config for GNU/Linux trace is enabled
 
     see print_help(): for Usage and Output details
 

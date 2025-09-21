@@ -1,5 +1,5 @@
 /*
- * Amiga Linux/68k A2065 Ethernet Driver
+ * Amiga GNU/Linux/68k A2065 Ethernet Driver
  *
  * (C) Copyright 1995 by Geert Uytterhoeven <geert@linux-m68k.org>
  *
@@ -7,7 +7,7 @@
  *
  * This program is based on
  *
- *	ariadne.?:	Amiga Linux/68k Ariadne Ethernet Driver
+ *	ariadne.?:	Amiga GNU/Linux/68k Ariadne Ethernet Driver
  *			(C) Copyright 1995 by Geert Uytterhoeven,
  *			Peter De Schrijver
  *
@@ -21,7 +21,7 @@
  * ---------------------------------------------------------------------------
  *
  * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of the Linux
+ * License.  See the file COPYING in the main directory of the GNU/Linux
  * distribution for more details.
  *
  * ---------------------------------------------------------------------------

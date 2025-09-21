@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux SuperH-specific device drivers.
+# Makefile for the GNU/Linux SuperH-specific device drivers.
 #
 
 obj-y		+= dma/ platform_early.o

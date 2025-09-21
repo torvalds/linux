@@ -19,7 +19,7 @@
  * SCM Microsystems (www.scmmicro.com) makes a device, sold to OEM's only, 
  * which does the USB-to-ATAPI conversion.  By obtaining the data sheet on
  * their device under nondisclosure agreement, I have been able to write
- * this driver for Linux.
+ * this driver for GNU/Linux.
  *
  * The chip used in the device can also be used for EPP and ISA translation
  * as well. This driver is only guaranteed to work with the ATAPI

@@ -28,7 +28,7 @@
 
 /*
  * ld.lld does not support NOCROSSREFS:
- * https://github.com/ClangBuiltLinux/linux/issues/1609
+ * https://github.com/ClangBuiltGNU/Linux/linux/issues/1609
  */
 #ifdef CONFIG_LD_IS_LLD
 #define NOCROSSREFS

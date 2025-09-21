@@ -43,7 +43,7 @@
 
 /*
  * Constants. Max RPC/NFS header is big enough to account for
- * additional marshaling buffers passed down by Linux client.
+ * additional marshaling buffers passed down by GNU/Linux client.
  *
  * RDMA header is currently fixed max size, and is big enough for a
  * fully-chunked NFS message (read chunks are the largest). Note only

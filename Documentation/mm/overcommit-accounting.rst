@@ -2,7 +2,7 @@
 Overcommit Accounting
 =====================
 
-The Linux kernel supports the following overcommit handling modes
+The GNU/Linux kernel supports the following overcommit handling modes
 
 0
 	Heuristic overcommit handling. Obvious overcommits of address

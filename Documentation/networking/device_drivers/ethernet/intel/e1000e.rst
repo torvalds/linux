@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 =====================================================
-Linux Driver for Intel(R) Ethernet Network Connection
+GNU/Linux Driver for Intel(R) Ethernet Network Connection
 =====================================================
 
-Intel Gigabit Linux driver.
+Intel Gigabit GNU/Linux driver.
 Copyright(c) 2008-2018 Intel Corporation.
 
 Contents

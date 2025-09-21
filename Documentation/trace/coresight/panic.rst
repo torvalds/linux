@@ -4,7 +4,7 @@ Using Coresight for Kernel panic and Watchdog reset
 
 Introduction
 ------------
-This documentation is about using Linux coresight trace support to
+This documentation is about using GNU/Linux coresight trace support to
 debug kernel panic and watchdog reset scenarios.
 
 Coresight trace during Kernel panic
@@ -85,7 +85,7 @@ General flow of trace capture and decode in case of kernel panic
    itself. Persistent RAM is not a requirement in this case.
 
 5. For platforms that supports persistent RAM, trace data can be dumped
-   using the coresight sysfs interface in the subsequent Linux boot.
+   using the coresight sysfs interface in the subsequent GNU/Linux boot.
    Crashdump kernel is not a requirement in this case. Persistent RAM
    ensures that trace data is intact across reboot.
 
@@ -109,7 +109,7 @@ two requirements.
 Sample commands for testing a Kernel panic case with ETR sink
 -------------------------------------------------------------
 
-1. Boot Linux kernel with "crash_kexec_post_notifiers" added to the kernel
+1. Boot GNU/Linux kernel with "crash_kexec_post_notifiers" added to the kernel
    bootargs. This is mandatory if the user would like to read the tracedata
    from the crashdump kernel.
 

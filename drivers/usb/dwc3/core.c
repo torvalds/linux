@@ -1336,7 +1336,7 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	hw_mode = DWC3_GHWPARAMS0_MODE(dwc->hwparams.hwparams0);
 
 	/*
-	 * Write Linux Version Code to our GUID register so it's easy to figure
+	 * Write GNU/Linux Version Code to our GUID register so it's easy to figure
 	 * out which kernel version a bug was found.
 	 */
 	dwc3_writel(dwc->regs, DWC3_GUID, LINUX_VERSION_CODE);

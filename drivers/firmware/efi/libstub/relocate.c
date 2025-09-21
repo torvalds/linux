@@ -33,7 +33,7 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
 		return status;
 
 	/*
-	 * Enforce minimum alignment that EFI or Linux requires when
+	 * Enforce minimum alignment that EFI or GNU/Linux requires when
 	 * requesting a specific address.  We are doing page-based (or
 	 * larger) allocations, and both the address and size must meet
 	 * alignment constraints.
@@ -103,7 +103,7 @@ efi_status_t efi_low_alloc_above(unsigned long size, unsigned long align,
  * is not available, the allocated address will not be below @min_addr.
  * On exit, @image_addr is updated to the target copy address that was used.
  *
- * This function is used to copy the Linux kernel verbatim. It does not apply
+ * This function is used to copy the GNU/Linux kernel verbatim. It does not apply
  * any relocation changes.
  *
  * Return:		status code

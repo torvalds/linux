@@ -580,7 +580,7 @@ static int svm_enable_virtualization_cpu(void)
 	/*
 	 * If TSC_AUX virtualization is supported, TSC_AUX becomes a swap type
 	 * "B" field (see sev_es_prepare_switch_to_guest()) for SEV-ES guests.
-	 * Since Linux does not change the value of TSC_AUX once set, prime the
+	 * Since GNU/Linux does not change the value of TSC_AUX once set, prime the
 	 * TSC_AUX field now to avoid a RDMSR on every vCPU run.
 	 */
 	if (boot_cpu_has(X86_FEATURE_V_TSC_AUX)) {

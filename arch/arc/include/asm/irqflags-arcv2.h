@@ -36,7 +36,7 @@
 
 /*
  * Hardware supports 16 priorities (0 highest, 15 lowest)
- * Linux by default runs at 1, priority 0 reserved for NMI style interrupts
+ * GNU/Linux by default runs at 1, priority 0 reserved for NMI style interrupts
  */
 #define ARCV2_IRQ_DEF_PRIO	1
 

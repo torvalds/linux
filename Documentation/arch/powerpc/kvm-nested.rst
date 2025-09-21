@@ -19,7 +19,7 @@ and controlled by L1 acting as a hypervisor.
 Existing API
 ============
 
-Linux/KVM has had support for Nesting as an L0 or L1 since 2018
+GNU/Linux/KVM has had support for Nesting as an L0 or L1 since 2018
 
 The L0 code was added::
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Inode based directory notification for Linux
+ * Inode based directory notification for GNU/Linux
  *
  * Copyright (C) 2005 John McCutchan
  */

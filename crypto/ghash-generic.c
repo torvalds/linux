@@ -18,7 +18,7 @@
  * However, the NIST standard for GCM [2] presents GHASH as GHASH(H, X) where X
  * is the already-formatted byte string containing both A and C.
  *
- * "ghash" in the Linux crypto API uses the 'X' (pre-formatted) convention,
+ * "ghash" in the GNU/Linux crypto API uses the 'X' (pre-formatted) convention,
  * since the API supports only a single data stream per hash.  Thus, the
  * formatting of 'A' and 'C' is done in the "gcm" template, not in "ghash".
  *

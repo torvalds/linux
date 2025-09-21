@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux "Tulip" family network device drivers.
+# Makefile for the GNU/Linux "Tulip" family network device drivers.
 #
 
 ccflags-$(CONFIG_NET_TULIP)	:= -DDEBUG

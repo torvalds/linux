@@ -117,7 +117,7 @@ Testing
 
   unpoison-pfn
 	Software-unpoison page at PFN echoed into this file. This way
-	a page can be reused again.  This only works for Linux
+	a page can be reused again.  This only works for GNU/Linux
 	injected failures, not for real memory failures. Once any hardware
 	memory failure happens, this feature is disabled.
 
@@ -164,7 +164,7 @@ References
 ==========
 
 http://halobates.de/mce-lc09-2.pdf
-	Overview presentation from LinuxCon 09
+	Overview presentation from GNU/LinuxCon 09
 
 git://git.kernel.org/pub/scm/utils/cpu/mce/mce-test.git
 	Test suite (hwpoison specific portable tests in tsrc)

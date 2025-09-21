@@ -27,7 +27,7 @@ generations of SoCs, both on PowerPC and ARM64.
 
 The Freescale DPAA architecture consists of a series of hardware blocks
 that support Ethernet connectivity. The Ethernet driver depends upon the
-following drivers in the Linux kernel:
+following drivers in the GNU/Linux kernel:
 
  - Peripheral Access Memory Unit (PAMU) (* needed only for PPC platforms)
     drivers/iommu/fsl_*
@@ -149,7 +149,7 @@ DPAA Ethernet Features
 ======================
 
 Currently the DPAA Ethernet driver enables the basic features required for
-a Linux Ethernet driver. The support for advanced features will be added
+a GNU/Linux Ethernet driver. The support for advanced features will be added
 gradually.
 
 The driver has Rx and Tx checksum offloading for UDP and TCP. Currently the Rx

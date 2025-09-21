@@ -3,7 +3,7 @@ NetWinder specific documentation
 ================================
 
 The NetWinder is a small low-power computer, primarily designed
-to run Linux.  It is based around the StrongARM RISC processor,
+to run GNU/Linux.  It is based around the StrongARM RISC processor,
 DC21285 PCI bridge, with PC-type hardware glued around it.
 
 Port usage

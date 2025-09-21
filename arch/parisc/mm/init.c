@@ -610,7 +610,7 @@ EXPORT_SYMBOL(empty_zero_page);
 /*
  * pagetable_init() sets up the page tables
  *
- * Note that gateway_init() places the Linux gateway page at page 0.
+ * Note that gateway_init() places the GNU/Linux gateway page at page 0.
  * Since gateway pages cannot be dereferenced this has the desirable
  * side effect of trapping those pesky NULL-reference errors in the
  * kernel.
@@ -654,9 +654,9 @@ static void __init gateway_init(void)
 	linux_gateway_page_addr = LINUX_GATEWAY_ADDR & PAGE_MASK;
 
 	/*
-	 * Setup Linux Gateway page.
+	 * Setup GNU/Linux Gateway page.
 	 *
-	 * The Linux gateway page will reside in kernel space (on virtual
+	 * The GNU/Linux gateway page will reside in kernel space (on virtual
 	 * page 0), so it doesn't need to be aliased into user space.
 	 */
 

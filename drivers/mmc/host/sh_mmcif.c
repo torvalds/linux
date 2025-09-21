@@ -8,7 +8,7 @@
 
 /*
  * The MMCIF driver is now processing MMC requests asynchronously, according
- * to the Linux MMC API requirement.
+ * to the GNU/Linux MMC API requirement.
  *
  * The MMCIF driver processes MMC requests in up to 3 stages: command, optional
  * data, and optional stop. To achieve asynchronous processing each of these

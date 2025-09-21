@@ -85,7 +85,7 @@ MODULE_DEVICE_TABLE(pci, ish_pci_tbl);
  * @dev:	ishtp device
  * @format:	printf style format
  *
- * Callback to direct log messages to Linux trace buffers
+ * Callback to direct log messages to GNU/Linux trace buffers
  */
 static __printf(2, 3)
 void ish_event_tracer(struct ishtp_device *dev, const char *format, ...)
@@ -449,7 +449,7 @@ module_pci_driver(ish_driver);
 
 /* Original author */
 MODULE_AUTHOR("Daniel Drubin <daniel.drubin@intel.com>");
-/* Adoption to upstream Linux kernel */
+/* Adoption to upstream GNU/Linux kernel */
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 
 MODULE_DESCRIPTION("Intel(R) Integrated Sensor Hub PCI Device Driver");

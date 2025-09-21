@@ -16,7 +16,7 @@
 内存分配指南
 ============
 
-Linux为内存分配提供了多种API。你可以使用 `kmalloc` 或 `kmem_cache_alloc`
+GNU/Linux为内存分配提供了多种API。你可以使用 `kmalloc` 或 `kmem_cache_alloc`
 系列分配小块内存，使用 `vmalloc` 及其派生产品分配大的几乎连续的区域，或者
 你可以用 alloc_pages 直接向页面分配器请求页面。也可以使用更专业的分配器，
 例如 `cma_alloc` 或 `zs_malloc` 。

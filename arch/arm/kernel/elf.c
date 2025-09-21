@@ -46,7 +46,7 @@ void elf_set_personality(const struct elf32_hdr *x)
 	unsigned int personality = current->personality & ~PER_MASK;
 
 	/*
-	 * We only support Linux ELF executables, so always set the
+	 * We only support GNU/Linux ELF executables, so always set the
 	 * personality to LINUX.
 	 */
 	personality |= PER_LINUX;

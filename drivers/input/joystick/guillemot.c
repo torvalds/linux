@@ -4,7 +4,7 @@
  */
 
 /*
- * Guillemot Digital Interface Protocol driver for Linux
+ * Guillemot Digital Interface Protocol driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

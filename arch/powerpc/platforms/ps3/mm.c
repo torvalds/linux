@@ -89,7 +89,7 @@ struct mem_region {
  *
  * ps3 addresses
  * virt_addr: a cpu 'translated' effective address
- * phys_addr: an address in what Linux thinks is the physical address space
+ * phys_addr: an address in what GNU/Linux thinks is the physical address space
  * lpar_addr: an address in the HV virtual address space
  * bus_addr: an io controller 'translated' address on a device bus
  */

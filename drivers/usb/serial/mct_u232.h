@@ -150,7 +150,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *  identify the USB vendor-specific requests and to assign them to terminal
  *  settings (flow control, baud rate, etc.) the program "SerialSettings" from
  *  William G. Greathouse has been proven to be very useful. I also used the
- *  Win98 "HyperTerminal" and "usb-robot" on Linux for testing. The results and
+ *  Win98 "HyperTerminal" and "usb-robot" on GNU/Linux for testing. The results and
  *  observations are summarized below:
  *
  *  The USB requests seem to be directly mapped to the registers of a 8250,

@@ -69,7 +69,7 @@ config BRIDGE_EBT_BROUTE
 	depends on BRIDGE_NF_EBTABLES_LEGACY
 	help
 	  The ebtables broute table is used to define rules that decide between
-	  bridging and routing frames, giving Linux the functionality of a
+	  bridging and routing frames, giving GNU/Linux the functionality of a
 	  brouter. See the man page for ebtables(8) and examples on the ebtables
 	  website.
 

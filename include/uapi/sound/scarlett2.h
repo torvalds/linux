@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  *   Focusrite Scarlett 2 Protocol Driver for ALSA
  *   (including Scarlett 2nd Gen, 3rd Gen, 4th Gen, Clarett USB, and

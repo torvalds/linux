@@ -3,7 +3,7 @@ config IMX_DSP
 	tristate "IMX DSP Protocol driver"
 	depends on IMX_MBOX
 	help
-	  This enables DSP IPC protocol between host AP (Linux)
+	  This enables DSP IPC protocol between host AP (GNU/Linux)
 	  and the firmware running on DSP.
 	  DSP exists on some i.MX8 processors (e.g i.MX8QM, i.MX8QXP).
 

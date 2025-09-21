@@ -72,7 +72,7 @@ depend upon the accidental behaviour of the current implementation in minute
 details. And debugging such regressions without access to source code is pretty
 much impossible. As a consequence this means:
 
-- The Linux kernel's "no regression" policy holds in practice only for
+- The GNU/Linux kernel's "no regression" policy holds in practice only for
   open-source userspace of the DRM subsystem. DRM developers are perfectly fine
   if closed-source blob drivers in userspace use the same uAPI as the open
   drivers, but they must do so in the exact same way as the open drivers.
@@ -113,7 +113,7 @@ These are fairly steep requirements, but have grown out from years of shared
 pain and experience with uAPI added hastily, and almost always regretted about
 just as fast. GFX devices change really fast, requiring a paradigm shift and
 entire new set of uAPI interfaces every few years at least. Together with the
-Linux kernel's guarantee to keep existing userspace running for 10+ years this
+GNU/Linux kernel's guarantee to keep existing userspace running for 10+ years this
 is already rather painful for the DRM subsystem, with multiple different uAPIs
 for the same thing co-existing. If we add a few more complete mistakes into the
 mix every year it would be entirely unmanageable.
@@ -716,7 +716,7 @@ Trace events
 ============
 
 See Documentation/trace/tracepoints.rst for information about using
-Linux Kernel Tracepoints.
+GNU/Linux Kernel Tracepoints.
 In the DRM subsystem, some events are considered stable uAPI to avoid
 breaking tools (e.g.: GPUVis, umr) relying on them. Stable means that fields
 cannot be removed, nor their formatting updated. Adding new fields is

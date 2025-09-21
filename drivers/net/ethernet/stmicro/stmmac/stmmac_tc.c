@@ -913,8 +913,8 @@ static void tc_taprio_map_maxsdu_txq(struct stmmac_priv *priv,
 	u32 num_tc = qopt->mqprio.qopt.num_tc;
 	u32 offset, count, i, j;
 
-	/* QueueMaxSDU received from the driver corresponds to the Linux traffic
-	 * class. Map queueMaxSDU per Linux traffic class to DWMAC Tx queues.
+	/* QueueMaxSDU received from the driver corresponds to the GNU/Linux traffic
+	 * class. Map queueMaxSDU per GNU/Linux traffic class to DWMAC Tx queues.
 	 */
 	for (i = 0; i < num_tc; i++) {
 		if (!qopt->max_sdu[i])

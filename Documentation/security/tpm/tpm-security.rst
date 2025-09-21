@@ -25,7 +25,7 @@ The current state of the art for snooping the `TPM Genie`_ hardware
 interposer which is a simple external device that can be installed in
 a couple of seconds on any system or laptop.  Recently attacks were
 successfully demonstrated against the `Windows Bitlocker TPM`_ system.
-Most recently the same `attack against TPM based Linux disk
+Most recently the same `attack against TPM based GNU/Linux disk
 encryption`_ schemes.  The next phase of research seems to be hacking
 existing devices on the bus to act as interposers, so the fact that
 the attacker requires physical access for a few seconds might
@@ -85,7 +85,7 @@ them into the kernel would be on the command line, which requires
 extensive support in the boot system, and there's no guarantee that
 either hierarchy would not have some type of authorization.
 
-The mechanism chosen for the Linux Kernel is to derive the primary
+The mechanism chosen for the GNU/Linux Kernel is to derive the primary
 elliptic curve key from the null seed using the standard storage seed
 parameters.  The null seed has two advantages: firstly the hierarchy
 physically cannot have an authorization, so we are always able to use
@@ -211,6 +211,6 @@ sequence of this kernel.
 
 .. _TPM Genie: https://www.nccgroup.trust/globalassets/about-us/us/documents/tpm-genie.pdf
 .. _Windows Bitlocker TPM: https://dolosgroup.io/blog/2021/7/9/from-stolen-laptop-to-inside-the-company-network
-.. _attack against TPM based Linux disk encryption: https://www.secura.com/blog/tpm-sniffing-attacks-against-non-bitlocker-targets
+.. _attack against TPM based GNU/Linux disk encryption: https://www.secura.com/blog/tpm-sniffing-attacks-against-non-bitlocker-targets
 .. _TCG EK Credential Profile: https://trustedcomputinggroup.org/resource/tcg-ek-credential-profile-for-tpm-family-2-0/
 .. _TCG TPM v2.0 Provisioning Guidance: https://trustedcomputinggroup.org/resource/tcg-tpm-v2-0-provisioning-guidance/

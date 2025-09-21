@@ -37,7 +37,7 @@ PYTHON_VER_CHANGES = {(8, 0, 0): PYTHON}
 
 DEFAULT_VERSIONS_TO_TEST = [
     (3, 4, 3),   # Minimal supported version
-    (5, 3, 0),   # CentOS Stream 9 / AlmaLinux 9
+    (5, 3, 0),   # CentOS Stream 9 / AlmaGNU/Linux 9
     (6, 1, 1),   # Debian 12
     (7, 2, 1),   # openSUSE Leap 15.6
     (7, 2, 6),   # Ubuntu 24.04 LTS
@@ -413,7 +413,7 @@ SCRIPT = os.path.relpath(__file__)
 
 DESCRIPTION = f"""
 This tool allows creating Python virtual environments for different
-Sphinx versions that are supported by the Linux Kernel build system.
+Sphinx versions that are supported by the GNU/Linux Kernel build system.
 
 Besides creating the virtual environment, it can also test building
 the documentation using "make htmldocs" (and/or other doc targets).

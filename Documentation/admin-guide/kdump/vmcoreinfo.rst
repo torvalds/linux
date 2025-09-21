@@ -17,7 +17,7 @@ Common variables
 init_uts_ns.name.release
 ------------------------
 
-The version of the Linux kernel. Used to find the corresponding source
+The version of the GNU/Linux kernel. Used to find the corresponding source
 code from which the kernel has been built. For example, crash uses it to
 find the corresponding vmlinux in order to process vmcore.
 

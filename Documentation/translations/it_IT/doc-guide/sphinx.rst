@@ -9,7 +9,7 @@
 Usare Sphinx per la documentazione del kernel
 =============================================
 
-Il kernel Linux usa `Sphinx`_ per la generazione della documentazione a partire
+Il kernel GNU/Linux usa `Sphinx`_ per la generazione della documentazione a partire
 dai file `reStructuredText`_ che si trovano nella cartella ``Documentation``.
 Per generare la documentazione in HTML o PDF, usate comandi ``make htmldocs`` o
 ``make pdfdocs``. La documentazione così generata sarà disponibile nella
@@ -41,7 +41,7 @@ processati da ``Sphinx`` nella versione 1.7 o superiore.
 Esiste uno script che verifica i requisiti Sphinx. Per ulteriori dettagli
 consultate :ref:`it_sphinx-pre-install`.
 
-La maggior parte delle distribuzioni Linux forniscono Sphinx, ma l'insieme dei
+La maggior parte delle distribuzioni GNU/Linux forniscono Sphinx, ma l'insieme dei
 programmi e librerie è fragile e non è raro che dopo un aggiornamento di
 Sphinx, o qualche altro pacchetto Python, la documentazione non venga più
 generata correttamente.
@@ -95,7 +95,7 @@ versioni di Sphinx superiori alla 2.4.
 Per la generazione di PDF e LaTeX, avrete bisogno anche del pacchetto
 ``XeLaTeX`` nella versione 3.14159265
 
-Per alcune distribuzioni Linux potrebbe essere necessario installare
+Per alcune distribuzioni GNU/Linux potrebbe essere necessario installare
 anche una serie di pacchetti ``texlive`` in modo da fornire il supporto
 minimo per il funzionamento di ``XeLaTeX``.
 
@@ -154,7 +154,7 @@ Per la documentazione in formato PDF, invece, avrete bisogno di ``XeLaTeX`
 e di ``convert(1)`` disponibile in ImageMagick
 (https://www.imagemagick.org). \ [#ink]_
 Tipicamente, tutti questi pacchetti sono disponibili e pacchettizzati nelle
-distribuzioni Linux.
+distribuzioni GNU/Linux.
 
 Per poter passare ulteriori opzioni a Sphinx potete utilizzare la variabile
 make ``SPHINXOPTS``. Per esempio, se volete che Sphinx sia più verboso durante

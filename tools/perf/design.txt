@@ -1,5 +1,5 @@
 
-Performance Counters for Linux
+Performance Counters for GNU/Linux
 ------------------------------
 
 Performance counters are special hardware registers available on most modern
@@ -9,7 +9,7 @@ without slowing down the kernel or applications. These registers can also
 trigger interrupts when a threshold number of events have passed - and can
 thus be used to profile the code that runs on that CPU.
 
-The Linux Performance Counter subsystem provides an abstraction of these
+The GNU/Linux Performance Counter subsystem provides an abstraction of these
 hardware capabilities. It provides per task and per CPU counters, counter
 groups, and it provides event capabilities on top of those.  It
 provides "virtual" 64-bit counters, regardless of the width of the
@@ -112,7 +112,7 @@ enum perf_hw_id {
 };
 
 These are standardized types of events that work relatively uniformly
-on all CPUs that implement Performance Counters support under Linux,
+on all CPUs that implement Performance Counters support under GNU/Linux,
 although there may be variations (e.g., different CPUs might count
 cache references and misses at different levels of the cache hierarchy).
 If a CPU is not able to count the selected event, then the system call
@@ -227,7 +227,7 @@ CPU is in user, kernel and/or hypervisor mode.
 
 Furthermore the 'exclude_host' and 'exclude_guest' bits provide a way
 to request counting of events restricted to guest and host contexts when
-using Linux as the hypervisor.
+using GNU/Linux as the hypervisor.
 
 The 'mmap' and 'munmap' bits allow recording of PROT_EXEC mmap/munmap
 operations, these can be used to relate userspace IP addresses to actual

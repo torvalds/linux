@@ -5,7 +5,7 @@ Usage
 This module supports the SMB3 family of advanced network protocols (as well
 as older dialects, originally called "CIFS" or SMB1).
 
-The CIFS VFS module for Linux supports many advanced network filesystem
+The CIFS VFS module for GNU/Linux supports many advanced network filesystem
 features such as hierarchical DFS like namespace, hardlinks, locking and more.
 It was designed to comply with the SNIA CIFS Technical Reference (which
 supersedes the 1992 X/Open SMB Standard) as well as to perform best practice
@@ -24,12 +24,12 @@ For questions or bug reports please contact:
 
     smfrench@gmail.com
 
-See the project page at: https://wiki.samba.org/index.php/LinuxCIFS_utils
+See the project page at: https://wiki.samba.org/index.php/GNU/LinuxCIFS_utils
 
 Build instructions
 ==================
 
-For Linux:
+For GNU/Linux:
 
 1) Download the kernel (e.g. from https://www.kernel.org)
    and change directory into the top of the kernel directory tree
@@ -58,7 +58,7 @@ required, mount.cifs is recommended.  Most distros include a ``cifs-utils``
 package that includes this utility so it is recommended to install this.
 
 Note that running the Winbind pam/nss module (logon service) on all of your
-Linux clients is useful in mapping Uids and Gids consistently across the
+GNU/Linux clients is useful in mapping Uids and Gids consistently across the
 domain to the proper network user.  The mount.cifs mount helper can be
 found at cifs-utils.git on git.samba.org
 
@@ -151,17 +151,17 @@ the line::
 
 to your smb.conf file on the server.  Note that the following smb.conf settings
 are also useful (on the Samba server) when the majority of clients are Unix or
-Linux::
+GNU/Linux::
 
 	case sensitive = yes
 	delete readonly = yes
 	ea support = yes
 
-Note that server ea support is required for supporting xattrs from the Linux
+Note that server ea support is required for supporting xattrs from the GNU/Linux
 cifs client, and that EA support is present in later versions of Samba (e.g.
 3.0.6 and later (also EA support works in all versions of Windows, at least to
 shares on NTFS filesystems).  Extended Attribute (xattr) support is an optional
-feature of most Linux filesystems which may require enabling via
+feature of most GNU/Linux filesystems which may require enabling via
 make menuconfig. Client support for extended attributes (user xattr) can be
 disabled on a per-mount basis by specifying ``nouser_xattr`` on mount.
 
@@ -194,7 +194,7 @@ would be forbidden. Samba 3.0.6 server or later includes the ability to create
 such symlinks safely by converting unsafe symlinks (ie symlinks to server
 files that are outside of the share) to a samba specific format on the server
 that is ignored by local server applications and non-cifs clients and that will
-not be traversed by the Samba server).  This is opaque to the Linux client
+not be traversed by the Samba server).  This is opaque to the GNU/Linux client
 application using the cifs vfs. Absolute symlinks will work to Samba 3.0.5 or
 later, but only for remote clients using the CIFS Unix extensions, and will
 be invisible to Windows clients and typically will not affect local
@@ -256,16 +256,16 @@ Servers must support either "pure-TCP" (port 445 TCP/IP CIFS connections) or RFC
 1001/1002 support for "Netbios-Over-TCP/IP." This is not likely to be a
 problem as most servers support this.
 
-Valid filenames differ between Windows and Linux.  Windows typically restricts
+Valid filenames differ between Windows and GNU/Linux.  Windows typically restricts
 filenames which contain certain reserved characters (e.g.the character :
 which is used to delimit the beginning of a stream name by Windows), while
-Linux allows a slightly wider set of valid characters in filenames. Windows
+GNU/Linux allows a slightly wider set of valid characters in filenames. Windows
 servers can remap such characters when an explicit mapping is specified in
 the Server's registry.  Samba starting with version 3.10 will allow such
-filenames (ie those which contain valid Linux characters, which normally
+filenames (ie those which contain valid GNU/Linux characters, which normally
 would be forbidden for Windows/CIFS semantics) as long as the server is
 configured for Unix Extensions (and the client has not disabled
-/proc/fs/cifs/LinuxExtensionsEnabled). In addition the mount option
+/proc/fs/cifs/GNU/LinuxExtensionsEnabled). In addition the mount option
 ``mapposix`` can be used on CIFS (vers=1.0) to force the mapping of
 illegal Windows/NTFS/SMB characters to a remap range (this mount parameter
 is the default for SMB3). This remap (``mapposix``) range is also
@@ -516,7 +516,7 @@ A partial list of the supported mount options follows:
 		reads bigger than page size without rereading the same data)
 		this can provide better performance than the default
 		behavior which caches reads (readahead) and writes
-		(writebehind) through the local Linux client pagecache
+		(writebehind) through the local GNU/Linux client pagecache
 		if oplock (caching token) is granted and held. Note that
 		direct allows write operations larger than page size
 		to be sent to the server.
@@ -773,7 +773,7 @@ traceSMB		If set to one, debug information is logged to the
 LookupCacheEnable	If set to one, inode information is kept cached
 			for one second improving performance of lookups
 			(default 1)
-LinuxExtensionsEnabled	If set to one then the client will attempt to
+GNU/LinuxExtensionsEnabled	If set to one then the client will attempt to
 			use the CIFS "UNIX" extensions which are optional
 			protocol enhancements that allow CIFS servers
 			to return accurate UID/GID information as well
@@ -835,7 +835,7 @@ be configured in the file /etc/request-key.conf.  Samba, Windows servers and
 many NAS appliances support DFS as a way of constructing a global name
 space to ease network configuration and improve reliability.
 
-To use cifs Kerberos and DFS support, the Linux keyutils package should be
+To use cifs Kerberos and DFS support, the GNU/Linux keyutils package should be
 installed and something like the following lines should be added to the
 /etc/request-key.conf file::
 

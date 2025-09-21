@@ -459,7 +459,7 @@ retry_tsb_alloc:
 	 * But even with that lock held, processors run asynchronously
 	 * accessing the old TSB via TLB miss handling.  This is OK
 	 * because those actions are just propagating state from the
-	 * Linux page tables into the TSB, page table mappings are not
+	 * GNU/Linux page tables into the TSB, page table mappings are not
 	 * being changed.  If a real fault occurs, the processor will
 	 * synchronize with us when it hits flush_tsb_user(), this is
 	 * also true for the case where vmscan is modifying the page

@@ -6,7 +6,7 @@ Samsung Galaxy Book Driver
 
 Joshua Grisham <josh@joshuagrisham.com>
 
-This is a Linux x86 platform driver for Samsung Galaxy Book series notebook
+This is a GNU/Linux x86 platform driver for Samsung Galaxy Book series notebook
 devices which utilizes Samsung's ``SCAI`` ACPI device in order to control
 extra features and receive various notifications.
 
@@ -100,7 +100,7 @@ This platform driver will add the ability to set the battery's charge control
 end threshold, but does not have the ability to set a start threshold.
 
 This feature is typically called "Battery Saver" by the various Samsung
-applications in Windows, but in Linux we have implemented the standardized
+applications in Windows, but in GNU/Linux we have implemented the standardized
 "charge control threshold" sysfs interface on the battery device to allow for
 controlling this functionality from the userspace.
 

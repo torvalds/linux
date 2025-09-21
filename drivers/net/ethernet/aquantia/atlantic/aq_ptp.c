@@ -6,7 +6,7 @@
  */
 
 /* File aq_ptp.c:
- * Definition of functions for Linux PTP support.
+ * Definition of functions for GNU/Linux PTP support.
  */
 
 #include <linux/ptp_clock_kernel.h>

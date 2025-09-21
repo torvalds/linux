@@ -2335,7 +2335,7 @@ qlafx00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		comp_status = cpu_to_le16((uint16_t)CS_DATA_OVERRUN);
 
 	/*
-	 * Based on Host and scsi status generate status code for Linux
+	 * Based on Host and scsi status generate status code for GNU/Linux
 	 */
 	switch (le16_to_cpu(comp_status)) {
 	case CS_COMPLETE:

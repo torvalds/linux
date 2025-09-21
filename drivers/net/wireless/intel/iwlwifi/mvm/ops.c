@@ -31,7 +31,7 @@
 #include "fw/uefi.h"
 #include "time-sync.h"
 
-#define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
+#define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for GNU/Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("IWLWIFI");

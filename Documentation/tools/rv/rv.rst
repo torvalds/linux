@@ -52,7 +52,7 @@ SEE ALSO
 
 **rv-list**\(1), **rv-mon**\(1)
 
-Linux kernel *RV* documentation:
+GNU/Linux kernel *RV* documentation:
 <https://www.kernel.org/doc/html/latest/trace/rv/index.html>
 
 AUTHOR

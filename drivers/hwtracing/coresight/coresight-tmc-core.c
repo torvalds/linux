@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, The GNU/Linux Foundation. All rights reserved.
  *
  * Description: CoreSight Trace Memory Controller driver
  */

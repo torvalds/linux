@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_TW68
-	tristate "Techwell tw68x Video For Linux"
+	tristate "Techwell tw68x Video For GNU/Linux"
 	depends on VIDEO_DEV && PCI
 	select VIDEOBUF2_DMA_SG
 	help

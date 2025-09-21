@@ -5,7 +5,7 @@
  * GEM Graphics Execution Manager Driver Interfaces
  *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
- * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
+ * Copyright 2000 VA GNU/Linux Systems, Inc., Sunnyvale, California.
  * Copyright (c) 2009-2010, Code Aurora Forum.
  * All rights reserved.
  * Copyright © 2014 Intel Corporation

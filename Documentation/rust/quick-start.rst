@@ -6,7 +6,7 @@ Quick Start
 This document describes how to get started with kernel development in Rust.
 
 There are a few ways to install a Rust toolchain needed for kernel development.
-A simple way is to use the packages from your Linux distribution if they are
+A simple way is to use the packages from your GNU/Linux distribution if they are
 suitable -- the first section below explains this approach. An advantage of this
 approach is that, typically, the distribution will match the LLVM used by Rust
 and Clang.
@@ -14,7 +14,7 @@ and Clang.
 Another way is using the prebuilt stable versions of LLVM+Rust provided on
 `kernel.org <https://kernel.org/pub/tools/llvm/rust/>`_. These are the same slim
 and fast LLVM toolchains from :ref:`Getting LLVM <getting_llvm>` with versions
-of Rust added to them that Rust for Linux supports. Two sets are provided: the
+of Rust added to them that Rust for GNU/Linux supports. Two sets are provided: the
 "latest LLVM" and "matching LLVM" (please see the link for more information).
 
 Alternatively, the next two "Requirements" sections explain each component and
@@ -27,10 +27,10 @@ The rest of the document explains other aspects on how to get started.
 Distributions
 -------------
 
-Arch Linux
+Arch GNU/Linux
 **********
 
-Arch Linux provides recent Rust releases and thus it should generally work out
+Arch GNU/Linux provides recent Rust releases and thus it should generally work out
 of the box, e.g.::
 
 	pacman -S rust rust-src rust-bindgen
@@ -45,19 +45,19 @@ recent Rust releases and thus they should generally work out of the box, e.g.::
 	apt install rustc rust-src bindgen rustfmt rust-clippy
 
 
-Fedora Linux
+Fedora GNU/Linux
 ************
 
-Fedora Linux provides recent Rust releases and thus it should generally work out
+Fedora GNU/Linux provides recent Rust releases and thus it should generally work out
 of the box, e.g.::
 
 	dnf install rust rust-src bindgen-cli rustfmt clippy
 
 
-Gentoo Linux
+Gentoo GNU/Linux
 ************
 
-Gentoo Linux (and especially the testing branch) provides recent Rust releases
+Gentoo GNU/Linux (and especially the testing branch) provides recent Rust releases
 and thus it should generally work out of the box, e.g.::
 
 	USE='rust-src rustfmt clippy' emerge dev-lang/rust dev-util/bindgen
@@ -212,7 +212,7 @@ libclang
 in the kernel, which means LLVM needs to be installed; like when the kernel
 is compiled with ``LLVM=1``.
 
-Linux distributions are likely to have a suitable one available, so it is
+GNU/Linux distributions are likely to have a suitable one available, so it is
 best to check that first.
 
 There are also some binaries for several systems and architectures uploaded at:

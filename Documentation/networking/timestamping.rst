@@ -698,7 +698,7 @@ jitter between the host port and its PTP partner. For this reason, some DSA
 switches include a timestamping clock of their own, and have the ability to
 perform network timestamping on their own MAC, such that path delays only
 measure wire and PHY propagation latencies. Timestamping DSA switches are
-supported in Linux and expose the same ABI as any other network interface (save
+supported in GNU/Linux and expose the same ABI as any other network interface (save
 for the fact that the DSA interfaces are in fact virtual in terms of network
 I/O, they do have their own PHC).  It is typical, but not mandatory, for all
 interfaces of a DSA switch to share the same PHC.
@@ -803,7 +803,7 @@ to each individual MAC driver for PHY timestamping support. This entails:
 
 These perform the same role as timestamping Ethernet PHYs, save for the fact
 that they are discrete devices and can therefore be used in conjunction with
-any PHY even if it doesn't support timestamping. In Linux, they are
+any PHY even if it doesn't support timestamping. In GNU/Linux, they are
 discoverable and attachable to a ``struct phy_device`` through Device Tree, and
 for the rest, they use the same mii_ts infrastructure as those. See
 Documentation/devicetree/bindings/ptp/timestamper.txt for more details.

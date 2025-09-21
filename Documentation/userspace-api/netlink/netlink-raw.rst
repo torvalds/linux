@@ -28,7 +28,7 @@ opening a netlink socket.
 
 .. code-block:: yaml
 
-  # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+  # SPDX-License-Identifier: ((GPL-2.0 WITH GNU/Linux-syscall-note) OR BSD-3-Clause)
 
   name: rt-addr
   protocol: netlink-raw

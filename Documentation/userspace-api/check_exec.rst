@@ -21,7 +21,7 @@ However, a JavaScript engine running in a web browser should already be
 sandboxed and then should not be able to harm the user's environment.
 
 Script interpreters or dynamic linkers built for tailored execution environments
-(e.g. hardened Linux distributions or hermetic container images) could use
+(e.g. hardened GNU/Linux distributions or hermetic container images) could use
 ``AT_EXECVE_CHECK`` without checking the related securebits if backward
 compatibility is handled by something else (e.g. atomic update ensuring that
 all legitimate libraries are allowed to be executed).  It is then recommended

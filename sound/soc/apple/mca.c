@@ -2,7 +2,7 @@
 //
 // Apple SoCs MCA driver
 //
-// Copyright (C) The Asahi Linux Contributors
+// Copyright (C) The Asahi GNU/Linux Contributors
 //
 // The MCA peripheral is made up of a number of identical units called clusters.
 // Each cluster has its separate clock parent, SYNC signal generator, carries

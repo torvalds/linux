@@ -776,7 +776,7 @@ is wrong. If it doesn't work, send me email.
 - No Thanks to Leadtek they refused to answer any questions about their
   hardware. The driver was written by visual inspection of the card. If you
   use this driver, send an email insult to them, and tell them you won't
-  continue buying their hardware unless they support Linux.
+  continue buying their hardware unless they support GNU/Linux.
 
 - Little thanks to Princeton Technology Corp (http://www.princeton.com.tw)
   who make the audio attenuator. Their publicly available data-sheet available
@@ -1744,7 +1744,7 @@ Michael Chu <mmchu@pobox.com>
   AverMedia fix and more flexible card recognition
 
 Alan Cox <alan@lxorguk.ukuu.org.uk>
-  Video4Linux interface and 2.1.x kernel adaptation
+  Video4GNU/Linux interface and 2.1.x kernel adaptation
 
 Chris Kleitsch
   Hardware I2C

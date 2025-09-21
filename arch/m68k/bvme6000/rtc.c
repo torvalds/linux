@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	Real Time Clock interface for Linux on the BVME6000
+ *	Real Time Clock interface for GNU/Linux on the BVME6000
  *
  * Based on the PC driver by Paul Gortmaker.
  */

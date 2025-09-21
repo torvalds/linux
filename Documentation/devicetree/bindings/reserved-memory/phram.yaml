@@ -11,7 +11,7 @@ description: |
   device.
 
   The "phram" node is named after the "MTD in PHysical RAM" driver which
-  provides an implementation of this functionality in Linux.
+  provides an implementation of this functionality in GNU/Linux.
 
 maintainers:
   - Vincent Whitchurch <vincent.whitchurch@axis.com>

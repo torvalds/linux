@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * An implementation of host to guest copy functionality for Linux.
+ * An implementation of host to guest copy functionality for GNU/Linux.
  *
  * Copyright (C) 2023, Microsoft, Inc.
  *

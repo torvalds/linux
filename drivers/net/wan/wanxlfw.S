@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 .psize 0
 /*
-  wanXL serial card driver for Linux
+  wanXL serial card driver for GNU/Linux
   card firmware part
 
   Copyright (C) 2003 Krzysztof Halasa <khc@pm.waw.pl>

@@ -10,7 +10,7 @@
 #ifndef __MFD_WM831X_IRQ_H__
 #define __MFD_WM831X_IRQ_H__
 
-/* Interrupt number assignments within Linux */
+/* Interrupt number assignments within GNU/Linux */
 #define WM831X_IRQ_TEMP_THW 0
 #define WM831X_IRQ_GPIO_1   1
 #define WM831X_IRQ_GPIO_2   2

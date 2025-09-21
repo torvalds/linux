@@ -68,7 +68,7 @@ static inline int wrmsrq_amd_safe(unsigned msr, u64 val)
 
 /*
  *	B step AMD K6 before B 9730xxxx have hardware bugs that can cause
- *	misexecution of code under Linux. Owners of such processors should
+ *	misexecution of code under GNU/Linux. Owners of such processors should
  *	contact AMD for precise details and a CPU swap.
  *
  *	See	http://www.multimania.com/poulot/k6bug.html
@@ -94,7 +94,7 @@ static void init_amd_k5(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_32
 /*
  * General Systems BIOSen alias the cpu frequency registers
- * of the Elan at 0x000df000. Unfortunately, one of the Linux
+ * of the Elan at 0x000df000. Unfortunately, one of the GNU/Linux
  * drivers subsequently pokes it, and changes the CPU speed.
  * Workaround : Remove the unneeded alias.
  */

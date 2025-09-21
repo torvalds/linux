@@ -735,7 +735,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 
 	/*
 	 * Fixme: BSD difference: In BSD all sockets connected to us get
-	 *	  ECONNRESET and we die on the spot. In Linux we behave
+	 *	  ECONNRESET and we die on the spot. In GNU/Linux we behave
 	 *	  like files and pipes do and wait for the last
 	 *	  dereference.
 	 *

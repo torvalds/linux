@@ -64,7 +64,7 @@ Date:		February, 2019
 KernelVersion:	v5.1
 Contact:	nvdimm@lists.linux.dev
 Description:
-		(RO) The target-node attribute is the Linux numa-node that a
+		(RO) The target-node attribute is the GNU/Linux numa-node that a
 		device-dax instance may create when it is online. Prior to
 		being online the device's 'numa_node' property reflects the
 		closest online cpu node which is the typical expectation of a

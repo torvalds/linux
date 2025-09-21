@@ -34,7 +34,7 @@
 #include <asm/numa.h>
 #include <asm/svm.h>
 
-/* Is Linux running on nested Microsoft Hypervisor */
+/* Is GNU/Linux running on nested Microsoft Hypervisor */
 bool hv_nested;
 struct ms_hyperv_info ms_hyperv;
 

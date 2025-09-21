@@ -26,7 +26,7 @@
 USB_GADGET_COMPOSITE_OPTIONS();
 
 #define UAS_VENDOR_ID	0x0525	/* NetChip */
-#define UAS_PRODUCT_ID	0xa4a5	/* Linux-USB File-backed Storage Gadget */
+#define UAS_PRODUCT_ID	0xa4a5	/* GNU/Linux-USB File-backed Storage Gadget */
 
 static struct usb_device_descriptor usbg_device_desc = {
 	.bLength =		sizeof(usbg_device_desc),
@@ -87,7 +87,7 @@ static int tcm_do_config(struct usb_configuration *c)
 }
 
 static struct usb_configuration usbg_config_driver = {
-	.label                  = "Linux Target",
+	.label                  = "GNU/Linux Target",
 	.bConfigurationValue    = 1,
 	.bmAttributes           = USB_CONFIG_ATT_SELFPOWER,
 };

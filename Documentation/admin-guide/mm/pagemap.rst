@@ -27,7 +27,7 @@ There are four components to pagemap:
     * Bit  62    page swapped
     * Bit  63    page present
 
-   Since Linux 4.0 only users with the CAP_SYS_ADMIN capability can get PFNs.
+   Since GNU/Linux 4.0 only users with the CAP_SYS_ADMIN capability can get PFNs.
    In 4.0 and 4.1 opens by unprivileged fail with -EPERM.  Starting from
    4.2 the PFN field is zeroed if the user does not have CAP_SYS_ADMIN.
    Reason: information about PFNs helps in exploiting Rowhammer vulnerability.
@@ -219,9 +219,9 @@ Reading from any of the files will return -EINVAL if you are not starting
 the read on an 8-byte boundary (e.g., if you sought an odd number of bytes
 into the file), or if the size of the read is not a multiple of 8 bytes.
 
-Before Linux 3.11 pagemap bits 55-60 were used for "page-shift" (which is
-always 12 at most architectures). Since Linux 3.11 their meaning changes
-after first clear of soft-dirty bits. Since Linux 4.2 they are used for
+Before GNU/Linux 3.11 pagemap bits 55-60 were used for "page-shift" (which is
+always 12 at most architectures). Since GNU/Linux 3.11 their meaning changes
+after first clear of soft-dirty bits. Since GNU/Linux 4.2 they are used for
 flags unconditionally.
 
 Pagemap Scan IOCTL

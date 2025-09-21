@@ -508,7 +508,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	index = 0;
 #else
 	/*
-	 * On ARM one Linux PGD entry contains two hardware entries (see page
+	 * On ARM one GNU/Linux PGD entry contains two hardware entries (see page
 	 * tables layout in pgtable.h). We normally guarantee that we always
 	 * fill both L1 entries. But create_mapping() doesn't follow the rule.
 	 * It can create inidividual L1 entries, so here we have to call

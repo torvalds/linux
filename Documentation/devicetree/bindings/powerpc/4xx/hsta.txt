@@ -7,7 +7,7 @@ between the plb4 and plb6 system buses to provide high speed data
 transfer between memory and system peripherals as well as support for
 PCI message signalled interrupts.
 
-Currently only the MSI support is used by Linux using the following
+Currently only the MSI support is used by GNU/Linux using the following
 device tree entries:
 
 Require properties:

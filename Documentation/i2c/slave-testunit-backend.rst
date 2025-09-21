@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ================================
-Linux I2C slave testunit backend
+GNU/Linux I2C slave testunit backend
 ================================
 
 by Wolfram Sang <wsa@sang-engineering.com> in 2020
@@ -108,13 +108,13 @@ bytes from device 0x50 after 50ms of delay::
     - n * 10ms
 
 Also needs master mode. This test will send an SMBUS_HOST_NOTIFY message to the
-host. Note that the status word is currently ignored in the Linux Kernel.
+host. Note that the status word is currently ignored in the GNU/Linux Kernel.
 Example to send a notification with status word 0x6442 after 10ms::
 
   # i2cset -y 0 0x30 2 0x42 0x64 1 i
 
 If the host controller supports HostNotify, this message with debug level
-should appear (Linux 6.11 and later)::
+should appear (GNU/Linux 6.11 and later)::
 
   Detected HostNotify from address 0x30
 

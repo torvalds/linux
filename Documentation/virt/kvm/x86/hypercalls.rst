@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===================
-Linux KVM Hypercall
+GNU/Linux KVM Hypercall
 ===================
 
 X86:

@@ -2,7 +2,7 @@
 /*******************************************************************************
  * Filename:  target_core_iblock.c
  *
- * This file contains the Storage Engine  <-> Linux BlockIO transport
+ * This file contains the Storage Engine  <-> GNU/Linux BlockIO transport
  * specific functions.
  *
  * (c) Copyright 2003-2013 Datera, Inc.
@@ -547,7 +547,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 			bio_list_add(&list, bio);
 		}
 
-		/* Always in 512 byte units for Linux/Block */
+		/* Always in 512 byte units for GNU/Linux/Block */
 		block_lba += sg->length >> SECTOR_SHIFT;
 		sectors -= sg->length >> SECTOR_SHIFT;
 	}
@@ -831,7 +831,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			bio_cnt++;
 		}
 
-		/* Always in 512 byte units for Linux/Block */
+		/* Always in 512 byte units for GNU/Linux/Block */
 		block_lba += sg->length >> SECTOR_SHIFT;
 		sg_num--;
 	}
@@ -1206,7 +1206,7 @@ static void __exit iblock_module_exit(void)
 }
 
 MODULE_DESCRIPTION("TCM IBLOCK subsystem plugin");
-MODULE_AUTHOR("nab@Linux-iSCSI.org");
+MODULE_AUTHOR("nab@GNU/Linux-iSCSI.org");
 MODULE_LICENSE("GPL");
 
 module_init(iblock_module_init);

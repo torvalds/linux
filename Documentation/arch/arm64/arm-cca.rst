@@ -8,7 +8,7 @@ Arm systems that support the Realm Management Extension (RME) contain
 hardware to allow a VM guest to be run in a way which protects the code
 and data of the guest from the hypervisor. It extends the older "two
 world" model (Normal and Secure World) into four worlds: Normal, Secure,
-Root and Realm. Linux can then also be run as a guest to a monitor
+Root and Realm. GNU/Linux can then also be run as a guest to a monitor
 running in the Realm world.
 
 The monitor running in the Realm world is known as the Realm Management
@@ -39,14 +39,14 @@ request new memory from the Normal World.  Without an explicit request
 from the Realm guest the RMM will otherwise prevent the Normal World
 from making these changes.
 
-Linux as a Realm Guest
+GNU/Linux as a Realm Guest
 ----------------------
 
-To run Linux as a guest within a Realm, the following must be provided
-either by the VMM or by a `boot loader` run in the Realm before Linux:
+To run GNU/Linux as a guest within a Realm, the following must be provided
+either by the VMM or by a `boot loader` run in the Realm before GNU/Linux:
 
- * All protected RAM described to Linux (by DT or ACPI) must be marked
-   RIPAS RAM before handing control over to Linux.
+ * All protected RAM described to GNU/Linux (by DT or ACPI) must be marked
+   RIPAS RAM before handing control over to GNU/Linux.
 
  * MMIO devices must be either unprotected (e.g. emulated by the Normal
    World) or marked RIPAS DEV.
@@ -57,7 +57,7 @@ either by the VMM or by a `boot loader` run in the Realm before Linux:
    command line, e.g. with an IPA size of 33 bits and the base address
    of the emulated UART at 0x1000000: ``earlycon=uart,mmio,0x101000000``
 
- * Linux will use bounce buffers for communicating with unprotected
+ * GNU/Linux will use bounce buffers for communicating with unprotected
    devices. It will transition some protected memory to RIPAS EMPTY and
    expect to be able to access unprotected pages at the same IPA address
    but with the highest valid IPA bit set. The expectation is that the

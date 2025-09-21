@@ -9,7 +9,7 @@
  * The information in this file is provided "AS IS" without warranty.
  *
  * Abstract:
- *   A Linux device driver supporting the SysKonnect FDDI PCI controller
+ *   A GNU/Linux device driver supporting the SysKonnect FDDI PCI controller
  *   familie.
  *
  * Maintainers:
@@ -89,7 +89,7 @@ static const char * const boot_msg =
 #include <linux/uaccess.h>
 
 #include	"h/types.h"
-#undef ADDR			// undo Linux definition
+#undef ADDR			// undo GNU/Linux definition
 #include	"h/skfbi.h"
 #include	"h/fddi.h"
 #include	"h/smc.h"
@@ -1053,7 +1053,7 @@ static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
 	 * Verify that incoming transmit request is OK
 	 *
 	 * Note: The packet size check is consistent with other
-	 *               Linux device drivers, although the correct packet
+	 *               GNU/Linux device drivers, although the correct packet
 	 *               size should be verified before calling the
 	 *               transmit routine.
 	 */

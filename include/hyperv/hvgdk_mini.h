@@ -1170,7 +1170,7 @@ union hv_register_value {
 	union hv_arm64_pending_synthetic_exception_event pending_synthetic_exception_event;
 };
 
-/* NOTE: Linux helper struct - NOT from Hyper-V code. */
+/* NOTE: GNU/Linux helper struct - NOT from Hyper-V code. */
 struct hv_output_get_vp_registers {
 	DECLARE_FLEX_ARRAY(union hv_register_value, values);
 };

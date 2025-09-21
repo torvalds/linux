@@ -846,7 +846,7 @@ static int mvebu_comphy_power_on(struct phy *phy)
 		 lane->id, lane->mode, ret);
 
 try_legacy:
-	/* Fallback to Linux's implementation */
+	/* Fallback to GNU/Linux's implementation */
 	return mvebu_comphy_power_on_legacy(phy);
 }
 
@@ -905,7 +905,7 @@ static int mvebu_comphy_power_off(struct phy *phy)
 	if (!ret)
 		return ret;
 
-	/* Fallback to Linux's implementation */
+	/* Fallback to GNU/Linux's implementation */
 	return mvebu_comphy_power_off_legacy(phy);
 }
 

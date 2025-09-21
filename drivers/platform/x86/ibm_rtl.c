@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * IBM Real-Time Linux driver
+ * IBM Real-Time GNU/Linux driver
  *
  * Copyright (C) IBM Corporation, 2010
  *

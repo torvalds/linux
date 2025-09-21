@@ -8,10 +8,10 @@
 
 .. _tw_managementstyle:
 
-Linux內核管理風格
+GNU/Linux內核管理風格
 =================
 
-這是一個簡短的文檔，描述了Linux內核首選的（或胡編的，取決於您問誰）管理風格。
+這是一個簡短的文檔，描述了GNU/Linux內核首選的（或胡編的，取決於您問誰）管理風格。
 它的目的是在某種程度上參照 :ref:`process/coding-style.rst <codingstyle>`
 主要是爲了避免反覆回答 [#cnf1]_ 相同（或類似）的問題。
 

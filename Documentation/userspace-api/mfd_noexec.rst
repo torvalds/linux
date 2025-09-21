@@ -10,7 +10,7 @@ Introduction of non-executable mfd
 :Contributor:
 	Aleksa Sarai <cyphar@cyphar.com>
 
-Since Linux introduced the memfd feature, memfds have always had their
+Since GNU/Linux introduced the memfd feature, memfds have always had their
 execute bit set, and the memfd_create() syscall doesn't allow setting
 it differently.
 

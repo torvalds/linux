@@ -12,7 +12,7 @@
 
 /*
    ********************************************************************
-   *   SCC.C - Linux driver for Z8530 based HDLC cards for AX.25      *
+   *   SCC.C - GNU/Linux driver for Z8530 based HDLC cards for AX.25      *
    ********************************************************************
 
 
@@ -43,7 +43,7 @@
 
    This program is free software; you can redistribute it and/or modify 
    it under the terms of the (modified) GNU General Public License 
-   delivered with the Linux kernel source.
+   delivered with the GNU/Linux kernel source.
    
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -87,7 +87,7 @@
    		  The move to version number 3.0 reflects theses changes.
    		  You can use 'kissbridge' if you need a KISS TNC emulator.
 
-   1996-12-13	Fixed for Linux networking changes. (G4KLX)
+   1996-12-13	Fixed for GNU/Linux networking changes. (G4KLX)
    1997-01-08	Fixed the remaining problems.
    1997-04-02	Hopefully fixed the problems with the new *_timer()
    		routines, added calibration code.

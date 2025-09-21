@@ -232,7 +232,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	case FSL_USB2_PHY_UTMI:
 		/* Presence of this node "has_fsl_erratum_a006918"
 		 * in device-tree is used to stop USB controller
-		 * initialization in Linux
+		 * initialization in GNU/Linux
 		 */
 		if (pdata->has_fsl_erratum_a006918) {
 			dev_warn(dev, "USB PHY clock invalid\n");

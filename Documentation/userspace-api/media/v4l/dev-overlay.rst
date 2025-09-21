@@ -250,7 +250,7 @@ exceeded are undefined. [#f3]_
 
 .. note::
 
-   This field was added in Linux 2.6.23, extending the
+   This field was added in GNU/Linux 2.6.23, extending the
    structure. However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
    ioctls, which take a pointer to a :c:type:`v4l2_format`
    parent structure with padding bytes at the end, are not affected.

@@ -1875,7 +1875,7 @@ void esas2r_target_state_changed(struct esas2r_adapter *a, u16 targ_id,
 				      sizeof(targ_id));
 }
 
-/* Translate status to a Linux SCSI mid-layer error code */
+/* Translate status to a GNU/Linux SCSI mid-layer error code */
 int esas2r_req_status_to_error(u8 req_stat)
 {
 	switch (req_stat) {

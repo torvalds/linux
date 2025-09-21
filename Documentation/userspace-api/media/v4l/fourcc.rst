@@ -1,9 +1,9 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Guidelines for Video4Linux pixel format 4CCs
+Guidelines for Video4GNU/Linux pixel format 4CCs
 ============================================
 
-Guidelines for Video4Linux 4CC codes defined using v4l2_fourcc() are
+Guidelines for Video4GNU/Linux 4CC codes defined using v4l2_fourcc() are
 specified in this document. First of the characters defines the nature of
 the pixel format, compression and colour space. The interpretation of the
 other three characters depends on the first one.

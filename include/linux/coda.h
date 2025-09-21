@@ -52,7 +52,7 @@ Mellon the rights to redistribute these changes without encumbrance.
 /*
  *
  * Based on cfs.h from Mach, but revamped for increased simplicity.
- * Linux modifications by 
+ * GNU/Linux modifications by 
  * Peter Braam, Aug 1996
  */
 #ifndef _CODA_HEADER_

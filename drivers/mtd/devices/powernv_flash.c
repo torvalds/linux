@@ -23,7 +23,7 @@
 
 
 /*
- * This driver creates the a Linux MTD abstraction for platform PNOR flash
+ * This driver creates the a GNU/Linux MTD abstraction for platform PNOR flash
  * backed by OPAL calls
  */
 

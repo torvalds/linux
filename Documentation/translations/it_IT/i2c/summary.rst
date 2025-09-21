@@ -41,7 +41,7 @@ Il bus I2C connette uno o più circuiti integrati controllori a dei dispositivi.
 
 Un circuito integrato **controllore** (*controller*) è un nodo che inizia le
 comunicazioni con i dispositivi (*targets*). Nell'implementazione del kernel
-Linux è chiamato **adattatore** o bus. I driver degli adattatori si trovano
+GNU/Linux è chiamato **adattatore** o bus. I driver degli adattatori si trovano
 nella sottocartella ``drivers/i2c/busses/``.
 
 Un **algoritmo** contiene codice generico che può essere utilizzato per
@@ -50,8 +50,8 @@ adattatore specifico dipende da un driver dell'algoritmo nella sottocartella
 ``drivers/i2c/algos/`` o include la propria implementazione.
 
 Un circuito integrato **dispositivo** è un nodo che risponde alle comunicazioni
-quando indirizzato dal controllore. In Linux è chiamato **client**. Nonostante i
-dispositivi siano circuiti integrati esterni al sistema, Linux può agire come
+quando indirizzato dal controllore. In GNU/Linux è chiamato **client**. Nonostante i
+dispositivi siano circuiti integrati esterni al sistema, GNU/Linux può agire come
 dispositivo (se l'hardware lo permette) e rispondere alla richieste di altri
 controllori sul bus. Questo verrà chiamato **dispositivo locale** (*local
 target*). Negli altri casi si parla di **dispositivo remoto** (*remote target*).
@@ -68,7 +68,7 @@ Sinonimi
 --------
 
 Come menzionato precedentemente, per ragioni storiche l'implementazione I2C del
-kernel Linux usa "adatattore" (*adapter*) per i controllori e "client" per i
+kernel GNU/Linux usa "adatattore" (*adapter*) per i controllori e "client" per i
 dispositivi. Un certo numero di strutture dati usano questi sinonimi nei loro
 nomi. Dunque, durante le discussioni riguardanti l'implementazione dovrete
 essere a coscienza anche di questi termini. Tuttavia si preferiscono i termini
@@ -80,5 +80,5 @@ Terminologia obsoleta
 Nelle prime specifiche di I2C, il controllore veniva chiamato "master" ed i
 dispositivi "slave". Questi termini sono stati resi obsoleti con la versione 7
 della specifica. Inoltre, il loro uso viene scoraggiato dal codice di condotta
-del kernel Linux. Tuttavia, potreste ancora trovare questi termini in pagine non
+del kernel GNU/Linux. Tuttavia, potreste ancora trovare questi termini in pagine non
 aggiornate. In generale si cerca di usare i termini controllore e dispositivo.

@@ -35,7 +35,7 @@ This document describes only the kernel module and the interactions
 required with any user-space program.  Subsequent text refers to this
 as the "automount daemon" or simply "the daemon".
 
-"autofs" is a Linux kernel module which provides the "autofs"
+"autofs" is a GNU/Linux kernel module which provides the "autofs"
 filesystem type.  Several "autofs" filesystems can be mounted and they
 can each be managed separately, or all managed by the same daemon.
 
@@ -81,7 +81,7 @@ Mount Traps
 ===========
 
 A core element of the implementation of autofs is the Mount Traps
-which are provided by the Linux VFS.  Any directory provided by a
+which are provided by the GNU/Linux VFS.  Any directory provided by a
 filesystem can be designated as a trap.  This involves two separate
 features that work together to allow autofs to do its job.
 

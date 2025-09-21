@@ -1,5 +1,5 @@
 =======================================================
-xpad - Linux USB driver for Xbox compatible controllers
+xpad - GNU/Linux USB driver for Xbox compatible controllers
 =======================================================
 
 This driver exposes all first-party and third-party Xbox compatible

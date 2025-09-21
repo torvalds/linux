@@ -117,7 +117,7 @@ static const ret_t CONTINUE_PROCESSING = -1;
 			return __ret;             \
 	} while (0)
 
-/* Linux packet pointers are either aligned to NET_IP_ALIGN (aka 2 bytes),
+/* GNU/Linux packet pointers are either aligned to NET_IP_ALIGN (aka 2 bytes),
  * or not aligned if the arch supports efficient unaligned access.
  *
  * Since the verifier ensures that eBPF packet accesses follow these rules,

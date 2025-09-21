@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
+ * GNU/Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
  * flexcop-hw-filter.c - pid and mac address filtering and control functions
  * see flexcop.c for copyright information
  */

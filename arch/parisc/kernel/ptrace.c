@@ -2,7 +2,7 @@
 /*
  * Kernel support for the ptrace() and syscall tracing interfaces.
  *
- * Copyright (C) 2000 Hewlett-Packard Co, Linuxcare Inc.
+ * Copyright (C) 2000 Hewlett-Packard Co, GNU/Linuxcare Inc.
  * Copyright (C) 2000 Matthew Wilcox <matthew@wil.cx>
  * Copyright (C) 2000 David Huggins-Daines <dhd@debian.org>
  * Copyright (C) 2008-2016 Helge Deller <deller@gmx.de>

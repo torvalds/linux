@@ -44,7 +44,7 @@
  * are disabled with local_irq_disable(), platforms that use soft-masking
  * can leave hardware interrupts enabled and handle them with a masked
  * interrupt handler. The masked handler can send the timer interrupt to the
- * watchdog's soft_nmi_interrupt(), which appears to Linux as an NMI
+ * watchdog's soft_nmi_interrupt(), which appears to GNU/Linux as an NMI
  * interrupt, and can be used to detect CPUs stuck with IRQs disabled.
  *
  * The soft-NMI checker will compare the heartbeat timestamp for this CPU

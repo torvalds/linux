@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linux-DVB Driver for DiBcom's DiB7000M and
+ * GNU/Linux-DVB Driver for DiBcom's DiB7000M and
  *              first generation DiB7000P-demodulator-family.
  *
  * Copyright (C) 2005-7 DiBcom (http://www.dibcom.fr/)

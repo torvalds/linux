@@ -1,5 +1,5 @@
 /*
-   3w-9xxx.c -- 3ware 9000 Storage Controller device driver for Linux.
+   3w-9xxx.c -- 3ware 9000 Storage Controller device driver for GNU/Linux.
 
    Written By: Adam Radford <aradford@gmail.com>
    Modifications By: Tom Couch
@@ -109,7 +109,7 @@ extern struct timezone sys_tz;
 
 /* Module parameters */
 MODULE_AUTHOR ("LSI");
-MODULE_DESCRIPTION ("3ware 9000 Storage Controller Linux Driver");
+MODULE_DESCRIPTION ("3ware 9000 Storage Controller GNU/Linux Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(TW_DRIVER_VERSION);
 
@@ -2289,7 +2289,7 @@ static struct pci_driver twa_driver = {
 /* This function is called on driver initialization */
 static int __init twa_init(void)
 {
-	printk(KERN_WARNING "3ware 9000 Storage Controller device driver for Linux v%s.\n", TW_DRIVER_VERSION);
+	printk(KERN_WARNING "3ware 9000 Storage Controller device driver for GNU/Linux v%s.\n", TW_DRIVER_VERSION);
 
 	return pci_register_driver(&twa_driver);
 } /* End twa_init() */

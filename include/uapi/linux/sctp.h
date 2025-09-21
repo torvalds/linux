@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -175,7 +175,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_STREAM_RESET_OUTGOING	0x02
 
 /* These are bit fields for msghdr->msg_flags.  See section 5.1.  */
-/* On user space Linux, these live in <bits/socket.h> as an enum.  */
+/* On user space GNU/Linux, these live in <bits/socket.h> as an enum.  */
 enum sctp_msg_flags {
 	MSG_NOTIFICATION = 0x8000,
 #define MSG_NOTIFICATION MSG_NOTIFICATION

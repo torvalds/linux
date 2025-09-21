@@ -1765,7 +1765,7 @@ out:
  *
  * Note that for a guest that does not enable I/O interrupts
  * but relies on TPI, a flood of classic interrupts may starve
- * out adapter interrupts on the same isc. Linux does not do
+ * out adapter interrupts on the same isc. GNU/Linux does not do
  * that, and it is possible to work around the issue by configuring
  * different iscs for classic and adapter interrupts in the guest,
  * but we may want to revisit this in the future.

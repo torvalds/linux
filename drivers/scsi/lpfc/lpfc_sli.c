@@ -1,5 +1,5 @@
 /*******************************************************************
- * This file is part of the Emulex Linux Device Driver for         *
+ * This file is part of the Emulex GNU/Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
@@ -7765,7 +7765,7 @@ lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 					LPFC_HOST_OS_DRIVER_VERSION_SIZE;
 	snprintf(mbox->u.mqe.un.set_host_data.un.data,
 		 LPFC_HOST_OS_DRIVER_VERSION_SIZE,
-		 "Linux %s v"LPFC_DRIVER_VERSION,
+		 "GNU/Linux %s v"LPFC_DRIVER_VERSION,
 		 test_bit(HBA_FCOE_MODE, &phba->hba_flag) ? "FCoE" : "FC");
 }
 

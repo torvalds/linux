@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Video capture interface for Linux version 2
+ * Video capture interface for GNU/Linux version 2
  *
  * A generic framework to process V4L2 ioctl commands.
  *

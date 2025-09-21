@@ -27,7 +27,7 @@ typedef u16 tid_t;
 typedef u16 lid_t;
 
 /*
- * Almost identical to Linux's timespec, but not quite
+ * Almost identical to GNU/Linux's timespec, but not quite
  */
 struct timestruc_t {
 	__le32 tv_sec;

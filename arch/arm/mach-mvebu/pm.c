@@ -132,7 +132,7 @@ static void mvebu_pm_store_armadaxp_bootinfo(u32 *store_addr)
 
 	/*
 	 * Set the internal register base address to the value
-	 * expected by Linux, as read from the Device Tree.
+	 * expected by GNU/Linux, as read from the Device Tree.
 	 */
 	writel(MBUS_INTERNAL_REG_ADDRESS, store_addr++);
 	writel(mvebu_internal_reg_base(), store_addr++);

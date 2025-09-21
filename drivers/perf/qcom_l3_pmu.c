@@ -10,7 +10,7 @@
  *
  * See Documentation/admin-guide/perf/qcom_l3_pmu.rst for more details.
  *
- * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/acpi.h>

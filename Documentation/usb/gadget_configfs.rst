@@ -1,5 +1,5 @@
 ============================================
-Linux USB gadget configured through configfs
+GNU/Linux USB gadget configured through configfs
 ============================================
 
 
@@ -11,7 +11,7 @@ Linux USB gadget configured through configfs
 Overview
 ========
 
-A USB Linux Gadget is a device which has a UDC (USB Device Controller) and can
+A USB GNU/Linux Gadget is a device which has a UDC (USB Device Controller) and can
 be connected to a USB Host to extend it with additional functions like a serial
 port or a mass storage capability.
 
@@ -19,7 +19,7 @@ A gadget is seen by its host as a set of configurations, each of which contains
 a number of interfaces which, from the gadget's perspective, are known as
 functions, each function representing e.g. a serial connection or a SCSI disk.
 
-Linux provides a number of functions for gadgets to use.
+GNU/Linux provides a number of functions for gadgets to use.
 
 Creating a gadget means deciding what configurations there will be
 and which functions each configuration will provide.

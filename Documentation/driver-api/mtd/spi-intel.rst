@@ -23,7 +23,7 @@ might render the machine unbootable and requires special equipment like
 Dediprog to revive. You have been warned!
 
 Below are the steps how to upgrade MinnowBoard MAX BIOS directly from
-Linux.
+GNU/Linux.
 
  1) Download and extract the latest Minnowboard MAX BIOS SPI image
     [1]. At the time writing this the latest image is v92.

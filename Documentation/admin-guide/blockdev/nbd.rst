@@ -5,7 +5,7 @@ Network Block Device (TCP version)
 1) Overview
 -----------
 
-What is it: With this compiled in the kernel (or as a module), Linux
+What is it: With this compiled in the kernel (or as a module), GNU/Linux
 can use a remote server as one of its block devices. So every time
 the client computer wants to read, e.g., /dev/nb0, it sends a
 request over TCP to the server, which will reply with the data read.

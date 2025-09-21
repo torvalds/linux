@@ -74,7 +74,7 @@ enum st7789v_command {
 #define PANEL_TE_TIMEOUT_MS  33
 
 static struct completion panel_te; /* completion for panel TE line */
-static int irq_te; /* Linux IRQ for LCD TE line */
+static int irq_te; /* GNU/Linux IRQ for LCD TE line */
 
 static irqreturn_t panel_te_handler(int irq, void *data)
 {

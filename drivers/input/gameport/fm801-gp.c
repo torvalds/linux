@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  FM801 gameport driver for Linux
+ *  FM801 gameport driver for GNU/Linux
  *
  *  Copyright (c) by Takashi Iwai <tiwai@suse.de>
  */

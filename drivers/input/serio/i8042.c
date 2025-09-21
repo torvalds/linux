@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  i8042 keyboard and mouse controller driver for Linux
+ *  i8042 keyboard and mouse controller driver for GNU/Linux
  *
  *  Copyright (c) 1999-2004 Vojtech Pavlik
  */

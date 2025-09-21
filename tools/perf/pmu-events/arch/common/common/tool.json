@@ -26,19 +26,19 @@
   {
     "Unit": "tool",
     "EventName": "num_cores",
-    "BriefDescription": "Number of cores. A core consists of 1 or more thread, with each thread being associated with a logical Linux CPU",
+    "BriefDescription": "Number of cores. A core consists of 1 or more thread, with each thread being associated with a logical GNU/Linux CPU",
     "ConfigCode": "5"
   },
   {
     "Unit": "tool",
     "EventName": "num_cpus",
-    "BriefDescription": "Number of logical Linux CPUs. There may be multiple such CPUs on a core",
+    "BriefDescription": "Number of logical GNU/Linux CPUs. There may be multiple such CPUs on a core",
     "ConfigCode": "6"
   },
   {
     "Unit": "tool",
     "EventName": "num_cpus_online",
-    "BriefDescription": "Number of online logical Linux CPUs. There may be multiple such CPUs on a core",
+    "BriefDescription": "Number of online logical GNU/Linux CPUs. There may be multiple such CPUs on a core",
     "ConfigCode": "7"
   },
   {

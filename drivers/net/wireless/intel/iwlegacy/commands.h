@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel GNU/Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -191,7 +191,7 @@ struct il_cmd_header {
 	 * example, uCode issues N_3945_RX when it sends a received frame
 	 * to the driver; it is not a direct response to any driver command.
 	 *
-	 * The Linux driver uses the following format:
+	 * The GNU/Linux driver uses the following format:
 	 *
 	 *  0:7         tfd idx - position within TX queue
 	 *  8:12        TX queue id
@@ -499,7 +499,7 @@ struct il_init_alive_resp {
  *	__le32 u_timestamp;  indicate when the date and time of the compilation
  *	__le32 reserved;
  *
- * The Linux driver can print both logs to the system log when a uCode error
+ * The GNU/Linux driver can print both logs to the system log when a uCode error
  * occurs.
  */
 struct il_alive_resp {
@@ -1902,7 +1902,7 @@ struct il_link_qual_agg_params {
  * FILLING THE RATE TBL
  *
  * Given a particular initial rate and mode, as determined by the rate
- * scaling algorithm described below, the Linux driver uses the following
+ * scaling algorithm described below, the GNU/Linux driver uses the following
  * formula to fill the rs_table[LINK_QUAL_MAX_RETRY_NUM] rate table in the
  * Link Quality command:
  *
@@ -1930,7 +1930,7 @@ struct il_link_qual_agg_params {
  *
  * ACCUMULATING HISTORY
  *
- * The rate scaling algorithm for 4965 devices, as implemented in Linux driver,
+ * The rate scaling algorithm for 4965 devices, as implemented in GNU/Linux driver,
  * uses two sets of frame Tx success history:  One for the current/active
  * modulation mode, and one for a speculative/search mode that is being
  * attempted. If the speculative mode turns out to be more effective (i.e.

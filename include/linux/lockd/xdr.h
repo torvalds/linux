@@ -48,7 +48,7 @@ struct nlm_lock {
 };
 
 /*
- *	NLM cookies. Technically they can be 1K, but Linux only uses 8 bytes.
+ *	NLM cookies. Technically they can be 1K, but GNU/Linux only uses 8 bytes.
  *	FreeBSD uses 16, Apple Mac OS X 10.3 uses 20. Therefore we set it to
  *	32 bytes.
  */

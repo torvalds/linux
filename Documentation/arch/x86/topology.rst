@@ -11,7 +11,7 @@ respective code.
 The architecture-agnostic topology definitions are in
 Documentation/admin-guide/cputopology.rst. This file holds x86-specific
 differences/specialities which must not necessarily apply to the generic
-definitions. Thus, the way to read up on Linux topology on x86 is to start
+definitions. Thus, the way to read up on GNU/Linux topology on x86 is to start
 with the generic one and look at this one in parallel for the x86 specifics.
 
 Needless to say, code should use the generic functions - this file is *only*
@@ -102,7 +102,7 @@ AMDs nomenclature for a CMT core is "Compute Unit". The kernel always uses
 
 Threads
 =======
-A thread is a single scheduling unit. It's the equivalent to a logical Linux
+A thread is a single scheduling unit. It's the equivalent to a logical GNU/Linux
 CPU.
 
 AMDs nomenclature for CMT threads is "Compute Unit Core". The kernel always
@@ -145,86 +145,86 @@ System topology examples
 ========================
 
 .. note::
-  The alternative Linux CPU enumeration depends on how the BIOS enumerates the
+  The alternative GNU/Linux CPU enumeration depends on how the BIOS enumerates the
   threads. Many BIOSes enumerate all threads 0 first and then all threads 1.
-  That has the "advantage" that the logical Linux CPU numbers of threads 0 stay
+  That has the "advantage" that the logical GNU/Linux CPU numbers of threads 0 stay
   the same whether threads are enabled or not. That's merely an implementation
   detail and has no practical impact.
 
 1) Single Package, Single Core::
 
-   [package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
+   [package 0] -> [core 0] -> [thread 0] -> GNU/Linux CPU 0
 
 2) Single Package, Dual Core
 
    a) One thread per core::
 
-	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
-		    -> [core 1] -> [thread 0] -> Linux CPU 1
+	[package 0] -> [core 0] -> [thread 0] -> GNU/Linux CPU 0
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 1
 
    b) Two threads per core::
 
-	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
-				-> [thread 1] -> Linux CPU 1
-		    -> [core 1] -> [thread 0] -> Linux CPU 2
-				-> [thread 1] -> Linux CPU 3
+	[package 0] -> [core 0] -> [thread 0] -> GNU/Linux CPU 0
+				-> [thread 1] -> GNU/Linux CPU 1
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 2
+				-> [thread 1] -> GNU/Linux CPU 3
 
       Alternative enumeration::
 
-	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
-				-> [thread 1] -> Linux CPU 2
-		    -> [core 1] -> [thread 0] -> Linux CPU 1
-				-> [thread 1] -> Linux CPU 3
+	[package 0] -> [core 0] -> [thread 0] -> GNU/Linux CPU 0
+				-> [thread 1] -> GNU/Linux CPU 2
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 1
+				-> [thread 1] -> GNU/Linux CPU 3
 
       AMD nomenclature for CMT systems::
 
-	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
-				     -> [Compute Unit Core 1] -> Linux CPU 1
-		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> Linux CPU 2
-				     -> [Compute Unit Core 1] -> Linux CPU 3
+	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> GNU/Linux CPU 0
+				     -> [Compute Unit Core 1] -> GNU/Linux CPU 1
+		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> GNU/Linux CPU 2
+				     -> [Compute Unit Core 1] -> GNU/Linux CPU 3
 
 4) Dual Package, Dual Core
 
    a) One thread per core::
 
-	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
-		    -> [core 1] -> [thread 0] -> Linux CPU 1
+	[package 0] -> [core 0] -> [thread 0] -> GNU/Linux CPU 0
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 1
 
-	[package 1] -> [core 0] -> [thread 0] -> Linux CPU 2
-		    -> [core 1] -> [thread 0] -> Linux CPU 3
+	[package 1] -> [core 0] -> [thread 0] -> GNU/Linux CPU 2
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 3
 
    b) Two threads per core::
 
-	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
-				-> [thread 1] -> Linux CPU 1
-		    -> [core 1] -> [thread 0] -> Linux CPU 2
-				-> [thread 1] -> Linux CPU 3
+	[package 0] -> [core 0] -> [thread 0] -> GNU/Linux CPU 0
+				-> [thread 1] -> GNU/Linux CPU 1
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 2
+				-> [thread 1] -> GNU/Linux CPU 3
 
-	[package 1] -> [core 0] -> [thread 0] -> Linux CPU 4
-				-> [thread 1] -> Linux CPU 5
-		    -> [core 1] -> [thread 0] -> Linux CPU 6
-				-> [thread 1] -> Linux CPU 7
+	[package 1] -> [core 0] -> [thread 0] -> GNU/Linux CPU 4
+				-> [thread 1] -> GNU/Linux CPU 5
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 6
+				-> [thread 1] -> GNU/Linux CPU 7
 
       Alternative enumeration::
 
-	[package 0] -> [core 0] -> [thread 0] -> Linux CPU 0
-				-> [thread 1] -> Linux CPU 4
-		    -> [core 1] -> [thread 0] -> Linux CPU 1
-				-> [thread 1] -> Linux CPU 5
+	[package 0] -> [core 0] -> [thread 0] -> GNU/Linux CPU 0
+				-> [thread 1] -> GNU/Linux CPU 4
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 1
+				-> [thread 1] -> GNU/Linux CPU 5
 
-	[package 1] -> [core 0] -> [thread 0] -> Linux CPU 2
-				-> [thread 1] -> Linux CPU 6
-		    -> [core 1] -> [thread 0] -> Linux CPU 3
-				-> [thread 1] -> Linux CPU 7
+	[package 1] -> [core 0] -> [thread 0] -> GNU/Linux CPU 2
+				-> [thread 1] -> GNU/Linux CPU 6
+		    -> [core 1] -> [thread 0] -> GNU/Linux CPU 3
+				-> [thread 1] -> GNU/Linux CPU 7
 
       AMD nomenclature for CMT systems::
 
-	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 0
-				     -> [Compute Unit Core 1] -> Linux CPU 1
-		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> Linux CPU 2
-				     -> [Compute Unit Core 1] -> Linux CPU 3
+	[node 0] -> [Compute Unit 0] -> [Compute Unit Core 0] -> GNU/Linux CPU 0
+				     -> [Compute Unit Core 1] -> GNU/Linux CPU 1
+		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> GNU/Linux CPU 2
+				     -> [Compute Unit Core 1] -> GNU/Linux CPU 3
 
-	[node 1] -> [Compute Unit 0] -> [Compute Unit Core 0] -> Linux CPU 4
-				     -> [Compute Unit Core 1] -> Linux CPU 5
-		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> Linux CPU 6
-				     -> [Compute Unit Core 1] -> Linux CPU 7
+	[node 1] -> [Compute Unit 0] -> [Compute Unit Core 0] -> GNU/Linux CPU 4
+				     -> [Compute Unit Core 1] -> GNU/Linux CPU 5
+		 -> [Compute Unit 1] -> [Compute Unit Core 0] -> GNU/Linux CPU 6
+				     -> [Compute Unit Core 1] -> GNU/Linux CPU 7

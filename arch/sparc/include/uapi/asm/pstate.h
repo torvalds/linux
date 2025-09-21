@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _SPARC64_PSTATE_H
 #define _SPARC64_PSTATE_H
 
@@ -31,7 +31,7 @@
 #define PSTATE_IE   _AC(0x0000000000000002,UL) /* Interrupt Enable.	*/
 #define PSTATE_AG   _AC(0x0000000000000001,UL) /* Alternate Globals.	*/
 
-/* The V9 TSTATE Register (with SpitFire and Linux extensions).
+/* The V9 TSTATE Register (with SpitFire and GNU/Linux extensions).
  *
  * ---------------------------------------------------------------------
  * |  Resv |  GL  |  CCR  |  ASI  |  %pil  |  PSTATE  |  Resv  |  CWP  |
@@ -51,7 +51,7 @@
 #define TSTATE_IOVFL	_AC(0x0000000200000000,UL) /* %icc Overflow.	*/
 #define TSTATE_ICARRY	_AC(0x0000000100000000,UL) /* %icc Carry.	*/
 #define TSTATE_ASI	_AC(0x00000000ff000000,UL) /* AddrSpace ID.	*/
-#define TSTATE_PIL	_AC(0x0000000000f00000,UL) /* %pil (Linux traps)*/
+#define TSTATE_PIL	_AC(0x0000000000f00000,UL) /* %pil (GNU/Linux traps)*/
 #define TSTATE_PSTATE	_AC(0x00000000000fff00,UL) /* PSTATE.		*/
 /* IG on V9 conflicts with MCDE on M7. TSTATE_MCDE will only be used on
  * processors that support ADI which do not support IG, hence there is

@@ -143,7 +143,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBCore\fP processor core number.  Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology (HT).
 .PP
-\fBCPU\fP Linux CPU (logical processor) number.  Yes, it is okay that on many systems the CPUs are not listed in numerical order -- for efficiency reasons, turbostat runs in topology order, so HT siblings appear together.
+\fBCPU\fP GNU/Linux CPU (logical processor) number.  Yes, it is okay that on many systems the CPUs are not listed in numerical order -- for efficiency reasons, turbostat runs in topology order, so HT siblings appear together.
 .PP
 \fBPackage\fP processor package number -- not present on systems with a single processor package.
 .PP
@@ -159,13 +159,13 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBSMI\fP The number of System Management Interrupts  serviced CPU during the measurement interval.  While this counter is actually per-CPU, SMI are triggered on all processors, so the number should be the same for all CPUs.
 .PP
-\fBC1, C2, C3...\fP The number times Linux requested the C1, C2, C3 idle state during the measurement interval.  The system summary line shows the sum for all CPUs.  These are C-state names as exported in /sys/devices/system/cpu/cpu*/cpuidle/state*/name.  While their names are generic, their attributes are processor specific. They the system description section of output shows what MWAIT sub-states they are mapped to on each system.  These counters are in the "cpuidle" group, which is disabled, by default.
+\fBC1, C2, C3...\fP The number times GNU/Linux requested the C1, C2, C3 idle state during the measurement interval.  The system summary line shows the sum for all CPUs.  These are C-state names as exported in /sys/devices/system/cpu/cpu*/cpuidle/state*/name.  While their names are generic, their attributes are processor specific. They the system description section of output shows what MWAIT sub-states they are mapped to on each system.  These counters are in the "cpuidle" group, which is disabled, by default.
 .PP
-\fBC1+, C2+, C3+...\fP The idle governor idle state misprediction statistics. Inidcates the number times Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a deeper idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/below file.  These counters are in the "cpuidle" group, which is disabled, by default.
+\fBC1+, C2+, C3+...\fP The idle governor idle state misprediction statistics. Inidcates the number times GNU/Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a deeper idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/below file.  These counters are in the "cpuidle" group, which is disabled, by default.
 .PP
-\fBC1-, C2-, C3-...\fP The idle governor idle state misprediction statistics. Inidcates the number times Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a shallower idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/above file.  These counters are in the "cpuidle" group, which is disabled, by default.
+\fBC1-, C2-, C3-...\fP The idle governor idle state misprediction statistics. Inidcates the number times GNU/Linux requested the C1, C2, C3 idle state during the measurement interval, but should have requested a shallower idle state (if it exists and enabled). These statistics come from the /sys/devices/system/cpu/cpu*/cpuidle/state*/above file.  These counters are in the "cpuidle" group, which is disabled, by default.
 .PP
-\fBC1%, C2%, C3%\fP The residency percentage that Linux requested C1, C2, C3....  The system summary is the average of all CPUs in the system.  Note that these are software, reflecting what was requested.  The hardware counters reflect what was actually achieved.  These counters are in the "pct_idle" group, which is enabled by default.
+\fBC1%, C2%, C3%\fP The residency percentage that GNU/Linux requested C1, C2, C3....  The system summary is the average of all CPUs in the system.  Note that these are software, reflecting what was requested.  The hardware counters reflect what was actually achieved.  These counters are in the "pct_idle" group, which is enabled by default.
 .PP
 \fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.  These numbers are from hardware residency counters and are in the "hwidle" group, which is enabled, by default.
 .PP
@@ -496,7 +496,7 @@ So it will not interfere with the OS or other programs, including
 multiple invocations of itself.
 
 \fBturbostat \fP
-may work poorly on Linux-2.6.20 through 2.6.29,
+may work poorly on GNU/Linux-2.6.20 through 2.6.29,
 as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF MSRs
 in those kernels.
 
@@ -537,10 +537,10 @@ https://www.intel.com/products/processor/manuals/
 If turbostat complains that it doesn't recognize your processor,
 please try the latest version.
 
-The latest version of turbostat does not require the latest version of the Linux kernel.
+The latest version of turbostat does not require the latest version of the GNU/Linux kernel.
 However, some features, such as perf(1) counters, do require kernel support.
 
-The latest turbostat release is available in the upstream Linux Kernel source tree.
+The latest turbostat release is available in the upstream GNU/Linux Kernel source tree.
 eg. "git pull https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
 and run make in tools/power/x86/turbostat/.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * w83793.c - Linux kernel driver for hardware monitoring
+ * w83793.c - GNU/Linux kernel driver for hardware monitoring
  * Copyright (C) 2006 Winbond Electronics Corp.
  *	      Yuan Mu
  *	      Rudolf Marek <r.marek@assembler.cz>

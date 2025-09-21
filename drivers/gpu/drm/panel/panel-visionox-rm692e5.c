@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generated with linux-mdss-dsi-panel-driver-generator from vendor device tree:
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2025, Eugene Lepshy <fekz115@gmail.com>
  * Copyright (c) 2025, Danila Tikhonov <danila@jiaxyga.com>
  */

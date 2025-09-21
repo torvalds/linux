@@ -195,7 +195,7 @@ Parafraseando las actuales `direcciones de Linus <https://lore.kernel.org/lkml/C
 - Si realmente se piensa que el valor del puntero es importante, ¿porqué
   algún estado del sistema o nivel de privilegio de usuario es considerado
   "especial"? Si piensa que puede justificarse (en comentarios y mensajes
-  del commit), de forma suficiente como para pasar el escrutinio de Linux,
+  del commit), de forma suficiente como para pasar el escrutinio de GNU/Linux,
   quizás pueda usar el "%p", a la vez que se asegura que tiene los permisos
   correspondientes.
 

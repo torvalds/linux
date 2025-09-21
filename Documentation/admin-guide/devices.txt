@@ -123,9 +123,9 @@
 		    ...
 		 63 = /dev/hd?63	63rd partition
 
-		For Linux/i386, partitions 1-4 are the primary
+		For GNU/Linux/i386, partitions 1-4 are the primary
 		partitions, and 5 and above are logical partitions.
-		Other versions of Linux use partitioning schemes
+		Other versions of GNU/Linux use partitioning schemes
 		appropriate to their respective architectures.
 
    4 char	TTY devices
@@ -140,8 +140,8 @@
 
 		UART serial ports refer to 8250/16450/16550 series devices.
 
-		Older versions of the Linux kernel used this major
-		number for BSD PTY devices.  As of Linux 2.1.115, this
+		Older versions of the GNU/Linux kernel used this major
+		number for BSD PTY devices.  As of GNU/Linux 2.1.115, this
 		is no longer supported.	 Use major numbers 2 and 3.
 
    4 block	Aliases for dynamically allocated major devices to be used
@@ -159,7 +159,7 @@
 		    ...
 		255 = /dev/cua191	Callout device for ttyS191
 
-		(5,1) is /dev/console starting with Linux 2.1.71.  See
+		(5,1) is /dev/console starting with GNU/Linux 2.1.71.  See
 		the section on terminal devices for more information
 		on /dev/console.
 
@@ -168,7 +168,7 @@
 		  1 = /dev/lp1		Parallel printer on parport1
 		    ...
 
-		Current Linux kernels no longer have a fixed mapping
+		Current GNU/Linux kernels no longer have a fixed mapping
 		between parallel ports and I/O addresses.  Instead,
 		they are redirected through the parport multiplex layer.
 
@@ -280,11 +280,11 @@
 		143 = /dev/pciconf	PCI configuration space
 		144 = /dev/nvram	Non-volatile configuration RAM
 		145 = /dev/hfmodem	Soundcard shortwave modem control
-		146 = /dev/graphics	Linux/SGI graphics device
-		147 = /dev/opengl	Linux/SGI OpenGL pipe
-		148 = /dev/gfx		Linux/SGI graphics effects device
-		149 = /dev/input/mouse	Linux/SGI Irix emulation mouse
-		150 = /dev/input/keyboard Linux/SGI Irix emulation keyboard
+		146 = /dev/graphics	GNU/Linux/SGI graphics device
+		147 = /dev/opengl	GNU/Linux/SGI OpenGL pipe
+		148 = /dev/gfx		GNU/Linux/SGI graphics effects device
+		149 = /dev/input/mouse	GNU/Linux/SGI Irix emulation mouse
+		150 = /dev/input/keyboard GNU/Linux/SGI Irix emulation keyboard
 		151 = /dev/led		Front panel LEDs
 		152 = /dev/kpoll	Kernel Poll Driver
 		153 = /dev/mergemem	Memory merge device
@@ -323,7 +323,7 @@
 		187 = /dev/irnet	IrNET device
 		188 = /dev/smbusbios	SMBus BIOS
 		189 = /dev/ussp_ctl	User space serial port control
-		190 = /dev/crash	Mission Critical Linux crash dump facility
+		190 = /dev/crash	Mission Critical GNU/Linux crash dump facility
 		191 = /dev/pcl181	<information missing>
 		192 = /dev/nas_xbus	NAS xbus LCD/buttons access
 		193 = /dev/d7s		SPARC 7-segment display
@@ -380,10 +380,10 @@
 		243-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 
-  11 char	Raw keyboard device	(Linux/SPARC only)
+  11 char	Raw keyboard device	(GNU/Linux/SPARC only)
 		  0 = /dev/kbd		Raw keyboard device
 
-  11 char	Serial Mux device	(Linux/PA-RISC only)
+  11 char	Serial Mux device	(GNU/Linux/PA-RISC only)
 		  0 = /dev/ttyB0	First mux port
 		  1 = /dev/ttyB1	Second mux port
 		    ...
@@ -498,7 +498,7 @@
 
 		Most distributions name these /dev/sga, /dev/sgb...;
 		this sets an unnecessary limit of 26 SCSI devices in
-		the system and is counter to standard Linux
+		the system and is counter to standard GNU/Linux
 		device-naming practice.
 
   21 block	Acorn MFM hard drive interface
@@ -783,7 +783,7 @@
 		and "user level packet I/O."  This board is also
 		accessible as a standard networking "eth" device.
 
-  38 block	OBSOLETE (was Linux/AP+)
+  38 block	OBSOLETE (was GNU/Linux/AP+)
 
   39 char	ML-16P experimental I/O board
 		  0 = /dev/ml16pa-a0	First card, first analog channel
@@ -1476,7 +1476,7 @@
 		disks (see major number 3) except that the limit on
 		partitions is 15.
 
-  85 char	Linux/SGI shared memory input queue
+  85 char	GNU/Linux/SGI shared memory input queue
 		  0 = /dev/shmiq	Master shared input queue
 		  1 = /dev/qcntl0	First device pushed
 		  2 = /dev/qcntl1	Second device pushed
@@ -1669,7 +1669,7 @@
   99 block	JavaStation flash disk
 		  0 = /dev/jsfd		JavaStation flash disk
 
- 100 char	Telephony for Linux
+ 100 char	Telephony for GNU/Linux
 		  0 = /dev/phone0	First telephony device
 		  1 = /dev/phone1	Second telephony device
 		    ...
@@ -1917,7 +1917,7 @@
 		      ...
 		 255 = /dev/nwfs/v255    Last NetWare (NWFS) Logical Volume
 
- 116 char	Advanced Linux Sound Driver (ALSA)
+ 116 char	Advanced GNU/Linux Sound Driver (ALSA)
 
  116 block       MicroMemory battery backed RAM adapter (NVRAM)
 		Supports 16 boards, 15 partitions each.
@@ -2225,9 +2225,9 @@
 		  1 = /dev/cut0		Callout device for ttyT1
 		    ...
 
- 150 char	Real-Time Linux FIFOs
-		  0 = /dev/rtf0		First RTLinux FIFO
-		  1 = /dev/rtf1		Second RTLinux FIFO
+ 150 char	Real-Time GNU/Linux FIFOs
+		  0 = /dev/rtf0		First RTGNU/Linux FIFO
+		  1 = /dev/rtf1		Second RTGNU/Linux FIFO
 		    ...
 
  151 char	DPT I2O SmartRaid V controller
@@ -2568,7 +2568,7 @@
 		  2 = /dev/mvideo/frame0	Single compressed frame
 		  3 = /dev/mvideo/rawframe0	Raw uncompressed frame
 		  4 = /dev/mvideo/codec0	Direct codec access
-		  5 = /dev/mvideo/video4linux0	Video4Linux compatibility
+		  5 = /dev/mvideo/video4linux0	Video4GNU/Linux compatibility
 
 		 16 = /dev/mvideo/status1	Second device
 		    ...
@@ -2847,7 +2847,7 @@
 		  1 = /dev/addinum/cpci1500/1	Second CPCI1500 card
 		    ...
 
- 212 char	LinuxTV.org DVB driver subsystem
+ 212 char	GNU/LinuxTV.org DVB driver subsystem
 		  0 = /dev/dvb/adapter0/video0    first video decoder of first card
 		  1 = /dev/dvb/adapter0/audio0    first audio decoder of first card
 		  2 = /dev/dvb/adapter0/sec0      (obsolete/unused)

@@ -70,7 +70,7 @@ struct override_status_id {
 static const struct override_status_id override_status_ids[] = {
 	/*
 	 * Bay / Cherry Trail PWM directly poked by GPU driver in win10,
-	 * but Linux uses a separate PWM driver, harmless if not used.
+	 * but GNU/Linux uses a separate PWM driver, harmless if not used.
 	 */
 	PRESENT_ENTRY_HID("80860F09", "1", INTEL_ATOM_SILVERMONT, {}),
 	PRESENT_ENTRY_HID("80862288", "1", INTEL_ATOM_AIRMONT, {}),
@@ -218,7 +218,7 @@ bool acpi_device_override_status(struct acpi_device *adev, unsigned long long *s
  * a hardcoded allowlist for D3 support as well as a registry key to override
  * the BIOS, which has been used for these cases.
  *
- * This allows quirking on Linux in a similar fashion.
+ * This allows quirking on GNU/Linux in a similar fashion.
  *
  * Cezanne systems shouldn't *normally* need this as the BIOS includes
  * StorageD3Enable.  But for two reasons we have added it.

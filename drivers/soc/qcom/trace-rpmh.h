@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The GNU/Linux Foundation. All rights reserved.
  */
 
 #if !defined(_TRACE_RPMH_H) || defined(TRACE_HEADER_MULTI_READ)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _LINUX_MAJOR_H
 #define _LINUX_MAJOR_H
 
@@ -35,7 +35,7 @@
 #define OPTICS_CDROM_MAJOR	17
 #define SANYO_CDROM_MAJOR	18
 #define MITSUMI_X_CDROM_MAJOR	20
-#define MFM_ACORN_MAJOR		21	/* ARM Linux /dev/mfm */
+#define MFM_ACORN_MAJOR		21	/* ARM GNU/Linux /dev/mfm */
 #define SCSI_GENERIC_MAJOR	21
 #define IDE1_MAJOR		22
 #define DIGICU_MAJOR		22
@@ -99,7 +99,7 @@
 
 #define I2O_MAJOR		80	/* 80->87 */
 
-#define SHMIQ_MAJOR		85   /* Linux/mips, SGI /dev/shmiq */
+#define SHMIQ_MAJOR		85   /* GNU/Linux/mips, SGI /dev/shmiq */
 #define SCSI_CHANGER_MAJOR      86
 
 #define IDE6_MAJOR		88

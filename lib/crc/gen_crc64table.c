@@ -3,7 +3,7 @@
  * This host program runs at kernel build time and generates the lookup tables
  * used by the generic CRC64 code.
  *
- * Copyright 2018 SUSE Linux.
+ * Copyright 2018 SUSE GNU/Linux.
  *   Author: Coly Li <colyli@suse.de>
  */
 #include <inttypes.h>

@@ -2,7 +2,7 @@
 /*
  * Export of symbols defined in assembly files and/or libgcc.
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/dma-mapping.h>

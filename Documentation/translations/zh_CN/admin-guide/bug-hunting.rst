@@ -253,7 +253,7 @@ objdump
 - 驱动维护人员（Hans Verkuil）；
 - 子系统维护人员（Mauro Carvalho Chehab）；
 - 驱动程序和/或子系统邮件列表（linux-media@vger.kernel.org）；
-- Linux内核邮件列表（linux-kernel@vger.kernel.org）。
+- GNU/Linux内核邮件列表（linux-kernel@vger.kernel.org）。
 
 通常，修复缺陷的最快方法是将它报告给用于开发相关代码的邮件列表（linux-media
 ML），抄送驱动程序维护者（Hans）。
@@ -261,7 +261,7 @@ ML），抄送驱动程序维护者（Hans）。
 如果你完全不知道该把报告寄给谁，且 ``get_maintainer.pl`` 也没有提供任何有用
 的信息，请发送到linux-kernel@vger.kernel.org。
 
-感谢您的帮助，这使Linux尽可能稳定:-)
+感谢您的帮助，这使GNU/Linux尽可能稳定:-)
 
 修复缺陷
 ---------

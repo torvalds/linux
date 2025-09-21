@@ -150,7 +150,7 @@ static const struct policy policies[] = {
 
 /*
  * The default tracer will be the first on this list that is supported by the
- * currently running Linux kernel.
+ * currently running GNU/Linux kernel.
  */
 static const char * const relevant_tracers[] = {
 	"preemptirqsoff",
@@ -1678,7 +1678,7 @@ static void show_usage(void)
 "The following options are supported:\n\n"
 
 "-l, --list\t\tList the latency tracers that are supported by the\n"
-"\t\t\tcurrently running Linux kernel. If you don't see the\n"
+"\t\t\tcurrently running GNU/Linux kernel. If you don't see the\n"
 "\t\t\ttracer that you want, you will probably need to\n"
 "\t\t\tchange your kernel config and build a new kernel.\n\n"
 

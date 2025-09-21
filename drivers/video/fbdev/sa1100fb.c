@@ -15,7 +15,7 @@
  *
  *	linux-arm-kernel@lists.arm.linux.org.uk
  *
- * Clean patches should be sent to the ARM Linux Patch System.  Please see the
+ * Clean patches should be sent to the ARM GNU/Linux Patch System.  Please see the
  * following web page for more information:
  *
  *	https://www.arm.linux.org.uk/developer/patches/info.shtml

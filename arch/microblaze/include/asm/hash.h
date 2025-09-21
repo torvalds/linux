@@ -3,7 +3,7 @@
 #define _ASM_HASH_H
 
 /*
- * Fortunately, most people who want to run Linux on Microblaze enable
+ * Fortunately, most people who want to run GNU/Linux on Microblaze enable
  * both multiplier and barrel shifter, but omitting them is technically
  * a supported configuration.
  *

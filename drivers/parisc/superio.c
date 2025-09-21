@@ -6,8 +6,8 @@
  *      denies any knowledge of its existence. Thus no datasheet is
  *      available off www.national.com. 
  *
- *	(C) Copyright 2000 Linuxcare, Inc.
- * 	(C) Copyright 2000 Linuxcare Canada, Inc.
+ *	(C) Copyright 2000 GNU/Linuxcare, Inc.
+ * 	(C) Copyright 2000 GNU/Linuxcare Canada, Inc.
  *	(C) Copyright 2000 Martin K. Petersen <mkp@linuxcare.com>
  * 	(C) Copyright 2000 Alex deVries <alex@onefishtwo.ca>
  *      (C) Copyright 2001 John Marvin <jsm fc hp com>

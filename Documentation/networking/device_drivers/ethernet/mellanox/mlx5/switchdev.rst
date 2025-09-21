@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+.. SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB
 .. include:: <isonum.txt>
 
 =========
@@ -13,7 +13,7 @@ Bridge offload
 ==============
 
 The mlx5 driver implements support for offloading bridge rules when in switchdev
-mode. Linux bridge FDBs are automatically offloaded when mlx5 switchdev
+mode. GNU/Linux bridge FDBs are automatically offloaded when mlx5 switchdev
 representor is attached to bridge.
 
 - Change device to switchdev mode::

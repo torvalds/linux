@@ -20,7 +20,7 @@
  *      v0.1 - Initial release
  *      v0.2 - Hack to get around fake event 28's. (Bryan W. Headley)
  *      v0.3 - Make URB dynamic (Bryan W. Headley, Jun-8-2002)
- *             Released to Linux 2.4.19 and 2.5.x
+ *             Released to GNU/Linux 2.4.19 and 2.5.x
  *      v0.4 - Rewrote substantial portions of the code to deal with
  *             corrected control sequences, timing, dynamic configuration,
  *             support of 6000U - 12000U, procfs, and macro key support
@@ -380,7 +380,7 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
  * The documentation for each is in the body of the function.
  *
  * The tablet reports on several attributes per invocation of
- * aiptek_irq. Because the Linux Input Event system allows the
+ * aiptek_irq. Because the GNU/Linux Input Event system allows the
  * transmission of ONE attribute per input_report_xxx() call,
  * collation has to be done on the other end to reconstitute
  * a complete tablet report. Further, the number of Input Event reports
@@ -405,7 +405,7 @@ static const char *map_val_to_str(const struct aiptek_map *map, int val)
  * another 'by convention' behavior, the documentation for which
  * would be spread between two (or more) pieces of software.
  *
- * EV_MSC usage was terminated for this purpose in Linux 2.5.x, and
+ * EV_MSC usage was terminated for this purpose in GNU/Linux 2.5.x, and
  * replaced with the input_sync() method (which emits EV_SYN.)
  */
 
@@ -844,7 +844,7 @@ static void aiptek_close(struct input_dev *inputdev)
 }
 
 /***********************************************************************
- * aiptek_set_report and aiptek_get_report() are borrowed from Linux 2.4.x,
+ * aiptek_set_report and aiptek_get_report() are borrowed from GNU/Linux 2.4.x,
  * where they were known as usb_set_report and usb_get_report.
  */
 static int

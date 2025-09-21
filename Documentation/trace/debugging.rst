@@ -12,7 +12,7 @@ Copyright 2024 Google LLC.
 
 Introduction
 ------------
-The tracing infrastructure can be very useful for debugging the Linux
+The tracing infrastructure can be very useful for debugging the GNU/Linux
 kernel. This document is a place to add various methods of using the tracer
 for debugging.
 

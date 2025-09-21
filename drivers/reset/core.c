@@ -857,7 +857,7 @@ static int __reset_add_reset_gpio_lookup(int id, struct device_node *np,
 	const char *label_tmp;
 
 	/*
-	 * Later we map GPIO flags between OF and Linux, however not all
+	 * Later we map GPIO flags between OF and GNU/Linux, however not all
 	 * constants from include/dt-bindings/gpio/gpio.h and
 	 * include/linux/gpio/machine.h match each other.
 	 */

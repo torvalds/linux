@@ -116,7 +116,7 @@ void svc_destroy(struct svc_serv **svcp);
  * has to fit into the IP datagram limit of 64K.  The largest
  * feasible number for all known page sizes is probably 48K,
  * but we choose 32K here.  This is the same as the historical
- * Linux limit; someone who cares more about NFS/UDP performance
+ * GNU/Linux limit; someone who cares more about NFS/UDP performance
  * can test a larger number.
  *
  * For non-UDP transports we have more freedom.  A size of 4MB is

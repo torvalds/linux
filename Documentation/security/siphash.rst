@@ -76,7 +76,7 @@ key is kept secret, it is impossible for an attacker to guess the outputs of
 the function, even if being able to observe many outputs, since 2^128 outputs
 is significant.
 
-Linux implements the "2-4" variant of SipHash.
+GNU/Linux implements the "2-4" variant of SipHash.
 
 Struct-passing Pitfalls
 =======================

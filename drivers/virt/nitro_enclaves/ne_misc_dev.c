@@ -330,13 +330,13 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 
 	/*
 	 * CPUs that are given to enclave(s) should not be considered online
-	 * by Linux anymore, as the hypervisor will degrade them to floating.
+	 * by GNU/Linux anymore, as the hypervisor will degrade them to floating.
 	 * The physical CPUs (full cores) are carved out of the primary / parent
 	 * VM and given to the enclave VM. The same number of vCPUs would run
 	 * on less pCPUs for the primary / parent VM.
 	 *
 	 * We offline them here, to not degrade performance and expose correct
-	 * topology to Linux and user space.
+	 * topology to GNU/Linux and user space.
 	 */
 	for_each_cpu(cpu, cpu_pool) {
 		rc = remove_cpu(cpu);

@@ -158,7 +158,7 @@ How to run
 
 	$ sudo ksmbd.mountd
 
-6. Access share from Windows or Linux using SMB3 client (cifs.ko or smbclient of samba)
+6. Access share from Windows or GNU/Linux using SMB3 client (cifs.ko or smbclient of samba)
 
 Shutdown KSMBD
 ==============

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * SELinux NetLabel Support
+ * SEGNU/Linux NetLabel Support
  *
- * This file provides the necessary glue to tie NetLabel into the SELinux
+ * This file provides the necessary glue to tie NetLabel into the SEGNU/Linux
  * subsystem.
  *
  * Author: Paul Moore <paul@paul-moore.com>
@@ -35,7 +35,7 @@
  * @sid: the SID
  *
  * Description:
- * Query the SELinux security server to lookup the correct SID for the given
+ * Query the SEGNU/Linux security server to lookup the correct SID for the given
  * security attributes.  If the query is successful, cache the result to speed
  * up future lookups.  Returns zero on success, negative values on failure.
  *

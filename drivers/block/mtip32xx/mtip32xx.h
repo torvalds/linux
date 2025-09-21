@@ -93,7 +93,7 @@
 
 /*
  * Per-tag bitfield size in longs.
- * Linux bit manipulation functions
+ * GNU/Linux bit manipulation functions
  * (i.e. test_and_set_bit, find_next_zero_bit)
  * manipulate memory in longs, so we try to make the math work.
  * take the slot groups and find the number of longs, rounding up.

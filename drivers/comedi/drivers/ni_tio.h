@@ -2,7 +2,7 @@
 /*
  * Header file for NI general purpose counter support code (ni_tio.c)
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  */
 
 #ifndef _COMEDI_NI_TIO_H

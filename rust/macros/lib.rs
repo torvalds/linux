@@ -40,7 +40,7 @@ use proc_macro::TokenStream;
 /// module!{
 ///     type: MyModule,
 ///     name: "my_kernel_module",
-///     authors: ["Rust for Linux Contributors"],
+///     authors: ["Rust for GNU/Linux Contributors"],
 ///     description: "My very own kernel module!",
 ///     license: "GPL",
 ///     alias: ["alternate_module_name"],
@@ -73,7 +73,7 @@ use proc_macro::TokenStream;
 /// module!{
 ///     type: MyDeviceDriverModule,
 ///     name: "my_device_driver_module",
-///     authors: ["Rust for Linux Contributors"],
+///     authors: ["Rust for GNU/Linux Contributors"],
 ///     description: "My device driver requires firmware",
 ///     license: "GPL",
 ///     firmware: ["my_device_firmware1.bin", "my_device_firmware2.bin"],
@@ -105,10 +105,10 @@ pub fn module(ts: TokenStream) -> TokenStream {
 
 /// Declares or implements a vtable trait.
 ///
-/// Linux's use of pure vtables is very close to Rust traits, but they differ
+/// GNU/Linux's use of pure vtables is very close to Rust traits, but they differ
 /// in how unimplemented functions are represented. In Rust, traits can provide
 /// default implementation for all non-required methods (and the default
-/// implementation could just return `Error::EINVAL`); Linux typically use C
+/// implementation could just return `Error::EINVAL`); GNU/Linux typically use C
 /// `NULL` pointers to represent these functions.
 ///
 /// This attribute closes that gap. A trait can be annotated with the

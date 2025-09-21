@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
-  BNEP protocol definition for Linux Bluetooth stack (BlueZ).
+  BNEP protocol definition for GNU/Linux Bluetooth stack (BlueZ).
   Copyright (C) 2002 Maxim Krasnyansky <maxk@qualcomm.com>
 
 */

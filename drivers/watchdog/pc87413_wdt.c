@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *      NS pc87413-wdt Watchdog Timer driver for Linux 2.6.x.x
+ *      NS pc87413-wdt Watchdog Timer driver for GNU/Linux 2.6.x.x
  *
  *      This code is based on wdt.c with original copyright.
  *

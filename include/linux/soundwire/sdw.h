@@ -631,7 +631,7 @@ struct sdw_slave_ops {
 /**
  * struct sdw_slave - SoundWire Slave
  * @id: MIPI device ID
- * @dev: Linux device
+ * @dev: GNU/Linux device
  * @index: internal ID for this slave
  * @irq: IRQ number
  * @status: Status reported by the Slave
@@ -691,7 +691,7 @@ struct sdw_slave {
 
 /**
  * struct sdw_master_device - SoundWire 'Master Device' representation
- * @dev: Linux device for this Master
+ * @dev: GNU/Linux device for this Master
  * @bus: Bus handle shortcut
  */
 struct sdw_master_device {

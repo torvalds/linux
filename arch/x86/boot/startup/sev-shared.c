@@ -5,7 +5,7 @@
  * Author: Joerg Roedel <jroedel@suse.de>
  *
  * This file is not compiled stand-alone. It contains code shared
- * between the pre-decompression boot code and the running Linux kernel
+ * between the pre-decompression boot code and the running GNU/Linux kernel
  * and is included directly into both code-bases.
  */
 
@@ -703,7 +703,7 @@ struct cc_setup_data {
 
 /*
  * Search for a Confidential Computing blob passed in as a setup_data entry
- * via the Linux Boot Protocol.
+ * via the GNU/Linux Boot Protocol.
  */
 static __head
 struct cc_blob_sev_info *find_cc_blob_setup_data(struct boot_params *bp)
@@ -840,7 +840,7 @@ static bool __head svsm_setup_ca(const struct cc_blob_sev_info *cc_info)
 	 * the instruction does) to update the VMPL1 permissions of a page. If
 	 * the guest is running at VMPL0, this will succeed and implies there is
 	 * no SVSM. If the guest is running at any other VMPL, this will fail.
-	 * Linux SNP guests only ever run at a single VMPL level so permission mask
+	 * GNU/Linux SNP guests only ever run at a single VMPL level so permission mask
 	 * changes of a lesser-privileged VMPL are a don't-care.
 	 *
 	 * Use a rip-relative reference to obtain the proper address, since this

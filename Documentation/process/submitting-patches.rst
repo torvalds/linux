@@ -3,7 +3,7 @@
 Submitting patches: the essential guide to getting your code into the kernel
 ============================================================================
 
-For a person or company who wishes to submit a change to the Linux
+For a person or company who wishes to submit a change to the GNU/Linux
 kernel, the process can sometimes be daunting if you're not familiar
 with "the system."  This text is a collection of suggestions which
 can greatly increase the chances of your change being accepted.
@@ -54,7 +54,7 @@ first paragraph.
 Describe user-visible impact.  Straight up crashes and lockups are
 pretty convincing, but not all bugs are that blatant.  Even if the
 problem was spotted during code review, describe the impact you think
-it can have on users.  Keep in mind that the majority of Linux
+it can have on users.  Keep in mind that the majority of GNU/Linux
 installations run kernels from secondary stable trees or
 vendor/product-specific trees that cherry-pick only specific patches
 from upstream, so include anything that could help route your change
@@ -75,7 +75,7 @@ in plain English for the reviewer to verify that the code is behaving
 as you intend it to.
 
 The maintainer will thank you if you write your patch description in a
-form which can be easily pulled into Linux's source code management
+form which can be easily pulled into GNU/Linux's source code management
 system, ``git``, as a "commit log".  See :ref:`the_canonical_patch_format`.
 
 Solve only one problem per patch.  If your description starts to get
@@ -248,7 +248,7 @@ of them at https://subspace.kernel.org.  There are kernel-related lists
 hosted elsewhere as well, though.
 
 Linus Torvalds is the final arbiter of all changes accepted into the
-Linux kernel.  His e-mail address is <torvalds@linux-foundation.org>.
+GNU/Linux kernel.  His e-mail address is <torvalds@linux-foundation.org>.
 He gets a lot of e-mail, and, at this point, very few patches go through
 Linus directly, so typically you should do your best to -avoid-
 sending him e-mail.
@@ -335,7 +335,7 @@ clients and mailing list etiquette.
 
 Use trimmed interleaved replies in email discussions
 ----------------------------------------------------
-Top-posting is strongly discouraged in Linux kernel development
+Top-posting is strongly discouraged in GNU/Linux kernel development
 discussions. Interleaved (or "inline") replies make conversations much
 easier to follow. For more details see:
 https://en.wikipedia.org/wiki/Posting_style#Interleaved_style
@@ -626,7 +626,7 @@ Tagging people requires permission
 Be careful in the addition of the aforementioned tags to your patches, as all
 except for Cc:, Reported-by:, and Suggested-by: need explicit permission of the
 person named. For those three implicit permission is sufficient if the person
-contributed to the Linux kernel using that name and email address according
+contributed to the GNU/Linux kernel using that name and email address according
 to the lore archives or the commit history -- and in case of Reported-by:
 and Suggested-by: did the reporting or suggestion in public. Note,
 bugzilla.kernel.org is a public place in this sense, but email addresses
@@ -907,7 +907,7 @@ References
 Andrew Morton, "The perfect patch" (tpp).
   <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
-Jeff Garzik, "Linux kernel patch submission format".
+Jeff Garzik, "GNU/Linux kernel patch submission format".
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".

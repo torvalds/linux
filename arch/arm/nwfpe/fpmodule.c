@@ -110,10 +110,10 @@ ScottB:  November 4, 1998
 
 Moved this function out of softfloat-specialize into fpmodule.c.
 This effectively isolates all the changes required for integrating with the
-Linux kernel into fpmodule.c.  Porting to NetBSD should only require modifying
+GNU/Linux kernel into fpmodule.c.  Porting to NetBSD should only require modifying
 fpmodule.c to integrate with the NetBSD kernel (I hope!).
 
-[1/1/99: Not quite true any more unfortunately.  There is Linux-specific
+[1/1/99: Not quite true any more unfortunately.  There is GNU/Linux-specific
 code to access data in user space in some other source files at the 
 moment (grep for get_user / put_user calls).  --philb]
 

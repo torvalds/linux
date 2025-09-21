@@ -26,9 +26,9 @@
 #include <linux/watchdog.h>
 
 /*
- * We can't determine type by probing, but if we expect pre-Linux code
+ * We can't determine type by probing, but if we expect pre-GNU/Linux code
  * to have set the chip up as a clock (turning on the oscillator and
- * setting the date and time), Linux can ignore the non-clock features.
+ * setting the date and time), GNU/Linux can ignore the non-clock features.
  * That's a natural job for a factory or repair bench.
  */
 enum ds_type {

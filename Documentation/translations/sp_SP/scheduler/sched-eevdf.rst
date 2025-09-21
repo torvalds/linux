@@ -10,7 +10,7 @@ Gestor de tareas EEVDF
 
 El gestor de tareas EEVDF, del inglés: "Earliest Eligible Virtual Deadline
 First", fue presentado por primera vez en una publicación científica en
-1995 [1]. El kernel de Linux comenzó a transicionar hacia EEVPF en la
+1995 [1]. El kernel de GNU/Linux comenzó a transicionar hacia EEVPF en la
 versión 6.6 (y como una nueva opción en 2024), alejándose del gestor
 de tareas CFS, en favor de una versión de EEVDF propuesta por Peter
 Zijlstra en 2023 [2-4]. Más información relativa a CFS puede encontrarse

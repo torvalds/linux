@@ -10,7 +10,7 @@
  * processors using the ACPI Collaborative Performance and Power Control (CPPC)
  * feature which works with the AMD SMU firmware providing a finer grained
  * frequency control range. It is to replace the legacy ACPI P-States control,
- * allows a flexible, low-latency interface for the Linux kernel to directly
+ * allows a flexible, low-latency interface for the GNU/Linux kernel to directly
  * communicate the performance hints to hardware.
  *
  * AMD P-State is supported on recent AMD Zen base CPU series include some of

@@ -11,11 +11,11 @@ Setting up NFS/RDMA
 Overview
 ========
 
-This document describes how to install and setup the Linux NFS/RDMA client
+This document describes how to install and setup the GNU/Linux NFS/RDMA client
 and server software.
 
-The NFS/RDMA client was first included in Linux 2.6.24. The NFS/RDMA server
-was first included in the following release, Linux 2.6.25.
+The NFS/RDMA client was first included in GNU/Linux 2.6.24. The NFS/RDMA server
+was first included in the following release, GNU/Linux 2.6.25.
 
 In our testing, we have obtained excellent performance results (full 10Gbit
 wire bandwidth at minimal client CPU) under many workloads. The code passes
@@ -41,11 +41,11 @@ use with NFS/RDMA.
   Testing has been performed using several Mellanox-based IB cards, the
   Ammasso AMS1100 iWARP adapter, and the Chelsio cxgb3 iWARP adapter.
 
-- Install a Linux distribution and tools
+- Install a GNU/Linux distribution and tools
 
   The first kernel release to contain both the NFS/RDMA client and server was
-  Linux 2.6.25  Therefore, a distribution compatible with this and subsequent
-  Linux kernel release should be installed.
+  GNU/Linux 2.6.25  Therefore, a distribution compatible with this and subsequent
+  GNU/Linux kernel release should be installed.
 
   The procedures described in this document have been tested with
   distributions from Red Hat's Fedora Project (http://fedora.redhat.com/).
@@ -102,10 +102,10 @@ use with NFS/RDMA.
       nfs-utils on the server. Furthermore, only the mount.nfs command from
       nfs-utils-1.1.2 is needed on the client.
 
-- Install a Linux kernel with NFS/RDMA
+- Install a GNU/Linux kernel with NFS/RDMA
 
-  The NFS/RDMA client and server are both included in the mainline Linux
-  kernel version 2.6.25 and later. This and other versions of the Linux
+  The NFS/RDMA client and server are both included in the mainline GNU/Linux
+  kernel version 2.6.25 and later. This and other versions of the GNU/Linux
   kernel can be found at: https://www.kernel.org/pub/linux/kernel/
 
   Download the sources and place them in an appropriate location.

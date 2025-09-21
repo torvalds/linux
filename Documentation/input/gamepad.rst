@@ -1,5 +1,5 @@
 ---------------------------
-Linux Gamepad Specification
+GNU/Linux Gamepad Specification
 ---------------------------
 
 :Author: 2013 by David Herrmann <dh.herrmann@gmail.com>
@@ -7,7 +7,7 @@ Linux Gamepad Specification
 
 Introduction
 ~~~~~~~~~~~~
-Linux provides many different input drivers for gamepad hardware. To avoid
+GNU/Linux provides many different input drivers for gamepad hardware. To avoid
 having user-space deal with different button-mappings for each gamepad, this
 document defines how gamepads are supposed to report their data.
 

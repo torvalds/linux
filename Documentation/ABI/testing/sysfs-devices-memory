@@ -7,7 +7,7 @@ Description:
 		added or removed dynamically to represent hot-add/remove
 		operations.
 Users:		hotplug memory add/remove tools
-		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+		http://www.ibm.com/developerworks/wikis/display/GNU/LinuxP/powerpc-utils
 
 What:		/sys/devices/system/memory/memoryX/removable
 Date:		June 2008
@@ -18,7 +18,7 @@ Description:
 		likely to be offlineable or not.  Newer kernel versions return
 		"1" if and only if the kernel supports memory offlining.
 Users:		hotplug memory remove tools
-		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+		http://www.ibm.com/developerworks/wikis/display/GNU/LinuxP/powerpc-utils
 		lsmem/chmem part of util-linux
 
 What:		/sys/devices/system/memory/memoryX/phys_device
@@ -64,7 +64,7 @@ Description:
 		that offlining will succeed.  Offlining is more likely to
 		succeed if "valid_zones" indicates "Movable".
 Users:		hotplug memory remove tools
-		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+		http://www.ibm.com/developerworks/wikis/display/GNU/LinuxP/powerpc-utils
 
 
 What:           /sys/devices/system/memory/memoryX/valid_zones
@@ -88,7 +88,7 @@ Description:
 
 What:		/sys/devices/system/memoryX/nodeY
 Date:		October 2009
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		When CONFIG_NUMA is enabled, a symbolic link that
 		points to the corresponding NUMA node directory.
@@ -113,7 +113,7 @@ Description:
 
 What:		/sys/devices/system/memory/crash_hotplug
 Date:		Aug 2023
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
 		(RO) indicates whether or not the kernel updates relevant kexec
 		segments on memory hot un/plug and/or on/offline events, avoiding the

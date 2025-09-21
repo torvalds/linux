@@ -42,7 +42,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * PCIe NTB Network Linux driver
+ * PCIe NTB Network GNU/Linux driver
  *
  * Contact Information:
  * Jon Mason <jon.mason@intel.com>

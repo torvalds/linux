@@ -7,7 +7,7 @@
  */
 
 /*
- * ThrustMaster DirectConnect (BSP) joystick family driver for Linux
+ * ThrustMaster DirectConnect (BSP) joystick family driver for GNU/Linux
  */
 
 #include <linux/delay.h>

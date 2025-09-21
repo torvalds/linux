@@ -25,7 +25,7 @@ Prima di pensare d'avere trovato un baco, aggiornate i seguenti programmi
 **almeno** alla versione indicata!  Se non siete certi della versione che state
 usando, il comando indicato dovrebbe dirvelo.
 
-Questa lista presume che abbiate già un kernel Linux funzionante.  In aggiunta,
+Questa lista presume che abbiate già un kernel GNU/Linux funzionante.  In aggiunta,
 non tutti gli strumenti sono necessari ovunque; ovviamente, se non avete una
 PC Card, per esempio, probabilmente non dovreste preoccuparvi di pcmciautils.
 
@@ -88,7 +88,7 @@ L'ultima versione di clang e *LLVM utils* (secondo `releases.llvm.org
 kernel. Non garantiamo che anche i rilasci più vecchi funzionino, inoltre
 potremmo rimuovere gli espedienti che abbiamo implementato per farli
 funzionare. Per maggiori informazioni
-:ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
+:ref:`Building GNU/Linux with Clang/LLVM <kbuild_llvm>`.
 
 Rust (opzionale)
 ----------------
@@ -206,7 +206,7 @@ DevFS è stato reso obsoleto da udev
 
 Il supporto per UID a 32-bit è ora disponibile.  Divertitevi!
 
-La documentazione delle funzioni in Linux è una fase di transizione
+La documentazione delle funzioni in GNU/Linux è una fase di transizione
 verso una documentazione integrata nei sorgenti stessi usando dei commenti
 formattati in modo speciale e posizionati vicino alle funzioni che descrivono.
 Al fine di arricchire la documentazione, questi commenti possono essere
@@ -263,7 +263,7 @@ Sono disponibili i seguenti strumenti:
 Reiserfsprogs
 -------------
 
-Il pacchetto reiserfsprogs dovrebbe essere usato con reiserfs-3.6.x (Linux
+Il pacchetto reiserfsprogs dovrebbe essere usato con reiserfs-3.6.x (GNU/Linux
 kernel 2.4.x).  Questo è un pacchetto combinato che contiene versioni
 funzionanti di ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` e
 ``reiserfsck``.  Questi programmi funzionano sulle piattaforme i386 e alpha.

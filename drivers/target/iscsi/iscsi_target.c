@@ -449,7 +449,7 @@ int iscsit_del_np(struct iscsi_np *np)
 
 	if (np->np_thread) {
 		/*
-		 * We need to send the signal to wakeup Linux/Net
+		 * We need to send the signal to wakeup GNU/Linux/Net
 		 * which may be sleeping in sock_accept()..
 		 */
 		send_sig(SIGINT, np->np_thread, 1);
@@ -4762,7 +4762,7 @@ int iscsit_release_sessions_for_tpg(struct iscsi_portal_group *tpg, int force)
 
 MODULE_DESCRIPTION("iSCSI-Target Driver for mainline target infrastructure");
 MODULE_VERSION("4.1.x");
-MODULE_AUTHOR("nab@Linux-iSCSI.org");
+MODULE_AUTHOR("nab@GNU/Linux-iSCSI.org");
 MODULE_LICENSE("GPL");
 
 module_init(iscsi_target_init_module);

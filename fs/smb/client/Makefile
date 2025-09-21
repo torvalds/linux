@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Linux CIFS/SMB2/SMB3 VFS client
+# Makefile for GNU/Linux CIFS/SMB2/SMB3 VFS client
 #
 ccflags-y += -I$(src)		# needed for trace events
 obj-$(CONFIG_CIFS) += cifs.o

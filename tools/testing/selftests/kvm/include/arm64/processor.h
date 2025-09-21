@@ -43,7 +43,7 @@
  * NORMAL_WT          5     1011:1011
  */
 
-/* Linux doesn't use these memory types, so let's define them. */
+/* GNU/Linux doesn't use these memory types, so let's define them. */
 #define MAIR_ATTR_DEVICE_GRE	UL(0x0c)
 #define MAIR_ATTR_NORMAL_WT	UL(0xbb)
 

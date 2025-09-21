@@ -79,7 +79,7 @@
  * Updating the prefix is probably preferable, but requires a fairly large codemod,
  * since this name is used everywhere.
  */
-#ifndef MEM_STATIC  /* already defined in Linux Kernel mem.h */
+#ifndef MEM_STATIC  /* already defined in GNU/Linux Kernel mem.h */
 #define MEM_STATIC static __inline UNUSED_ATTR
 #endif
 

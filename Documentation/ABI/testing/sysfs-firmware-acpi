@@ -113,7 +113,7 @@ Description:
 		to a level or edge handler called _L12 or _E12.
 		The handler may do its business and return.
 		Or the handler may send a Notify event
-		to a Linux device driver registered on an ACPI device,
+		to a GNU/Linux device driver registered on an ACPI device,
 		such as a battery, or a processor.
 
 		To figure out where all the SCIs are coming from,

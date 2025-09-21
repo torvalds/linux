@@ -18,7 +18,7 @@
 		@ This is a two-instruction NOP, which happens to bear the
 		@ PE/COFF signature "MZ" in the first two bytes, so the kernel
 		@ is accepted as an EFI binary. Booting via the UEFI stub
-		@ will not execute those instructions, but the ARM/Linux
+		@ will not execute those instructions, but the ARM/GNU/Linux
 		@ boot protocol does, so we need some NOPs here.
 		.inst	IMAGE_DOS_SIGNATURE | (0xe225 << 16) @ eor r5, r5, 0x4d000
 		eor	r5, r5, 0x4d000			@ undo previous insn

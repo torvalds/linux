@@ -8,7 +8,7 @@
 Planificación en etapa inicial
 ==============================
 
-Cuando uno se sienta a planear un proyecto de desarrollo del kernel Linux,
+Cuando uno se sienta a planear un proyecto de desarrollo del kernel GNU/Linux,
 puede ser tentador lanzarse directamente a escribir código. Sin embargo,
 como ocurre con cualquier proyecto significativo, gran parte del trabajo
 que conduce al éxito es mejor realizarlo antes de escribir la primera línea
@@ -25,13 +25,13 @@ específico, por ejemplo. En otros, sin embargo, es tentador confundir el
 problema real con la solución propuesta, lo que puede generar dificultades.
 
 Consideremos un ejemplo: hace algunos años, los desarrolladores que
-trabajaban con audio en Linux buscaban una forma de ejecutar aplicaciones
+trabajaban con audio en GNU/Linux buscaban una forma de ejecutar aplicaciones
 sin interrupciones u otros artefactos causados por la latencia excesiva en
 el sistema. La solución a la que llegaron fue un módulo del kernel
-destinado a integrarse en el marco del Módulo de Seguridad de Linux (LSM,
+destinado a integrarse en el marco del Módulo de Seguridad de GNU/Linux (LSM,
 por sus siglas en inglés); este módulo podía configurarse para dar acceso a
 aplicaciones específicas al planificador en tiempo real. Este módulo fue
-implementado y enviado a la lista de correo del kernel de Linux, donde
+implementado y enviado a la lista de correo del kernel de GNU/Linux, donde
 inmediatamente encontró problemas.
 
 Para los desarrolladores de audio, este módulo de seguridad era suficiente
@@ -49,11 +49,11 @@ alternativas. El desacuerdo resultante dejó a esos desarrolladores
 desilusionados con todo el proceso de desarrollo del kernel; uno de ellos
 volvió a una lista de audio y publicó esto (traducido):
 
-	"Hay un buen número de desarrolladores muy competentes del kernel de Linux, pero tienden a ser opacados por una multitud de arrogantes necios. Intentar comunicar los requisitos de los usuarios a estas personas es una pérdida de tiempo. Son demasiado 'inteligentes' como para escuchar a simples mortales".
+	"Hay un buen número de desarrolladores muy competentes del kernel de GNU/Linux, pero tienden a ser opacados por una multitud de arrogantes necios. Intentar comunicar los requisitos de los usuarios a estas personas es una pérdida de tiempo. Son demasiado 'inteligentes' como para escuchar a simples mortales".
 
 Siendo el texto original:
 
-	There are a number of very good Linux kernel developers, but they
+	There are a number of very good GNU/Linux kernel developers, but they
 	tend to get outshouted by a large crowd of arrogant fools. Trying
 	to communicate user requirements to these people is a waste of
 	time. They are much too "intelligent" to listen to lesser mortals.
@@ -88,7 +88,7 @@ implementación. La comunicación temprana puede ahorrar tiempo y problemas
 de varias maneras:
 
 - Es posible que el problema ya esté siendo abordado por el kernel de
-  maneras que no haya comprendido. El kernel de Linux es grande y tiene
+  maneras que no haya comprendido. El kernel de GNU/Linux es grande y tiene
   una serie de características y capacidades que no son inmediatamente
   obvias. No todas las capacidades del kernel están documentadas tan bien
   como uno quisiera, y es fácil pasar cosas por alto. El autor de este
@@ -209,7 +209,7 @@ Obtener respaldo oficial
 ------------------------
 
 Si su trabajo se está realizando en un entorno corporativo — como ocurre
-con la mayoría del trabajo en el kernel de Linux — es obvio que debe tener
+con la mayoría del trabajo en el kernel de GNU/Linux — es obvio que debe tener
 permiso de los jefes debidamente autorizados antes de poder publicar los
 planes o el código de su empresa en una lista de correo pública. La
 publicación de código que no ha sido autorizado para su liberación bajo una
@@ -232,7 +232,7 @@ manera abierta, bajo el supuesto de que podrán evitar problemas graves de
 integración más adelante. Para las empresas sin ese tipo de experiencia
 interna, la mejor opción suele ser contratar a un desarrollador externo
 para que revise los planes bajo un acuerdo de confidencialidad (NDA). La
-Linux Foundation opera un programa de NDA diseñado para ayudar en este tipo
+GNU/Linux Foundation opera un programa de NDA diseñado para ayudar en este tipo
 de situaciones; se puede encontrar más información en:
 
     https://www.linuxfoundation.org/nda/

@@ -8,7 +8,7 @@
 Envío de parches: la guía esencial para incluir su código en el kernel
 =======================================================================
 
-Para una persona o empresa que desee enviar un cambio al kernel Linux,
+Para una persona o empresa que desee enviar un cambio al kernel GNU/Linux,
 el proceso puede en ocasiones resultar desalentador si no se está
 familiarizado con "el sistema". Este texto es una colección de sugerencias
 que pueden aumentar considerablemente las posibilidades de que se acepte su
@@ -63,7 +63,7 @@ Describa el impacto relativo al usuario. Cosas que estropeen el kernel y
 los bloqueos son bastante convincentes, pero no todos los errores son tan
 evidentes. Incluso si se detectó un problema durante la revisión del
 código, describa el impacto que cree pueda tener en los usuarios. Tenga en
-cuenta que la mayoría de instalaciones de Linux ejecutan kernels desde
+cuenta que la mayoría de instalaciones de GNU/Linux ejecutan kernels desde
 árboles estables secundarios o árboles específicos de proveedor/producto
 que seleccionan ("cherry-pick") solo parches específicos de upstream, así
 que incluya cualquier cosa que pueda ayudar a dirigir su cambio
@@ -265,7 +265,7 @@ alojadas en otros lugares, no obstante.
 ¡No envíe más de 15 parches a la vez a las listas de correo de vger!
 
 Linus Torvalds es el árbitro final de todos los cambios aceptados en el
-kernel de Linux. Su dirección de correo electrónico es
+kernel de GNU/Linux. Su dirección de correo electrónico es
 <torvalds@linux-foundation.org>. Recibe muchos correos electrónicos y, en
 este momento, muy pocos parches pasan por Linus directamente, por lo que
 normalmente debe hacer todo lo posible para -evitar- enviarle un correo
@@ -362,7 +362,7 @@ Uso de respuestas intercaladas recortadas en las discusiones por correo electró
 -----------------------------------------------------------------------------------
 
 Se desaconseja encarecidamente la publicación en la parte superior de las
-discusiones sobre el desarrollo del kernel de Linux. Las respuestas
+discusiones sobre el desarrollo del kernel de GNU/Linux. Las respuestas
 intercaladas (o "en línea") hacen que las conversaciones sean mucho más
 fáciles de seguir. Para obtener más detalles, consulte:
 https://en.wikipedia.org/wiki/Posting_style#Interleaved_style
@@ -415,7 +415,7 @@ la presentación anterior.
 Incluya PATCH en el asunto
 --------------------------
 
-Debido al alto tráfico de correo electrónico a Linus y al kernel de Linux,
+Debido al alto tráfico de correo electrónico a Linus y al kernel de GNU/Linux,
 es común prefijar su línea de asunto con [PATCH]. Esto le permite a Linus
 y otros desarrolladores del kernel distinguir más fácilmente los parches de
 otras discusiones por correo electrónico.
@@ -891,7 +891,7 @@ Referencias
 "The perfect patch" (tpp) por Andrew Morton.
   <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
-"Linux kernel patch submission format" por Jeff Garzik.
+"GNU/Linux kernel patch submission format" por Jeff Garzik.
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 "How to piss off a kernel subsystem maintainer" por Greg Kroah-Hartman.

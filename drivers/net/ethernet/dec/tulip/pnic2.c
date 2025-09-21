@@ -1,7 +1,7 @@
 /*
 	drivers/net/ethernet/dec/tulip/pnic2.c
 
-	Copyright 2000,2001  The Linux Kernel Team
+	Copyright 2000,2001  The GNU/Linux Kernel Team
 	Written/copyright 1994-2001 by Donald Becker.
         Modified to hep support PNIC_II by Kevin B. Hendricks
 

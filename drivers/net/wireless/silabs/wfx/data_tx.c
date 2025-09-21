@@ -384,7 +384,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	req->packet_id |= queue_id << 28;
 
 	req->fc_offset = offset;
-	/* Queue index are inverted between firmware and Linux */
+	/* Queue index are inverted between firmware and GNU/Linux */
 	req->queue_id = 3 - queue_id;
 	if (tx_info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
 		req->peer_sta_id = HIF_LINK_ID_NOT_ASSOCIATED;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Linux/PA-RISC Project (http://www.parisc-linux.org/)
+ * GNU/Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *
  * kernel entry points (interruptions, system call wrappers)
  *  Copyright (C) 1999,2000 Philipp Rumpf 

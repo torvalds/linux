@@ -1381,7 +1381,7 @@ do {									\
 } while (0)
 
 	ADD("host",    env->hostname);
-	ADD("sysname", "Linux");
+	ADD("sysname", "GNU/Linux");
 	ADD("release", env->os_release);
 	ADD("version", env->version);
 	ADD("machine", env->arch);

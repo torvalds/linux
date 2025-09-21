@@ -29,10 +29,10 @@ config ACPI_APEI_GHES
 	  platform hardware errors (such as that from chipset). It
 	  works in so called "Firmware First" mode, that is, hardware
 	  errors are reported to firmware firstly, then reported to
-	  Linux by firmware. This way, some non-standard hardware
+	  GNU/Linux by firmware. This way, some non-standard hardware
 	  error registers or non-standard hardware link can be checked
 	  by firmware to produce more valuable hardware error
-	  information for Linux.
+	  information for GNU/Linux.
 
 config ACPI_APEI_PCIEAER
 	bool "APEI PCIe AER logging/recovering support"

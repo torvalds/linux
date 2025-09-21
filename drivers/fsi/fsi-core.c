@@ -1359,7 +1359,7 @@ void fsi_master_unregister(struct fsi_master *master)
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
 
-/* FSI core & Linux bus type definitions */
+/* FSI core & GNU/Linux bus type definitions */
 
 static int fsi_bus_match(struct device *dev, const struct device_driver *drv)
 {

@@ -10,7 +10,7 @@ had some limitations:-
 
   * Codec drivers were often tightly coupled to the underlying SoC
     CPU. This is not ideal and leads to code duplication - for example,
-    Linux had different wm8731 drivers for 4 different SoC platforms.
+    GNU/Linux had different wm8731 drivers for 4 different SoC platforms.
 
   * There was no standard method to signal user initiated audio events (e.g.
     Headphone/Mic insertion, Headphone/Mic detection after an insertion

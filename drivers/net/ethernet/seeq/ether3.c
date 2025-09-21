@@ -29,7 +29,7 @@
  *				RX interrupt.
  * 1.10	RMK	15/07/1997	Fixed autoprobing of NQ8004.
  * 1.11	RMK	16/11/1997	Fixed autoprobing of NQ8005A.
- * 1.12	RMK	31/12/1997	Removed reference to dev_tint for Linux 2.1.
+ * 1.12	RMK	31/12/1997	Removed reference to dev_tint for GNU/Linux 2.1.
  *      RMK	27/06/1998	Changed asm/delay.h to linux/delay.h.
  * 1.13	RMK	29/06/1998	Fixed problem with transmission of packets.
  *				Chip seems to have a bug in, whereby if the

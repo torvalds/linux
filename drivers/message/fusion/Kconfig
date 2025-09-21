@@ -101,7 +101,7 @@ config FUSION_LAN
 	  Please refer to that document for details.
 
 	  Installing this driver requires the knowledge to configure and
-	  activate a new network interface, "fc0", using standard Linux tools.
+	  activate a new network interface, "fc0", using standard GNU/Linux tools.
 
 	  If enabled by saying M to this, a driver named: mptlan
 	  will be compiled.

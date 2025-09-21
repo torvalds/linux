@@ -33,7 +33,7 @@ with supports all digital TV delivery systems.
 
 .. note::
 
-   1. On Linux DVB API version 3, setting a frontend was done via
+   1. On GNU/Linux DVB API version 3, setting a frontend was done via
       struct :c:type:`dvb_frontend_parameters`.
 
    2. Don't use DVB API version 3 calls on hardware with supports

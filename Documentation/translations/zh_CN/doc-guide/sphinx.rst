@@ -9,7 +9,7 @@
 简介
 ====
 
-Linux内核使用 `Sphinx <http://www.sphinx-doc.org/>`_ 来把 ``Documentation``
+GNU/Linux内核使用 `Sphinx <http://www.sphinx-doc.org/>`_ 来把 ``Documentation``
 下的 `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ 文件转
 换成漂亮的文档。使用 ``make htmldocs`` 或 ``make pdfdocs`` 命令即可构建HTML
 或PDF格式的文档。生成的文档放在 ``Documentation/output`` 文件夹中。

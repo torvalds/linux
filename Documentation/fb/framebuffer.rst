@@ -303,7 +303,7 @@ under "xc/programs/Xserver/hw/xfree86/doc/modeDB.txt".
 -------------
 
 For more specific information about the frame buffer device and its
-applications, please refer to the Linux-fbdev website:
+applications, please refer to the GNU/Linux-fbdev website:
 
     http://linux-fbdev.sourceforge.net/
 
@@ -334,7 +334,7 @@ subscription information and archive browsing.
 
 All necessary files can be found at
 
-    ftp://ftp.uni-erlangen.de/pub/Linux/LOCAL/680x0/
+    ftp://ftp.uni-erlangen.de/pub/GNU/Linux/LOCAL/680x0/
 
 and on its mirrors.
 

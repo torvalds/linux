@@ -300,7 +300,7 @@ int hyperv_update_situation(struct hv_device *hdev, u8 active, u32 bpp,
 }
 
 /*
- * Hyper-V supports a hardware cursor feature. It's not used by Linux VM,
+ * Hyper-V supports a hardware cursor feature. It's not used by GNU/Linux VM,
  * but the Hyper-V host still draws a point as an extra mouse pointer,
  * which is unwanted, especially when Xorg is running.
  *

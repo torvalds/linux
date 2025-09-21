@@ -7,7 +7,7 @@
  */
 
 /*
- *  Linux VFS inode operations.
+ *  GNU/Linux VFS inode operations.
  */
 
 #include <linux/blkdev.h>

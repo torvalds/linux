@@ -294,7 +294,7 @@ Again, this assumes that the caller holds ``audit_filter_mutex``.  Normally, the
 writer lock would become a spinlock in this sort of code.
 
 The update_lsm_rule() does something very similar, for those who would
-prefer to look at real Linux-kernel code.
+prefer to look at real GNU/Linux-kernel code.
 
 Another use of this pattern can be found in the openswitch driver's *connection
 tracking table* code in ``ct_limit_set()``.  The table holds connection tracking
@@ -311,12 +311,12 @@ Example 4: Eliminating Stale Data
 
 The auditing example above tolerates stale data, as do most algorithms
 that are tracking external state.  After all, given there is a delay
-from the time the external state changes before Linux becomes aware
+from the time the external state changes before GNU/Linux becomes aware
 of the change, and so as noted earlier, a small quantity of additional
 RCU-induced staleness is generally not a problem.
 
 However, there are many examples where stale data cannot be tolerated.
-One example in the Linux kernel is the System V IPC (see the shm_lock()
+One example in the GNU/Linux kernel is the System V IPC (see the shm_lock()
 function in ipc/shm.c).  This code checks a *deleted* flag under a
 per-entry spinlock, and, if the *deleted* flag is set, pretends that the
 entry does not exist.  For this to be helpful, the search function must

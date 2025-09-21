@@ -14,7 +14,7 @@ ACPI Device Tree - Representation of ACPI Namespace
 
 Abstract
 ========
-The Linux ACPI subsystem converts ACPI namespace objects into a Linux
+The GNU/Linux ACPI subsystem converts ACPI namespace objects into a GNU/Linux
 device tree under the /sys/devices/LNXSYSTM:00 and updates it upon
 receiving ACPI hotplug notification events.  For each device object
 in this hierarchy there is a corresponding symbolic link in the
@@ -189,10 +189,10 @@ The figure below shows an example ACPI namespace::
                      Figure 2. Example ACPI Namespace
 
 
-Linux ACPI Device Objects
+GNU/Linux ACPI Device Objects
 =========================
 
-The Linux kernel's core ACPI subsystem creates struct acpi_device
+The GNU/Linux kernel's core ACPI subsystem creates struct acpi_device
 objects for ACPI namespace objects representing devices, power resources
 processors, thermal zones.  Those objects are exported to user space via
 sysfs as directories in the subtree under /sys/devices/LNXSYSTM:00.  The
@@ -283,11 +283,11 @@ rule of the struct acpi_device object:
       object's bus_id.
 
 
-Linux ACPI Physical Device Glue
+GNU/Linux ACPI Physical Device Glue
 ===============================
 
 ACPI device (i.e. struct acpi_device) objects may be linked to other
-objects in the Linux' device hierarchy that represent "physical" devices
+objects in the GNU/Linux' device hierarchy that represent "physical" devices
 (for example, devices on the PCI bus).  If that happens, it means that
 the ACPI device object is a "companion" of a device otherwise
 represented in a different way and is used (1) to provide configuration
@@ -318,7 +318,7 @@ elsewhere.  For example, the PCI-specific part of it is located in
 drivers/pci/pci-acpi.c.
 
 
-Example Linux ACPI Device Tree
+Example GNU/Linux ACPI Device Tree
 =================================
 
 The sysfs hierarchy of struct acpi_device objects corresponding to the
@@ -385,7 +385,7 @@ fixed PWR_BUTTON/SLP_BUTTON devices is shown below::
          +-| LNXTHERM:00 | \_TZ_.TZ00 | acpi:LNXTHERM: |
            +-------------+------------+----------------+
 
-                  Figure 3. Example Linux ACPI Device Tree
+                  Figure 3. Example GNU/Linux ACPI Device Tree
 
 .. note:: Each node is represented as "object/path/modalias", where:
 

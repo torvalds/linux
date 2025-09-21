@@ -316,7 +316,7 @@ document, as it is also very well documented elsewhere.
 Several cards, both proprietary (watchdog boards) and commonplace (e1000) have
 timing chips built into the cards which may have registers which are accessible
 to kernel or user drivers.  To the author's knowledge, using these to generate
-a clocksource for a Linux or other kernel has not yet been attempted and is in
+a clocksource for a GNU/Linux or other kernel has not yet been attempted and is in
 general frowned upon as not playing by the agreed rules of the game.  Such a
 timer device would require additional support to be virtualized properly and is
 not considered important at this time as no known operating system does this.
@@ -459,7 +459,7 @@ instructions, which is enough for full virtualization of TSC in any manner.  In
 addition, SVM allows passing through the host TSC plus an additional offset
 field specified in the SVM control block.
 
-3.9. TSC feature bits in Linux
+3.9. TSC feature bits in GNU/Linux
 ------------------------------
 
 In summary, there is no way to guarantee the TSC remains in perfect
@@ -467,7 +467,7 @@ synchronization unless it is explicitly guaranteed by the architecture.  Even
 if so, the TSCs in multi-sockets or NUMA systems may still run independently
 despite being locally consistent.
 
-The following feature bits are used by Linux to signal various TSC attributes,
+The following feature bits are used by GNU/Linux to signal various TSC attributes,
 but they can only be taken to be meaningful for UP or single node systems.
 
 =========================	=======================================
@@ -507,7 +507,7 @@ time by counting periodic interrupts.  These interrupts may come from the PIT
 or the RTC, but the problem is the same: the host virtualization engine may not
 be able to deliver the proper number of interrupts per second, and so guest
 time may fall behind.  This is especially problematic if a high interrupt rate
-is selected, such as 1000 HZ, which is unfortunately the default for many Linux
+is selected, such as 1000 HZ, which is unfortunately the default for many GNU/Linux
 guests.
 
 There are three approaches to solving this problem; first, it may be possible
@@ -519,9 +519,9 @@ interrupt rate.  This approach leads to complications in extreme conditions,
 where host load or guest lag is too much to compensate for, and thus another
 solution to the problem has risen: the guest may need to become aware of lost
 ticks and compensate for them internally.  Although promising in theory, the
-implementation of this policy in Linux has been extremely error prone, and a
+implementation of this policy in GNU/Linux has been extremely error prone, and a
 number of buggy variants of lost tick compensation are distributed across
-commonly used Linux systems.
+commonly used GNU/Linux systems.
 
 Windows uses periodic RTC clocking as a means of keeping time internally, and
 thus requires interrupt slewing to keep proper time.  It does use a low enough
@@ -567,7 +567,7 @@ Re-calibrating this computation may actually cause time, as computed after the
 calibration, to go backwards, compared with time computed before the
 calibration.
 
-This problem is particularly pronounced with an internal time source in Linux,
+This problem is particularly pronounced with an internal time source in GNU/Linux,
 the kernel time, which is expressed in the theoretically high resolution
 timespec - but which advances in much larger granularity intervals, sometimes
 at the rate of jiffies, and possibly in catchup modes, at a much larger step.
@@ -612,7 +612,7 @@ which a virtual machine has been running.
 4.6. Watchdogs
 --------------
 
-Watchdog timers, such as the lock detector in Linux may fire accidentally when
+Watchdog timers, such as the lock detector in GNU/Linux may fire accidentally when
 running under hardware virtualization due to timer interrupts being delayed or
 misinterpretation of the passage of real time.  Usually, these warnings are
 spurious and can be ignored, but in some circumstances it may be necessary to

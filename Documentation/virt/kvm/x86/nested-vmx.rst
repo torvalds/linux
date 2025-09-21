@@ -37,8 +37,8 @@ call L2.
 Running nested VMX
 ------------------
 
-The nested VMX feature is enabled by default since Linux kernel v4.20. For
-older Linux kernel, it can be enabled by giving the "nested=1" option to the
+The nested VMX feature is enabled by default since GNU/Linux kernel v4.20. For
+older GNU/Linux kernel, it can be enabled by giving the "nested=1" option to the
 kvm-intel module.
 
 

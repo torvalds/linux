@@ -1502,7 +1502,7 @@ static inline int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
 	submit_urb ->
 		- if queue was empty, ProgramEndpoint
 		- first IN token is sent out (by setting ReqPkt)
-	LinuxIsr -> RxReady()
+	GNU/LinuxIsr -> RxReady()
 	/\	=> first packet is received
 	|	- Set in mode 0 (DmaEnab, ~ReqPkt)
 	|		-> DMA Isr (transfer complete) -> RxReady()

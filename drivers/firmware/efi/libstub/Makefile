@@ -45,7 +45,7 @@ KBUILD_CFLAGS			:= $(subst $(CC_FLAGS_FTRACE),,$(cflags-y)) \
 				   -D__DISABLE_EXPORTS
 
 #
-# struct randomization only makes sense for Linux internal types, which the EFI
+# struct randomization only makes sense for GNU/Linux internal types, which the EFI
 # stub code never touches, so let's turn off struct randomization for the stub
 # altogether
 #

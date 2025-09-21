@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Cache operations for Coda.
- * For Linux 2.1: (C) 1997 Carnegie Mellon University
- * For Linux 2.3: (C) 2000 Carnegie Mellon University
+ * For GNU/Linux 2.1: (C) 1997 Carnegie Mellon University
+ * For GNU/Linux 2.3: (C) 2000 Carnegie Mellon University
  *
  * Carnegie Mellon encourages users of this code to contribute improvements
  * to the Coda project http://www.coda.cs.cmu.edu/ <coda@cs.cmu.edu>.

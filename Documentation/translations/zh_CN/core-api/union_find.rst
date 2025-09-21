@@ -4,7 +4,7 @@
 :Original: Documentation/core-api/union_find.rst
 
 =============================
-Linux中的并查集（Union-Find）
+GNU/Linux中的并查集（Union-Find）
 =============================
 
 
@@ -33,15 +33,15 @@ Linux中的并查集（Union-Find）
 时间复杂度，使得并查集每个查询和合并操作的平均时间复杂度仅为O(α(n))，其中α(n)是反阿
 克曼函数，可以粗略地认为并查集的操作有常数的时间复杂度。
 
-本文档涵盖了对Linux并查集实现的使用方法。更多关于并查集的性质和实现的信息，参见：
+本文档涵盖了对GNU/Linux并查集实现的使用方法。更多关于并查集的性质和实现的信息，参见：
 
   维基百科并查集词条
     https://en.wikipedia.org/wiki/Disjoint-set_data_structure
 
-并查集的Linux实现
+并查集的GNU/Linux实现
 ------------------
 
-Linux的并查集实现在文件“lib/union_find.c”中。要使用它，需要
+GNU/Linux的并查集实现在文件“lib/union_find.c”中。要使用它，需要
 “#include <linux/union_find.h>”。
 
 并查集的数据结构定义如下::

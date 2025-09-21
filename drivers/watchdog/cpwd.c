@@ -2,7 +2,7 @@
 /* cpwd.c - driver implementation for hardware watchdog
  * timers found on Sun Microsystems CP1400 and CP1500 boards.
  *
- * This device supports both the generic Linux watchdog
+ * This device supports both the generic GNU/Linux watchdog
  * interface and Solaris-compatible ioctls as best it is
  * able.
  *
@@ -417,7 +417,7 @@ static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int setopt = 0;
 
 	switch (cmd) {
-	/* Generic Linux IOCTLs */
+	/* Generic GNU/Linux IOCTLs */
 	case WDIOC_GETSUPPORT:
 		if (copy_to_user(argp, &info, sizeof(struct watchdog_info)))
 			return -EFAULT;

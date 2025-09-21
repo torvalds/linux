@@ -1,6 +1,6 @@
 .. _email_clients:
 
-Email clients info for Linux
+Email clients info for GNU/Linux
 ============================
 
 Git
@@ -18,7 +18,7 @@ the patch to the appropriate mailing list(s).
 General Preferences
 -------------------
 
-Patches for the Linux kernel are submitted via email, preferably as
+Patches for the GNU/Linux kernel are submitted via email, preferably as
 inline text in the body of the email.  Some maintainers accept
 attachments, but then the attachments should have content-type
 ``text/plain``.  However, attachments are generally frowned upon because
@@ -30,7 +30,7 @@ for patches and other emails alike. https://useplaintext.email may be useful
 for information on how to configure your preferred email client, as well as
 listing recommended email clients should you not already have a preference.
 
-Email clients that are used for Linux kernel patches should send the
+Email clients that are used for GNU/Linux kernel patches should send the
 patch text untouched.  For example, they should not modify or delete tabs
 or spaces, even at the beginning or end of lines.
 
@@ -58,7 +58,7 @@ This breaks many scripts that read and apply the patches.
 (This should be fixable.)
 
 It's a good idea to send a patch to yourself, save the received message,
-and successfully apply it with 'patch' before sending patches to Linux
+and successfully apply it with 'patch' before sending patches to GNU/Linux
 mailing lists.
 
 
@@ -66,7 +66,7 @@ Some email client (MUA) hints
 -----------------------------
 
 Here are some specific MUA configuration hints for editing and sending
-patches for the Linux kernel.  These are not meant to be complete
+patches for the GNU/Linux kernel.  These are not meant to be complete
 software package configuration summaries.
 
 
@@ -178,7 +178,7 @@ See Lotus Notes.
 Mutt (TUI)
 **********
 
-Plenty of Linux developers use ``mutt``, so it must work pretty well.
+Plenty of GNU/Linux developers use ``mutt``, so it must work pretty well.
 
 Mutt doesn't come with an editor, so whatever editor you use should be
 used in a way that there are no automatic linebreaks.  Most editors have

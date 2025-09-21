@@ -11,7 +11,7 @@
 /*
  *                      NOTES ABOUT THIS DRIVER
  *
- * This Linux driver supports:
+ * This GNU/Linux driver supports:
  *   B2C2/BBTI Technisat Air2PC - ATSC (NXT2002)
  *   AverTVHD MCE A180 (NXT2004)
  *   ATI HDTV Wonder (NXT2004)

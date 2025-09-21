@@ -14,7 +14,7 @@
         中文版校譯者： 賈威威 Jia Wei Wei <harryxiyou@gmail.com>
                       胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
-Linux 魔術數
+GNU/Linux 魔術數
 ============
 
 這個文件是有關當前使用的魔術值註冊表。當你給一個結構添加了一個魔術值，你也應該把這個魔術值添加到這個文件，因爲我們最好把用於各種結構的魔術值統一起來。
@@ -33,25 +33,25 @@ Linux 魔術數
 		Theodore Ts'o
 		  31 Mar 94
 
-給當前的Linux 2.1.55添加魔術表。
+給當前的GNU/Linux 2.1.55添加魔術表。
 
 		Michael Chastain
 		<mailto:mec@shout.net>
 		22 Sep 1997
 
-現在應該最新的Linux 2.1.112.因爲在特性凍結期間，不能在2.2.x前改變任何東西。這些條目被數域所排序。
+現在應該最新的GNU/Linux 2.1.112.因爲在特性凍結期間，不能在2.2.x前改變任何東西。這些條目被數域所排序。
 
 		Krzysztof G.Baranowski
 	        <mailto: kgb@knm.org.pl>
 		29 Jul 1998
 
-更新魔術表到Linux 2.5.45。剛好越過特性凍結，但是有可能還會有一些新的魔術值在2.6.x之前融入到內核中。
+更新魔術表到GNU/Linux 2.5.45。剛好越過特性凍結，但是有可能還會有一些新的魔術值在2.6.x之前融入到內核中。
 
 		Petr Baudis
 		<pasky@ucw.cz>
 		03 Nov 2002
 
-更新魔術表到Linux 2.5.74。
+更新魔術表到GNU/Linux 2.5.74。
 
 		Fabian Frederick
                 <ffrederick@users.sourceforge.net>

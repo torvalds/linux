@@ -3,7 +3,7 @@
  *
  *	$Id: sysrq.h,v 1.3 1997/07/17 11:54:33 mj Exp $
  *
- *	Linux Magic System Request Key Hacks
+ *	GNU/Linux Magic System Request Key Hacks
  *
  *	(c) 1997 Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  *

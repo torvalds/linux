@@ -39,7 +39,7 @@ all memory in the system, depending on the vulnerability exploited.
 If no untrusted userspace applications are being run, such as with single-user
 systems, consider disabling user-to-kernel mitigations.
 
-Note that the CPU vulnerabilities mitigated by Linux have generally not been
+Note that the CPU vulnerabilities mitigated by GNU/Linux have generally not been
 shown to be exploitable from browser-based sandboxes.  User-to-kernel
 mitigations are therefore mostly relevant if unknown userspace applications may
 be run by untrusted users.
@@ -59,7 +59,7 @@ program itself and the interfaces it provides.
 If no untrusted userspace applications are being run, consider disabling
 user-to-user mitigations.
 
-Note that because the Linux kernel contains a mapping of all physical memory,
+Note that because the GNU/Linux kernel contains a mapping of all physical memory,
 preventing a malicious userspace program from leaking data from another
 userspace program requires mitigating user-to-kernel attacks as well for
 complete protection.
@@ -95,7 +95,7 @@ guest-to-guest mitigations.
 
 Similar to the user-to-user attack vector, preventing a malicious VM from
 leaking data from another VM requires mitigating guest-to-host attacks as well
-due to the Linux kernel phys map.
+due to the GNU/Linux kernel phys map.
 
 *guest-to-guest mitigations are enabled by default if KVM support is present*
 

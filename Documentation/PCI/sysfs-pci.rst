@@ -119,7 +119,7 @@ to access legacy memory space.
 Supporting PCI access on new platforms
 --------------------------------------
 
-In order to support PCI resource mapping as described above, Linux platform
+In order to support PCI resource mapping as described above, GNU/Linux platform
 code should ideally define ARCH_GENERIC_PCI_MMAP_RESOURCE and use the generic
 implementation of that functionality. To support the historical interface of
 mmap() through files in /proc/bus/pci, platforms may also set HAVE_PCI_MMAP.

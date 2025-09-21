@@ -2,7 +2,7 @@
 Yama
 ====
 
-Yama is a Linux Security Module that collects system-wide DAC security
+Yama is a GNU/Linux Security Module that collects system-wide DAC security
 protections that are not handled by the core kernel itself. This is
 selectable at build-time with ``CONFIG_SECURITY_YAMA``, and can be controlled
 at run-time through sysctls in ``/proc/sys/kernel/yama``:
@@ -10,8 +10,8 @@ at run-time through sysctls in ``/proc/sys/kernel/yama``:
 ptrace_scope
 ============
 
-As Linux grows in popularity, it will become a larger target for
-malware. One particularly troubling weakness of the Linux process
+As GNU/Linux grows in popularity, it will become a larger target for
+malware. One particularly troubling weakness of the GNU/Linux process
 interfaces is that a single user is able to examine the memory and
 running state of any of their processes. For example, if one application
 (e.g. Pidgin) was compromised, it would be possible for an attacker to

@@ -575,7 +575,7 @@ mvebu_a3700_comphy_sata_power_on(struct mvebu_a3700_comphy_lane *lane)
 			    0x0, PHYCTRL_FRM_PIN_BIT);
 
 	/* 5. Set vendor-specific configuration (It is done in sata driver) */
-	/* XXX: in U-Boot below sequence was executed in this place, in Linux
+	/* XXX: in U-Boot below sequence was executed in this place, in GNU/Linux
 	 * not.  Now it is done only in U-Boot before this comphy
 	 * initialization - tests shows that it works ok, but in case of any
 	 * future problem it is left for reference.

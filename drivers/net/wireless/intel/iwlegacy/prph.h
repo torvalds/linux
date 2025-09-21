@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel GNU/Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -340,7 +340,7 @@
  * Bit fields:
  * 31-16:  Write mask -- 1: update empty bit, 0: don't change empty bit
  * 15-00:  Empty state, one for each queue -- 1: empty, 0: non-empty
- * NOTE:  This register is not used by Linux driver.
+ * NOTE:  This register is not used by GNU/Linux driver.
  */
 #define IL49_SCD_EMPTY_BITS               (IL49_SCD_START_OFFSET + 0x4)
 
@@ -369,7 +369,7 @@
  * Initialized and updated by driver as new TFDs are added to queue.
  * NOTE:  If using Block Ack, idx must correspond to frame's
  *        Start Sequence Number; idx = (SSN & 0xff)
- * NOTE:  Alternative to HBUS_TARG_WRPTR, which is what Linux driver uses?
+ * NOTE:  Alternative to HBUS_TARG_WRPTR, which is what GNU/Linux driver uses?
  */
 #define IL49_SCD_QUEUE_WRPTR(x)  (IL49_SCD_START_OFFSET + 0x24 + (x) * 4)
 

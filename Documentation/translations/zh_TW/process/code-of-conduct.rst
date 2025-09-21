@@ -72,5 +72,5 @@ https://www.contributor-covenant.org/version/1/4/code-of-conduct.html 獲取。
 解釋
 ====
 
-有關Linux內核社區如何解釋此文檔，請參閱 :ref:`tw_code_of_conduct_interpretation`
+有關GNU/Linux內核社區如何解釋此文檔，請參閱 :ref:`tw_code_of_conduct_interpretation`
 

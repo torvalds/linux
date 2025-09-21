@@ -1,17 +1,17 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ====================
-Linux NVMe multipath
+GNU/Linux NVMe multipath
 ====================
 
 This document describes NVMe multipath and its path selection policies supported
-by the Linux NVMe host driver.
+by the GNU/Linux NVMe host driver.
 
 
 Introduction
 ============
 
-The NVMe multipath feature in Linux integrates namespaces with the same
+The NVMe multipath feature in GNU/Linux integrates namespaces with the same
 identifier into a single block device. Using multipath enhances the reliability
 and stability of I/O access while improving bandwidth performance. When a user
 sends I/O to this merged block device, the multipath mechanism selects one of

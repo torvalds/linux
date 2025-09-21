@@ -15,7 +15,7 @@
 #include "amdtee_if.h"
 
 #define DRIVER_NAME	"amdtee"
-#define DRIVER_AUTHOR   "AMD-TEE Linux driver team"
+#define DRIVER_AUTHOR   "AMD-TEE GNU/Linux driver team"
 
 /* Some GlobalPlatform error codes used in this driver */
 #define TEEC_SUCCESS			0x00000000

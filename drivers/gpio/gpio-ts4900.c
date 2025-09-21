@@ -3,7 +3,7 @@
  * Digital I/O driver for Technologic Systems I2C FPGA Core
  *
  * Copyright (C) 2015, 2018 Technologic Systems
- * Copyright (C) 2016 Savoir-Faire Linux
+ * Copyright (C) 2016 Savoir-Faire GNU/Linux
  */
 
 #include <linux/gpio/driver.h>

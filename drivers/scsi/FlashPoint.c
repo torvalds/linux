@@ -1,10 +1,10 @@
 /*
 
-  FlashPoint.c -- FlashPoint SCCB Manager for Linux
+  FlashPoint.c -- FlashPoint SCCB Manager for GNU/Linux
 
   This file contains the FlashPoint SCCB Manager from BusLogic's FlashPoint
   Driver Developer's Kit, with minor modifications by Leonard N. Zubkoff for
-  Linux compatibility.  It was provided by BusLogic in the form of 16 separate
+  GNU/Linux compatibility.  It was provided by BusLogic in the form of 16 separate
   source files, which would have unnecessarily cluttered the scsi directory, so
   the individual files have been combined into this single file.
 

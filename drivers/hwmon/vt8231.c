@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * vt8231.c - Part of lm_sensors, Linux kernel modules
+ * vt8231.c - Part of lm_sensors, GNU/Linux kernel modules
  *	      for hardware monitoring
  *
  * Copyright (c) 2005 Roger Lucas <vt8231@hiddenengine.co.uk>
@@ -47,7 +47,7 @@ static struct platform_device *pdev;
  * possible:
  *
  *		    Voltage Mode	  Temperature Mode
- *	Sensor	      Linux Id	      Linux Id	      VIA Id
+ *	Sensor	      GNU/Linux Id	      GNU/Linux Id	      VIA Id
  *	--------      --------	      --------	      ------
  *	CPU Diode	N/A		temp1		0
  *	UIC1		in0		temp2 *		1
@@ -72,7 +72,7 @@ static const u8 regvoltmax[] = { 0x3d, 0x2b, 0x2d, 0x2f, 0x31, 0x33 };
 static const u8 regvoltmin[] = { 0x3e, 0x2c, 0x2e, 0x30, 0x32, 0x34 };
 
 /*
- * Temperatures are numbered 1-6 according to the Linux kernel specification.
+ * Temperatures are numbered 1-6 according to the GNU/Linux kernel specification.
  *
  * In the VIA datasheet, however, the temperatures are numbered from zero.
  * Since it is important that this driver can easily be compared to the VIA
@@ -100,7 +100,7 @@ static const u8 regtempmin[] = { 0x3a, 0x3e, 0x2c, 0x2e, 0x30, 0x32 };
 #define VT8231_REG_TEMP2_CONFIG 0x4c
 
 /*
- * temps 0-5 as numbered in VIA datasheet - see later for mapping to Linux
+ * temps 0-5 as numbered in VIA datasheet - see later for mapping to GNU/Linux
  * numbering
  */
 #define ISTEMP(i, ch_config) ((i) == 0 ? 1 : \
@@ -530,7 +530,7 @@ static ssize_t temp_min_store(struct device *dev,
 }
 
 /*
- * Note that these map the Linux temperature sensor numbering (1-6) to the VIA
+ * Note that these map the GNU/Linux temperature sensor numbering (1-6) to the VIA
  * temperature sensor numbering (0-5)
  */
 

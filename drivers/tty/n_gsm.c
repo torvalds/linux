@@ -1674,7 +1674,7 @@ static int gsm_process_negotiation(struct gsm_mux *gsm, unsigned int addr,
  *
  *	We have received a modem status control message. This is used by
  *	the GSM mux protocol to pass virtual modem line status and optionally
- *	to indicate break signals. Unpack it, convert to Linux representation
+ *	to indicate break signals. Unpack it, convert to GNU/Linux representation
  *	and if need be stuff a break message down the tty.
  */
 
@@ -2280,7 +2280,7 @@ static void gsm_dlci_t1(struct timer_list *t)
  *	gsm_dlci_begin_open	-	start channel open procedure
  *	@dlci: DLCI to open
  *
- *	Commence opening a DLCI from the Linux side. We issue SABM messages
+ *	Commence opening a DLCI from the GNU/Linux side. We issue SABM messages
  *	to the modem which should then reply with a UA or ADM, at which point
  *	we will move into open state. Opening is done asynchronously with retry
  *	running off timers and the responses.
@@ -2371,7 +2371,7 @@ static void gsm_dlci_set_wait_config(struct gsm_dlci *dlci)
  *	gsm_dlci_begin_close	-	start channel open procedure
  *	@dlci: DLCI to open
  *
- *	Commence closing a DLCI from the Linux side. We issue DISC messages
+ *	Commence closing a DLCI from the GNU/Linux side. We issue DISC messages
  *	to the modem which should then reply with a UA, at which point we
  *	will move into closed state. Closing is done asynchronously with retry
  *	off timers. We may also receive a DM reply from the other end which

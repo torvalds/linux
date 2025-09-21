@@ -79,10 +79,10 @@ static const struct mfd_cell firmware_devs[] = {
 };
 
 /**
- * zynqmp_pm_ret_code() - Convert PMU-FW error codes to Linux error codes
+ * zynqmp_pm_ret_code() - Convert PMU-FW error codes to GNU/Linux error codes
  * @ret_status:		PMUFW return code
  *
- * Return: corresponding Linux error code
+ * Return: corresponding GNU/Linux error code
  */
 static int zynqmp_pm_ret_code(u32 ret_status)
 {

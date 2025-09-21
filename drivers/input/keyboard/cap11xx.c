@@ -332,7 +332,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 	of_property_read_u32_array(node, "linux,keycodes",
 				   priv->keycodes, priv->model->num_channels);
 
-	/* Disable autorepeat. The Linux input system has its own handling. */
+	/* Disable autorepeat. The GNU/Linux input system has its own handling. */
 	error = regmap_write(priv->regmap, CAP11XX_REG_REPEAT_RATE, 0);
 	if (error)
 		return error;

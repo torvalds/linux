@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Line 6 Linux USB driver
+ * Line 6 GNU/Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (line6@grabner-graz.at)
  */
@@ -19,7 +19,7 @@
 /*
 	number of USB frames per URB
 	The Line 6 Windows driver always transmits two frames per packet, but
-	the Linux driver performs significantly better (i.e., lower latency)
+	the GNU/Linux driver performs significantly better (i.e., lower latency)
 	with only one frame per packet.
 */
 #define LINE6_ISO_PACKETS	1

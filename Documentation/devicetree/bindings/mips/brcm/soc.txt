@@ -9,7 +9,7 @@ Required properties:
               "brcm,bcm7125", "brcm,bcm7346", "brcm,bcm7358", "brcm,bcm7360",
               "brcm,bcm7362", "brcm,bcm7420", "brcm,bcm7425"
 
-The experimental -viper variants are for running Linux on the 3384's
+The experimental -viper variants are for running GNU/Linux on the 3384's
 BMIPS4355 cable modem CPU instead of the BMIPS5000 application processor.
 
 Power management

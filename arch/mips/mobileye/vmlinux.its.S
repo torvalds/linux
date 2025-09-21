@@ -25,7 +25,7 @@
 		default = "conf-default";
 
 		conf-default {
-			description = "Generic Linux kernel";
+			description = "Generic GNU/Linux kernel";
 			kernel = "kernel";
 		};
 	};

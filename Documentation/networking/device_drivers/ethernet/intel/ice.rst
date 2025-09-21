@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 =================================================================
-Linux Base Driver for the Intel(R) Ethernet Controller 800 Series
+GNU/Linux Base Driver for the Intel(R) Ethernet Controller 800 Series
 =================================================================
 
-Intel ice Linux driver.
+Intel ice GNU/Linux driver.
 Copyright(c) 2018-2021 Intel Corporation.
 
 Contents
@@ -23,7 +23,7 @@ Driver information can be obtained using ethtool and lspci.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel adapter. All hardware requirements listed apply to use
-with Linux.
+with GNU/Linux.
 
 This driver supports XDP (Express Data Path) and AF_XDP zero-copy. Note that
 XDP is blocked for frame sizes larger than 3KB.
@@ -772,7 +772,7 @@ NOTE:
   private flag. Refer to the "FW-LLDP (Firmware Link Layer Discovery Protocol)"
   section in this README for more information.
 - In software-based DCBX mode, you can configure DCB parameters using software
-  LLDP/DCBX agents that interface with the Linux kernel's DCB Netlink API. We
+  LLDP/DCBX agents that interface with the GNU/Linux kernel's DCB Netlink API. We
   recommend using OpenLLDP as the DCBX agent when running in software mode. For
   more information, see the OpenLLDP man pages and
   https://github.com/intel/openlldp.

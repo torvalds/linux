@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux unix domain socket layer.
+# Makefile for the GNU/Linux unix domain socket layer.
 #
 
 obj-$(CONFIG_UNIX)	+= unix.o

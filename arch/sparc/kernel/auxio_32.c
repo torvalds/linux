@@ -13,7 +13,7 @@
 #include <asm/oplib.h>
 #include <asm/io.h>
 #include <asm/auxio.h>
-#include <asm/string.h>		/* memset(), Linux has no bzero() */
+#include <asm/string.h>		/* memset(), GNU/Linux has no bzero() */
 #include <asm/cpu_type.h>
 
 #include "kernel.h"

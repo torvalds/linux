@@ -29,7 +29,7 @@
  *	v0.12 - add hpoj.sourceforge.net ioctls (David Paschal)
  *	v0.13 - alloc space for statusbuf (<status> not on stack);
  *		use usb_alloc_coherent() for read buf & write buf;
- *      none  - Maintained in Linux kernel after v0.13
+ *      none  - Maintained in GNU/Linux kernel after v0.13
  */
 
 #include <linux/module.h>

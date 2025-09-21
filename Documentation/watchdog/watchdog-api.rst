@@ -1,5 +1,5 @@
 =============================
-The Linux Watchdog driver API
+The GNU/Linux Watchdog driver API
 =============================
 
 Last reviewed: 10/05/2007
@@ -11,7 +11,7 @@ Copyright 2002 Christer Weingel <wingel@nano-system.com>
 Some parts of this document are copied verbatim from the sbc60xxwdt
 driver which is (c) Copyright 2000 Jakob Oestergaard <jakob@ostenfeld.dk>
 
-This document describes the state of the Linux 2.4.18 kernel.
+This document describes the state of the GNU/Linux 2.4.18 kernel.
 
 Introduction
 ============
@@ -29,7 +29,7 @@ the system.  If userspace fails (RAM error, kernel bug, whatever), the
 notifications cease to occur, and the hardware watchdog will reset the
 system (causing a reboot) after the timeout occurs.
 
-The Linux watchdog API is a rather ad-hoc construction and different
+The GNU/Linux watchdog API is a rather ad-hoc construction and different
 drivers implement different, and sometimes incompatible, parts of it.
 This file is an attempt to document the existing usage and allow
 future driver writers to use it as a reference.
@@ -106,7 +106,7 @@ the requested one due to limitation of the hardware::
 This example might actually print "The timeout was set to 60 seconds"
 if the device has a granularity of minutes for its timeout.
 
-Starting with the Linux 2.4.18 kernel, it is possible to query the
+Starting with the GNU/Linux 2.4.18 kernel, it is possible to query the
 current timeout using the GETTIMEOUT ioctl::
 
     ioctl(fd, WDIOC_GETTIMEOUT, &timeout);
@@ -117,7 +117,7 @@ Pretimeouts
 
 Some watchdog timers can be set to have a trigger go off before the
 actual time they will reset the system.  This can be done with an NMI,
-interrupt, or other mechanism.  This allows Linux to record useful
+interrupt, or other mechanism.  This allows GNU/Linux to record useful
 information (like panic information and kernel coredumps) before it
 resets::
 

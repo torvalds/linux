@@ -2,11 +2,11 @@
 Pulse Width Modulation (PWM) interface
 ======================================
 
-This provides an overview about the Linux PWM interface
+This provides an overview about the GNU/Linux PWM interface
 
 PWMs are commonly used for controlling LEDs, fans or vibrators in
 cell phones. PWMs with a fixed purpose have no need implementing
-the Linux PWM API (although they could). However, PWMs are often
+the GNU/Linux PWM API (although they could). However, PWMs are often
 found as discrete devices on SoCs which have no fixed purpose. It's
 up to the board designer to connect them to LEDs or fans. To provide
 this kind of flexibility the generic PWM API exists.

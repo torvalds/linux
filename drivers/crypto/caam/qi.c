@@ -794,7 +794,7 @@ int caam_qi_init(struct platform_device *caam_pdev)
 	if (err)
 		goto fail2;
 
-	dev_info(qidev, "Linux CAAM Queue I/F driver initialised\n");
+	dev_info(qidev, "GNU/Linux CAAM Queue I/F driver initialised\n");
 	goto free_cpumask;
 
 fail2:

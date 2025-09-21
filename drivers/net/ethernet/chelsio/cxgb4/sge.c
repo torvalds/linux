@@ -1,5 +1,5 @@
 /*
- * This file is part of the Chelsio T4 Ethernet driver for Linux.
+ * This file is part of the Chelsio T4 Ethernet driver for GNU/Linux.
  *
  * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
  *
@@ -4569,8 +4569,8 @@ static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
  *	t4_sge_alloc_eth_txq - allocate an Ethernet TX Queue
  *	@adap: the adapter
  *	@txq: the SGE Ethernet TX Queue to initialize
- *	@dev: the Linux Network Device
- *	@netdevq: the corresponding Linux TX Queue
+ *	@dev: the GNU/Linux Network Device
+ *	@netdevq: the corresponding GNU/Linux TX Queue
  *	@iqid: the Ingress Queue to which to deliver CIDX Update messages
  *	@dbqt: whether this TX Queue will use the SGE Doorbell Queue Timers
  */

@@ -3134,7 +3134,7 @@ static void et131x_error_timer_handler(struct timer_list *t)
 		if (!phydev->link) {
 			if (!et1310_in_phy_coma(adapter)) {
 				/* NOTE - This was originally a 'sync with
-				 *  interrupt'. How to do that under Linux?
+				 *  interrupt'. How to do that under GNU/Linux?
 				 */
 				et131x_enable_interrupts(adapter);
 				et1310_enable_phy_coma(adapter);

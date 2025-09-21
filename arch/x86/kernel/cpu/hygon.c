@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Hygon Processor Support for Linux
+ * Hygon Processor Support for GNU/Linux
  *
  * Copyright (C) 2018 Chengdu Haiguang IC Design Co., Ltd.
  *

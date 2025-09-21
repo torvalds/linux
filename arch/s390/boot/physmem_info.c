@@ -209,7 +209,7 @@ static void die_oom(unsigned long size, unsigned long align, unsigned long min, 
 	enum reserved_range_type t;
 	int i;
 
-	boot_emerg("Linux version %s\n", kernel_version);
+	boot_emerg("GNU/Linux version %s\n", kernel_version);
 	if (!is_prot_virt_guest() && early_command_line[0])
 		boot_emerg("Kernel command line: %s\n", early_command_line);
 	boot_emerg("Out of memory allocating %lu bytes 0x%lx aligned in range %lx:%lx\n",

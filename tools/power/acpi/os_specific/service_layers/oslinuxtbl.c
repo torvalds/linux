@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: oslinuxtbl - Linux OSL for obtaining ACPI tables
+ * Module Name: oslinuxtbl - GNU/Linux OSL for obtaining ACPI tables
  *
  * Copyright (C) 2000 - 2025, Intel Corp.
  *
@@ -678,7 +678,7 @@ static acpi_status osl_table_initialize(void)
  *
  * DESCRIPTION: Add ACPI tables to the table list from memory.
  *
- * NOTE:        This works on Linux as table customization does not modify the
+ * NOTE:        This works on GNU/Linux as table customization does not modify the
  *              addresses stored in RSDP/RSDT/XSDT/FADT.
  *
  *****************************************************************************/
@@ -1287,7 +1287,7 @@ exit:
  *
  * FUNCTION:    osl_get_customized_table
  *
- * PARAMETERS:  pathname        - Directory to find Linux customized table
+ * PARAMETERS:  pathname        - Directory to find GNU/Linux customized table
  *              signature       - ACPI Signature for desired table. Must be
  *                                a null terminated 4-character string.
  *              instance        - Multiple table support for SSDT/UEFI (0...n)

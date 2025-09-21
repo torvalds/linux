@@ -74,7 +74,7 @@ static int ccm_init_mac(struct aead_request *req, u8 maciv[], u32 msglen)
 		return -EOVERFLOW;
 
 	/*
-	 * Even if the CCM spec allows L values of up to 8, the Linux cryptoapi
+	 * Even if the CCM spec allows L values of up to 8, the GNU/Linux cryptoapi
 	 * uses a u32 type to represent msglen so the top 4 bytes are always 0.
 	 */
 	n[0] = 0;

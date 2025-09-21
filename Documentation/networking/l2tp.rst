@@ -29,7 +29,7 @@ associated with a socket. Each session is associated with a virtual
 netdevice, e.g. ``pppN``, ``l2tpethN``, through which data frames pass
 to/from L2TP. Fields in the L2TP header identify the tunnel or session
 and whether it is a control or data packet. When tunnels and sessions
-are set up using the Linux kernel API, we're just setting up the L2TP
+are set up using the GNU/Linux kernel API, we're just setting up the L2TP
 data path. All aspects of the control protocol are to be handled by
 user space.
 
@@ -538,7 +538,7 @@ See more details for the PPP side in ppp_generic.rst.
 Old L2TPv2-only API
 -------------------
 
-When L2TP was first added to the Linux kernel in 2.6.23, it
+When L2TP was first added to the GNU/Linux kernel in 2.6.23, it
 implemented only L2TPv2 and did not include a netlink API. Instead,
 tunnel and session instances in the kernel were managed directly using
 only PPPoL2TP sockets. The PPPoL2TP socket is used as described in
@@ -661,7 +661,7 @@ session has private data which is used for data specific to the
 session type. With L2TPv2, the session always carries PPP
 traffic. With L2TPv3, the session can carry Ethernet frames (Ethernet
 pseudowire) or other data types such as PPP, ATM, HDLC or Frame
-Relay. Linux currently implements only Ethernet and PPP session types.
+Relay. GNU/Linux currently implements only Ethernet and PPP session types.
 
 Some L2TP session types also have a socket (PPP pseudowires) while
 others do not (Ethernet pseudowires).
@@ -681,7 +681,7 @@ session ID. L2TPv3 sessions are keyed by the 32-bit session ID, since
 L2TPv3 session ids are unique across all tunnels.
 
 Although the L2TPv3 RFC specifies that L2TPv3 session ids are not
-scoped by the tunnel, the Linux implementation has historically
+scoped by the tunnel, the GNU/Linux implementation has historically
 allowed this. Such session id collisions are supported using a per-net
 hash table keyed by sk and session ID. When looking up L2TPv3
 sessions, the list entry may link to multiple sessions with that

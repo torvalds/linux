@@ -1057,7 +1057,7 @@ void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
 #ifndef CONFIG_ARM_LPAE
 
 /*
- * The Linux PMD is made of two consecutive section entries covering 2MB
+ * The GNU/Linux PMD is made of two consecutive section entries covering 2MB
  * (see definition in include/asm/pgtable-2level.h).  However a call to
  * create_mapping() may optimize static mappings by using individual
  * 1MB section mappings.  This leaves the actual PMD potentially half

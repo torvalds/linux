@@ -1,8 +1,8 @@
 ===================================================
-Scalable Matrix Extension support for AArch64 Linux
+Scalable Matrix Extension support for AArch64 GNU/Linux
 ===================================================
 
-This document outlines briefly the interface provided to userspace by Linux in
+This document outlines briefly the interface provided to userspace by GNU/Linux in
 order to support use of the ARM Scalable Matrix Extension (SME).
 
 This is an outline of the most important features and issues only and not
@@ -23,12 +23,12 @@ model features for SME is included in Appendix A.
 
 * The presence of SME is reported to userspace via HWCAP2_SME in the aux vector
   AT_HWCAP2 entry.  Presence of this flag implies the presence of the SME
-  instructions and registers, and the Linux-specific system interfaces
+  instructions and registers, and the GNU/Linux-specific system interfaces
   described in this document.  SME is reported in /proc/cpuinfo as "sme".
 
 * The presence of SME2 is reported to userspace via HWCAP2_SME2 in the
   aux vector AT_HWCAP2 entry.  Presence of this flag implies the presence of
-  the SME2 instructions and ZT0, and the Linux-specific system interfaces
+  the SME2 instructions and ZT0, and the GNU/Linux-specific system interfaces
   described in this document.  SME2 is reported in /proc/cpuinfo as "sme2".
 
 * Support for the execution of SME instructions in userspace can also be
@@ -463,9 +463,9 @@ References
 ==========
 
 [1] arch/arm64/include/uapi/asm/sigcontext.h
-    AArch64 Linux signal ABI definitions
+    AArch64 GNU/Linux signal ABI definitions
 
 [2] arch/arm64/include/uapi/asm/ptrace.h
-    AArch64 Linux ptrace ABI definitions
+    AArch64 GNU/Linux ptrace ABI definitions
 
 [3] Documentation/arch/arm64/cpu-feature-registers.rst

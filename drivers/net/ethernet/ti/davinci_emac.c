@@ -10,7 +10,7 @@
  * History:
  * 0-5 A number of folks worked on this driver in bits and pieces but the major
  *     contribution came from Suraj Iyer and Anant Gole
- * 6.0 Anant Gole - rewrote the driver as per Linux conventions
+ * 6.0 Anant Gole - rewrote the driver as per GNU/Linux conventions
  * 6.1 Chaithrika U S - added support for Gigabit and RMII features,
  *     PHY layer usage
  */
@@ -84,7 +84,7 @@ MODULE_PARM_DESC(debug_level, "DaVinci EMAC debug level (NETIF_MSG bits)");
 #define EMAC_MINOR_VERSION	1
 #define EMAC_MODULE_VERSION	"6.1"
 MODULE_VERSION(EMAC_MODULE_VERSION);
-static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
+static const char emac_version_string[] = "TI DaVinci EMAC GNU/Linux v6.1";
 
 /* Configuration items */
 #define EMAC_DEF_PASS_CRC		(0) /* Do not pass CRC up to frames */
@@ -1363,7 +1363,7 @@ static void emac_adjust_link(struct net_device *ndev)
 }
 
 /*************************************************************************
- *  Linux Driver Model
+ *  GNU/Linux Driver Model
  *************************************************************************/
 
 /**

@@ -1,5 +1,5 @@
 ===================
-Linux NFC subsystem
+GNU/Linux NFC subsystem
 ===================
 
 The Near Field Communication (NFC) subsystem is required to standardize the

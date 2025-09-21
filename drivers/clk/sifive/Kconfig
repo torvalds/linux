@@ -5,7 +5,7 @@ menuconfig CLK_SIFIVE
 	depends on ARCH_SIFIVE || COMPILE_TEST
 	default ARCH_SIFIVE
 	help
-	  SoC drivers for SiFive Linux-capable SoCs.
+	  SoC drivers for SiFive GNU/Linux-capable SoCs.
 
 if CLK_SIFIVE
 

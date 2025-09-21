@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel IXP4xx Ethernet driver for Linux
+ * Intel IXP4xx Ethernet driver for GNU/Linux
  *
  * Copyright (C) 2007 Krzysztof Halasa <khc@pm.waw.pl>
  *

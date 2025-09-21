@@ -15,7 +15,7 @@
  * Western Digital Corporation
  * 09-15-95
  *
- * http://web.archive.org/web/20070717175254/http://sun1.rrzn.uni-hannover.de/gaertner.juergen/wd719x/Linux/Docu/Spider/
+ * http://web.archive.org/web/20070717175254/http://sun1.rrzn.uni-hannover.de/gaertner.juergen/wd719x/GNU/Linux/Docu/Spider/
  */
 
 /*

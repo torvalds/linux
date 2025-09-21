@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI__LINUX_FBIO_H
 #define _UAPI__LINUX_FBIO_H
 
@@ -177,7 +177,7 @@ struct mdi_cfginfo {
         int     mdi_pixfreq;    /* pixel clock (from PROM) */
 };
 
-/* SparcLinux specific ioctl for the MDI, should be replaced for
+/* SparcGNU/Linux specific ioctl for the MDI, should be replaced for
  * the SET_XLUT/SET_CLUTn ioctls instead
  */
 #define MDI_CLEAR_XLUT       (MDI_IOCTL|9)

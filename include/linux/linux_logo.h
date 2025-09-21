@@ -3,7 +3,7 @@
 #define _LINUX_LINUX_LOGO_H
 
 /*
- *  Linux logo to be displayed on boot
+ *  GNU/Linux logo to be displayed on boot
  *
  *  Copyright (C) 1996 Larry Ewing (lewing@isc.tamu.edu)
  *  Copyright (C) 1996,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)

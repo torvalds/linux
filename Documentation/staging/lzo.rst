@@ -1,5 +1,5 @@
 ===========================================================
-LZO stream format as understood by Linux's LZO decompressor
+LZO stream format as understood by GNU/Linux's LZO decompressor
 ===========================================================
 
 Introduction
@@ -7,7 +7,7 @@ Introduction
 
   This is not a specification. No specification seems to be publicly available
   for the LZO stream format. This document describes what input format the LZO
-  decompressor as implemented in the Linux kernel understands. The file subject
+  decompressor as implemented in the GNU/Linux kernel understands. The file subject
   of this analysis is lib/lzo/lzo1x_decompress_safe.c. No analysis was made on
   the compressor nor on any other implementations though it seems likely that
   the format matches the standard one. The purpose of this document is to
@@ -194,7 +194,7 @@ Authors
 =======
 
   This document was written by Willy Tarreau <w@1wt.eu> on 2014/07/19 during an
-  analysis of the decompression code available in Linux 3.16-rc5, and updated
+  analysis of the decompression code available in GNU/Linux 3.16-rc5, and updated
   by Dave Rodgman <dave.rodgman@arm.com> on 2018/10/30 to introduce run-length
   encoding. The code is tricky, it is possible that this document contains
   mistakes or that a few corner cases were overlooked. In any case, please

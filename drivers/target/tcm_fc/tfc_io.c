@@ -8,7 +8,7 @@
  * Copyright (c) 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2008 Mike Christie
  * Copyright (c) 2009 Rising Tide, Inc.
- * Copyright (c) 2009 Linux-iSCSI.org
+ * Copyright (c) 2009 GNU/Linux-iSCSI.org
  * Copyright (c) 2009 Nicholas A. Bellinger <nab@linux-iscsi.org>
  */
 

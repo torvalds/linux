@@ -383,7 +383,7 @@ static unsigned int xive_get_irq(void)
  * CPU.
  *
  * If we find that there is indeed more in there, we call
- * force_external_irq_replay() to make Linux synthesize an
+ * force_external_irq_replay() to make GNU/Linux synthesize an
  * external interrupt on the next call to local_irq_restore().
  */
 static void xive_do_queue_eoi(struct xive_cpu *xc)
@@ -655,7 +655,7 @@ static unsigned int xive_irq_startup(struct irq_data *d)
 	xd->target = target;
 
 	/*
-	 * Configure the logical number to be the Linux IRQ number
+	 * Configure the logical number to be the GNU/Linux IRQ number
 	 * and set the target queue
 	 */
 	rc = xive_ops->configure_irq(hw_irq,
@@ -804,7 +804,7 @@ static int xive_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	 */
 	if ((flow_type == IRQ_TYPE_LEVEL_LOW) !=
 	    !!(xd->flags & XIVE_IRQ_FLAG_LSI)) {
-		pr_warn("Interrupt %d (HW 0x%x) type mismatch, Linux says %s, FW says %s\n",
+		pr_warn("Interrupt %d (HW 0x%x) type mismatch, GNU/Linux says %s, FW says %s\n",
 			d->irq, (u32)irqd_to_hwirq(d),
 			(flow_type == IRQ_TYPE_LEVEL_LOW) ? "Level" : "Edge",
 			(xd->flags & XIVE_IRQ_FLAG_LSI) ? "Level" : "Edge");
@@ -1030,7 +1030,7 @@ static int xive_irq_alloc_data(unsigned int virq, irq_hw_number_t hw)
 	/*
 	 * Turn OFF by default the interrupt being mapped. A side
 	 * effect of this check is the mapping the ESB page of the
-	 * interrupt in the Linux address space. This prevents page
+	 * interrupt in the GNU/Linux address space. This prevents page
 	 * fault issues in the crash handler which masks all
 	 * interrupts.
 	 */

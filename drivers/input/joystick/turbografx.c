@@ -7,7 +7,7 @@
  */
 
 /*
- * TurboGraFX parallel port interface driver for Linux.
+ * TurboGraFX parallel port interface driver for GNU/Linux.
  */
 
 #include <linux/kernel.h>

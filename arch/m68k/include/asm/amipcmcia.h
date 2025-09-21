@@ -1,5 +1,5 @@
 /*
-** asm-m68k/pcmcia.h -- Amiga Linux PCMCIA Definitions
+** asm-m68k/pcmcia.h -- Amiga GNU/Linux PCMCIA Definitions
 **
 ** Copyright 1997 by Alain Malek
 **

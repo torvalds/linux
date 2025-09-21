@@ -15,7 +15,7 @@
 .. _cn_core-api_genericirq:
 
 ================
-Linux通用IRQ处理
+GNU/Linux通用IRQ处理
 ================
 
 :版权: |copy| 2005-2010: Thomas Gleixner
@@ -35,10 +35,10 @@ Linux通用IRQ处理
 理论依据
 ========
 
-Linux中中断处理的原始实现使用__do_IRQ()超级处理程序，它能够处理每种类型的
+GNU/Linux中中断处理的原始实现使用__do_IRQ()超级处理程序，它能够处理每种类型的
 中断逻辑。
 
-最初，Russell King确定了不同类型的处理程序，以便为Linux 2.5/2.6中的ARM中
+最初，Russell King确定了不同类型的处理程序，以便为GNU/Linux 2.5/2.6中的ARM中
 断处理程序实现建立一个相当通用的集合。他区分了以下几种类型:
 
 -  电平触发型

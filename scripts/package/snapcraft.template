@@ -1,7 +1,7 @@
 name: kernel
 version: KERNELRELEASE
-summary: Linux kernel
-description: The upstream Linux kernel
+summary: GNU/Linux kernel
+description: The upstream GNU/Linux kernel
 grade: stable
 confinement: strict
 type: kernel

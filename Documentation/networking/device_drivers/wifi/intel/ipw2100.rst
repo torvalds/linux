@@ -2,7 +2,7 @@
 .. include:: <isonum.txt>
 
 ===========================================
-Intel(R) PRO/Wireless 2100 Driver for Linux
+Intel(R) PRO/Wireless 2100 Driver for GNU/Linux
 ===========================================
 
 Support for:
@@ -142,7 +142,7 @@ disable		boolean		disable=1     Do not power the HW
 
 There are several ways to control the behavior of the driver.  Many of the
 general capabilities are exposed through the Wireless Tools (iwconfig).  There
-are a few capabilities that are exposed through entries in the Linux Sysfs.
+are a few capabilities that are exposed through entries in the GNU/Linux Sysfs.
 
 
 **Driver Level**
@@ -289,7 +289,7 @@ The ipw2100 1.1.0 driver and firmware can be downloaded from:
 
     http://support.intel.com
 
-For installation support on the ipw2100 1.1.0 driver on Linux kernels
+For installation support on the ipw2100 1.1.0 driver on GNU/Linux kernels
 2.6.8 or greater, email support is available from:
 
     http://supportmail.intel.com

@@ -1502,7 +1502,7 @@ static DRIVER_ATTR_RW(uwb_emulstate);
  *    1. Stable BIOS, listed because the unknown amount of
  *       bugs and bad ACPI behaviour on older versions
  *
- *    2. BIOS or EC fw with known bugs that trigger on Linux
+ *    2. BIOS or EC fw with known bugs that trigger on GNU/Linux
  *
  *    3. BIOS with known reduced functionality in older versions
  *

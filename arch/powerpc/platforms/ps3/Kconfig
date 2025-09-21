@@ -57,7 +57,7 @@ config PS3_DYNAMIC_DMA
 	  overhead and also slightly increases kernel memory usage.  The
 	  current implementation should be considered experimental.
 
-	  This support is mainly for Linux kernel development.  If unsure,
+	  This support is mainly for GNU/Linux kernel development.  If unsure,
 	  say N.
 
 config PS3_VUART

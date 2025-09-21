@@ -6,7 +6,7 @@
  * Copyright (c) 2004-2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (c) 2008-2009 Novell Inc.
  * Copyright (c) 2012-2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
- * Copyright (c) 2012-2019 Linux Foundation
+ * Copyright (c) 2012-2019 GNU/Linux Foundation
  *
  * See Documentation/driver-api/driver-model/ for more information.
  */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Directory notifications for Linux.
+ * Directory notifications for GNU/Linux.
  *
  * Copyright (C) 2000,2001,2002 Stephen Rothwell
  *

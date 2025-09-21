@@ -5,7 +5,7 @@
 Kexec Handover Concepts
 =======================
 
-Kexec HandOver (KHO) is a mechanism that allows Linux to preserve memory
+Kexec HandOver (KHO) is a mechanism that allows GNU/Linux to preserve memory
 regions, which could contain serialized system states, across kexec.
 
 It introduces multiple concepts:

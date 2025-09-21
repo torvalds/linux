@@ -41,7 +41,7 @@
 /*
  * Although we spell it out in here, the Processor Trace
  * xfeature is completely unused.  We use other mechanisms
- * to save/restore PT state in Linux.
+ * to save/restore PT state in GNU/Linux.
  */
 static const char *xfeature_names[] =
 {

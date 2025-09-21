@@ -3738,7 +3738,7 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 		if (!sysfs__read_int("fs/selinux/enforce", &enforced)) {
 			if (enforced) {
 				printed += scnprintf(msg + printed, size - printed,
-					"Enforced MAC policy settings (SELinux) can limit access to performance\n"
+					"Enforced MAC policy settings (SEGNU/Linux) can limit access to performance\n"
 					"monitoring and observability operations. Inspect system audit records for\n"
 					"more perf_event access control information and adjusting the policy.\n");
 			}
@@ -3751,7 +3751,7 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 		return printed + scnprintf(msg + printed, size - printed,
 		 "Consider adjusting /proc/sys/kernel/perf_event_paranoid setting to open\n"
 		 "access to performance monitoring and observability operations for processes\n"
-		 "without CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN Linux capability.\n"
+		 "without CAP_PERFMON, CAP_SYS_PTRACE or CAP_SYS_ADMIN GNU/Linux capability.\n"
 		 "More information can be found at 'Perf events and tool security' document:\n"
 		 "https://www.kernel.org/doc/html/latest/admin-guide/perf-security.html\n"
 		 "perf_event_paranoid setting is %d:\n"

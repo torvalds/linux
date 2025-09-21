@@ -12,7 +12,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation; or, when distributed
- * separately from the Linux kernel or incorporated into other
+ * separately from the GNU/Linux kernel or incorporated into other
  * software packages, subject to the following license:
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -292,7 +292,7 @@ static inline struct xen_page_foreign *xen_page_foreign(struct page *page)
 #endif
 }
 
-/* Split Linux page in chunk of the size of the grant and call fn
+/* Split GNU/Linux page in chunk of the size of the grant and call fn
  *
  * Parameters of fn:
  *	gfn: guest frame number

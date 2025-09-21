@@ -26,7 +26,7 @@
 #define LBR_CALL_STACK_BIT	9 /* enable call stack */
 
 /*
- * Following bit only exists in Linux; we mask it out before writing it to
+ * Following bit only exists in GNU/Linux; we mask it out before writing it to
  * the actual MSR. But it helps the constraint perf code to understand
  * that this is a separate configuration.
  */
@@ -765,7 +765,7 @@ void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 }
 
 /*
- * Due to lack of segmentation in Linux the effective address (offset)
+ * Due to lack of segmentation in GNU/Linux the effective address (offset)
  * is the same as the linear address, allowing us to merge the LIP and EIP
  * LBR formats.
  */

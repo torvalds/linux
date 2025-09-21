@@ -6,7 +6,7 @@ checking and theorem proving) with a more practical approach for
 complex systems.
 
 The rv tool is the interface for a collection of monitors that aim
-analysing the logical and timing behavior of Linux.
+analysing the logical and timing behavior of GNU/Linux.
 
 Installing RV
 

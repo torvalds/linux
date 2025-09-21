@@ -75,7 +75,7 @@ interface logic for the FPGA, and write a simple ad-hoc driver for the kernel.
 Xillybus Overview
 -----------------
 
-Xillybus is an IP core and a Linux driver. Together, they form a kit for
+Xillybus is an IP core and a GNU/Linux driver. Together, they form a kit for
 elementary data transport between an FPGA and the host, providing pipe-like
 data streams with a straightforward user interface. It's intended as a low-
 effort solution for mixed FPGA-host projects, for which it makes sense to
@@ -96,7 +96,7 @@ There may be more than a hundred of these streams on a single IP core, but
 also no more than one, depending on the configuration.
 
 In order to ease the deployment of the Xillybus IP core, it contains a simple
-data structure which completely defines the core's configuration. The Linux
+data structure which completely defines the core's configuration. The GNU/Linux
 driver fetches this data structure during its initialization process, and sets
 up the DMA buffers and character devices accordingly. As a result, a single
 driver is used to work out of the box with any Xillybus IP core.

@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Build a kvm-ready Linux kernel from the tree in the current directory.
+# Build a kvm-ready GNU/Linux kernel from the tree in the current directory.
 #
 # Usage: kvm-build.sh config-template resdir
 #

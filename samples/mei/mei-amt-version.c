@@ -1,5 +1,5 @@
 /******************************************************************************
- * Intel Management Engine Interface (Intel MEI) Linux driver
+ * Intel Management Engine Interface (Intel MEI) GNU/Linux driver
  * Intel MEI Interface Header
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or

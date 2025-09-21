@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==============================================================
-Davicom DM9102(A)/DM9132/DM9801 fast ethernet driver for Linux
+Davicom DM9102(A)/DM9132/DM9801 fast ethernet driver for GNU/Linux
 ==============================================================
 
 Note: This driver doesn't have a maintainer.

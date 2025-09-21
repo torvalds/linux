@@ -11,7 +11,7 @@
  *  - 8 GPIO pins for control and monitoring
  *  - Hardware watchdog with 1-15300 second timeout range
  *
- * It integrates with the Linux GPIO and Watchdog subsystems, allowing
+ * It integrates with the GNU/Linux GPIO and Watchdog subsystems, allowing
  * userspace interaction with EC GPIO pins and watchdog control,
  * ensuring system stability and configurability.
  *

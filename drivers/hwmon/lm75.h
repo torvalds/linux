@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * lm75.h - Part of lm_sensors, Linux kernel modules for hardware monitoring
+ * lm75.h - Part of lm_sensors, GNU/Linux kernel modules for hardware monitoring
  * Copyright (c) 2003 Mark M. Hoffman <mhoffman@lightlink.com>
  */
 

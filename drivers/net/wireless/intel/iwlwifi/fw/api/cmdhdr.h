@@ -87,7 +87,7 @@ struct iwl_cmd_header {
 	 * example, uCode issues REPLY_RX when it sends a received frame
 	 * to the driver; it is not a direct response to any driver command.
 	 *
-	 * The Linux driver uses the following format:
+	 * The GNU/Linux driver uses the following format:
 	 *
 	 *  0:7		tfd index - position within TX queue
 	 *  8:12	TX queue id

@@ -319,7 +319,7 @@ synchronization. Synchronization fences controlled by userspace must be used
 instead.
 
 On GPUs this poses a problem, because current desktop compositor protocols on
-Linux rely on DMA fences, which means without an entirely new userspace stack
+GNU/Linux rely on DMA fences, which means without an entirely new userspace stack
 built on top of userspace fences, they cannot benefit from recoverable page
 faults. Specifically this means implicit synchronization will not be possible.
 The exception is when page faults are only used as migration hints and never to

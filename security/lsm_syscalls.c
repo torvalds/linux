@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * System calls implementing the Linux Security Module API.
+ * System calls implementing the GNU/Linux Security Module API.
  *
  *  Copyright (C) 2022 Casey Schaufler <casey@schaufler-ca.com>
  *  Copyright (C) 2022 Intel Corporation

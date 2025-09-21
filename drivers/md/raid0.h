@@ -9,7 +9,7 @@ struct strip_zone {
 	int	 disk_shift;	/* start disk for the original layout */
 };
 
-/* Linux 3.14 (20d0189b101) made an unintended change to
+/* GNU/Linux 3.14 (20d0189b101) made an unintended change to
  * the RAID0 layout for multi-zone arrays (where devices aren't all
  * the same size.
  * RAID0_ORIG_LAYOUT restores the original layout

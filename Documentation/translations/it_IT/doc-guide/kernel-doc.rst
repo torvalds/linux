@@ -11,7 +11,7 @@
 Scrivere i commenti in kernel-doc
 =================================
 
-Nei file sorgenti del kernel Linux potrete trovare commenti di documentazione
+Nei file sorgenti del kernel GNU/Linux potrete trovare commenti di documentazione
 strutturanti secondo il formato kernel-doc. Essi possono descrivere funzioni,
 tipi di dati, e l'architettura del codice.
 

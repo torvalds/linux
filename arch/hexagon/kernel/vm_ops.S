@@ -2,7 +2,7 @@
 /*
  * Hexagon VM instruction support
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/linkage.h>

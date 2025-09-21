@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2019, Linaro Ltd.
  */
 

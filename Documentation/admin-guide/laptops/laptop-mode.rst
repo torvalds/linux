@@ -82,7 +82,7 @@ The Details
 Laptop mode is controlled by the knob /proc/sys/vm/laptop_mode. This knob is
 present for all kernels that have the laptop mode patch, regardless of any
 configuration options. When the knob is set, any physical disk I/O (that might
-have caused the hard disk to spin up) causes Linux to flush all dirty blocks. The
+have caused the hard disk to spin up) causes GNU/Linux to flush all dirty blocks. The
 result of this is that after a disk has spun down, it will not be spun up
 anymore to write dirty blocks, because those blocks had already been written
 immediately after the most recent read operation. The value of the laptop_mode
@@ -305,7 +305,7 @@ Config file::
 Control script
 --------------
 
-Please note that this control script works for the Linux 2.4 and 2.6 series (thanks
+Please note that this control script works for the GNU/Linux 2.4 and 2.6 series (thanks
 to Kiko Piris).
 
 Control script::
@@ -324,7 +324,7 @@ Control script::
   #				 Herve Eychenne
   #				 Dax Kelson
   #
-  # Original Linux 2.4 version by: Jens Axboe
+  # Original GNU/Linux 2.4 version by: Jens Axboe
 
   #############################################################################
 

@@ -1,5 +1,5 @@
 /*
- * Amiga Linux interrupt handling code
+ * Amiga GNU/Linux interrupt handling code
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive

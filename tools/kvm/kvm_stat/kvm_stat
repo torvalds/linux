@@ -518,7 +518,7 @@ class Event(object):
 
     def _setup_event(self, group, trace_cpu, trace_pid, trace_point,
                      trace_filter, trace_set):
-        """Sets up the perf event in Linux.
+        """Sets up the perf event in GNU/Linux.
 
         Issues the syscall to register the event in the kernel and
         then sets the optional filter.

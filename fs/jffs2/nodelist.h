@@ -29,7 +29,7 @@
 
 #define JFFS2_NATIVE_ENDIAN
 
-/* Note we handle mode bits conversion from JFFS2 (i.e. Linux) to/from
+/* Note we handle mode bits conversion from JFFS2 (i.e. GNU/Linux) to/from
    whatever OS we're actually running on here too. */
 
 #if defined(JFFS2_NATIVE_ENDIAN)

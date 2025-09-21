@@ -73,7 +73,7 @@ enum tb_security_level {
  * @wq: Ordered workqueue for all domain specific work
  * @root_switch: Root switch of this domain
  * @cm_ops: Connection manager specific operations vector
- * @index: Linux assigned domain number
+ * @index: GNU/Linux assigned domain number
  * @security_level: Current security level
  * @nboot_acl: Number of boot ACLs the domain supports
  * @privdata: Private connection manager specific data

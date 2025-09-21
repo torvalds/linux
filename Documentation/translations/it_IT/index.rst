@@ -3,7 +3,7 @@
 .. _it_linux_doc:
 
 ==================================
-La documentazione del kernel Linux
+La documentazione del kernel GNU/Linux
 ==================================
 
 .. raw:: latex
@@ -62,7 +62,7 @@ ma che trasmettono comunque il messaggio originale.  Nonostante la grande
 diffusione di inglesismi nella lingua parlata, quando possibile, questi
 verranno sostituiti dalle corrispettive parole italiane
 
-Se avete bisogno d'aiuto per comunicare con la comunità Linux ma non vi sentite
+Se avete bisogno d'aiuto per comunicare con la comunità GNU/Linux ma non vi sentite
 a vostro agio nello scrivere in inglese, potete chiedere aiuto al manutentore
 della traduzione.
 
@@ -117,8 +117,8 @@ stanno cercando di farlo funzionare al meglio per un dato sistema, ma anche
 coloro che stanno sviluppando applicazioni che sfruttano l'API verso lo
 spazio-utente.
 
-Consultate anche `Linux man pages <https://www.kernel.org/doc/man-pages/>`_, che
-vengono mantenuti separatamente dalla documentazione del kernel Linux
+Consultate anche `GNU/Linux man pages <https://www.kernel.org/doc/man-pages/>`_, che
+vengono mantenuti separatamente dalla documentazione del kernel GNU/Linux
 
 Documentazione relativa ai firmware
 ===================================

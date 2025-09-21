@@ -1126,7 +1126,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	/* expect 1 RDMA CMSG per rds_sendmsg. can still grow if more needed. */
 	vct.incr = 1;
 
-	/* Mirror Linux UDP mirror of BSD error message compatibility */
+	/* Mirror GNU/Linux UDP mirror of BSD error message compatibility */
 	/* XXX: Perhaps MSG_MORE someday */
 	if (msg->msg_flags & ~(MSG_DONTWAIT | MSG_CMSG_COMPAT | MSG_ZEROCOPY)) {
 		ret = -EOPNOTSUPP;

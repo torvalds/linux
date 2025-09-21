@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ethernet netdevice using ATM AAL5 as underlying carrier
- * (RFC1483 obsoleted by RFC2684) for Linux
+ * (RFC1483 obsoleted by RFC2684) for GNU/Linux
  *
  * Authors: Marcell GAL, 2000, XDSL Ltd, Hungary
  *          Eric Kinzie, 2006-2007, US Naval Research Laboratory

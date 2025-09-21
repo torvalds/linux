@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 The Linux Foundation
+ * Copyright (c) 2014 The GNU/Linux Foundation
  */
 #include <linux/dma-map-ops.h>
 #include <linux/slab.h>

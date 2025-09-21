@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
- * These are the public elements of the Linux kernel X.25 implementation.
+ * These are the public elements of the GNU/Linux kernel X.25 implementation.
  *
  * 	History
  *	mar/20/00	Daniela Squassoni Disabling/enabling of facilities 
@@ -56,7 +56,7 @@ struct x25_address {
 };
 
 /*
- *	Linux X.25 Address structure, used for bind, and connect mostly.
+ *	GNU/Linux X.25 Address structure, used for bind, and connect mostly.
  */
 struct sockaddr_x25 {
 	__kernel_sa_family_t sx25_family;	/* Must be AF_X25 */

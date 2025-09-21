@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2023, Intel Corporation.
- * Intel Visual Sensing Controller Interface Linux driver
+ * Intel Visual Sensing Controller Interface GNU/Linux driver
  */
 
 #include <linux/align.h>

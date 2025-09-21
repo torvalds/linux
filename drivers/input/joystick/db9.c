@@ -7,7 +7,7 @@
  */
 
 /*
- * Atari, Amstrad, Commodore, Amiga, Sega, etc. joystick driver for Linux
+ * Atari, Amstrad, Commodore, Amiga, Sega, etc. joystick driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

@@ -1,5 +1,5 @@
 /*
-** macints.h -- Macintosh Linux interrupt handling structs and prototypes
+** macints.h -- Macintosh GNU/Linux interrupt handling structs and prototypes
 **
 ** Copyright 1997 by Michael Schmitz
 **

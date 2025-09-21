@@ -617,7 +617,7 @@ static inline bool ntp_synced(void)
 }
 
 /*
- * If we have an externally synchronized Linux clock, then update RTC clock
+ * If we have an externally synchronized GNU/Linux clock, then update RTC clock
  * accordingly every ~11 minutes. Generally RTCs can only store second
  * precision, but many RTCs will adjust the phase of their second tick to
  * match the moment of update. This infrastructure arranges to call to the RTC

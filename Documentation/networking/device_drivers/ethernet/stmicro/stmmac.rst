@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ==============================================================
-Linux Driver for the Synopsys(R) Ethernet Controllers "stmmac"
+GNU/Linux Driver for the Synopsys(R) Ethernet Controllers "stmmac"
 ==============================================================
 
 Authors: Giuseppe Cavallaro <peppe.cavallaro@st.com>,
@@ -21,7 +21,7 @@ Contents
 In This Release
 ===============
 
-This file describes the stmmac Linux Driver for all the Synopsys(R) Ethernet
+This file describes the stmmac GNU/Linux Driver for all the Synopsys(R) Ethernet
 Controllers.
 
 Currently, this network device driver is for all STi embedded MAC/GMAC
@@ -54,7 +54,7 @@ Cores Ethernet Controllers and corresponding minimum and maximum versions:
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Ethernet adapter. All hardware requirements listed apply
-to use with Linux.
+to use with GNU/Linux.
 
 Feature List
 ============

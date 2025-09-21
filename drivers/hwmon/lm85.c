@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * lm85.c - Part of lm_sensors, Linux kernel modules for hardware
+ * lm85.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	    monitoring
  * Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
  * Copyright (c) 2002, 2003  Philip Pokorny <ppokorny@penguincomputing.com>

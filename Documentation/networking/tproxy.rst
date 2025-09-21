@@ -4,11 +4,11 @@
 Transparent proxy support
 =========================
 
-This feature adds Linux 2.2-like transparent proxy support to current kernels.
+This feature adds GNU/Linux 2.2-like transparent proxy support to current kernels.
 To use it, enable the socket match and the TPROXY target in your kernel config.
 You will need policy routing too, so be sure to enable that as well.
 
-From Linux 4.18 transparent proxy support is also available in nf_tables.
+From GNU/Linux 4.18 transparent proxy support is also available in nf_tables.
 
 1. Making non-local sockets work
 ================================

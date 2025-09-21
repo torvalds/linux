@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH GNU/Linux-syscall-note) OR BSD-3-Clause)
 
 import argparse
 import collections
@@ -3380,9 +3380,9 @@ def main():
 
     try:
         parsed = Family(args.spec, exclude_ops)
-        if parsed.license != '((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)':
+        if parsed.license != '((GPL-2.0 WITH GNU/Linux-syscall-note) OR BSD-3-Clause)':
             print('Spec license:', parsed.license)
-            print('License must be: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
+            print('License must be: ((GPL-2.0 WITH GNU/Linux-syscall-note) OR BSD-3-Clause)')
             os.sys.exit(1)
     except yaml.YAMLError as exc:
         print(exc)

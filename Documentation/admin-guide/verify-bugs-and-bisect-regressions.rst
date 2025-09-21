@@ -5,13 +5,13 @@
 How to verify bugs and bisect regressions
 =========================================
 
-This document describes how to check if some Linux kernel problem occurs in code
+This document describes how to check if some GNU/Linux kernel problem occurs in code
 currently supported by developers -- to then explain how to locate the change
 causing the issue, if it is a regression (e.g. did not happen with earlier
 versions).
 
-The text aims at people running kernels from mainstream Linux distributions on
-commodity hardware who want to report a kernel bug to the upstream Linux
+The text aims at people running kernels from mainstream GNU/Linux distributions on
+commodity hardware who want to report a kernel bug to the upstream GNU/Linux
 developers. Despite this intent, the instructions work just as well for users
 who are already familiar with building their own kernels: they help avoid
 mistakes occasionally made even by experienced developers.
@@ -28,7 +28,7 @@ mistakes occasionally made even by experienced developers.
 The essence of the process (aka 'TL;DR')
 ========================================
 
-*[If you are new to building or bisecting Linux, ignore this section and head
+*[If you are new to building or bisecting GNU/Linux, ignore this section and head
 over to the* ':ref:`step-by-step guide <introguide_bissbs>`' *below. It utilizes
 the same commands as this section while describing them in brief fashion. The
 steps are nevertheless easy to follow and together with accompanying entries
@@ -37,7 +37,7 @@ aspects, all of which might be essential in your present case.]*
 
 **In case you want to check if a bug is present in code currently supported by
 developers**, execute just the *preparations* and *segment 1*; while doing so,
-consider the newest Linux kernel you regularly use to be the 'working' kernel.
+consider the newest GNU/Linux kernel you regularly use to be the 'working' kernel.
 In the following example that's assumed to be 6.0, which is why its sources
 will be used to prepare the .config file.
 
@@ -52,9 +52,9 @@ will be considered the 'good' release and used to prepare the .config file.
 
     # * Remove any software that depends on externally maintained kernel modules
     #   or builds any automatically during bootup.
-    # * Ensure Secure Boot permits booting self-compiled Linux kernels.
+    # * Ensure Secure Boot permits booting self-compiled GNU/Linux kernels.
     # * If you are not already running the 'working' kernel, reboot into it.
-    # * Install compilers and everything else needed for building Linux.
+    # * Install compilers and everything else needed for building GNU/Linux.
     # * Ensure to have 15 Gigabyte free space in your home directory.
     git clone -o mainline --no-checkout \
       https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git ~/linux/
@@ -96,7 +96,7 @@ will be considered the 'good' release and used to prepare the .config file.
        make -j $(nproc --all)
        # * Make sure there is enough disk space to hold another kernel:
        df -h /boot/ /lib/modules/
-       # * Note: on Arch Linux, its derivatives and a few other distributions
+       # * Note: on Arch GNU/Linux, its derivatives and a few other distributions
        #   the following commands will do nothing at all or only part of the
        #   job. See the step-by-step guide for further details.
        sudo make modules_install
@@ -222,12 +222,12 @@ will be considered the 'good' release and used to prepare the .config file.
 Step-by-step guide on how to verify bugs and bisect regressions
 ===============================================================
 
-This guide describes how to set up your own Linux kernels for investigating bugs
+This guide describes how to set up your own GNU/Linux kernels for investigating bugs
 or regressions you intend to report. How far you want to follow the instructions
 depends on your issue:
 
 Execute all steps till the end of *segment 1* to **verify if your kernel problem
-is present in code supported by Linux kernel developers**. If it is, you are all
+is present in code supported by GNU/Linux kernel developers**. If it is, you are all
 set to report the bug -- unless it did not happen with earlier kernel versions,
 as then your want to at least continue with *segment 2* to **check if the issue
 qualifies as regression** which receive priority treatment. Depending on the
@@ -254,7 +254,7 @@ steps. The reference section sometimes also outlines alternative approaches,
 pitfalls, as well as problems that might occur at the particular step -- and how
 to get things rolling again.
 
-For further details on how to report Linux kernel issues or regressions check
+For further details on how to report GNU/Linux kernel issues or regressions check
 out Documentation/admin-guide/reporting-issues.rst, which works in conjunction
 with this document. It among others explains why you need to verify bugs with
 the latest 'mainline' kernel (e.g. versions like 6.0, 6.1-rc1, or 6.1-rc6),
@@ -350,9 +350,9 @@ machine; if you want to compile the kernel on another system, check
 
 .. _diskspace_bissbs:
 
-* Ensure to have enough free space for building Linux. 15 Gigabyte in your home
+* Ensure to have enough free space for building GNU/Linux. 15 Gigabyte in your home
   directory should typically suffice. If you have less available, be sure to pay
-  attention to later steps about retrieving the Linux sources and handling of
+  attention to later steps about retrieving the GNU/Linux sources and handling of
   debug symbols: both explain approaches reducing the amount of space, which
   should allow you to master these tasks with about 4 Gigabytes free space.
 
@@ -360,17 +360,17 @@ machine; if you want to compile the kernel on another system, check
 
 .. _buildrequires_bissbs:
 
-* Install all software required to build a Linux kernel. Often you will need:
+* Install all software required to build a GNU/Linux kernel. Often you will need:
   'bc', 'binutils' ('ld' et al.), 'bison', 'flex', 'gcc', 'git', 'openssl',
   'pahole', 'perl', and the development headers for 'libelf' and 'openssl'. The
-  reference section shows how to quickly install those on various popular Linux
+  reference section shows how to quickly install those on various popular GNU/Linux
   distributions.
 
   [:ref:`details <buildrequires_bisref>`]
 
 .. _sources_bissbs:
 
-* Retrieve the mainline Linux sources; then change into the directory holding
+* Retrieve the mainline GNU/Linux sources; then change into the directory holding
   them, as all further commands in this guide are meant to be executed from
   there.
 
@@ -459,7 +459,7 @@ machine; if you want to compile the kernel on another system, check
   The 'localmodconfig' target easily disables kernel modules for features only
   used occasionally -- like modules for external peripherals not yet connected
   since booting, virtualization software not yet utilized, VPN tunnels, and a
-  few other things. That's because some tasks rely on kernel modules Linux only
+  few other things. That's because some tasks rely on kernel modules GNU/Linux only
   loads when you execute tasks like the aforementioned ones for the first time.
 
   This drawback of localmodconfig is nothing you should lose sleep over, but
@@ -540,7 +540,7 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
 
 .. _checkoutmaster_bissbs:
 
-* Check out the latest Linux codebase.
+* Check out the latest GNU/Linux codebase.
 
   * Are your 'good' and 'bad' versions from the same stable or longterm series?
     Then check the `front page of kernel.org <https://kernel.org/>`_: if it
@@ -588,7 +588,7 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
   much your kernels actually require will be determined later during this guide.
 
   Now install the kernel's modules and its image, which will be stored in
-  parallel to the your Linux distribution's kernels::
+  parallel to the your GNU/Linux distribution's kernels::
 
     sudo make modules_install
     command -v installkernel && sudo make install
@@ -597,8 +597,8 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
   point: copying the kernel's image to /boot/, generating an initramfs, and
   adding an entry for both to the boot loader's configuration.
 
-  Sadly some distributions (among them Arch Linux, its derivatives, and many
-  immutable Linux distributions) will perform none or only some of those tasks.
+  Sadly some distributions (among them Arch GNU/Linux, its derivatives, and many
+  immutable GNU/Linux distributions) will perform none or only some of those tasks.
   You therefore want to check if all of them were taken care of and manually
   perform those that were not. The reference section provides further details on
   that; your distribution's documentation might help, too.
@@ -696,7 +696,7 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
   [:ref:`details <recheckstablebroken_bisref>`]
 
 Do you follow this guide to verify if a problem is present in the code
-currently supported by Linux kernel developers? Then you are done at this
+currently supported by GNU/Linux kernel developers? Then you are done at this
 point. If you later want to remove the kernel you just built, check out
 :ref:`Complementary tasks: cleanup during and after following this guide <introclosure_bissbs>`.
 
@@ -1068,7 +1068,7 @@ improve the guide?
 
 If any of that applies, please take a moment and let the maintainer of this
 document know by email (Thorsten Leemhuis <linux@leemhuis.info>), ideally while
-CCing the Linux docs mailing list (linux-doc@vger.kernel.org). Such feedback is
+CCing the GNU/Linux docs mailing list (linux-doc@vger.kernel.org). Such feedback is
 vital to improve this text further, which is in everybody's interest, as it
 will enable more people to master the task described here -- and hopefully also
 improve similar guides inspired by this one.
@@ -1142,12 +1142,12 @@ its purpose; 'Documentation/admin-guide/module-signing.rst' and various web
 sides already explain everything needed in more detail.
 
 Temporarily disabling solutions like Secure Boot is another way to make your own
-Linux boot. On commodity x86 systems it is possible to do this in the BIOS Setup
+GNU/Linux boot. On commodity x86 systems it is possible to do this in the BIOS Setup
 utility; the required steps vary a lot between machines and therefore cannot be
 described here.
 
-On mainstream x86 Linux distributions there is a third and universal option:
-disable all Secure Boot restrictions for your Linux environment. You can
+On mainstream x86 GNU/Linux distributions there is a third and universal option:
+disable all Secure Boot restrictions for your GNU/Linux environment. You can
 initiate this process by running ``mokutil --disable-validation``; this will
 tell you to create a one-time password, which is safe to write down. Now
 restart; right after your BIOS performed all self-tests the bootloader Shim will
@@ -1178,7 +1178,7 @@ the right thing.
 Space requirements
 ~~~~~~~~~~~~~~~~~~
 
-  *Ensure to have enough free space for building Linux.*
+  *Ensure to have enough free space for building GNU/Linux.*
   [:ref:`... <diskspace_bissbs>`]
 
 The numbers mentioned are rough estimates with a big extra charge to be on the
@@ -1221,18 +1221,18 @@ to do this as well, if you tried bisecting between 6.0.13 and 6.1.15.
 Install build requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  *Install all software required to build a Linux kernel.*
+  *Install all software required to build a GNU/Linux kernel.*
   [:ref:`...<buildrequires_bissbs>`]
 
 The kernel is pretty stand-alone, but besides tools like the compiler you will
 sometimes need a few libraries to build one. How to install everything needed
-depends on your Linux distribution and the configuration of the kernel you are
+depends on your GNU/Linux distribution and the configuration of the kernel you are
 about to build.
 
 Here are a few examples what you typically need on some mainstream
 distributions:
 
-* Arch Linux and derivatives::
+* Arch GNU/Linux and derivatives::
 
     sudo pacman --needed -S bc binutils bison flex gcc git kmod libelf openssl \
       pahole perl zlib ncurses qt6-base
@@ -1272,10 +1272,10 @@ the kernel's tools/ directory.
 Download the sources using Git
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  *Retrieve the Linux mainline sources.*
+  *Retrieve the GNU/Linux mainline sources.*
   [:ref:`...<sources_bissbs>`]
 
-The step-by-step guide outlines how to download the Linux sources using a full
+The step-by-step guide outlines how to download the GNU/Linux sources using a full
 Git clone of Linus' mainline repository. There is nothing more to say about
 that -- but there are two alternatives ways to retrieve the sources that might
 work better for you:
@@ -1289,10 +1289,10 @@ work better for you:
 
 .. _sources_bundle_bisref:
 
-Downloading Linux mainline sources using a bundle
+Downloading GNU/Linux mainline sources using a bundle
 """""""""""""""""""""""""""""""""""""""""""""""""
 
-Use the following commands to retrieve the Linux mainline sources using a
+Use the following commands to retrieve the GNU/Linux mainline sources using a
 bundle::
 
     wget -c \
@@ -1314,7 +1314,7 @@ it left off.
 
 .. _sources_shallow_bisref:
 
-Downloading Linux mainline sources using a shallow clone
+Downloading GNU/Linux mainline sources using a shallow clone
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, execute the following command to retrieve the latest mainline codebase::
@@ -1606,7 +1606,7 @@ highly recommended for these reasons:
   example can happen when your distributor enabled an additional security
   feature in the newer kernel which was disabled or not yet supported by the
   older kernel. That security feature might get into the way of something you
-  do -- in which case your problem from the perspective of the Linux kernel
+  do -- in which case your problem from the perspective of the GNU/Linux kernel
   upstream developers is not a regression, as
   Documentation/admin-guide/reporting-regressions.rst explains in more detail.
   You thus would waste your time if you'd try to bisect this.
@@ -1623,9 +1623,9 @@ highly recommended for these reasons:
   kernel, as the report needs to be sent to different people:
 
   * Regressions specific to a stable/longterm series are the stable team's
-    responsibility; mainline Linux developers might or might not care.
+    responsibility; mainline GNU/Linux developers might or might not care.
 
-  * Regressions also happening in mainline are something the regular Linux
+  * Regressions also happening in mainline are something the regular GNU/Linux
     developers and maintainers have to handle; the stable team does not care
     and does not need to be involved in the report, they just should be told
     to backport the fix once it's ready.
@@ -1638,10 +1638,10 @@ highly recommended for these reasons:
 
 .. _checkoutmaster_bisref:
 
-Check out the latest Linux codebase
+Check out the latest GNU/Linux codebase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  *Check out the latest Linux codebase.*
+  *Check out the latest GNU/Linux codebase.*
   [:ref:`... <checkoutmaster_bissbs>`]
 
 In case you later want to recheck if an ever newer codebase might fix the
@@ -1684,7 +1684,7 @@ to find the most crucial line describing the problem. Then search the internet
 for the most important and non-generic section of that line (say 4 to 8 words);
 avoid or remove anything that looks remotely system-specific, like your username
 or local path names like ``/home/username/linux/``. First try your regular
-internet search engine with that string, afterwards search Linux kernel mailing
+internet search engine with that string, afterwards search GNU/Linux kernel mailing
 lists via `lore.kernel.org/all/ <https://lore.kernel.org/all/>`_.
 
 This most of the time will find something that will explain what is wrong; quite
@@ -1741,7 +1741,7 @@ If installkernel is found, the kernel's build system will delegate the actual
 installation of your kernel image to this executable, which then performs some
 or all of these tasks:
 
-* On almost all Linux distributions installkernel will store your kernel's
+* On almost all GNU/Linux distributions installkernel will store your kernel's
   image in /boot/, usually as '/boot/vmlinuz-<kernelrelease_id>'; often it will
   put a 'System.map-<kernelrelease_id>' alongside it.
 
@@ -1798,7 +1798,7 @@ Check if your newly built kernel considers itself 'tainted'
   *Check if the kernel marked itself as 'tainted'.*
   [:ref:`... <tainted_bissbs>`]
 
-Linux marks itself as tainted when something happens that potentially leads to
+GNU/Linux marks itself as tainted when something happens that potentially leads to
 follow-up errors that look totally unrelated. That is why developers might
 ignore or react scantly to reports from tainted kernels -- unless of course the
 kernel set the flag right when the reported bug occurred.
@@ -1904,7 +1904,7 @@ multitude of reasons why this might happen. Some ideas where to look:
   a broken initramfs (also known as initrd), new firmware files, or an updated
   userland software?
 
-* Maybe it was a feature added to your distributor's kernel which vanilla Linux
+* Maybe it was a feature added to your distributor's kernel which vanilla GNU/Linux
   at that point never supported?
 
 Note, if you found and fixed problems with the .config file, you want to use it
@@ -1957,7 +1957,7 @@ There are two things worth of note here:
   work better. Afterwards restart executing this step.
 
 * Those slightly odd looking version identifiers can happen during bisections,
-  because the Linux kernel subsystems prepare their changes for a new mainline
+  because the GNU/Linux kernel subsystems prepare their changes for a new mainline
   release (say 6.2) before its predecessor (e.g. 6.1) is finished. They thus
   base them on a somewhat earlier point like 6.1-rc1 or even 6.0 -- and then
   get merged for 6.2 without rebasing nor squashing them once 6.1 is out. This
@@ -2066,7 +2066,7 @@ interactively remove the three main files of a kernel with the release name
 Afterwards check for other files in /boot/ that have
 '6.0-rc1-local-gcafec0cacaca0' in their name and consider deleting them as well.
 Now remove the boot entry for the kernel from your bootloader's configuration;
-the steps to do that vary quite a bit between Linux distributions.
+the steps to do that vary quite a bit between GNU/Linux distributions.
 
 Note, be careful with wildcards like '*' when deleting files or directories
 for kernels manually: you might accidentally remove files of a 6.0.13 kernel
@@ -2086,7 +2086,7 @@ Cleaning up after the bisection
 When you are really short of storage space removing the kernels as described in
 the step-by-step guide might not free as much space as you would like. In that
 case consider running ``rm -rf ~/linux/*`` as well now. This will remove the
-build artifacts and the Linux sources, but will leave the Git repository
+build artifacts and the GNU/Linux sources, but will leave the Git repository
 (~/linux/.git/) behind -- a simple ``git reset --hard`` thus will bring the
 sources back.
 
@@ -2211,12 +2211,12 @@ Additional reading material
 ..
    This text is available under GPL-2.0+ or CC-BY-4.0, as stated at the top
    of the file. If you want to distribute this text under CC-BY-4.0 only,
-   please use 'The Linux kernel development community' for author attribution
+   please use 'The GNU/Linux kernel development community' for author attribution
    and link this as source:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/admin-guide/verify-bugs-and-bisect-regressions.rst
 
 ..
-   Note: Only the content of this RST file as found in the Linux kernel sources
+   Note: Only the content of this RST file as found in the GNU/Linux kernel sources
    is available under CC-BY-4.0, as versions of this text that were processed
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.

@@ -94,7 +94,7 @@ capabilities of a given logical processor becomes zero, it is an indication
 that the hardware recommends to the operating system to not schedule any tasks
 on that processor for performance or energy efficiency reasons, respectively.
 
-Implementation details for Linux
+Implementation details for GNU/Linux
 --------------------------------
 
 The implementation of threads scheduling consists of the following steps:

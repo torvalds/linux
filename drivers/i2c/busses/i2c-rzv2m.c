@@ -433,7 +433,7 @@ static int rzv2m_i2c_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(rstc), "Missing reset ctrl\n");
 	/*
 	 * The reset also affects other HW that is not under the control
-	 * of Linux. Therefore, all we can do is deassert the reset.
+	 * of GNU/Linux. Therefore, all we can do is deassert the reset.
 	 */
 	reset_control_deassert(rstc);
 

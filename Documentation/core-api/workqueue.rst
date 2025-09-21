@@ -605,7 +605,7 @@ affinity scope for unbound pools.
   ``WQ_CPU_INTENSIVE`` per-cpu workqueue. There is no real advanage to the
   latter and an unbound workqueue provides a lot more flexibility.
 
-* Affinity scopes are introduced in Linux v6.5. To emulate the previous
+* Affinity scopes are introduced in GNU/Linux v6.5. To emulate the previous
   behavior, use strict "numa" affinity scope.
 
 * The loss of work-conservation in non-strict affinity scopes is likely

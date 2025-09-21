@@ -5,7 +5,7 @@
  *    Specific ELF Supplement for PA-RISC:
  *        https://parisc.wiki.kernel.org/index.php/File:Elf-pa-hp.pdf
  *
- *    Linux/PA-RISC Project
+ *    GNU/Linux/PA-RISC Project
  *    Copyright (C) 2003 Randolph Chung <tausq at debian . org>
  *    Copyright (C) 2008 Helge Deller <deller@gmx.de>
  *

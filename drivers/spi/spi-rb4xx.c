@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2015 Bert Vermeulen <bert@biot.com>
  *
- * This file was based on the patches for Linux 2.6.27.39 published by
+ * This file was based on the patches for GNU/Linux 2.6.27.39 published by
  * MikroTik for their RouterBoard 4xx series devices.
  */
 

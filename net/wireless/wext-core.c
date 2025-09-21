@@ -6,7 +6,7 @@
  * Copyright	2009 Johannes Berg <johannes@sipsolutions.net>
  * Copyright (C) 2024 Intel Corporation
  *
- * (As all part of the Linux kernel, this file is GPL)
+ * (As all part of the GNU/Linux kernel, this file is GPL)
  */
 #include <linux/kernel.h>
 #include <linux/netdevice.h>

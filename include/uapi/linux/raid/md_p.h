@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note */
 /*
-   md_p.h : physical layout of Linux RAID devices
+   md_p.h : physical layout of GNU/Linux RAID devices
           Copyright (C) 1996-98 Ingo Molnar, Gadi Oxman
 
    This program is free software; you can redistribute it and/or modify

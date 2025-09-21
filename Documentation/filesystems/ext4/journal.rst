@@ -275,7 +275,7 @@ which is 1024 bytes long:
    * - 0x100
      - __u8
      - s_users[16*48]
-     - ids of all file systems sharing the log. e2fsprogs/Linux don't allow
+     - ids of all file systems sharing the log. e2fsprogs/GNU/Linux don't allow
        shared external journals, but I imagine Lustre (or ocfs2?), which use
        the jbd2 code, might.
 

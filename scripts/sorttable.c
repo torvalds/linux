@@ -12,7 +12,7 @@
  *
  * Copyright 2009 John F. Reiser <jreiser@BitWagon.com>.  All rights reserved.
  *
- * Restructured to fit Linux format, as well as other updates:
+ * Restructured to fit GNU/Linux format, as well as other updates:
  * Copyright 2010 Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
  */
 

@@ -22,7 +22,7 @@ GNU General Public License for more details.
 Overview
 --------
 
-This driver implements the support for Linux of Silicon Labs (Silabs)
+This driver implements the support for GNU/Linux of Silicon Labs (Silabs)
 C2 Interface used for in-system programming of micro controllers.
 
 By using this driver you can reprogram the in-system flash without EC2

@@ -75,7 +75,7 @@ struct ia_css_print_env {
 
 /* Environment structure. This includes function pointers to access several
  *  features provided by the environment in which the CSS API is used.
- *  This is used to run the camera IP in multiple platforms such as Linux,
+ *  This is used to run the camera IP in multiple platforms such as GNU/Linux,
  *  Windows and several simulation environments.
  */
 struct ia_css_env {

@@ -1139,7 +1139,7 @@ k3_udma_glue_request_remote_rx_chn(struct device *dev, const char *name,
 
 	/*
 	 * Remote RX channel is under control of Remote CPU core, so
-	 * Linux can only request and manipulate by dedicated RX flows
+	 * GNU/Linux can only request and manipulate by dedicated RX flows
 	 */
 
 	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);
@@ -1187,7 +1187,7 @@ k3_udma_glue_request_remote_rx_chn_for_thread_id(struct device *dev,
 
 	/*
 	 * Remote RX channel is under control of Remote CPU core, so
-	 * Linux can only request and manipulate by dedicated RX flows
+	 * GNU/Linux can only request and manipulate by dedicated RX flows
 	 */
 
 	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);

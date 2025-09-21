@@ -6,7 +6,7 @@ Advanced topics
 At this point, hopefully, you have a handle on how the development process
 works.  There is still more to learn, however!  This section will cover a
 number of topics which can be helpful for developers wanting to become a
-regular part of the Linux kernel development process.
+regular part of the GNU/Linux kernel development process.
 
 Managing patches with git
 -------------------------

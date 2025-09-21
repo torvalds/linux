@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Red Hat Linux AFS client.
+# Makefile for Red Hat GNU/Linux AFS client.
 #
 
 kafs-y := \

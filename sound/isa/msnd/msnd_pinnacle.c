@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*********************************************************************
  *
- * Linux multisound pinnacle/fiji driver for ALSA.
+ * GNU/Linux multisound pinnacle/fiji driver for ALSA.
  *
  * 2002/06/30 Karsten Wiese:
  *	for now this is only used to build a pinnacle / fiji driver.
@@ -15,7 +15,7 @@
  *
  * the following is a copy of the 2.4.18 OSS FREE file-heading comment:
  *
- * Turtle Beach MultiSound Sound Card Driver for Linux
+ * Turtle Beach MultiSound Sound Card Driver for GNU/Linux
  * msnd_pinnacle.c / msnd_classic.c
  *
  * -- If MSND_CLASSIC is defined:
@@ -748,7 +748,7 @@ MODULE_PARM_DESC(isapnp, "ISA PnP detection for specified soundcard.");
 #endif
 
 MODULE_AUTHOR("Karsten Wiese <annabellesgarden@yahoo.de>");
-MODULE_DESCRIPTION("Turtle Beach " LONGNAME " Linux Driver");
+MODULE_DESCRIPTION("Turtle Beach " LONGNAME " GNU/Linux Driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(INITCODEFILE);
 MODULE_FIRMWARE(PERMCODEFILE);

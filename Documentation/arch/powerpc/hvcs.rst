@@ -2,7 +2,7 @@
 HVCS IBM "Hypervisor Virtual Console Server" Installation Guide
 ===============================================================
 
-for Linux Kernel 2.6.4+
+for GNU/Linux Kernel 2.6.4+
 
 Copyright (C) 2004 IBM Corporation
 
@@ -34,9 +34,9 @@ Last Changed: August, 24, 2004
 =======================
 
 This is the device driver for the IBM Hypervisor Virtual Console Server,
-"hvcs".  The IBM hvcs provides a tty driver interface to allow Linux user
+"hvcs".  The IBM hvcs provides a tty driver interface to allow GNU/Linux user
 space applications access to the system consoles of logically partitioned
-operating systems (Linux and AIX) running on the same partitioned Power5
+operating systems (GNU/Linux and AIX) running on the same partitioned Power5
 ppc64 system.  Physical hardware consoles per partition are not practical
 on this hardware so system consoles are accessed by this driver using
 firmware interfaces to virtual terminal devices.
@@ -44,7 +44,7 @@ firmware interfaces to virtual terminal devices.
 2. System Requirements:
 =======================
 
-This device driver was written using 2.6.4 Linux kernel APIs and will only
+This device driver was written using 2.6.4 GNU/Linux kernel APIs and will only
 build and run on kernels of this version or later.
 
 This driver was written to operate solely on IBM Power5 ppc64 hardware
@@ -211,7 +211,7 @@ is a vty-server device configured for that node.
 Since this driver controls devices that provide a tty interface a user can
 interact with the device node entries using any standard tty-interactive
 method (e.g. "cat", "dd", "echo").  The intent of this driver however, is
-to provide real time console interaction with a Linux partition's console,
+to provide real time console interaction with a GNU/Linux partition's console,
 which requires the use of applications that provide bi-directional,
 interactive I/O with a tty device.
 
@@ -226,7 +226,7 @@ them (though screen makes an attempt and can apparently be configured with
 much termcap wrestling.)
 
 For this reason kermit and cu are two of the recommended applications for
-interacting with a Linux console via an hvcs device.  These programs simply
+interacting with a GNU/Linux console via an hvcs device.  These programs simply
 act as a conduit for data transfer to and from the tty device.  They do not
 require inbound data to take the form of a particular terminal type, nor do
 they cook outbound data to a particular terminal type.
@@ -281,7 +281,7 @@ When hvcs is being used to serve consoles this behavior is not a huge issue
 because the adapter stays connected for large amounts of time following
 almost all data writes.  When hvcs is being used as a tty conduit to tunnel
 data between two partitions [see Q & A below] this is a huge problem
-because the standard Linux behavior when cat'ing or dd'ing data to a device
+because the standard GNU/Linux behavior when cat'ing or dd'ing data to a device
 is to open the tty, send the data, and then close the tty.  If this driver
 manually terminated vty-server connections on tty close this would close
 the vty-server and vty connection before the target vty has had a chance to
@@ -505,8 +505,8 @@ does?  Maybe you haven't inserted the module (on systems with udev).
 
 ---------------------------------------------------------------------------
 
-Q: If I already have one Linux partition installed can I use hvcs on said
-partition to provide the console for the install of a second Linux
+Q: If I already have one GNU/Linux partition installed can I use hvcs on said
+partition to provide the console for the install of a second GNU/Linux
 partition?
 
 A: Yes granted that your are connected to the /dev/hvcs* device using
@@ -570,7 +570,7 @@ partitions.
 9. Reporting Bugs:
 ==================
 
-The proper channel for reporting bugs is either through the Linux OS
+The proper channel for reporting bugs is either through the GNU/Linux OS
 distribution company that provided your OS or by posting issues to the
 PowerPC development mailing list at:
 

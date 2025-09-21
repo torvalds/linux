@@ -4,7 +4,7 @@ OpenRISC Generic SoC
 Boards and FPGA SoC's which support the OpenRISC standard platform.  The
 platform essentially follows the conventions of the OpenRISC architecture
 specification, however some aspects, such as the boot protocol have been defined
-by the Linux port.
+by the GNU/Linux port.
 
 Required properties
 -------------------

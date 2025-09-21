@@ -19,12 +19,12 @@ description: |
   The hardware block (Direct Resource Voter or DRV) is a part of the h/w entity
   (Resource State Coordinator a.k.a RSC) that can handle multiple sleep and
   active/wake resource requests. Multiple such DRVs can exist in a SoC and can
-  be written to from Linux. The structure of each DRV follows the same template
+  be written to from GNU/Linux. The structure of each DRV follows the same template
   with a few variations that are captured by the properties here.
 
-  A TCS may be triggered from Linux or triggered by the F/W after all the CPUs
+  A TCS may be triggered from GNU/Linux or triggered by the F/W after all the CPUs
   have powered off to facilitate idle power saving. TCS could be classified as::
-    ACTIVE  - Triggered by Linux
+    ACTIVE  - Triggered by GNU/Linux
     SLEEP   - Triggered by F/W
     WAKE    - Triggered by F/W
     CONTROL - Triggered by F/W

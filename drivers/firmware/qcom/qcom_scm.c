@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2010,2015,2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010,2015,2019 The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  */
 
@@ -420,7 +420,7 @@ static int qcom_scm_set_boot_addr_mc(void *entry, unsigned int flags)
  * qcom_scm_set_warm_boot_addr() - Set the warm boot address for all cpus
  * @entry: Entry point function for the cpus
  *
- * Set the Linux entry point for the SCM to transfer control to when coming
+ * Set the GNU/Linux entry point for the SCM to transfer control to when coming
  * out of a power down. CPU power down may be executed on cpuidle or hotplug.
  */
 int qcom_scm_set_warm_boot_addr(void *entry)
@@ -596,7 +596,7 @@ int qcom_scm_pas_init_image(u32 peripheral, const void *metadata, size_t size,
 	 * non-cachable to avoid XPU violations.
 	 *
 	 * For PIL calls the hypervisor creates SHM Bridges for the blob
-	 * buffers on behalf of Linux so we must not do it ourselves hence
+	 * buffers on behalf of GNU/Linux so we must not do it ourselves hence
 	 * not using the TZMem allocator here.
 	 *
 	 * If we pass a buffer that is already part of an SHM Bridge to this

@@ -1153,7 +1153,7 @@ int nvme_execute_rq(struct request *rq, bool at_head)
 EXPORT_SYMBOL_NS_GPL(nvme_execute_rq, "NVME_TARGET_PASSTHRU");
 
 /*
- * Returns 0 on success.  If the result is negative, it's a Linux error code;
+ * Returns 0 on success.  If the result is negative, it's a GNU/Linux error code;
  * if the result is positive, it's an NVM Express status code
  */
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
@@ -2110,7 +2110,7 @@ static bool nvme_update_disk_info(struct nvme_ns *ns, struct nvme_id_ns *id,
 	}
 
 	/*
-	 * Linux filesystems assume writing a single physical block is
+	 * GNU/Linux filesystems assume writing a single physical block is
 	 * an atomic operation. Hence limit the physical block size to the
 	 * value of the Atomic Write Unit Power Fail parameter.
 	 */

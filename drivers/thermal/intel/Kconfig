@@ -51,7 +51,7 @@ config INTEL_SOC_DTS_THERMAL
 	  temperature sensor (DTS). These SoCs have two additional DTSs in
 	  addition to DTSs on CPU cores. Each DTS will be registered as a
 	  thermal zone. There are two trip points. One of the trip point can
-	  be set by user mode programs to get notifications via Linux thermal
+	  be set by user mode programs to get notifications via GNU/Linux thermal
 	  notification methods.The other trip is a critical trip point, which
 	  was set by the driver based on the TJ MAX temperature.
 

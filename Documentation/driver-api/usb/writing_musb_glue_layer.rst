@@ -7,7 +7,7 @@ Writing a MUSB Glue Layer
 Introduction
 ============
 
-The Linux MUSB subsystem is part of the larger Linux USB subsystem. It
+The GNU/Linux MUSB subsystem is part of the larger GNU/Linux USB subsystem. It
 provides support for embedded USB Device Controllers (UDC) that do not
 use Universal Host Controller Interface (UHCI) or Open Host Controller
 Interface (OHCI).
@@ -27,25 +27,25 @@ what needs to be done in order to write your own device glue layer.
 
 .. _musb-basics:
 
-Linux MUSB Basics
+GNU/Linux MUSB Basics
 =================
 
 To get started on the topic, please read USB On-the-Go Basics (see
 Resources) which provides an introduction of USB OTG operation at the
 hardware level. A couple of wiki pages by Texas Instruments and Analog
-Devices also provide an overview of the Linux kernel MUSB configuration,
+Devices also provide an overview of the GNU/Linux kernel MUSB configuration,
 albeit focused on some specific devices provided by these companies.
 Finally, getting acquainted with the USB specification at USB home page
 may come in handy, with practical instance provided through the Writing
 USB Device Drivers documentation (again, see Resources).
 
-Linux USB stack is a layered architecture in which the MUSB controller
+GNU/Linux USB stack is a layered architecture in which the MUSB controller
 hardware sits at the lowest. The MUSB controller driver abstract the
-MUSB controller hardware to the Linux USB stack::
+MUSB controller hardware to the GNU/Linux USB stack::
 
 	  ------------------------
 	  |                      | <------- drivers/usb/gadget
-	  | Linux USB Core Stack | <------- drivers/usb/host
+	  | GNU/Linux USB Core Stack | <------- drivers/usb/host
 	  |                      | <------- drivers/usb/core
 	  ------------------------
 		     ⬍
@@ -68,7 +68,7 @@ MUSB controller hardware to the Linux USB stack::
 As outlined above, the glue layer is actually the platform specific code
 sitting in between the controller driver and the controller hardware.
 
-Just like a Linux USB driver needs to register itself with the Linux USB
+Just like a GNU/Linux USB driver needs to register itself with the GNU/Linux USB
 subsystem, the MUSB glue layer needs first to register itself with the
 MUSB controller driver. This will allow the controller driver to know
 about which device the glue layer supports and which functions to call
@@ -312,9 +312,9 @@ into the probe function::
     }
 
 This is the last part of the device registration process where the glue
-layer adds the controller hardware device to Linux kernel device
+layer adds the controller hardware device to GNU/Linux kernel device
 hierarchy: at this stage, all known information about the device is
-passed on to the Linux USB core stack:
+passed on to the GNU/Linux USB core stack:
 
    .. code-block:: c
     :emphasize-lines: 5,6
@@ -685,7 +685,7 @@ for others controller hardware eventually.
 Conclusion
 ==========
 
-Writing a Linux MUSB glue layer should be a more accessible task, as
+Writing a GNU/Linux MUSB glue layer should be a more accessible task, as
 this documentation tries to show the ins and outs of this exercise.
 
 The JZ4740 USB device controller being fairly simple, I hope its glue

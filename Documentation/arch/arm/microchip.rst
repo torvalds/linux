@@ -6,10 +6,10 @@ ARM Microchip SoCs (aka AT91)
 Introduction
 ------------
 This document gives useful information about the ARM Microchip SoCs that are
-currently supported in Linux Mainline (you know, the one on kernel.org).
+currently supported in GNU/Linux Mainline (you know, the one on kernel.org).
 
 It is important to note that the Microchip (previously Atmel) ARM-based MPU
-product line is historically named "AT91" or "at91" throughout the Linux kernel
+product line is historically named "AT91" or "at91" throughout the GNU/Linux kernel
 development process even if this product prefix has completely disappeared from
 the official Microchip product name. Anyway, files, directories, git trees,
 git branches/tags and email subject always contain this "at91" sub-string.
@@ -196,16 +196,16 @@ the Microchip website: http://www.microchip.com.
           http://ww1.microchip.com/downloads/en/DeviceDoc/SAM-E70-S70-V70-V71-Family-Data-Sheet-DS60001527D.pdf
 
 
-Linux kernel information
+GNU/Linux kernel information
 ------------------------
-Linux kernel mach directory: arch/arm/mach-at91
+GNU/Linux kernel mach directory: arch/arm/mach-at91
 MAINTAINERS entry is: "ARM/Microchip (AT91) SoC support"
 
 
 Device Tree for AT91 SoCs and boards
 ------------------------------------
-All AT91 SoCs are converted to Device Tree. Since Linux 3.19, these products
-must use this method to boot the Linux kernel.
+All AT91 SoCs are converted to Device Tree. Since GNU/Linux 3.19, these products
+must use this method to boot the GNU/Linux kernel.
 
 Work In Progress statement:
 Device Tree files and Device Tree bindings that apply to AT91 SoCs and boards are

@@ -4,7 +4,7 @@
  */
 
 /*
- * FP-Gaming Assassin 3D joystick driver for Linux
+ * FP-Gaming Assassin 3D joystick driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

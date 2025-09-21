@@ -52,7 +52,7 @@ static const struct v4l2_file_operations radio_si4713_fops = {
 	.unlocked_ioctl	= video_ioctl2,
 };
 
-/* Video4Linux Interface */
+/* Video4GNU/Linux Interface */
 
 /* radio_si4713_querycap - query device capabilities */
 static int radio_si4713_querycap(struct file *file, void *priv,

@@ -20,7 +20,7 @@
  * Otherwise (non-PAE, non-PCID), CR3[3] is PWT, CR3[4] is PCD, and
  * CR3[2:0] and CR3[11:5] are ignored.
  *
- * In all cases, Linux puts zeros in the low ignored bits and in PWT and PCD.
+ * In all cases, GNU/Linux puts zeros in the low ignored bits and in PWT and PCD.
  *
  * CR3[63] is always read as zero.  If CR4.PCIDE is set, then CR3[63] may be
  * written as 1 to prevent the write to CR3 from flushing the TLB.

@@ -1166,7 +1166,7 @@ nvme_fc_connect_admin_queue(struct nvme_fc_ctrl *ctrl,
 
 	assoc_rqst->assoc_cmd.ersp_ratio = cpu_to_be16(ersp_ratio);
 	assoc_rqst->assoc_cmd.sqsize = cpu_to_be16(qsize - 1);
-	/* Linux supports only Dynamic controllers */
+	/* GNU/Linux supports only Dynamic controllers */
 	assoc_rqst->assoc_cmd.cntlid = cpu_to_be16(0xffff);
 	uuid_copy(&assoc_rqst->assoc_cmd.hostid, &ctrl->ctrl.opts->host->id);
 	strscpy(assoc_rqst->assoc_cmd.hostnqn, ctrl->ctrl.opts->host->nqn,
@@ -2723,7 +2723,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 		 * the csn value?  If the command that fails is the Connect,
 		 * no - as the connection won't be live.  If it is a command
 		 * post-connect, it's possible a gap in csn may be created.
-		 * Does this matter?  As Linux initiators don't send fused
+		 * Does this matter?  As GNU/Linux initiators don't send fused
 		 * commands, no.  The gap would exist, but as there's nothing
 		 * that depends on csn order to be delivered on the target
 		 * side, it shouldn't hurt.  It would be difficult for a

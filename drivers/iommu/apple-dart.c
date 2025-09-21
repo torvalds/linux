@@ -2,7 +2,7 @@
 /*
  * Apple DART (Device Address Resolution Table) IOMMU driver
  *
- * Copyright (C) 2021 The Asahi Linux Contributors
+ * Copyright (C) 2021 The Asahi GNU/Linux Contributors
  *
  * Based on arm/arm-smmu/arm-ssmu.c and arm/arm-smmu-v3/arm-smmu-v3.c
  *  Copyright (C) 2013 ARM Limited

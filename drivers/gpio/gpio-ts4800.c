@@ -2,7 +2,7 @@
 /*
  * GPIO driver for the TS-4800 board
  *
- * Copyright (c) 2016 - Savoir-faire Linux
+ * Copyright (c) 2016 - Savoir-faire GNU/Linux
  */
 
 #include <linux/gpio/driver.h>

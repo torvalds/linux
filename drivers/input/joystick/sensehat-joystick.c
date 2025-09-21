@@ -7,7 +7,7 @@
  * Copyright (C) 2021 Charles Mirabile, Mwesigwa Guma, Joel Savitz
  *
  * Original Author: Serge Schneider
- * Revised for upstream Linux by: Charles Mirabile, Mwesigwa Guma, Joel Savitz
+ * Revised for upstream GNU/Linux by: Charles Mirabile, Mwesigwa Guma, Joel Savitz
  */
 
 #include <linux/module.h>

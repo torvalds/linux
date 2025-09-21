@@ -11,7 +11,7 @@
  * Copyright (C) 2000 Franz Sirl.
  *
  * Adapted to ADB changes and support for more devices by
- * Benjamin Herrenschmidt. Adapted from code in MkLinux
+ * Benjamin Herrenschmidt. Adapted from code in MkGNU/Linux
  * and reworked.
  * 
  * Supported devices:

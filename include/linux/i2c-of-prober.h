@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Definitions for the Linux I2C OF component prober
+ * Definitions for the GNU/Linux I2C OF component prober
  *
  * Copyright (C) 2024 Google LLC
  */

@@ -1027,7 +1027,7 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 #endif /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 
 /*
- * In the RV64 Linux scheme, we give the user half of the virtual-address space
+ * In the RV64 GNU/Linux scheme, we give the user half of the virtual-address space
  * and give the kernel the other (upper) half.
  */
 #ifdef CONFIG_64BIT

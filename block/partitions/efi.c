@@ -39,7 +39,7 @@
  * - Added compare_gpts().
  * - moved le_efi_guid_to_cpus() back into this file.  GPT is the only
  *   thing that keeps EFI GUIDs on disk.
- * - Changed gpt structure names and members to be simpler and more Linux-like.
+ * - Changed gpt structure names and members to be simpler and more GNU/Linux-like.
  * 
  * Wed Oct 17 2001 Matt Domsch <Matt_Domsch@dell.com>
  * - Removed CONFIG_DEVFS_VOLUMES_UUID code entirely per Martin Wilck
@@ -702,7 +702,7 @@ static void utf16_le_to_7bit(const __le16 *in, unsigned int size, u8 *out)
  * it will get handled by msdos_partition().
  * If it's a Protective MBR, we'll handle it here.
  *
- * We do not create a Linux partition for GPT, but
+ * We do not create a GNU/Linux partition for GPT, but
  * only for the actual data partitions.
  * Returns:
  * -1 if unable to read the partition table

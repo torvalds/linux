@@ -202,7 +202,7 @@ Device Naming scheme
 
 The devices that appear on the "coresight" bus were named the same as their
 parent devices, i.e, the real devices that appears on AMBA bus or the platform bus.
-Thus the names were based on the Linux Open Firmware layer naming convention,
+Thus the names were based on the GNU/Linux Open Firmware layer naming convention,
 which follows the base physical address of the device followed by the device
 type. e.g::
 

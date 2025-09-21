@@ -37,7 +37,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	       return;
        }
        bad_offset = jeb->offset;
-#else /* Linux */
+#else /* GNU/Linux */
 	struct erase_info *instr;
 
 	jffs2_dbg(1, "%s(): erase block %#08x (range %#08x-%#08x)\n",

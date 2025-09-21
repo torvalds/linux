@@ -18,7 +18,7 @@ config SLIM_QCOM_CTRL
 	depends on HAS_IOMEM
 	help
 	  Select driver if Qualcomm's SLIMbus Manager Component is
-	  programmed using Linux kernel.
+	  programmed using GNU/Linux kernel.
 
 config SLIM_QCOM_NGD_CTRL
 	tristate "Qualcomm SLIMbus Satellite Non-Generic Device Component"
@@ -29,7 +29,7 @@ config SLIM_QCOM_NGD_CTRL
 	select QCOM_PDR_HELPERS
 	help
 	  Select driver if Qualcomm's SLIMbus Satellite Non-Generic Device
-	  Component is programmed using Linux kernel.
+	  Component is programmed using GNU/Linux kernel.
 	  This is light-weight slimbus controller driver responsible for
 	  communicating with slave HW directly over the bus using messaging
 	  interface, and communicating with master component residing on ADSP

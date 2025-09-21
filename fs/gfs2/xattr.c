@@ -612,7 +612,7 @@ static int gfs2_xattr_get(const struct xattr_handler *handler,
 	struct gfs2_holder gh;
 	int ret;
 
-	/* During lookup, SELinux calls this function with the glock locked. */
+	/* During lookup, SEGNU/Linux calls this function with the glock locked. */
 
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);

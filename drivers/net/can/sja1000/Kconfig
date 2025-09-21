@@ -96,7 +96,7 @@ config CAN_SJA1000_PLATFORM
 	tristate "Generic Platform Bus based SJA1000 driver"
 	help
 	  This driver adds support for the SJA1000 chips connected to
-	  the "platform bus" (Linux abstraction for directly to the
+	  the "platform bus" (GNU/Linux abstraction for directly to the
 	  processor attached devices).  Which can be found on various
 	  boards from Phytec (http://www.phytec.de) like the PCM027,
 	  PCM038. It also provides the OpenFirmware "platform bus" found

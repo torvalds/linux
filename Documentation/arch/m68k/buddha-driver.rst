@@ -14,7 +14,7 @@ The Autoconfiguration has been implemented just as Commodore
 described  in  their  manuals, no tricks have been used (for
 example leaving some address lines out of the equations...).
 If you want to configure the board yourself (for example let
-a  Linux  kernel  configure the card), look at the Commodore
+a  GNU/Linux  kernel  configure the card), look at the Commodore
 Docs.  Reading the nibbles should give this information::
 
   Vendor number: 4626 ($1212)

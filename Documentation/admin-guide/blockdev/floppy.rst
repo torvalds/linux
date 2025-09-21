@@ -228,7 +228,7 @@ The fdutils releases can be found at:
 
  http://www.tux.org/pub/knaff/fdutils/
 
- ftp://metalab.unc.edu/pub/Linux/utils/disk-management/
+ ftp://metalab.unc.edu/pub/GNU/Linux/utils/disk-management/
 
 Reporting problems about the floppy driver
 ==========================================

@@ -8,7 +8,7 @@
  *
  *	(c)2002 Steve Hill <steve@navaho.co.uk>
  *
- *  This WDT driver is different from most other Linux WDT
+ *  This WDT driver is different from most other GNU/Linux WDT
  *  drivers in that the driver will ping the watchdog by itself,
  *  because this particular WDT has a very short timeout (1.6
  *  seconds) and it would be insane to count on any userspace

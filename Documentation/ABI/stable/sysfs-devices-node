@@ -1,37 +1,37 @@
 What:		/sys/devices/system/node/possible
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Nodes that could be possibly become online at some point.
 
 What:		/sys/devices/system/node/online
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Nodes that are online.
 
 What:		/sys/devices/system/node/has_normal_memory
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Nodes that have regular memory.
 
 What:		/sys/devices/system/node/has_cpu
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Nodes that have one or more CPUs.
 
 What:		/sys/devices/system/node/has_high_memory
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Nodes that have regular or high memory.
 		Depends on CONFIG_HIGHMEM.
 
 What:		/sys/devices/system/node/nodeX
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		When CONFIG_NUMA is enabled, this is a directory containing
 		information on node X such as what CPUs are local to the
@@ -39,40 +39,40 @@ Description:
 
 What:		/sys/devices/system/node/nodeX/cpumap
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		The node's cpumap.
 
 What:		/sys/devices/system/node/nodeX/cpulist
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		The CPUs associated to the node.
 
 What:		/sys/devices/system/node/nodeX/meminfo
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Provides information about the node's distribution and memory
 		utilization. Similar to /proc/meminfo, see Documentation/filesystems/proc.rst
 
 What:		/sys/devices/system/node/nodeX/numastat
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		The node's hit/miss statistics, in units of pages.
 		See Documentation/admin-guide/numastat.rst
 
 What:		/sys/devices/system/node/nodeX/distance
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Distance between the node and all the other nodes
 		in the system.
 
 What:		/sys/devices/system/node/nodeX/vmstat
 Date:		October 2002
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		The node's zoned virtual memory statistics.
 		This is a superset of numastat.
@@ -230,7 +230,7 @@ Description:
 
 What:		/sys/devices/system/node/nodeX/reclaim
 Date:		June 2025
-Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Contact:	GNU/Linux Memory Management list <linux-mm@kvack.org>
 Description:
 		Perform user-triggered proactive reclaim on a NUMA node.
 		This interface is equivalent to the memcg variant.

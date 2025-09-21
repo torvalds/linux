@@ -22,7 +22,7 @@ encountered a bug!  If you're unsure what version you're currently
 running, the suggested command should tell you.
 
 Again, keep in mind that this list assumes you are already functionally
-running a Linux kernel.  Also, not all tools are necessary on all
+running a GNU/Linux kernel.  Also, not all tools are necessary on all
 systems; obviously, if you don't have any PC Card hardware, for example,
 you probably needn't concern yourself with pcmciautils.
 
@@ -83,7 +83,7 @@ The latest formal release of clang and LLVM utils (according to
 `releases.llvm.org <https://releases.llvm.org>`_) are supported for building
 kernels. Older releases aren't guaranteed to work, and we may drop workarounds
 from the kernel that were used to support older versions. Please see additional
-docs on :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
+docs on :ref:`Building GNU/Linux with Clang/LLVM <kbuild_llvm>`.
 
 Rust (optional)
 ---------------
@@ -128,20 +128,20 @@ verified or documented.
 Flex
 ----
 
-Since Linux 4.16, the build system generates lexical analyzers
+Since GNU/Linux 4.16, the build system generates lexical analyzers
 during build.  This requires flex 2.5.35 or later.
 
 
 Bison
 -----
 
-Since Linux 4.16, the build system generates parsers
+Since GNU/Linux 4.16, the build system generates parsers
 during build.  This requires bison 2.0 or later.
 
 pahole
 ------
 
-Since Linux 5.2, if CONFIG_DEBUG_INFO_BTF is selected, the build system
+Since GNU/Linux 5.2, if CONFIG_DEBUG_INFO_BTF is selected, the build system
 generates BTF (BPF Type Format) from DWARF in vmlinux, a bit later from kernel
 modules as well.  This requires pahole v1.16 or later.
 
@@ -208,7 +208,7 @@ DevFS has been obsoleted in favour of udev
 
 32-bit UID support is now in place.  Have fun!
 
-Linux documentation for functions is transitioning to inline
+GNU/Linux documentation for functions is transitioning to inline
 documentation via specially-formatted comments near their
 definitions in the source.  These comments can be combined with ReST
 files the Documentation/ directory to make enriched documentation, which can

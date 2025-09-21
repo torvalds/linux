@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================================
-Linux driver for Brocade FC/FCOE adapters
+GNU/Linux driver for Brocade FC/FCOE adapters
 =========================================
 
 Supported Hardware
@@ -38,14 +38,14 @@ Firmware download
 
 The latest Firmware package for 3.0.2.2 bfa driver can be found at:
 
-http://www.brocade.com/services-support/drivers-downloads/adapters/Linux.page
+http://www.brocade.com/services-support/drivers-downloads/adapters/GNU/Linux.page
 
 and then click following respective util package link:
 
 	=========	=======================================================
 	Version		Link
 	=========	=======================================================
-	v3.0.0.0	Linux Adapter Firmware package for RHEL 6.2, SLES 11SP2
+	v3.0.0.0	GNU/Linux Adapter Firmware package for RHEL 6.2, SLES 11SP2
 	=========	=======================================================
 
 
@@ -55,14 +55,14 @@ Configuration & Management utility download
 The latest driver configuration & management utility for 3.0.2.2 bfa driver can
 be found at:
 
-http://www.brocade.com/services-support/drivers-downloads/adapters/Linux.page
+http://www.brocade.com/services-support/drivers-downloads/adapters/GNU/Linux.page
 
 and then click following respective util package link
 
 	=========	=======================================================
 	Version		Link
 	=========	=======================================================
-	v3.0.2.0	Linux Adapter Firmware package for RHEL 6.2, SLES 11SP2
+	v3.0.2.0	GNU/Linux Adapter Firmware package for RHEL 6.2, SLES 11SP2
 	=========	=======================================================
 
 
@@ -73,7 +73,7 @@ The latest Administration's Guide, Installation and Reference Manual,
 Troubleshooting Guide, and Release Notes for the corresponding out-of-box
 driver can be found at:
 
-http://www.brocade.com/services-support/drivers-downloads/adapters/Linux.page
+http://www.brocade.com/services-support/drivers-downloads/adapters/GNU/Linux.page
 
 and use the following inbox and out-of-box driver version mapping to find
 the corresponding documentation:

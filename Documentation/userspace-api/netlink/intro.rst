@@ -91,7 +91,7 @@ number of subsystems using Generic Netlink outnumbers the older
 protocols by an order of magnitude. There are also no plans for adding
 more Classic Netlink protocols to the kernel.
 Basic information on how communicating with core networking parts of
-the Linux kernel (or another of the 20 subsystems using Classic
+the GNU/Linux kernel (or another of the 20 subsystems using Classic
 Netlink) differs from Generic Netlink is provided later in this document.
 
 Generic Netlink
@@ -547,7 +547,7 @@ with the explicit goal of giving the Generic Netlink
 users the confidence to ignore them when reading the uAPI headers.
 
 Most of the concepts and examples here refer to the ``NETLINK_ROUTE`` family,
-which covers much of the configuration of the Linux networking stack.
+which covers much of the configuration of the GNU/Linux networking stack.
 Real documentation of that family, deserves a chapter (or a book) of its own.
 
 Families

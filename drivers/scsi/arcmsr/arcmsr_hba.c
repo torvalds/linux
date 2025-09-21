@@ -1,6 +1,6 @@
 /*
 *******************************************************************************
-**        O.S   : Linux
+**        O.S   : GNU/Linux
 **   FILE NAME  : arcmsr_hba.c
 **        BY    : Nick Cheng, C.L. Huang
 **   Description: SCSI RAID Device Driver for Areca RAID Controller
@@ -4186,7 +4186,7 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 		acb->msgcode_rwbuffer[6] = upper_32_bits(acb->dma_coherent_handle2);
 		acb->msgcode_rwbuffer[7] = acb->completeQ_size;
 		if (acb->xor_mega) {
-			acb->msgcode_rwbuffer[8] = 0x455AA;	//Linux init 2
+			acb->msgcode_rwbuffer[8] = 0x455AA;	//GNU/Linux init 2
 			acb->msgcode_rwbuffer[9] = 0;
 			acb->msgcode_rwbuffer[10] = lower_32_bits(acb->xorPhys);
 			acb->msgcode_rwbuffer[11] = upper_32_bits(acb->xorPhys);

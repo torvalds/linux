@@ -1787,7 +1787,7 @@ static inline bool tcp_paws_reject(const struct tcp_options_received *rx_opt,
 	   out-of-sync and half-open connections will not be reset.
 	   Actually, the problem would be not existing if all
 	   the implementations followed draft about maintaining clock
-	   via reboots. Linux-2.2 DOES NOT!
+	   via reboots. GNU/Linux-2.2 DOES NOT!
 
 	   However, we can relax time bounds for RST segments to MSL.
 	 */

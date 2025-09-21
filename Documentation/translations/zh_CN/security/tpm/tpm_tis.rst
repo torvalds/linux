@@ -12,7 +12,7 @@ TPM FIFO接口驱动
 TCG PTP规范定义了两种接口类型：FIFO和CRB。前者基于顺序的读写操作，
 后者基于包含完整命令或响应的缓冲区。
 
-FIFO（先进先出）接口被tpm_tis_core依赖的驱动程序使用。最初，Linux只
+FIFO（先进先出）接口被tpm_tis_core依赖的驱动程序使用。最初，GNU/Linux只
 有一个名为tpm_tis的驱动，覆盖了内存映射（即 MMIO）接口，但后来它被
 扩展以支持TCG标准所支持的其他物理接口。
 

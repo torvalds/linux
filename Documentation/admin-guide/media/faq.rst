@@ -10,7 +10,7 @@ FAQ
 	This is what a TV user would call "channel". So, in order to
 	avoid confusion, we're calling *transponders* as the physical
 	channel on this FAQ, and *services* for the logical channel.
-     2. The LinuxTV community maintains some Wiki pages with contain
+     2. The GNU/LinuxTV community maintains some Wiki pages with contain
         a lot of information related to the media subsystem. If you
         don't find an answer for your needs here, it is likely that
         you'll be able to get something useful there. It is hosted
@@ -18,7 +18,7 @@ FAQ
 
 	https://www.linuxtv.org/wiki/
 
-Some very frequently asked questions about Linux Digital TV support
+Some very frequently asked questions about GNU/Linux Digital TV support
 
 1. The signal seems to die a few seconds after tuning.
 
@@ -31,14 +31,14 @@ Some very frequently asked questions about Linux Digital TV support
 
 2. How can I watch TV?
 
-	Together with the Linux Kernel, the Digital TV developers support
+	Together with the GNU/Linux Kernel, the Digital TV developers support
 	some simple utilities which are mainly intended for testing
 	and to demonstrate how the DVB API works. This is called DVB v5
 	tools and are grouped together with the ``v4l-utils`` git repository:
 
 	    https://git.linuxtv.org/v4l-utils.git/
 
-	You can find more information at the LinuxTV wiki:
+	You can find more information at the GNU/LinuxTV wiki:
 
 	    https://www.linuxtv.org/wiki/index.php/DVBv5_Tools
 
@@ -61,7 +61,7 @@ Some very frequently asked questions about Linux Digital TV support
 	application to obtain such list.
 
 	Most of such tools need a file containing a list of channel
-	transponders available on your area. So, LinuxTV developers
+	transponders available on your area. So, GNU/LinuxTV developers
 	maintain tables of Digital TV channel transponders, receiving
 	patches from the community to keep them updated.
 
@@ -122,7 +122,7 @@ Some very frequently asked questions about Linux Digital TV support
 		dvbstream and dvbtune
 
 	http://www.dbox2.info/
-		LinuxDVB on the dBox2
+		GNU/LinuxDVB on the dBox2
 
 	http://www.tuxbox.org/
 		the TuxBox CVS many interesting DVB applications and the dBox2
@@ -211,6 +211,6 @@ Some very frequently asked questions about Linux Digital TV support
 	The same happens if the board has support for analog TV: the
 	core support for video4linux need to be loaded.
 
-	The actual module names are Linux-kernel version specific, as,
+	The actual module names are GNU/Linux-kernel version specific, as,
 	from time to time, things change, in order to make the media
 	support more flexible.

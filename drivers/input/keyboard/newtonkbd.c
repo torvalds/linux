@@ -4,7 +4,7 @@
  */
 
 /*
- * Newton keyboard driver for Linux
+ * Newton keyboard driver for GNU/Linux
  */
 
 #include <linux/slab.h>

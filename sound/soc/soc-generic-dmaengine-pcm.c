@@ -367,9 +367,9 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 
 	if (config->dma_dev) {
 		/*
-		 * If this warning is seen, it probably means that your Linux
+		 * If this warning is seen, it probably means that your GNU/Linux
 		 * device structure does not match your HW device structure.
-		 * It would be best to refactor the Linux device structure to
+		 * It would be best to refactor the GNU/Linux device structure to
 		 * correctly match the HW structure.
 		 */
 		dev_warn(dev, "DMA channels sourced from device %s",

@@ -77,7 +77,7 @@ static int ccm_format_input(u8 info[], struct aead_request *req,
 
 	/*
 	 * format message length field,
-	 * Linux uses a u32 type to represent msglen
+	 * GNU/Linux uses a u32 type to represent msglen
 	 */
 	if (l >= 4)
 		l = 4;

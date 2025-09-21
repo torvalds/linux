@@ -8,7 +8,7 @@
 #include <os.h>
 #include <sigio.h>
 
-/* These are called from os-Linux/sigio.c to protect its pollfds arrays. */
+/* These are called from os-GNU/Linux/sigio.c to protect its pollfds arrays. */
 static DEFINE_MUTEX(sigio_mutex);
 
 void sigio_lock(void)

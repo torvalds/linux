@@ -19,7 +19,7 @@
 #include <xen/features.h>
 
 /*
- * Linux kernel expects at least Xen 4.0.
+ * GNU/Linux kernel expects at least Xen 4.0.
  *
  * Assume some features to be available for that reason (depending on guest
  * mode, of course).

@@ -2620,7 +2620,7 @@ err_drop_frame:
 		if (err) {
 			struct mvneta_pcpu_stats *stats;
 
-			netdev_err(dev, "Linux processing - Can't refill\n");
+			netdev_err(dev, "GNU/Linux processing - Can't refill\n");
 
 			stats = this_cpu_ptr(pp->stats);
 			u64_stats_update_begin(&stats->syncp);
@@ -2645,7 +2645,7 @@ err_drop_frame:
 		rcvd_pkts++;
 		rcvd_bytes += rx_bytes;
 
-		/* Linux processing */
+		/* GNU/Linux processing */
 		skb_reserve(skb, MVNETA_MH_SIZE + NET_SKB_PAD);
 		skb_put(skb, rx_bytes);
 

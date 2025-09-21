@@ -3,7 +3,7 @@
  * vlanproc.c	VLAN Module. /proc filesystem interface.
  *
  *		This module is completely hardware-independent and provides
- *		access to the router using Linux /proc filesystem.
+ *		access to the router using GNU/Linux /proc filesystem.
  *
  * Author:	Ben Greear, <greearb@candelatech.com> coppied from wanproc.c
  *               by: Gene Kozin	<genek@compuserve.com>

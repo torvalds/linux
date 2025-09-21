@@ -10,7 +10,7 @@
  * Board device tree source for Torbreck board.
  *
  * NOTE: This file is completely based on original board file for mach-torbreck
- * available in Linux 3.15 and intends to provide equivalent level of hardware
+ * available in GNU/Linux 3.15 and intends to provide equivalent level of hardware
  * support. Due to lack of hardware, _no_ testing has been performed.
  */
 

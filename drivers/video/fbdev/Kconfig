@@ -15,7 +15,7 @@ menuconfig FB
 	  anything about the low-level (hardware register) stuff.
 
 	  Frame buffer devices work identically across the different
-	  architectures supported by Linux and make the implementation of
+	  architectures supported by GNU/Linux and make the implementation of
 	  application programs easier and more portable; at this point, an X
 	  server exists which uses the frame buffer device exclusively.
 	  On several non-X86 architectures, the frame buffer device is the
@@ -215,7 +215,7 @@ config FB_AMIGA_OCS
 	help
 	  This enables support for the original Agnus and Denise video chips,
 	  found in the Amiga 1000 and most A500's and A2000's. If you intend
-	  to run Linux on any of these systems, say Y; otherwise say N.
+	  to run GNU/Linux on any of these systems, say Y; otherwise say N.
 
 config FB_AMIGA_ECS
 	bool "Amiga ECS chipset support"
@@ -223,7 +223,7 @@ config FB_AMIGA_ECS
 	help
 	  This enables support for the Enhanced Chip Set, found in later
 	  A500's, later A2000's, the A600, the A3000, the A3000T and CDTV. If
-	  you intend to run Linux on any of these systems, say Y; otherwise
+	  you intend to run GNU/Linux on any of these systems, say Y; otherwise
 	  say N.
 
 config FB_AMIGA_AGA
@@ -232,7 +232,7 @@ config FB_AMIGA_AGA
 	help
 	  This enables support for the Advanced Graphics Architecture (also
 	  known as the AGA or AA) Chip Set, found in the A1200, A4000, A4000T
-	  and CD32. If you intend to run Linux on any of these systems, say Y;
+	  and CD32. If you intend to run GNU/Linux on any of these systems, say Y;
 	  otherwise say N.
 
 config FB_FM2
@@ -399,7 +399,7 @@ config FB_TGA
 	  Due to hardware limitations ZLX-E2 and E3 cards are not supported
 	  for DECstation 5000/200 systems.  Additionally due to firmware
 	  limitations these cards may cause troubles with booting DECstation
-	  5000/240 and /260 systems, but are fully supported under Linux if
+	  5000/240 and /260 systems, but are fully supported under GNU/Linux if
 	  you manage to get it going. ;-)
 
 	  Say Y if you have one of those.

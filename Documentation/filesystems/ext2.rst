@@ -8,7 +8,7 @@ The Second Extended Filesystem
 ext2 was originally released in January 1993.  Written by R\'emy Card,
 Theodore Ts'o and Stephen Tweedie, it was a major rewrite of the
 Extended Filesystem.  It is currently still (April 2001) the predominant
-filesystem in use by Linux.  There are also implementations available
+filesystem in use by GNU/Linux.  There are also implementations available
 for NetBSD, FreeBSD, the GNU HURD, Windows 95/98/NT, OS/2 and RISC OS.
 
 Options
@@ -152,10 +152,10 @@ There are some reserved fields which are currently unused in the inode
 structure and several which are overloaded.  One field is reserved for the
 directory ACL if the inode is a directory and alternately for the top 32
 bits of the file size if the inode is a regular file (allowing file sizes
-larger than 2GB).  The translator field is unused under Linux, but is used
+larger than 2GB).  The translator field is unused under GNU/Linux, but is used
 by the HURD to reference the inode of a program which will be used to
 interpret this object.  Most of the remaining reserved fields have been
-used up for both Linux and the HURD for larger owner and group fields,
+used up for both GNU/Linux and the HURD for larger owner and group fields,
 The HURD also has a larger mode field so it uses another of the remaining
 fields to store the extra more bits.
 
@@ -389,8 +389,8 @@ Implementations for:
 =======================	===========================================================
 Windows 95/98/NT/2000	http://www.chrysocome.net/explore2fs
 Windows 95 [1]_		http://www.yipton.net/content.html#FSDEXT2
-DOS client [1]_		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
-OS/2 [2]_		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
+DOS client [1]_		ftp://metalab.unc.edu/pub/GNU/Linux/system/filesystems/ext2/
+OS/2 [2]_		ftp://metalab.unc.edu/pub/GNU/Linux/system/filesystems/ext2/
 RISC OS client		http://www.esw-heim.tu-clausthal.de/~marco/smorbrod/IscaFS/
 =======================	===========================================================
 

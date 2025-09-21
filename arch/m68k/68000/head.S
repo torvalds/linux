@@ -236,6 +236,6 @@ _clear_bss:
  *****************************************************************************/
 	lea	init_thread_union,%a0
 	lea	THREAD_SIZE(%a0),%sp
-	jsr	start_kernel			/* start Linux kernel */
+	jsr	start_kernel			/* start GNU/Linux kernel */
 _exit:
 	jmp	_exit				/* should never get here */

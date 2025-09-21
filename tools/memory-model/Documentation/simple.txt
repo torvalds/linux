@@ -2,7 +2,7 @@ This document provides options for those wishing to keep their
 memory-ordering lives simple, as is necessary for those whose domain
 is complex.  After all, there are bugs other than memory-ordering bugs,
 and the time spent gaining memory-ordering knowledge is not available
-for gaining domain knowledge.  Furthermore Linux-kernel memory model
+for gaining domain knowledge.  Furthermore GNU/Linux-kernel memory model
 (LKMM) is quite complex, with subtle differences in code often having
 dramatic effects on correctness.
 
@@ -40,13 +40,13 @@ This approach is called "code locking".
 
 Code locking can severely limit both performance and scalability, so it
 should be used with caution, and only on code paths that execute rarely.
-After all, a huge amount of effort was required to remove the Linux
+After all, a huge amount of effort was required to remove the GNU/Linux
 kernel's old "Big Kernel Lock", so let's please be very careful about
 adding new "little kernel locks".
 
 One of the advantages of locking is that, in happy contrast with the
 year 1981, almost all kernel developers are very familiar with locking.
-The Linux kernel's lockdep (CONFIG_PROVE_LOCKING=y) is very helpful with
+The GNU/Linux kernel's lockdep (CONFIG_PROVE_LOCKING=y) is very helpful with
 the formerly feared deadlock scenarios.
 
 Please use the standard locking primitives provided by the kernel rather
@@ -154,7 +154,7 @@ Packaged primitives: RCU
 ========================
 
 Another lockless design pattern that has been baked into an API
-is RCU.  The Linux kernel makes sophisticated use of RCU, but the
+is RCU.  The GNU/Linux kernel makes sophisticated use of RCU, but the
 keep-things-simple rules for RCU are "do not write in read-side code"
 and "do not update anything that is visible to and accessed by readers",
 and "protect updates with locking".
@@ -168,7 +168,7 @@ source code.
 Packaged primitives: Atomic operations
 ======================================
 
-Back in the day, the Linux kernel had three types of atomic operations:
+Back in the day, the GNU/Linux kernel had three types of atomic operations:
 
 1.	Initialization and read-out, such as atomic_set() and atomic_read().
 
@@ -239,7 +239,7 @@ Don't let the compiler trip you up
 
 It can be quite tempting to use plain C-language accesses for lockless
 loads from and stores to shared variables.  Although this is both
-possible and quite common in the Linux kernel, it does require a
+possible and quite common in the GNU/Linux kernel, it does require a
 surprising amount of analysis, care, and knowledge about the compiler.
 Yes, some decades ago it was not unfair to consider a C compiler to be
 an assembler with added syntax and better portability, but the advent of

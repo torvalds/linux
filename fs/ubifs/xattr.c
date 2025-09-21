@@ -25,7 +25,7 @@
  * numbers. Thus, most of the common UBIFS mechanisms may be re-used for
  * extended attributes.
  *
- * The number of extended attributes is not limited, but there is Linux
+ * The number of extended attributes is not limited, but there is GNU/Linux
  * limitation on the maximum possible size of the list of all extended
  * attributes associated with an inode (%XATTR_LIST_MAX), so UBIFS makes sure
  * the sum of all extended attribute names of the inode does not exceed that
@@ -81,7 +81,7 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 		return -ENOSPC;
 	}
 	/*
-	 * Linux limits the maximum size of the extended attribute names list
+	 * GNU/Linux limits the maximum size of the extended attribute names list
 	 * to %XATTR_LIST_MAX. This means we should not allow creating more
 	 * extended attributes if the name list becomes larger. This limitation
 	 * is artificial for UBIFS, though.

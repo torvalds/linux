@@ -10,7 +10,7 @@ config DVB_USB
 	  Almost every USB device needs a firmware, please look into
 	  <file:Documentation/driver-api/media/drivers/dvb-usb.rst>.
 
-	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
+	  For a complete list of supported USB devices see the GNU/LinuxTV DVB Wiki:
 	  <https://linuxtv.org/wiki/index.php/DVB_USB>
 
 	  Say Y if you own a USB DVB device.
@@ -130,7 +130,7 @@ config DVB_USB_DIB0700
 	  Avermedia and other big and small companies.
 
 	  For an up-to-date list of devices supported by this driver, have a look
-	  on the LinuxTV Wiki at www.linuxtv.org.
+	  on the GNU/LinuxTV Wiki at www.linuxtv.org.
 
 	  Say Y if you own such a device and want to use it. You should build it as
 	  a module.
@@ -157,7 +157,7 @@ config DVB_USB_DIBUSB_MB
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-B demodulator.
 
 	  For an up-to-date list of devices supported by this driver, have a look
-	  on the Linux-DVB Wiki at www.linuxtv.org.
+	  on the GNU/Linux-DVB Wiki at www.linuxtv.org.
 
 	  Say Y if you own such a device and want to use it. You should build it as
 	  a module.
@@ -178,7 +178,7 @@ config DVB_USB_DIBUSB_MC
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-C/P demodulator.
 
 	  For an up-to-date list of devices supported by this driver, have a look
-	  on the Linux-DVB Wiki at www.linuxtv.org.
+	  on the GNU/Linux-DVB Wiki at www.linuxtv.org.
 
 	  Say Y if you own such a device and want to use it. You should build it as
 	  a module.

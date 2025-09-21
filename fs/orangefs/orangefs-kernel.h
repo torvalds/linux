@@ -6,14 +6,14 @@
  */
 
 /*
- *  The ORANGEFS Linux kernel support allows ORANGEFS volumes to be mounted and
- *  accessed through the Linux VFS (i.e. using standard I/O system calls).
+ *  The ORANGEFS GNU/Linux kernel support allows ORANGEFS volumes to be mounted and
+ *  accessed through the GNU/Linux VFS (i.e. using standard I/O system calls).
  *  This support is only needed on clients that wish to mount the file system.
  *
  */
 
 /*
- *  Declarations and macros for the ORANGEFS Linux kernel support.
+ *  Declarations and macros for the ORANGEFS GNU/Linux kernel support.
  */
 
 #ifndef __ORANGEFSKERNEL_H

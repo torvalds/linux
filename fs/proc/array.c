@@ -619,7 +619,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	seq_put_decimal_ull(m, " ", esp);
 	seq_put_decimal_ull(m, " ", eip);
 	/* The signal information here is obsolete.
-	 * It must be decimal for Linux 2.0 compatibility.
+	 * It must be decimal for GNU/Linux 2.0 compatibility.
 	 * Use /proc/#/status for real-time signals.
 	 */
 	seq_put_decimal_ull(m, " ", task->pending.signal.sig[0] & 0x7fffffffUL);

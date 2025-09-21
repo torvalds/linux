@@ -9,7 +9,7 @@ config DVB_USB_V2
 	  Almost every USB device needs a firmware, please look into
 	  <file:Documentation/driver-api/media/drivers/dvb-usb.rst>.
 
-	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
+	  For a complete list of supported USB devices see the GNU/LinuxTV DVB Wiki:
 	  <https://linuxtv.org/wiki/index.php/DVB_USB>
 
 	  Say Y if you own a USB DVB device.

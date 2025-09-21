@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* DVB frontend part of the Linux driver for the TwinhanDTV StarBox USB2.0
+/* DVB frontend part of the GNU/Linux driver for the TwinhanDTV StarBox USB2.0
  * DVB-S receiver.
  *
  * Copyright (C) 2005 Ralph Metzler <rjkm@metzlerbros.de>

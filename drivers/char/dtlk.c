@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*                                              -*- linux-c -*-
- * dtlk.c - DoubleTalk PC driver for Linux
+ * dtlk.c - DoubleTalk PC driver for GNU/Linux
  *
  * Original author: Chris Pallotta <chris@allmedia.com>
  * Current maintainer: Jim Van Zandt <jrv@vanzandt.mv.com>

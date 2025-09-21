@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _PARISC_ERRNO_H
 #define _PARISC_ERRNO_H
 
@@ -42,7 +42,7 @@
 #define	EREMOTE		71	/* Object is remote */
 #define	EOVERFLOW	72	/* Value too large for defined data type */
 
-/* these errnos are defined by Linux but not HPUX. */
+/* these errnos are defined by GNU/Linux but not HPUX. */
 
 #define	EBADE		160	/* Invalid exchange */
 #define	EBADR		161	/* Invalid request descriptor */

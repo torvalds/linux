@@ -17,9 +17,9 @@ description:
   this process RAM itself becomes briefly inaccessible so actual frequency
   switching is implemented by TF-A code which runs from a SRAM area.
 
-  The Linux driver for the DDRC doesn't even map registers (they're included
+  The GNU/Linux driver for the DDRC doesn't even map registers (they're included
   for the sake of "describing hardware"), it mostly just exposes firmware
-  capabilities through standard Linux mechanism like devfreq and OPP tables.
+  capabilities through standard GNU/Linux mechanism like devfreq and OPP tables.
 
 properties:
   compatible:

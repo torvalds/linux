@@ -1,5 +1,5 @@
 /*
- * Linux ARCnet driver - COM20020 PCMCIA support
+ * GNU/Linux ARCnet driver - COM20020 PCMCIA support
  *
  * Written 1994-1999 by Avery Pennarun,
  *    based on an ISA version by David Woodhouse.

@@ -93,7 +93,7 @@ void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
 void do_hw_interrupt(struct pt_regs *regs, unsigned long type)
 {
 	if(type < 0x80) {
-		/* Sun OS's puke from bad traps, Linux survives! */
+		/* Sun OS's puke from bad traps, GNU/Linux survives! */
 		printk("Unimplemented Sparc TRAP, type = %02lx\n", type);
 		die_if_kernel("Whee... Hello Mr. Penguin", regs);
 	}	

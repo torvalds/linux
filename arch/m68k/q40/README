@@ -1,9 +1,9 @@
-Linux for the Q40
+GNU/Linux for the Q40
 =================
 
 You may try http://www.geocities.com/SiliconValley/Bay/2602/ for
 some up to date information. Booter and other tools will be also
-available from this place or http://ftp.uni-erlangen.de/pub/unix/Linux/680x0/q40/
+available from this place or http://ftp.uni-erlangen.de/pub/unix/GNU/Linux/680x0/q40/
 and mirrors.
 
 Hints to documentation usually refer to the linux source tree in
@@ -19,7 +19,7 @@ The floppy imposes a very high interrupt load on the CPU, approx 30K/s.
 When something blocks interrupts (HD) it will lose some of them, so far
 this is not known to have caused any data loss. On highly loaded systems
 it can make the floppy very slow or practically stop. Other Q40 OS' simply
-poll the floppy for this reason - something that can't be done in Linux.
+poll the floppy for this reason - something that can't be done in GNU/Linux.
 Only possible cure is getting a 82072 controller with fifo instead of
 the 8272A.
 
@@ -91,7 +91,7 @@ The Q40 custom chip is programmable to provide 2 periodic timers:
 	- 50 or 200 Hz - level 2, !!THIS CAN'T BE DISABLED!!
 	- 10 or 20 KHz - level 4, used for dma-sound
 
-Linux uses the 200 Hz interrupt for timer and beep by default.
+GNU/Linux uses the 200 Hz interrupt for timer and beep by default.
 
 
 Interrupts
@@ -99,7 +99,7 @@ Interrupts
 
 q40 master chip handles only a subset of level triggered interrupts.
 
-Linux has some requirements wrt interrupt architecture, these are
+GNU/Linux has some requirements wrt interrupt architecture, these are
 to my knowledge:
 	(a) interrupt handler must not be reentered even when sti() is called
 	    from within handler
@@ -119,7 +119,7 @@ Keyboard
 ========
 
 q40 receives AT make/break codes from the keyboard, these are translated to
-the PC scancodes x86 Linux uses. So by theory every national keyboard should
+the PC scancodes x86 GNU/Linux uses. So by theory every national keyboard should
 work just by loading the appropriate x86 keytable - see any national-HOWTO.
 
 Unfortunately the AT->PC translation isn't quite trivial and even worse, my

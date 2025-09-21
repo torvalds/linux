@@ -113,7 +113,7 @@ same reason, an autosuspended device will usually have remote wakeup
 enabled, if the device supports remote wakeup.
 
 It is worth mentioning that many USB drivers don't support
-autosuspend.  In fact, at the time of this writing (Linux 2.6.23) the
+autosuspend.  In fact, at the time of this writing (GNU/Linux 2.6.23) the
 only drivers which do support it are the hub driver, kaweth, asix,
 usblp, usblcd, and usb-skeleton (which doesn't count).  If a
 non-supporting driver is bound to a device, the device won't be
@@ -569,7 +569,7 @@ controlled through ``Set/ClearPortFeature(PORT_POWER)`` requests to a hub.
 In the case of a root or platform-internal hub the host controller
 driver translates ``PORT_POWER`` requests into platform firmware (ACPI)
 method calls to set the port power state. For more background see the
-Linux Plumbers Conference 2012 slides [#f1]_ and video [#f2]_:
+GNU/Linux Plumbers Conference 2012 slides [#f1]_ and video [#f2]_:
 
 Upon receiving a ``ClearPortFeature(PORT_POWER)`` request a USB port is
 logically off, and may trigger the actual loss of VBUS to the port [#f3]_.

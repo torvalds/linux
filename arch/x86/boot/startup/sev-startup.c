@@ -262,7 +262,7 @@ void __head early_snp_set_memory_shared(unsigned long vaddr, unsigned long paddr
  *   - via boot_params
  *
  * - when booted directly by firmware/bootloader (e.g. CONFIG_PVH):
- *   - via a setup_data entry, as defined by the Linux Boot Protocol
+ *   - via a setup_data entry, as defined by the GNU/Linux Boot Protocol
  *
  * Scan for the blob in that order.
  */

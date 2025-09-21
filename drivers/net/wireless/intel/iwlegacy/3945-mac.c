@@ -7,7 +7,7 @@
  * as portions of the ieee80211 subsystem header files.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel GNU/Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -45,7 +45,7 @@
  */
 
 #define DRV_DESCRIPTION	\
-"Intel(R) PRO/Wireless 3945ABG/BG Network Connection driver for Linux"
+"Intel(R) PRO/Wireless 3945ABG/BG Network Connection driver for GNU/Linux"
 
 #ifdef CONFIG_IWLEGACY_DEBUG
 #define VD "d"

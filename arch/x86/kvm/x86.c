@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Kernel-based Virtual Machine driver for Linux
+ * Kernel-based Virtual Machine driver for GNU/Linux
  *
  * derived from drivers/kvm/kvm_main.c
  *
@@ -3516,7 +3516,7 @@ static int set_msr_mce(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 		/*
 		 * Only 0 or all 1s can be written to IA32_MCi_CTL, all other
-		 * values are architecturally undefined.  But, some Linux
+		 * values are architecturally undefined.  But, some GNU/Linux
 		 * kernels clear bit 10 in bank 4 to workaround a BIOS/GART TLB
 		 * issue on AMD K8s, allow bit 10 to be clear when setting all
 		 * other bits in order to avoid an uncaught #GP in the guest.
@@ -3873,7 +3873,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		data &= ~(u64)0x8;	/* ignore TLB cache disable */
 
 		/*
-		 * Allow McStatusWrEn and TscFreqSel. (Linux guests from v3.2
+		 * Allow McStatusWrEn and TscFreqSel. (GNU/Linux guests from v3.2
 		 * through at least v6.6 whine if TscFreqSel is clear,
 		 * depending on F/M/S.
 		 */

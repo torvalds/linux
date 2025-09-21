@@ -4,7 +4,7 @@
  */
 
 /*
- * Creative Labs Blaster GamePad Cobra driver for Linux
+ * Creative Labs Blaster GamePad Cobra driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

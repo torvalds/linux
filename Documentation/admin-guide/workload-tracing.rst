@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: (GPL-2.0+ OR CC-BY-4.0)
 
 ======================================================
-Discovering Linux kernel subsystems used by a workload
+Discovering GNU/Linux kernel subsystems used by a workload
 ======================================================
 
 :Authors: - Shuah Khan <skhan@linuxfoundation.org>
@@ -13,7 +13,7 @@ Key Points
 
  * Understanding system resources necessary to build and run a workload
    is important.
- * Linux tracing and strace can be used to discover the system resources
+ * GNU/Linux tracing and strace can be used to discover the system resources
    in use by a workload. The completeness of the system usage information
    depends on the completeness of coverage of a workload.
  * Performance and security of the operating system can be analyzed with
@@ -54,7 +54,7 @@ strace tool can be used to trace system calls made by a process and signals
 it receives. System calls are the fundamental interface between an
 application and the operating system kernel. They enable a program to
 request services from the kernel. For instance, the open() system call in
-Linux is used to provide access to a file in the file system. strace enables
+GNU/Linux is used to provide access to a file in the file system. strace enables
 us to track all the system calls made by an application. It lists all the
 system calls made by a process and their resulting output.
 
@@ -72,13 +72,13 @@ Getting the system ready for tracing
 ====================================
 
 Before we can get started we will show you how to get your system ready.
-We assume that you have a Linux distribution running on a physical system
+We assume that you have a GNU/Linux distribution running on a physical system
 or a virtual machine. Most distributions will include strace command. Let’s
-install other tools that aren’t usually included to build Linux kernel.
+install other tools that aren’t usually included to build GNU/Linux kernel.
 Please note that the following works on Debian based distributions. You
-might have to find equivalent packages on other Linux distributions.
+might have to find equivalent packages on other GNU/Linux distributions.
 
-Install tools to build Linux kernel and tools in kernel repository.
+Install tools to build GNU/Linux kernel and tools in kernel repository.
 scripts/ver_linux is a good way to check if your system already has
 the necessary tools::
 
@@ -98,7 +98,7 @@ Workload overview
 =================
 
 As mentioned earlier, we used strace to trace perf bench, stress-ng and
-paxtest workloads to show how to analyze a workload and identify Linux
+paxtest workloads to show how to analyze a workload and identify GNU/Linux
 subsystems used by these workloads. Let's start with an overview of these
 three workloads to get a better understanding of what they do and how to
 use them.
@@ -107,7 +107,7 @@ perf bench (all) workload
 -------------------------
 
 The perf bench command contains multiple multi-threaded microkernel
-benchmarks for executing different subsystems in the Linux kernel and
+benchmarks for executing different subsystems in the GNU/Linux kernel and
 system calls. This allows us to easily measure the impact of changes,
 which can help mitigate performance regressions. It also acts as a common
 benchmarking framework, enabling developers to easily create test cases,
@@ -189,7 +189,7 @@ We can use cscope to find which system call belongs to which subsystem.
 This way we can find the kernel subsystems used by a process when it is
 executed.
 
-Let’s checkout the latest Linux repository and build cscope database::
+Let’s checkout the latest GNU/Linux repository and build cscope database::
 
   git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git linux
   cd linux
@@ -205,13 +205,13 @@ kernel sources.
 What is perf and how do we use it?
 ==================================
 
-Perf is an analysis tool based on Linux 2.6+ systems, which abstracts the
-CPU hardware difference in performance measurement in Linux, and provides
+Perf is an analysis tool based on GNU/Linux 2.6+ systems, which abstracts the
+CPU hardware difference in performance measurement in GNU/Linux, and provides
 a simple command line interface. Perf is based on the perf_events interface
 exported by the kernel. It is very useful for profiling the system and
 finding performance bottlenecks in an application.
 
-If you haven't already checked out the Linux mainline repository, you can do
+If you haven't already checked out the GNU/Linux mainline repository, you can do
 so and then build kernel and perf tool::
 
   git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git linux
@@ -237,7 +237,7 @@ stats for cal command.
 Perf bench
 ----------
 The perf bench command contains multiple multi-threaded microkernel
-benchmarks for executing different subsystems in the Linux kernel and
+benchmarks for executing different subsystems in the GNU/Linux kernel and
 system calls. This allows us to easily measure the impact of changes,
 which can help mitigate performance regressions. It also acts as a common
 benchmarking framework, enabling developers to easily create test cases,
@@ -324,10 +324,10 @@ Run the following command to trace perf bench all workload::
 **System Calls made by the workload**
 
 The below table shows the system calls invoked by the workload, number of
-times each system call is invoked, and the corresponding Linux subsystem.
+times each system call is invoked, and the corresponding GNU/Linux subsystem.
 
 +-------------------+-----------+-----------------+-------------------------+
-| System Call       | # calls   | Linux Subsystem | System Call (API)       |
+| System Call       | # calls   | GNU/Linux Subsystem | System Call (API)       |
 +===================+===========+=================+=========================+
 | getppid           | 10000001  | Process Mgmt    | sys_getpid()            |
 +-------------------+-----------+-----------------+-------------------------+
@@ -434,10 +434,10 @@ Run the following command to trace stress-ng netdev stressor workload::
 **System Calls made by the workload**
 
 The below table shows the system calls invoked by the workload, number of
-times each system call is invoked, and the corresponding Linux subsystem.
+times each system call is invoked, and the corresponding GNU/Linux subsystem.
 
 +-------------------+-----------+-----------------+-------------------------+
-| System Call       | # calls   | Linux Subsystem | System Call (API)       |
+| System Call       | # calls   | GNU/Linux Subsystem | System Call (API)       |
 +===================+===========+=================+=========================+
 | openat            | 74        | Filesystem      | sys_openat()            |
 +-------------------+-----------+-----------------+-------------------------+
@@ -528,10 +528,10 @@ Run the following command to trace paxtest kiddie workload::
 **System Calls made by the workload**
 
 The below table shows the system calls invoked by the workload, number of
-times each system call is invoked, and the corresponding Linux subsystem.
+times each system call is invoked, and the corresponding GNU/Linux subsystem.
 
 +-------------------+-----------+-----------------+----------------------+
-| System Call       | # calls   | Linux Subsystem | System Call (API)    |
+| System Call       | # calls   | GNU/Linux Subsystem | System Call (API)    |
 +===================+===========+=================+======================+
 | read              | 3         | Filesystem      | sys_read()           |
 +-------------------+-----------+-----------------+----------------------+
@@ -597,8 +597,8 @@ information on the resources in use by workloads using strace.
 References
 ==========
 
- * `Discovery Linux Kernel Subsystems used by OpenAPS <https://elisa.tech/blog/2022/02/02/discovery-linux-kernel-subsystems-used-by-openaps>`_
- * `ELISA-White-Papers-Discovering Linux kernel subsystems used by a workload <https://github.com/elisa-tech/ELISA-White-Papers/blob/master/Processes/Discovering_Linux_kernel_subsystems_used_by_a_workload.md>`_
+ * `Discovery GNU/Linux Kernel Subsystems used by OpenAPS <https://elisa.tech/blog/2022/02/02/discovery-linux-kernel-subsystems-used-by-openaps>`_
+ * `ELISA-White-Papers-Discovering GNU/Linux kernel subsystems used by a workload <https://github.com/elisa-tech/ELISA-White-Papers/blob/master/Processes/Discovering_GNU/Linux_kernel_subsystems_used_by_a_workload.md>`_
  * `strace <https://man7.org/linux/man-pages/man1/strace.1.html>`_
  * `perf <https://man7.org/linux/man-pages/man1/perf.1.html>`_
  * `paxtest README <https://github.com/opntr/paxtest-freebsd/blob/hardenedbsd/0.9.14-hbsd/README>`_

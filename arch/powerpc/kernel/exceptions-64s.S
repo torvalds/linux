@@ -1399,13 +1399,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
  * Handling:
  * - Hash MMU
  *   Go to do_hash_fault, which attempts to fill the HPT from an entry in the
- *   Linux page table. Hash faults can hit in kernel mode in a fairly
+ *   GNU/Linux page table. Hash faults can hit in kernel mode in a fairly
  *   arbitrary state (e.g., interrupts disabled, locks held) when accessing
  *   "non-bolted" regions, e.g., vmalloc space. However these should always be
- *   backed by Linux page table entries.
+ *   backed by GNU/Linux page table entries.
  *
- *   If no entry is found the Linux page fault handler is invoked (by
- *   do_hash_fault). Linux page faults can happen in kernel mode due to user
+ *   If no entry is found the GNU/Linux page fault handler is invoked (by
+ *   do_hash_fault). GNU/Linux page faults can happen in kernel mode due to user
  *   copy operations of course.
  *
  *   KVM: The KVM HDSI handler may perform a load with MSR[DR]=1 in guest
@@ -1414,10 +1414,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
  *   always be used regardless of AIL setting.
  *
  * - Radix MMU
- *   The hardware loads from the Linux page table directly, so a fault goes
- *   immediately to Linux page fault.
+ *   The hardware loads from the GNU/Linux page table directly, so a fault goes
+ *   immediately to GNU/Linux page fault.
  *
- * Conditions like DAWR match are handled on the way in to Linux page fault.
+ * Conditions like DAWR match are handled on the way in to GNU/Linux page fault.
  */
 INT_DEFINE_BEGIN(data_access)
 	IVEC=0x300
@@ -1606,16 +1606,16 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
  * interrupt). It is maskable in hardware by clearing MSR[EE], and
  * soft-maskable with IRQS_DISABLED mask (i.e., local_irq_disable()).
  *
- * When running in HV mode, Linux sets up the LPCR[LPES] bit such that
+ * When running in HV mode, GNU/Linux sets up the LPCR[LPES] bit such that
  * interrupts are delivered with HSRR registers, guests use SRRs, which
  * reqiures IHSRR_IF_HVMODE.
  *
- * On bare metal POWER9 and later, Linux sets the LPCR[HVICE] bit such that
+ * On bare metal POWER9 and later, GNU/Linux sets the LPCR[HVICE] bit such that
  * external interrupts are delivered as Hypervisor Virtualization Interrupts
  * rather than External Interrupts.
  *
  * Handling:
- * This calls into Linux IRQ handler. NVGPRs are not saved to reduce overhead,
+ * This calls into GNU/Linux IRQ handler. NVGPRs are not saved to reduce overhead,
  * because registers at the time of the interrupt are not so important as it is
  * asynchronous.
  *
@@ -1808,7 +1808,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
  * local_irq_disable()).
  *
  * Handling:
- * This calls into Linux timer handler. NVGPRs are not saved (see 0x500).
+ * This calls into GNU/Linux timer handler. NVGPRs are not saved (see 0x500).
  *
  * If soft masked, the masked handler will note the pending interrupt for
  * replay, and bump the decrementer to a high value, leaving MSR[EE] enabled
@@ -1849,7 +1849,7 @@ EXC_COMMON_BEGIN(decrementer_common)
  * register.
  *
  * Handling:
- * Linux does not use this outside KVM where it's used to keep a host timer
+ * GNU/Linux does not use this outside KVM where it's used to keep a host timer
  * while the guest is given control of DEC. It should normally be caught by
  * the KVM test and routed there.
  */
@@ -1947,7 +1947,7 @@ EXC_VIRT_NONE(0x4b00, 0x100)
  *
  * Handling:
  * If the KVM test fires then it was due to a hypercall and is accordingly
- * routed to KVM. Otherwise this executes a normal Linux system call.
+ * routed to KVM. Otherwise this executes a normal GNU/Linux system call.
  *
  * Call convention:
  *
@@ -2327,7 +2327,7 @@ EXC_VIRT_NONE(0x4ee0, 0x20)
  * Handling:
  * This calls into the perf subsystem.
  *
- * Like the watchdog soft-nmi, it appears an NMI interrupt to Linux, in that it
+ * Like the watchdog soft-nmi, it appears an NMI interrupt to GNU/Linux, in that it
  * runs under local_irq_disable. However it may be soft-masked in
  * powerpc-specific code.
  *

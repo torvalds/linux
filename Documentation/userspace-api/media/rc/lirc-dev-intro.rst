@@ -6,7 +6,7 @@
 Introduction
 ************
 
-LIRC stands for Linux Infrared Remote Control. The LIRC device interface is
+LIRC stands for GNU/Linux Infrared Remote Control. The LIRC device interface is
 a bi-directional interface for transporting raw IR and decoded scancodes
 data between userspace and kernelspace. Fundamentally, it is just a chardev
 (/dev/lircX, for X = 0, 1, 2, ...), with a number of standard struct

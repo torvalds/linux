@@ -69,7 +69,7 @@
 				 * [CHRP] En WaitReqA: Lets the WaitReq_L
 				 * signal from port A of the SCC appear
 				 * on the PA7 input pin (CHRP). Output.
-				 * [MkLinux] "Drive Select"
+				 * [MkGNU/Linux] "Drive Select"
 				 *  (with 0x20 being 'disk head select')
 				 */
 #define VIA1A_vSync	0x08    /* [CHRP] Sync Modem: modem clock select:
@@ -85,7 +85,7 @@
  * On IIci,IIfx, bits 1-2 are the rest of the CPU ID:
  * bit 2: 1=IIci, 0=IIfx
  * bit 1: 1 on both IIci and IIfx.
- * MkLinux sez bit 0 is 'burnin flag' in this case.
+ * MkGNU/Linux sez bit 0 is 'burnin flag' in this case.
  * CHRP sez: VIA1A bits 0-2 and 5 are 'unused': if programmed as
  * inputs, these bits will read 0.
  */
@@ -95,7 +95,7 @@
 #define VIA1A_CPUID2	0x10	/* CPU id bit 0 on RBV, others */
 #define VIA1A_CPUID3	0x40	/* CPU id bit 0 on RBV, others */
 
-/* Info on VIA1B is from Macintosh Family Hardware & MkLinux.
+/* Info on VIA1B is from Macintosh Family Hardware & MkGNU/Linux.
  * CHRP offers no info. */
 #define VIA1B_vSound	0x80	/* Sound enable (for compatibility with
 				 * PWM hardware) 0=enabled.
@@ -112,7 +112,7 @@
 #define VIA1B_vRTCClk	0x02    /* Real time clock serial-clock line. */
 #define VIA1B_vRTCData	0x01    /* Real time clock serial-data line. */
 
-/* MkLinux defines the following "VIA1 Register B contents where they
+/* MkGNU/Linux defines the following "VIA1 Register B contents where they
  * differ from standard VIA1".  From the naming scheme, we assume they
  * correspond to a VIA work-alike named 'EVR'. */
 #define	EVRB_XCVR	0x08	/* XCVR_SESSION* */
@@ -127,7 +127,7 @@
  *	VIA2 A register is the interrupt lines raised off the nubus
  *	slots.
  *      The below info is from 'Macintosh Family Hardware.'
- *      MkLinux calls the 'IIci internal video IRQ' below the 'RBV slot 0 irq.'
+ *      MkGNU/Linux calls the 'IIci internal video IRQ' below the 'RBV slot 0 irq.'
  *      It also notes that the slot $9 IRQ is the 'Ethernet IRQ' and
  *      defines the 'Video IRQ' as 0x40 for the 'EVR' VIA work-alike.
  *      Perhaps OSS uses vRAM1 and vRAM2 for ADB.
@@ -157,7 +157,7 @@
 #define VIA2B_vVBL	0x80	/* VBL output to VIA1 (60.15Hz) driven by
 				 * timer T1.
 				 * on IIci, parity test: 0=test mode.
-				 * [MkLinux] RBV_PARODD: 1=odd,0=even. */
+				 * [MkGNU/Linux] RBV_PARODD: 1=odd,0=even. */
 #define VIA2B_vSndJck	0x40	/* External sound jack status.
 				 * 0=plug is inserted.  On SE/30, always 0 */
 #define VIA2B_vTfr0	0x20	/* Transfer mode bit 0 ack from NuBus */

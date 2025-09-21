@@ -58,19 +58,19 @@ Terminology
 The MIPI SoundWire specification uses the term 'device' to refer to a Master
 or Slave interface, which of course can be confusing. In this summary and
 code we use the term interface only to refer to the hardware. We follow the
-Linux device model by mapping each Slave interface connected on the bus as a
-device managed by a specific driver. The Linux SoundWire subsystem provides
+GNU/Linux device model by mapping each Slave interface connected on the bus as a
+device managed by a specific driver. The GNU/Linux SoundWire subsystem provides
 a framework to implement a SoundWire Slave driver with an API allowing
 3rd-party vendors to enable implementation-defined functionality while
 common setup/configuration tasks are handled by the bus.
 
 Bus:
-Implements SoundWire Linux Bus which handles the SoundWire protocol.
+Implements SoundWire GNU/Linux Bus which handles the SoundWire protocol.
 Programs all the MIPI-defined Slave registers. Represents a SoundWire
 Master. Multiple instances of Bus may be present in a system.
 
 Slave:
-Registers as SoundWire Slave device (Linux Device). Multiple Slave devices
+Registers as SoundWire Slave device (GNU/Linux Device). Multiple Slave devices
 can register to a Bus instance.
 
 Slave driver:

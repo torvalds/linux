@@ -32,7 +32,7 @@
  *
  * DESCRIPTION:
  *
- * This is the Linux low-level SCSI driver for Future Domain TMC-1660/1680
+ * This is the GNU/Linux low-level SCSI driver for Future Domain TMC-1660/1680
  * TMC-1650/1670, and TMC-3260 SCSI host adapters.  The 1650 and 1670 have a
  * 25-pin external connector, whereas the 1660 and 1680 have a SCSI-2 50-pin
  * high-density external connector.  The 1670 and 1680 have floppy disk

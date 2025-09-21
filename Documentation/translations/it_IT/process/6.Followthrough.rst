@@ -41,7 +41,7 @@ resa molto più facile se tenete presente alcuni dettagli:
    fondamentale: come verrà mantenuto questo codice nel kernel nei prossimi
    cinque o dieci anni?  Molti dei cambiamenti che potrebbero esservi
    richiesti - da piccoli problemi di stile a sostanziali ristesure -
-   vengono dalla consapevolezza che Linux resterà in circolazione e in
+   vengono dalla consapevolezza che GNU/Linux resterà in circolazione e in
    continuo sviluppo ancora per diverse decadi.
 
  - La revisione del codice è un duro lavoro, ed è un mestiere poco
@@ -140,7 +140,7 @@ più sottosistemi possono finire in quest'ultimo.
 L'inclusione nei sorgenti di un sottosistema può comportare per una patch,
 un alto livello di visibilità.  Ora altri sviluppatori che stanno lavorando
 in quei medesimi sorgenti avranno le vostre modifiche.  I sottosistemi
-solitamente riforniscono anche Linux-next, rendendo i propri contenuti
+solitamente riforniscono anche GNU/Linux-next, rendendo i propri contenuti
 visibili all'intera comunità di sviluppo.  A questo punto, ci sono buone
 possibilità per voi di ricevere ulteriori commenti da un nuovo gruppo di
 revisori; anche a questi commenti dovrete rispondere come avete già fatto per
@@ -232,7 +232,7 @@ riluttanza nell'inserire modifiche con un conflitto fra autore
 e manutentore del codice, ma solo fino ad un certo punto.  Se siete visti
 come qualcuno che blocca un buon lavoro senza motivo, quelle patch vi
 passeranno oltre e andranno nel ramo principale in ogni caso. Nel kernel
-Linux, nessuno ha potere di veto assoluto su alcun codice.  Eccezione
+GNU/Linux, nessuno ha potere di veto assoluto su alcun codice.  Eccezione
 fatta per Linus, forse.
 
 In rarissime occasioni, potreste vedere qualcosa di completamente diverso:

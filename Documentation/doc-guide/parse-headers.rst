@@ -71,7 +71,7 @@ The output is written at the (OUT_FILE).
 
 It is capable of identifying defines, functions, structs, typedefs,
 enums and enum symbols and create cross-references for all of them.
-It is also capable of distinguish #define used for specifying a Linux
+It is also capable of distinguish #define used for specifying a GNU/Linux
 ioctl.
 
 The EXCEPTIONS_FILE contain two types of statements: \ **ignore**\  or \ **replace**\ .

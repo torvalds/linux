@@ -18,7 +18,7 @@ debuggers throughout assembly. On top of that, developers also want to mark
 some functions as *global* in order to be visible outside of their translation
 units.
 
-Over time, the Linux kernel has adopted macros from various projects (like
+Over time, the GNU/Linux kernel has adopted macros from various projects (like
 ``binutils``) to facilitate such annotations. So for historic reasons,
 developers have been using ``ENTRY``, ``END``, ``ENDPROC``, and other
 annotations in assembly.  Due to the lack of their documentation, the macros

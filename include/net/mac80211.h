@@ -27,7 +27,7 @@
 /**
  * DOC: Introduction
  *
- * mac80211 is the Linux stack for 802.11 hardware that implements
+ * mac80211 is the GNU/Linux stack for 802.11 hardware that implements
  * only partial functionality in hard- or firmware. This document
  * defines the interface between mac80211 and low-level hardware
  * drivers.

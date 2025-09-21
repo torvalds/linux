@@ -121,7 +121,7 @@ to a device using the ENQCMD.
 
 That first access will trigger a #GP fault because the IA32_PASID MSR
 has not been initialized with the PASID value assigned to the process
-when the device was opened. The Linux #GP handler notes that a PASID has
+when the device was opened. The GNU/Linux #GP handler notes that a PASID has
 been allocated for the process, and so initializes the IA32_PASID MSR
 and returns so that the ENQCMD instruction is re-executed.
 
@@ -171,7 +171,7 @@ FAQ
 
 Shared Virtual Addressing (SVA) permits I/O hardware and the processor to
 work in the same address space, i.e., to share it. Some call it Shared
-Virtual Memory (SVM), but Linux community wanted to avoid confusing it with
+Virtual Memory (SVM), but GNU/Linux community wanted to avoid confusing it with
 POSIX Shared Memory and Secure Virtual Machines which were terms already in
 circulation.
 

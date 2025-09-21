@@ -48,7 +48,7 @@
 #  The firmware files are not included (may change in future).  You
 #  must obtain these images from Turtle Beach (they are included in
 #  the MultiSound Development Kits), and place them in /etc/sound for
-#  example, and give the full paths in the Linux configuration.  If
+#  example, and give the full paths in the GNU/Linux configuration.  If
 #  you are compiling in support for the MultiSound driver rather than
 #  using it as a module, these firmware files must be accessible
 #  during kernel compilation.
@@ -98,7 +98,7 @@
 #  edit this file and use isapnp to uncomment and set the card values.
 #  Use these values when inserting the snd-msnd-pinnacle module.  Using
 #  this method, you can set the resources for the DSP and the Kurzweil
-#  synth (Pinnacle).  Since Linux does not directly support PnP
+#  synth (Pinnacle).  Since GNU/Linux does not directly support PnP
 #  devices, you may have difficulty when using the card in PnP mode
 #  when it the driver is compiled into the kernel.  Using non-PnP mode
 #  is preferable in this case.
@@ -183,7 +183,7 @@
 #
 # * To use the MPU-compatible Kurzweil synth on the Pinnacle in non-PnP
 #   mode, add the following.  Note how we first configure the peripheral's
-#   resources, _then_ install a Linux driver for it:
+#   resources, _then_ install a GNU/Linux driver for it:
 #
 #  insmod snd
 #  pinnaclecfg 0x250 mpu 0x330 9
@@ -198,7 +198,7 @@
 #  insmod mpu401 io=0x330 irq=9
 #
 # * To setup the joystick port on the Pinnacle in non-PnP mode (though
-#   you have to find the actual Linux joystick driver elsewhere), you
+#   you have to find the actual GNU/Linux joystick driver elsewhere), you
 #   can use pinnaclecfg:
 #
 #   pinnaclecfg 0x250 joystick 0x200
@@ -268,8 +268,8 @@
 #  When the Pinnacle is in non-PnP mode, you can use the following
 #  options to configure particular devices.  If a full specification
 #  for a device is not given, then the device is not configured.  Note
-#  that you still must use a Linux driver for any of these devices
-#  once their resources are setup (such as the Linux joystick driver,
+#  that you still must use a GNU/Linux driver for any of these devices
+#  once their resources are setup (such as the GNU/Linux joystick driver,
 #  or the MPU401 driver from OSS for the Kurzweil synth).
 #
 #  mpu_io               I/O port of MPU (on-board Kurzweil synth)
@@ -296,8 +296,8 @@
 #    cp DSPCODE/MSNDINIT.BIN /etc/sound/msndinit.bin
 #    cp DSPCODE/MSNDPERM.REB /etc/sound/msndperm.bin
 #
-#  When configuring the Linux kernel, specify /etc/sound/msndinit.bin and
-#  /etc/sound/msndperm.bin for the two firmware files (Linux kernel
+#  When configuring the GNU/Linux kernel, specify /etc/sound/msndinit.bin and
+#  /etc/sound/msndperm.bin for the two firmware files (GNU/Linux kernel
 #  versions older than 2.2 do not ask for firmware paths, and are
 #  hardcoded to /etc/sound).
 #
@@ -332,9 +332,9 @@
 #    ./conv < PINNDDK/dspcode/pndsperm.asm > /etc/sound/pndsperm.bin
 #
 #  The conv (and conv.l) program is not needed after conversion and can
-#  be safely deleted.  Then, when configuring the Linux kernel, specify
+#  be safely deleted.  Then, when configuring the GNU/Linux kernel, specify
 #  /etc/sound/pndspini.bin and /etc/sound/pndsperm.bin for the two
-#  firmware files (Linux kernel versions older than 2.2 do not ask for
+#  firmware files (GNU/Linux kernel versions older than 2.2 do not ask for
 #  firmware paths, and are hardcoded to /etc/sound).
 #
 #  If you are compiling the driver into the kernel, these files must
@@ -555,9 +555,9 @@ X * pinnaclecfg.c - Pinnacle/Fiji Device Configuration Program
 X *
 X * This is for NON-PnP mode only.  For PnP mode, use isapnptools.
 X *
-X * This is Linux-specific, and must be run with root permissions.
+X * This is GNU/Linux-specific, and must be run with root permissions.
 X *
-X * Part of the Turtle Beach MultiSound Sound Card Driver for Linux
+X * Part of the Turtle Beach MultiSound Sound Card Driver for GNU/Linux
 X *
 X * Copyright (C) 1998 Andrew Veliath
 X *

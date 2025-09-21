@@ -209,7 +209,7 @@ linux_syscall_trace:
 	 mov	%i4, %o4
 
 
-	/* Linux 32-bit system calls enter here... */
+	/* GNU/Linux 32-bit system calls enter here... */
 	.align	32
 	.globl	linux_sparc_syscall32
 linux_sparc_syscall32:
@@ -233,7 +233,7 @@ linux_sparc_syscall32:
 	ba,pt	%xcc, 3f
 	 sra	%o0, 0, %o0
 
-	/* Linux native system calls enter here... */
+	/* GNU/Linux native system calls enter here... */
 	.align	32
 	.globl	linux_sparc_syscall
 linux_sparc_syscall:

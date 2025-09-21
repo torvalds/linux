@@ -4,7 +4,7 @@
  * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel GNU/Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -455,7 +455,7 @@ struct il3945_shared {
 /************************************/
 
 /**
- * This I/O area is directly read/writable by driver (e.g. Linux uses writel())
+ * This I/O area is directly read/writable by driver (e.g. GNU/Linux uses writel())
  * Addresses are offsets from device's PCI hardware base address.
  */
 #define FH39_MEM_LOWER_BOUND                   (0x0800)

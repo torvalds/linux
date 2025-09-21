@@ -45,7 +45,7 @@
  *
  ******************************************************************************/
 
-#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
+#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for GNU/Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("IWLWIFI");

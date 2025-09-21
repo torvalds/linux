@@ -2,7 +2,7 @@
 /*******************************************************************************
  * Filename:  target_core_pscsi.c
  *
- * This file contains the generic target mode <-> Linux SCSI subsystem plugin.
+ * This file contains the generic target mode <-> GNU/Linux SCSI subsystem plugin.
  *
  * (c) Copyright 2003-2013 Datera, Inc.
  *
@@ -457,7 +457,7 @@ static int pscsi_configure_device(struct se_device *dev)
 		}
 		/*
 		 * If no scsi_host_id= was passed for PHV_VIRTUAL_HOST_ID,
-		 * use the original TCM hba ID to reference Linux/SCSI Host No
+		 * use the original TCM hba ID to reference GNU/Linux/SCSI Host No
 		 * and enable for PHV_LLD_SCSI_HOST_NO mode.
 		 */
 		if (!(pdv->pdv_flags & PDF_HAS_VIRT_HOST_ID)) {
@@ -1063,7 +1063,7 @@ static void __exit pscsi_module_exit(void)
 }
 
 MODULE_DESCRIPTION("TCM PSCSI subsystem plugin");
-MODULE_AUTHOR("nab@Linux-iSCSI.org");
+MODULE_AUTHOR("nab@GNU/Linux-iSCSI.org");
 MODULE_LICENSE("GPL");
 
 module_init(pscsi_module_init);

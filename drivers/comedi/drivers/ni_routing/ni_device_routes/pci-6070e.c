@@ -3,7 +3,7 @@
  *  comedi/drivers/ni_routing/ni_device_routes/pci-6070e.c
  *  List of valid routes for specific NI boards.
  *
- *  COMEDI - Linux Control and Measurement Device Interface
+ *  COMEDI - GNU/Linux Control and Measurement Device Interface
  *  Copyright (C) 2016 Spencer E. Olson <olsonse@umich.edu>
  *
  *  This program is free software; you can redistribute it and/or modify

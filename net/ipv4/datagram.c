@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	common UDP/RAW code
- *	Linux INET implementation
+ *	GNU/Linux INET implementation
  *
  * Authors:
  * 	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>

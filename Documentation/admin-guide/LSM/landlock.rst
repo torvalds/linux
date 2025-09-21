@@ -30,7 +30,7 @@ AUDIT_LANDLOCK_ACCESS
     The ``domain`` field indicates the ID of the domain that blocked the
     request.  The ``blockers`` field indicates the cause(s) of this denial
     (separated by a comma), and the following fields identify the kernel object
-    (similar to SELinux).  There may be more than one of this record type per
+    (similar to SEGNU/Linux).  There may be more than one of this record type per
     audit event.
 
     Example with a file link request generating two records in the same event::
@@ -148,11 +148,11 @@ filters to limit noise with two complementary ways:
 Additional documentation
 ========================
 
-* `Linux Audit Documentation`_
+* `GNU/Linux Audit Documentation`_
 * Documentation/userspace-api/landlock.rst
 * Documentation/security/landlock.rst
 * https://landlock.io
 
 .. Links
-.. _Linux Audit Documentation:
+.. _GNU/Linux Audit Documentation:
    https://github.com/linux-audit/audit-documentation/wiki

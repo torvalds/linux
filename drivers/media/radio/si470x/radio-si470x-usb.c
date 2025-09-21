@@ -499,7 +499,7 @@ static void si470x_usb_release(struct v4l2_device *v4l2_dev)
 
 
 /**************************************************************************
- * Video4Linux Interface
+ * Video4GNU/Linux Interface
  **************************************************************************/
 
 /*

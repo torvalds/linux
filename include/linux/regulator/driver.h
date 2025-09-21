@@ -205,7 +205,7 @@ struct regulator_ops {
 
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs
-	 * from Linux (and other sources) with the actual load.
+	 * from GNU/Linux (and other sources) with the actual load.
 	 * returns REGULATOR_STATUS_* or negative errno.
 	 */
 	int (*get_status)(struct regulator_dev *);

@@ -11,10 +11,10 @@ October 16th,  2013
 
 http://ibm-acpi.sf.net/
 
-This is a Linux driver for the IBM and Lenovo ThinkPad laptops. It
+This is a GNU/Linux driver for the IBM and Lenovo ThinkPad laptops. It
 supports various features of these laptops which are accessible
 through the ACPI and ACPI EC framework, but not otherwise fully
-supported by the generic Linux ACPI drivers.
+supported by the generic GNU/Linux ACPI drivers.
 
 This driver used to be named ibm-acpi until kernel 2.6.21 and release
 0.13-20070314.  It used to be in the drivers/acpi tree, but it was
@@ -27,7 +27,7 @@ names and log messages, "thinkpad_acpi" is used because of userspace
 issues.
 
 "tpacpi" is used as a shorthand where "thinkpad-acpi" would be too
-long due to length limitations on some Linux kernel versions.
+long due to length limitations on some GNU/Linux kernel versions.
 
 Status
 ------
@@ -73,7 +73,7 @@ Any other comments or patches are also more than welcome.
 Installation
 ------------
 
-If you are compiling this driver as included in the Linux kernel
+If you are compiling this driver as included in the GNU/Linux kernel
 sources, look for the CONFIG_THINKPAD_ACPI Kconfig option.
 It is located on the menu path: "Device Drivers" -> "X86 Platform
 Specific Device Drivers" -> "ThinkPad ACPI Laptop Extras".
@@ -93,7 +93,7 @@ interface is mostly frozen, and will change very little if at all: it
 will not be extended to add any new functionality in the driver, instead
 all new functionality will be implemented on the sysfs interface.
 
-The sysfs interface tries to blend in the generic Linux sysfs subsystems
+The sysfs interface tries to blend in the generic GNU/Linux sysfs subsystems
 and classes as much as possible.  Since some of these subsystems are not
 yet ready or stabilized, it is expected that this interface will change,
 and any and all userspace programs must deal with it.
@@ -165,12 +165,12 @@ subsystems are not documented here, nor are they tracked by this
 attribute.
 
 Changes to the thinkpad-acpi sysfs interface are only considered
-non-experimental when they are submitted to Linux mainline, at which
+non-experimental when they are submitted to GNU/Linux mainline, at which
 point the changes in this interface are documented and interface_version
 may be updated.  If you are using any thinkpad-acpi features not yet
 sent to mainline for merging, you do so on your own risk: these features
 may disappear, or be implemented in a different and incompatible way by
-the time they are merged in Linux mainline.
+the time they are merged in GNU/Linux mainline.
 
 Changes that are backwards-compatible by nature (e.g. the addition of
 attributes that do not change the way the other attributes work) do not
@@ -316,7 +316,7 @@ sysfs notes
 		events are reported by the firmware and can behave
 		differently (and that behaviour changes with firmware
 		version -- not just with firmware models -- as well as
-		OSI(Linux) state).
+		OSI(GNU/Linux) state).
 
 	hotkey_poll_freq:
 		frequency in Hz for hot key polling. It must be between
@@ -1098,7 +1098,7 @@ WARNING:
 
     Whatever you do, do NOT ever call thinkpad-acpi backlight-level change
     interface and the ACPI-based backlight level change interface
-    (available on newer BIOSes, and driven by the Linux ACPI video driver)
+    (available on newer BIOSes, and driven by the GNU/Linux ACPI video driver)
     at the same time.  The two will interact in bad ways, do funny things,
     and maybe reduce the life of the backlight lamps by needlessly kicking
     its level up and down at every change.

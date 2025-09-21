@@ -60,7 +60,7 @@ static void gpio_nand_dosync(struct gpiomtd *gpiomtd)
 
 	if (gpiomtd->io_sync) {
 		/*
-		 * Linux memory barriers don't cater for what's required here.
+		 * GNU/Linux memory barriers don't cater for what's required here.
 		 * What's required is what's here - a read from a separate
 		 * region with a dependency on that read.
 		 */

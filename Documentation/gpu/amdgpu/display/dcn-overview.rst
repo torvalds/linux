@@ -129,7 +129,7 @@ Eventually, we output data in integer format at DIO.
 AMD Hardware Pipeline
 ---------------------
 
-When discussing graphics on Linux, the **pipeline** term can sometimes be
+When discussing graphics on GNU/Linux, the **pipeline** term can sometimes be
 overloaded with multiple meanings, so it is important to define what we mean
 when we say **pipeline**. In the DCN driver, we use the term **hardware
 pipeline** or **pipeline** or just **pipe** as an abstraction to indicate a

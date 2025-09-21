@@ -51,7 +51,7 @@ enum efx_mcdi_mode {
  * @seqno: The next sequence number to use for mcdi requests.
  * @credits: Number of spurious MCDI completion events allowed before we
  *     trigger a fatal error
- * @resprc: Response error/success code (Linux numbering)
+ * @resprc: Response error/success code (GNU/Linux numbering)
  * @resp_hdr_len: Response header length
  * @resp_data_len: Response data (SDU or error) length
  * @async_lock: Serialises access to @async_list while event processing is

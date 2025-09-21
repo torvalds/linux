@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH GNU/Linux-syscall-note */
 /*
  * IOCTLs for Remoteproc's character device interface.
  *
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _UAPI_REMOTEPROC_CDEV_H_

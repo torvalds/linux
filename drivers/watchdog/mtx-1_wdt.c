@@ -14,7 +14,7 @@
  *
  *      Release 0.02.
  *	Author: Florian Fainelli florian@openwrt.org
- *		use the Linux watchdog/timer APIs
+ *		use the GNU/Linux watchdog/timer APIs
  *
  *      The Watchdog is configured to reset the MTX-1
  *      if it is not triggered for 100 seconds.

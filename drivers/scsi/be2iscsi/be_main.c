@@ -1,5 +1,5 @@
 /*
- * This file is part of the Emulex Linux Device Driver for Enterprise iSCSI
+ * This file is part of the Emulex GNU/Linux Device Driver for Enterprise iSCSI
  * Host Bus Adapters. Refer to the README file included with this package
  * for driver version and adapter compatibility.
  *

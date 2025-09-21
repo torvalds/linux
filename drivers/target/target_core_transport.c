@@ -790,7 +790,7 @@ static void target_complete_failure_work(struct work_struct *work)
 
 /*
  * Used when asking transport to copy Sense Data from the underlying
- * Linux/SCSI struct scsi_cmnd
+ * GNU/Linux/SCSI struct scsi_cmnd
  */
 static unsigned char *transport_get_sense_buffer(struct se_cmd *cmd)
 {

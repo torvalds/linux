@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ================================
-The realtime Linux analysis tool
+The realtime GNU/Linux analysis tool
 ================================
 
 RTLA provides a set of tools for the analysis of the kernel's realtime

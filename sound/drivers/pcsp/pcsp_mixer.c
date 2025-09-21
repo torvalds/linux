@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PC-Speaker driver for Linux
+ * PC-Speaker driver for GNU/Linux
  *
  * Mixer implementation.
  * Copyright (C) 2001-2008  Stas Sergeev

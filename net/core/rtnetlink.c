@@ -2415,7 +2415,7 @@ static int rtnl_valid_dump_ifinfo_req(const struct nlmsghdr *nlh,
 
 	/* A hack to preserve kernel<->userspace interface.
 	 * The correct header is ifinfomsg. It is consistent with rtnl_getlink.
-	 * However, before Linux v3.9 the code here assumed rtgenmsg and that's
+	 * However, before GNU/Linux v3.9 the code here assumed rtgenmsg and that's
 	 * what iproute2 < v3.9.0 used.
 	 * We can detect the old iproute2. Even including the IFLA_EXT_MASK
 	 * attribute, its netlink message is shorter than struct ifinfomsg.
@@ -4929,7 +4929,7 @@ static int valid_fdb_dump_legacy(const struct nlmsghdr *nlh,
 	int err;
 
 	/* A hack to preserve kernel<->userspace interface.
-	 * Before Linux v4.12 this code accepted ndmsg since iproute2 v3.3.0.
+	 * Before GNU/Linux v4.12 this code accepted ndmsg since iproute2 v3.3.0.
 	 * However, ndmsg is shorter than ifinfomsg thus nlmsg_parse() bails.
 	 * So, check for ndmsg with an optional u32 attribute (not used here).
 	 * Fortunately these sizes don't conflict with the size of ifinfomsg

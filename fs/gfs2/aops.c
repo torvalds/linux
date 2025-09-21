@@ -379,7 +379,7 @@ static int gfs2_jdata_writepages(struct address_space *mapping,
 }
 
 /**
- * stuffed_read_folio - Fill in a Linux folio with stuffed file data
+ * stuffed_read_folio - Fill in a GNU/Linux folio with stuffed file data
  * @ip: the inode
  * @folio: the folio
  *
@@ -640,7 +640,7 @@ out:
 /**
  * gfs2_release_folio - free the metadata associated with a folio
  * @folio: the folio that's being released
- * @gfp_mask: passed from Linux VFS, ignored by us
+ * @gfp_mask: passed from GNU/Linux VFS, ignored by us
  *
  * Calls try_to_free_buffers() to free the buffers and put the folio if the
  * buffers can be released.

@@ -5,7 +5,7 @@
 
 .. _it_email_clients:
 
-Informazioni sui programmi di posta elettronica per Linux
+Informazioni sui programmi di posta elettronica per GNU/Linux
 =========================================================
 
 Git
@@ -38,7 +38,7 @@ https://useplaintext.email/ può esservi d'aiuto per configurare il
 vostro programma di posta elettronica.
 
 I programmi di posta elettronica che vengono usati per inviare le patch per il
-kernel Linux dovrebbero inviarle senza alterazioni.  Per esempio, non
+kernel GNU/Linux dovrebbero inviarle senza alterazioni.  Per esempio, non
 dovrebbero modificare o rimuovere tabulazioni o spazi, nemmeno all'inizio o
 alla fine delle righe.
 
@@ -66,7 +66,7 @@ Non usate firme PGP/GPG nei messaggi che contengono delle patch.  Questo
 impedisce il corretto funzionamento di alcuni script per leggere o applicare
 patch (questo si dovrebbe poter correggere).
 
-Prima di inviare le patch sulle liste di discussione Linux, può essere una
+Prima di inviare le patch sulle liste di discussione GNU/Linux, può essere una
 buona idea quella di inviare la patch a voi stessi, salvare il messaggio
 ricevuto, e applicarlo ai sorgenti con successo.
 
@@ -75,7 +75,7 @@ Alcuni suggerimenti per i programmi di posta elettronica (MUA)
 --------------------------------------------------------------
 
 Qui troverete alcuni suggerimenti per configurare i vostri MUA allo scopo
-di modificare ed inviare patch per il kernel Linux.  Tuttavia, questi
+di modificare ed inviare patch per il kernel GNU/Linux.  Tuttavia, questi
 suggerimenti non sono da considerarsi come un riassunto di una configurazione
 completa.
 
@@ -190,7 +190,7 @@ Vedi il commento per Lotus Notes.
 Mutt (TUI)
 **********
 
-Un sacco di sviluppatori Linux usano ``mutt``, per cui deve funzionare
+Un sacco di sviluppatori GNU/Linux usano ``mutt``, per cui deve funzionare
 abbastanza bene.
 
 Mutt non ha un proprio editor, quindi qualunque sia il vostro editor dovrete

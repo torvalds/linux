@@ -21,7 +21,7 @@
 #include "bfs.h"
 
 MODULE_AUTHOR("Tigran Aivazian <aivazian.tigran@gmail.com>");
-MODULE_DESCRIPTION("SCO UnixWare BFS filesystem for Linux");
+MODULE_DESCRIPTION("SCO UnixWare BFS filesystem for GNU/Linux");
 MODULE_LICENSE("GPL");
 
 #undef DEBUG

@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013  Davidlohr Bueso <davidlohr@hp.com>
  *
- * futex-hash: Stress the hell out of the Linux kernel futex uaddr hashing.
+ * futex-hash: Stress the hell out of the GNU/Linux kernel futex uaddr hashing.
  *
  * This program is particularly useful for measuring the kernel's futex hash
  * table/function implementation. In order for it to make sense, use with as

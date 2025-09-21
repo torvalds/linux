@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	TCP over IPv6
- *	Linux INET6 implementation
+ *	GNU/Linux INET6 implementation
  *
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
@@ -458,7 +458,7 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		u32 mtu = ntohl(info);
 
 		/* We are not interested in TCP_LISTEN and open_requests
-		 * (SYN-ACKs send out by Linux are always <576bytes so
+		 * (SYN-ACKs send out by GNU/Linux are always <576bytes so
 		 * they should go through unfragmented).
 		 */
 		if (sk->sk_state == TCP_LISTEN)

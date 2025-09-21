@@ -679,7 +679,7 @@ EXPORT_SYMBOL_GPL(dfl_fpga_dev_ops_unregister);
  * @dev: device to enumerate.
  * @cdev: the container device for all feature devices.
  * @nr_irqs: number of irqs for all feature devices.
- * @irq_table: Linux IRQ numbers for all irqs, indexed by local irq index of
+ * @irq_table: GNU/Linux IRQ numbers for all irqs, indexed by local irq index of
  *	       this device.
  * @type: the current FIU type.
  * @ioaddr: header register region address of current FIU in enumeration.
@@ -1498,7 +1498,7 @@ EXPORT_SYMBOL_GPL(dfl_fpga_enum_info_add_dfl);
  *
  * @info: ptr to dfl_fpga_enum_info
  * @nr_irqs: number of irqs of the DFL fpga device to be enumerated.
- * @irq_table: Linux IRQ numbers for all irqs, indexed by local irq index of
+ * @irq_table: GNU/Linux IRQ numbers for all irqs, indexed by local irq index of
  *	       this device.
  *
  * One FPGA device may have several interrupts. This function adds irq

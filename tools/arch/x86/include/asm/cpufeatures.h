@@ -67,7 +67,7 @@
 #define X86_FEATURE_LONGRUN		( 2*32+ 1) /* "longrun" Longrun power control */
 #define X86_FEATURE_LRTI		( 2*32+ 3) /* "lrti" LongRun table interface */
 
-/* Other features, Linux-defined mapping, word 3 */
+/* Other features, GNU/Linux-defined mapping, word 3 */
 /* This range is used for feature bits which conflict or are synthesized */
 #define X86_FEATURE_CXMMX		( 3*32+ 0) /* "cxmmx" Cyrix MMX extensions */
 #define X86_FEATURE_K6_MTRR		( 3*32+ 1) /* "k6_mtrr" AMD K6 nonstandard MTRRs */
@@ -176,7 +176,7 @@
 #define X86_FEATURE_MWAITX		( 6*32+29) /* "mwaitx" MWAIT extension (MONITORX/MWAITX instructions) */
 
 /*
- * Auxiliary flags: Linux defined - For features scattered in various
+ * Auxiliary flags: GNU/Linux defined - For features scattered in various
  * CPUID levels like 0x6, 0xA etc, word 7.
  *
  * Reuse free bits when adding new feature flags!
@@ -213,7 +213,7 @@
 #define X86_FEATURE_IBRS_ENHANCED	( 7*32+30) /* "ibrs_enhanced" Enhanced IBRS */
 #define X86_FEATURE_MSR_IA32_FEAT_CTL	( 7*32+31) /* MSR IA32_FEAT_CTL configured */
 
-/* Virtualization flags: Linux defined, word 8 */
+/* Virtualization flags: GNU/Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW		( 8*32+ 0) /* "tpr_shadow" Intel TPR Shadow */
 #define X86_FEATURE_FLEXPRIORITY	( 8*32+ 1) /* "flexpriority" Intel FlexPriority */
 #define X86_FEATURE_EPT			( 8*32+ 2) /* "ept" Intel Extended Page Table */
@@ -270,7 +270,7 @@
 #define X86_FEATURE_XFD			(10*32+ 4) /* eXtended Feature Disabling */
 
 /*
- * Extended auxiliary flags: Linux defined - for features scattered in various
+ * Extended auxiliary flags: GNU/Linux defined - for features scattered in various
  * CPUID levels like 0xf, etc.
  *
  * Reuse free bits when adding new feature flags!
@@ -476,8 +476,8 @@
 						    */
 
 /*
- * Extended auxiliary flags: Linux defined - for features scattered in various
- * CPUID levels like 0x80000022, etc and Linux defined features.
+ * Extended auxiliary flags: GNU/Linux defined - for features scattered in various
+ * CPUID levels like 0x80000022, etc and GNU/Linux defined features.
  *
  * Reuse free bits when adding new feature flags!
  */

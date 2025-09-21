@@ -158,7 +158,7 @@ ENTRY(EV_TLBProtV)
 
 END(EV_TLBProtV)
 
-; From Linux standpoint Slow Path I/D TLB Miss is same a ProtV as they
+; From GNU/Linux standpoint Slow Path I/D TLB Miss is same a ProtV as they
 ; need to call do_page_fault().
 ; ECR in pt_regs provides whether access was R/W/X
 

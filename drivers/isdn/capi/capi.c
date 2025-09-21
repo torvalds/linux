@@ -1,6 +1,6 @@
 /* $Id: capi.c,v 1.1.2.7 2004/04/28 09:48:59 armin Exp $
  *
- * CAPI 2.0 Interface for Linux
+ * CAPI 2.0 Interface for GNU/Linux
  *
  * Copyright 1996 by Carsten Paeth <calle@calle.de>
  *
@@ -42,7 +42,7 @@
 
 #include "kcapi.h"
 
-MODULE_DESCRIPTION("CAPI4Linux: kernel CAPI layer and /dev/capi20 interface");
+MODULE_DESCRIPTION("CAPI4GNU/Linux: kernel CAPI layer and /dev/capi20 interface");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
 

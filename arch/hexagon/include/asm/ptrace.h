@@ -2,7 +2,7 @@
 /*
  * Ptrace definitions for the Hexagon architecture
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _ASM_HEXAGON_PTRACE_H

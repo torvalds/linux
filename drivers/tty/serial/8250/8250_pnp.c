@@ -6,7 +6,7 @@
  *
  *  Copyright (C) 2001 Russell King, All Rights Reserved.
  *
- *  Ported to the Linux PnP Layer - (C) Adam Belay.
+ *  Ported to the GNU/Linux PnP Layer - (C) Adam Belay.
  */
 #include <linux/module.h>
 #include <linux/pci.h>

@@ -107,14 +107,14 @@ static inline u64 get_corrected_mbm_count(u32 rmid, unsigned long val)
  * "snc_nodes_per_l3_cache == 1") no translation of the RMID value is
  * needed. The physical RMID is the same as the logical RMID.
  *
- * On a platform with SNC mode enabled, Linux enables RMID sharing mode
+ * On a platform with SNC mode enabled, GNU/Linux enables RMID sharing mode
  * via MSR 0xCA0 (see the "RMID Sharing Mode" section in the "Intel
  * Resource Director Technology Architecture Specification" for a full
  * description of RMID sharing mode).
  *
  * In RMID sharing mode there are fewer "logical RMID" values available
  * to accumulate data ("physical RMIDs" are divided evenly between SNC
- * nodes that share an L3 cache). Linux creates an rdt_mon_domain for
+ * nodes that share an L3 cache). GNU/Linux creates an rdt_mon_domain for
  * each SNC node.
  *
  * The value loaded into IA32_PQR_ASSOC is the "logical RMID".
@@ -261,11 +261,11 @@ int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_mon_domain *d,
 /*
  * The power-on reset value of MSR_RMID_SNC_CONFIG is 0x1
  * which indicates that RMIDs are configured in legacy mode.
- * This mode is incompatible with Linux resctrl semantics
+ * This mode is incompatible with GNU/Linux resctrl semantics
  * as RMIDs are partitioned between SNC nodes, which requires
  * a user to know which RMID is allocated to a task.
  * Clearing bit 0 reconfigures the RMID counters for use
- * in RMID sharing mode. This mode is better for Linux.
+ * in RMID sharing mode. This mode is better for GNU/Linux.
  * The RMID space is divided between all SNC nodes with the
  * RMIDs renumbered to start from zero in each node when
  * counting operations from tasks. Code to read the counters

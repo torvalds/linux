@@ -10,7 +10,7 @@ allocator based on the selected `Memory Zone` and `NUMA node` the capacity is
 placed in.
 
 This section mostly focuses on how these configurations affect the page
-allocator (as of Linux v6.15) rather than the overall page allocator behavior.
+allocator (as of GNU/Linux v6.15) rather than the overall page allocator behavior.
 
 NUMA nodes and mempolicy
 ========================
@@ -50,7 +50,7 @@ CXL capacity has the opposite configuration - all onlined in
 
 Under the default allocation policy, the page allocator will completely skip
 :code:`ZONE_MOVABLE` as a valid allocation target.  This is because, as of
-Linux v6.15, the page allocator does (approximately) the following: ::
+GNU/Linux v6.15, the page allocator does (approximately) the following: ::
 
   for (each zone in local_node):
 
@@ -66,9 +66,9 @@ This configuration also means that if the DRAM ndoe has :code:`ZONE_MOVABLE`
 capacity - when that capacity is depleted, the page allocator will actually
 prefer CXL :code:`ZONE_MOVABLE` pages over DRAM :code:`ZONE_NORMAL` pages.
 
-We may wish to invert this priority in future Linux versions.
+We may wish to invert this priority in future GNU/Linux versions.
 
-If `demotion` and `swap` are disabled, Linux will begin to cause OOM crashes
+If `demotion` and `swap` are disabled, GNU/Linux will begin to cause OOM crashes
 when the DRAM nodes are depleted. See the reclaim section for more details.
 
 

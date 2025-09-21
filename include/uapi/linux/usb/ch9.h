@@ -1,14 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * This file holds USB constants and structures that are needed for
  * USB device APIs.  These are used by the USB device model, which is
  * defined in chapter 9 of the USB 2.0 specification and in the
- * Wireless USB 1.0 spec (now defunct).  Linux has several APIs in C that
+ * Wireless USB 1.0 spec (now defunct).  GNU/Linux has several APIs in C that
  * need these:
  *
- * - the master/host side Linux-USB kernel driver API;
+ * - the master/host side GNU/Linux-USB kernel driver API;
  * - the "usbfs" user space API; and
- * - the Linux "gadget" slave/device/peripheral side driver API.
+ * - the GNU/Linux "gadget" slave/device/peripheral side driver API.
  *
  * USB 2.0 adds an additional "On The Go" (OTG) mode, which lets systems
  * act either as a USB master/host or as a USB slave/device.  That means
@@ -223,7 +223,7 @@ struct usb_ctrlrequest {
  *
  * Note that all multi-byte values here are encoded in little endian
  * byte order "on the wire".  Within the kernel and when exposed
- * through the Linux-USB APIs, they are not converted to cpu byte
+ * through the GNU/Linux-USB APIs, they are not converted to cpu byte
  * order; it is the responsibility of the client code to do this.
  * The single exception is when device and configuration descriptors (but
  * not other descriptors) are read from character devices
@@ -1196,7 +1196,7 @@ struct usb_connection_context {
 
 /*-------------------------------------------------------------------------*/
 
-/* USB 2.0 defines three speeds, here's how Linux identifies them */
+/* USB 2.0 defines three speeds, here's how GNU/Linux identifies them */
 
 enum usb_device_speed {
 	USB_SPEED_UNKNOWN = 0,			/* enumerating */

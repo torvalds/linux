@@ -3637,7 +3637,7 @@ static int tisci_reboot_handler(struct sys_off_data *data)
 static int ti_sci_prepare_system_suspend(struct ti_sci_info *info)
 {
 	/*
-	 * Map and validate the target Linux suspend state to TISCI LPM.
+	 * Map and validate the target GNU/Linux suspend state to TISCI LPM.
 	 * Default is to let Device Manager select the low power mode.
 	 */
 	switch (pm_suspend_target_state) {

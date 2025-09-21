@@ -154,7 +154,7 @@
 #define ERX_CFG_CSUMSTART    0x007f0000 /* Offset of checksum start,
 					 * in halfwords. */
 
-/* I'd like a Big Mac, small fries, small coke, and SparcLinux please. */
+/* I'd like a Big Mac, small fries, small coke, and SparcGNU/Linux please. */
 #define BMAC_XIFCFG	0x0000UL	/* XIF config register                */
 	/* 0x4-->0x204, reserved */
 #define BMAC_TXSWRESET	0x208UL	/* Transmitter software reset         */

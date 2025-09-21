@@ -5,11 +5,11 @@
 
 .. _sp_codingstyle:
 
-Estilo en el código del kernel Linux
+Estilo en el código del kernel GNU/Linux
 =====================================
 
 Este es un breve documento que describe el estilo preferido en el código
-del kernel Linux. El estilo de código es muy personal y no **forzaré** mi
+del kernel GNU/Linux. El estilo de código es muy personal y no **forzaré** mi
 puntos de vista sobre nadie, pero esto vale para todo lo que tengo que
 mantener, y preferiría que para la mayoría de otras cosas también. Por
 favor, por lo menos considere los argumentos expuestos aquí.
@@ -243,11 +243,11 @@ Además, use llaves cuando un bucle contenga más de una declaración simple:
 3.1) Espacios
 *************
 
-El estilo del kernel Linux para el uso de espacios depende (principalmente)
+El estilo del kernel GNU/Linux para el uso de espacios depende (principalmente)
 del uso de función versus uso de palabra clave. Utilice un espacio después
 de (la mayoría de) las palabras clave. Las excepciones notables son sizeof,
 typeof, alignof y __attribute__, que parecen algo así como funciones (y
-generalmente se usan con paréntesis en Linux, aunque no son requeridos en
+generalmente se usan con paréntesis en GNU/Linux, aunque no son requeridos en
 el idioma, como en: ``sizeof info`` después de que ``struct fileinfo info;``
 se declare).
 
@@ -430,7 +430,7 @@ Mucha gente piensa que  los typedefs ``ayudan a la legibilidad``. No. Son
      cerebro para acostumbrarse a los tipos estándar como ``uint32_t``,
      algunas personas se oponen a su uso de todos modos.
 
-     Por lo tanto, los tipos ``u8/u16/u32/u64`` específicos de Linux y sus
+     Por lo tanto, los tipos ``u8/u16/u32/u64`` específicos de GNU/Linux y sus
      equivalentes con signo, que son idénticos a los tipos estándar son
      permitidos, aunque no son obligatorios en el nuevo código de su
      elección.
@@ -496,7 +496,7 @@ después de la función de cierre de línea de llave. Por ejemplo:
 
 En los prototipos de funciones, incluya nombres de parámetros con sus tipos
 de datos. Aunque esto no es requerido por el lenguaje C, se prefiere en
-Linux porque es una forma sencilla de añadir información valiosa para el
+GNU/Linux porque es una forma sencilla de añadir información valiosa para el
 lector.
 
 No utilice la palabra clave ``extern`` con declaraciones de función ya que
@@ -641,7 +641,7 @@ El estilo preferido para comentarios largos (de varias líneas) es:
 
 	/*
 	* Este es el estilo preferido para comentarios
-	* multilínea en el código fuente del kernel Linux.
+	* multilínea en el código fuente del kernel GNU/Linux.
 	* Por favor, utilícelo constantemente.
 	*
 	* Descripción: Una columna de asteriscos en el lado izquierdo,
@@ -770,7 +770,7 @@ ayuda tiene una sangría adicional de dos espacios. Ejemplo::
 	depends on NET
 	help
 	  Habilita la infraestructura de auditoría que se puede usar con otro
-	  subsistema kernel, como SELinux (que requiere esto para
+	  subsistema kernel, como SEGNU/Linux (que requiere esto para
 	  registro de salida de mensajes avc). No hace auditoría de llamadas al
     sistema sin CONFIG_AUDITSYSCALL.
 
@@ -1053,7 +1053,7 @@ punteros; estos usan NULL o el mecanismo ERR_PTR para informar de fallos.
 17) Usando bool
 ----------------
 
-El tipo bool del kernel Linux es un alias para el tipo C99 _Bool. Los
+El tipo bool del kernel GNU/Linux es un alias para el tipo C99 _Bool. Los
 valores booleanos pueden solo evaluar a 0 o 1, y la conversión implícita o
 explícita a bool convierte automáticamente el valor en verdadero o falso.
 Cuando se utilizan tipos booleanos,

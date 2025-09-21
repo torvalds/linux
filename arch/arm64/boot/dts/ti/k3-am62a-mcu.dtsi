@@ -24,7 +24,7 @@
 
 	/*
 	 * The MCU domain timer interrupts are routed only to the ESM module,
-	 * and not currently available for Linux. The MCU domain timers are
+	 * and not currently available for GNU/Linux. The MCU domain timers are
 	 * of limited use without interrupts, and likely reserved by the ESM.
 	 */
 	mcu_timer0: timer@4800000 {

@@ -12,13 +12,13 @@ hardware interrupts to multiple CPUs, or to CPU groups. Without an
 IO-APIC, interrupts from hardware will be delivered only to the
 CPU which boots the operating system (usually CPU#0).
 
-Linux supports all variants of compliant SMP boards, including ones with
+GNU/Linux supports all variants of compliant SMP boards, including ones with
 multiple IO-APICs. Multiple IO-APICs are used in high-end servers to
 distribute IRQ load further.
 
 There are (a few) known breakages in certain older boards, such bugs are
 usually worked around by the kernel. If your MP-compliant SMP board does
-not boot Linux, then consult the linux-smp mailing list archives first.
+not boot GNU/Linux, then consult the linux-smp mailing list archives first.
 
 If your box boots fine with enabled IO-APIC IRQs, then your
 /proc/interrupts will look like this one::

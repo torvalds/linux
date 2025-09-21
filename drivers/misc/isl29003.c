@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  isl29003.c - Linux kernel module for
+ *  isl29003.c - GNU/Linux kernel module for
  * 	Intersil ISL29003 ambient light sensor
  *
  *  See file:Documentation/misc-devices/isl29003.rst

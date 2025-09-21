@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * eCryptfs: Linux filesystem encryption layer
+ * eCryptfs: GNU/Linux filesystem encryption layer
  * Functions only useful for debugging.
  *
  * Copyright (C) 2006 International Business Machines Corp.

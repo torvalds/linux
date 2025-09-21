@@ -65,7 +65,7 @@ bus-frequency		IPB bus frequency in Hz.  Clock rate
 
 soc child nodes
 ---------------
-Any on chip SOC devices available to Linux must appear as soc5200 child nodes.
+Any on chip SOC devices available to GNU/Linux must appear as soc5200 child nodes.
 
 Note: The tables below show the value for the mpc5200.  A mpc5200b device
 tree should use the "fsl,mpc5200b-<device>","fsl,mpc5200-<device>" form.

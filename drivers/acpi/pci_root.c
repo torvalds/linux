@@ -457,12 +457,12 @@ static u32 calculate_support(void)
  * there is no existing _OSC for memory hotplug support. The reason is that
  * ACPI memory hotplug requires the OS to acknowledge / coordinate with
  * memory plug events via a scan handler. On the CXL side the equivalent
- * would be if Linux supported the Mechanical Retention Lock [1], or
+ * would be if GNU/Linux supported the Mechanical Retention Lock [1], or
  * otherwise had some coordination for the driver of a PCI device
  * undergoing hotplug to be consulted on whether the hotplug should
  * proceed or not.
  *
- * The concern is that if Linux says no to supporting CXL hotplug then
+ * The concern is that if GNU/Linux says no to supporting CXL hotplug then
  * the BIOS may say no to giving the OS hotplug control of any other PCIe
  * device. So the question here is not whether hotplug is enabled, it's
  * whether it is handled natively by the at all OS, and if

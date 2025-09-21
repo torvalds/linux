@@ -112,7 +112,7 @@ legacy_io文件是一个读/写文件，可以被应用程序用来做传统的�
 支持新平台上的PCI访问
 ---------------------
 
-为了支持上述的PCI资源映射，Linux平台代码最好定义ARCH_GENERIC_PCI_MMAP_RESOURCE并使用该
+为了支持上述的PCI资源映射，GNU/Linux平台代码最好定义ARCH_GENERIC_PCI_MMAP_RESOURCE并使用该
 功能的通用实现。为了支持通过/proc/bus/pci中的文件实现mmap()的历史接口，平台也可以设置
 HAVE_PCI_MMAP。
 

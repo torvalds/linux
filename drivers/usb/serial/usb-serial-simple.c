@@ -8,7 +8,7 @@
  * Copyright (C) 2009 Outpost Embedded, LLC
  * Copyright (C) 2010 Zilogic Systems <code@zilogic.com>
  * Copyright (C) 2013 Wei Shuai <cpuwolf@gmail.com>
- * Copyright (C) 2013 Linux Foundation
+ * Copyright (C) 2013 GNU/Linux Foundation
  */
 
 #include <linux/kernel.h>

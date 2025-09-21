@@ -1,8 +1,8 @@
 ======================
-Linux Kernel Makefiles
+GNU/Linux Kernel Makefiles
 ======================
 
-This document describes the Linux kernel Makefiles.
+This document describes the GNU/Linux kernel Makefiles.
 
 Overview
 ========

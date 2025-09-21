@@ -777,7 +777,7 @@ static void fsl_mc_device_release(struct device *dev)
 }
 
 /*
- * Add a newly discovered fsl-mc device to be visible in Linux
+ * Add a newly discovered fsl-mc device to be visible in GNU/Linux
  */
 int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		      struct fsl_mc_io *mc_io,
@@ -919,7 +919,7 @@ static struct notifier_block fsl_mc_nb;
 
 /**
  * fsl_mc_device_remove - Remove an fsl-mc device from being visible to
- * Linux
+ * GNU/Linux
  *
  * @mc_dev: Pointer to an fsl-mc device
  */

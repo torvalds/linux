@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SafeSetID Linux Security Module
+ * SafeSetID GNU/Linux Security Module
  *
  * Author: Micah Morton <mortonm@chromium.org>
  *

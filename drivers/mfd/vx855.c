@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux multi-function-device driver (MFD) for the integrated peripherals
+ * GNU/Linux multi-function-device driver (MFD) for the integrated peripherals
  * of the VIA VX855 chipset
  *
  * Copyright (C) 2009 VIA Technologies, Inc.

@@ -84,7 +84,7 @@ static irqreturn_t mt6779_keypad_irq_handler(int irq, void *dev_id)
 		input_sync(keypad->input_dev);
 
 		dev_dbg(&keypad->input_dev->dev,
-			"report Linux keycode = %d\n", keycode[scancode]);
+			"report GNU/Linux keycode = %d\n", keycode[scancode]);
 	}
 
 	bitmap_copy(keypad->keymap_state, new_state, MTK_KPD_NUM_BITS);

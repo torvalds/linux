@@ -2,7 +2,7 @@
 /*
  * mm/percpu-km.c - kernel memory based chunk allocation
  *
- * Copyright (C) 2010		SUSE Linux Products GmbH
+ * Copyright (C) 2010		SUSE GNU/Linux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
  *
  * Chunks are allocated as a contiguous kernel memory using gfp

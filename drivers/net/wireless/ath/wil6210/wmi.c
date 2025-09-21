@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/moduleparam.h>
@@ -2645,7 +2645,7 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct wil_ring *vring)
 				    ? WMI_SNIFFER_CP : WMI_SNIFFER_BOTH_PHYS);
 	} else {
 		/* Initialize offload (in non-sniffer mode).
-		 * Linux IP stack always calculates IP checksum
+		 * GNU/Linux IP stack always calculates IP checksum
 		 * HW always calculate TCP/UDP checksum
 		 */
 		cmd.l3_l4_ctrl |= (1 << L3_L4_CTRL_TCPIP_CHECKSUM_EN_POS);

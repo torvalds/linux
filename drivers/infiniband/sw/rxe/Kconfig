@@ -7,7 +7,7 @@ config RDMA_RXE
 	select CRC32
 	help
 	This driver implements the InfiniBand RDMA transport over
-	the Linux network stack. It enables a system with a
+	the GNU/Linux network stack. It enables a system with a
 	standard Ethernet adapter to interoperate with a RoCE
 	adapter or with another system running the RXE driver.
 	Documentation on InfiniBand and RoCE can be downloaded at
@@ -15,11 +15,11 @@ config RDMA_RXE
 	siw which is a similar software driver for iWARP.)
 
 	The driver is split into two layers, one interfaces with the
-	Linux RDMA stack and implements a kernel or user space
+	GNU/Linux RDMA stack and implements a kernel or user space
 	verbs API. The user space verbs API requires a support
 	library named librxe which is loaded by the generic user
 	space verbs API, libibverbs. The other layer interfaces
-	with the Linux network stack at layer 3.
+	with the GNU/Linux network stack at layer 3.
 
 	To configure and work with soft-RoCE driver please use the
 	following wiki page under "configure Soft-RoCE (RXE)" section:

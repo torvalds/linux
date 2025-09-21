@@ -10,7 +10,7 @@
 .. _cn_kernel-api.rst:
 
 ============
-Linux内核API
+GNU/Linux内核API
 ============
 
 
@@ -59,7 +59,7 @@ mm/util.c
 基本的内核库函数
 ================
 
-Linux内核提供了很多实用的基本函数。
+GNU/Linux内核提供了很多实用的基本函数。
 
 位运算
 ------
@@ -118,7 +118,7 @@ lib/textsearch.c
 
 include/linux/textsearch.h
 
-Linux中的CRC和数学函数
+GNU/Linux中的CRC和数学函数
 ======================
 
 算术溢出检查

@@ -365,7 +365,7 @@ static int ip_rcv_finish_core(struct net *net,
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
-	 *	how the packet travels inside Linux networking.
+	 *	how the packet travels inside GNU/Linux networking.
 	 */
 	if (!skb_valid_dst(skb)) {
 		drop_reason = ip_route_input_noref(skb, iph->daddr, iph->saddr,

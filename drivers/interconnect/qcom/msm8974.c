@@ -3,7 +3,7 @@
  * Copyright (C) 2019 Brian Masney <masneyb@onstation.org>
  *
  * Based on MSM bus code from downstream MSM kernel sources.
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The GNU/Linux Foundation. All rights reserved.
  *
  * Based on qcs404.c
  * Copyright (C) 2019 Linaro Ltd

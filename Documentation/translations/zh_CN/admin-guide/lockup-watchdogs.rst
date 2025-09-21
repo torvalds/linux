@@ -10,7 +10,7 @@
 Softlockup与hardlockup检测机制(又名:nmi_watchdog)
 =================================================
 
-Linux中内核实现了一种用以检测系统发生softlockup和hardlockup的看门狗机制。
+GNU/Linux中内核实现了一种用以检测系统发生softlockup和hardlockup的看门狗机制。
 
 Softlockup是一种会引发系统在内核态中一直循环超过20秒（详见下面“实现”小节）导致
 其他任务没有机会得到运行的BUG。一旦检测到'softlockup'发生，默认情况下系统会打

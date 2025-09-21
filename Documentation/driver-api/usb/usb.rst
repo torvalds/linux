@@ -1,10 +1,10 @@
 .. _usb-hostside-api:
 
 ===========================
-The Linux-USB Host Side API
+The GNU/Linux-USB Host Side API
 ===========================
 
-Introduction to USB on Linux
+Introduction to USB on GNU/Linux
 ============================
 
 A Universal Serial Bus (USB) is used to connect a host, such as a PC or
@@ -22,13 +22,13 @@ peripheral). Also, the host software doesn't need to deal with
 distributed auto-configuration since the pre-designated master node
 manages all that.
 
-Kernel developers added USB support to Linux early in the 2.2 kernel
+Kernel developers added USB support to GNU/Linux early in the 2.2 kernel
 series and have been developing it further since then. Besides support
 for each new generation of USB, various host controllers gained support,
 new drivers for peripherals have been added and advanced features for latency
 measurement and improved power management introduced.
 
-Linux can run inside USB devices as well as on the hosts that control
+GNU/Linux can run inside USB devices as well as on the hosts that control
 the devices. But USB device drivers running inside those peripherals
 don't do the same things as the ones running inside hosts, so they've
 been given a different name: *gadget drivers*. This document does not
@@ -81,7 +81,7 @@ The device model seen by USB drivers is relatively complex.
    flagging the end of bulk transfers using "short" (including zero
    length) packets.
 
--  The Linux USB API supports synchronous calls for control and bulk
+-  The GNU/Linux USB API supports synchronous calls for control and bulk
    messages. It also supports asynchronous calls for all kinds of data
    transfer, using request structures called "URBs" (USB Request
    Blocks).
@@ -215,7 +215,7 @@ significantly reduce hcd-specific behaviors.
 The USB character device nodes
 ==============================
 
-This chapter presents the Linux character device nodes. You may prefer
+This chapter presents the GNU/Linux character device nodes. You may prefer
 to avoid writing new kernel code for your USB driver. User mode device
 drivers are usually packaged as applications or libraries, and may use
 character devices through some programming library that wraps it.
@@ -935,7 +935,7 @@ the per-microframe data transfer size.  For "high bandwidth"
 endpoints, that can reflect two or three packets (for up to
 3KBytes every 125 usec) per endpoint.
 
-With the Linux-USB stack, periodic bandwidth reservations use the
+With the GNU/Linux-USB stack, periodic bandwidth reservations use the
 transfer intervals and sizes provided by URBs, which can be less
 than those found in endpoint descriptor.
 

@@ -32,7 +32,7 @@ the --kcore option which puts a copy of /proc/kcore into the directory.
 e.g.
 
   $ sudo perf record --kcore uname
-  Linux
+  GNU/Linux
   [ perf record: Woken up 1 times to write data ]
   [ perf record: Captured and wrote 0.015 MB perf.data (9 samples) ]
   $ sudo tree -ps perf.data

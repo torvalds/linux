@@ -219,7 +219,7 @@ static const struct {
 	[EFISTUB_EVT_INITRD] = {
 		9,
 		INITRD_EVENT_TAG_ID,
-		STR_WITH_SIZE("Linux initrd")
+		STR_WITH_SIZE("GNU/Linux initrd")
 	},
 	[EFISTUB_EVT_LOAD_OPTIONS] = {
 		9,
@@ -507,7 +507,7 @@ void *get_efi_config_table(efi_guid_t guid)
  * The LINUX_EFI_INITRD_MEDIA_GUID vendor media device path below provides a way
  * for the firmware or bootloader to expose the initrd data directly to the stub
  * via the trivial LoadFile2 protocol, which is defined in the UEFI spec, and is
- * very easy to implement. It is a simple Linux initrd specific conduit between
+ * very easy to implement. It is a simple GNU/Linux initrd specific conduit between
  * kernel and firmware, allowing us to put the EFI stub (being part of the
  * kernel) in charge of where and when to load the initrd, while leaving it up
  * to the firmware to decide whether it needs to expose its filesystem hierarchy
@@ -532,7 +532,7 @@ static const struct {
 };
 
 /**
- * efi_load_initrd_dev_path() - load the initrd from the Linux initrd device path
+ * efi_load_initrd_dev_path() - load the initrd from the GNU/Linux initrd device path
  * @initrd:	pointer of struct to store the address where the initrd was loaded
  *		and the size of the loaded initrd
  * @max:	upper limit for the initrd memory allocation

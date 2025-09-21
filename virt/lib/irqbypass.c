@@ -85,7 +85,7 @@ static void __disconnect(struct irq_bypass_producer *prod,
  * irq_bypass_register_producer - register IRQ bypass producer
  * @producer: pointer to producer structure
  * @eventfd: pointer to the eventfd context associated with the producer
- * @irq: Linux IRQ number of the underlying producer device
+ * @irq: GNU/Linux IRQ number of the underlying producer device
  *
  * Add the provided IRQ producer to the set of producers and connect with the
  * consumer with a matching eventfd, if one exists.

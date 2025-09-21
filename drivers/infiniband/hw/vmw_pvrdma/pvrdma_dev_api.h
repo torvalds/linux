@@ -192,7 +192,7 @@ enum pvrdma_gos_bits {
 
 enum pvrdma_gos_type {
 	PVRDMA_GOS_TYPE_UNK,		/* Unknown. */
-	PVRDMA_GOS_TYPE_LINUX,		/* Linux. */
+	PVRDMA_GOS_TYPE_LINUX,		/* GNU/Linux. */
 };
 
 enum pvrdma_device_mode {

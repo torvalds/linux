@@ -27,7 +27,7 @@ config AXS101
 	bool "AXS101 with AXC001 CPU Card (ARC 770D/EM6/AS221)"
 	help
 	  This adds support for the 770D/EM6/AS221 CPU Card. Only the ARC
-	  770D is supported in Linux.
+	  770D is supported in GNU/Linux.
 
 	  The AXS101 Platform consists of an AXS10x mainboard with
 	  this daughtercard. Please use the axs101.dts device tree

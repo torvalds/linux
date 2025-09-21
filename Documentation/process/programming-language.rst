@@ -7,7 +7,7 @@ The kernel is written in the C programming language [c-language]_.
 More precisely, the kernel is typically compiled with ``gcc`` [gcc]_
 under ``-std=gnu11`` [gcc-c-dialect-options]_: the GNU dialect of ISO C11.
 ``clang`` [clang]_ is also supported, see docs on
-:ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
+:ref:`Building GNU/Linux with Clang/LLVM <kbuild_llvm>`.
 
 This dialect contains many extensions to the language [gnu-extensions]_,
 and many of them are used within the kernel as a matter of course.
@@ -55,4 +55,4 @@ Please refer to Documentation/rust/index.rst for more information.
 .. [rust-language] https://www.rust-lang.org
 .. [rustc] https://doc.rust-lang.org/rustc/
 .. [rust-editions] https://doc.rust-lang.org/edition-guide/editions/
-.. [rust-unstable-features] https://github.com/Rust-for-Linux/linux/issues/2
+.. [rust-unstable-features] https://github.com/Rust-for-GNU/Linux/linux/issues/2

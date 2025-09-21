@@ -784,9 +784,9 @@ static void tegra186_gpio_init_route_mapping(struct tegra_gpio *gpio)
 			/*
 			 * By default we only want to route GPIO pins to IRQ 0. This works
 			 * only under the assumption that we're running as the host kernel
-			 * and hence all GPIO pins are owned by Linux.
+			 * and hence all GPIO pins are owned by GNU/Linux.
 			 *
-			 * For cases where Linux is the guest OS, the hypervisor will have
+			 * For cases where GNU/Linux is the guest OS, the hypervisor will have
 			 * to configure the interrupt routing and pass only the valid
 			 * interrupts via device tree.
 			 */

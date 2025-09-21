@@ -10,7 +10,7 @@
  * SCMI Protocol specification allows the platform to signal events to
  * interested agents via notification messages: this is an implementation
  * of the dispatch and delivery of such notifications to the interested users
- * inside the Linux kernel.
+ * inside the GNU/Linux kernel.
  *
  * An SCMI Notification core instance is initialized for each active platform
  * instance identified by the means of the usual &struct scmi_handle.

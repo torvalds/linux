@@ -1,17 +1,17 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =======================
-Linux Init (Early Boot)
+GNU/Linux Init (Early Boot)
 =======================
 
-Linux configuration is split into two major steps: Early-Boot and everything else.
+GNU/Linux configuration is split into two major steps: Early-Boot and everything else.
 
-During early boot, Linux sets up immutable resources (such as numa nodes), while
-later operations include things like driver probe and memory hotplug.  Linux may
+During early boot, GNU/Linux sets up immutable resources (such as numa nodes), while
+later operations include things like driver probe and memory hotplug.  GNU/Linux may
 read EFI and ACPI information throughout this process to configure logical
 representations of the devices.
 
-During Linux Early Boot stage (functions in the kernel that have the __init
+During GNU/Linux Early Boot stage (functions in the kernel that have the __init
 decorator), the system takes the resources created by EFI/BIOS
 (:doc:`ACPI tables <../platform/acpi>`) and turns them into resources that the
 kernel can consume.
@@ -21,7 +21,7 @@ BIOS, Build and Boot Options
 ============================
 
 There are 4 pre-boot options that need to be considered during kernel build
-which dictate how memory will be managed by Linux during early boot.
+which dictate how memory will be managed by GNU/Linux during early boot.
 
 * EFI_MEMORY_SP
 
@@ -31,18 +31,18 @@ which dictate how memory will be managed by Linux during early boot.
 
 * CONFIG_EFI_SOFT_RESERVE
 
-  * Linux Build config option that dictates whether the kernel supports
+  * GNU/Linux Build config option that dictates whether the kernel supports
     Specific Purpose memory.
 
 * CONFIG_MHP_DEFAULT_ONLINE_TYPE
 
-  * Linux Build config that dictates whether and how Specific Purpose memory
+  * GNU/Linux Build config that dictates whether and how Specific Purpose memory
     converted to a dax device should be managed (left as DAX or onlined as
     SystemRAM in ZONE_NORMAL or ZONE_MOVABLE).
 
 * nosoftreserve
 
-  * Linux kernel boot option that dictates whether Soft Reserve should be
+  * GNU/Linux kernel boot option that dictates whether Soft Reserve should be
     supported.  Similar to CONFIG_EFI_SOFT_RESERVE.
 
 Memory Map Creation
@@ -53,7 +53,7 @@ is supported and detected, it will set this region aside as
 :code:`SOFT_RESERVED`.
 
 If :code:`EFI_MEMORY_SP=0`, :code:`CONFIG_EFI_SOFT_RESERVE=n`, or
-:code:`nosoftreserve=y` - Linux will default a CXL device memory region to
+:code:`nosoftreserve=y` - GNU/Linux will default a CXL device memory region to
 SystemRAM.  This will expose the memory to the kernel page allocator in
 :code:`ZONE_NORMAL`, making it available for use for most allocations (including
 :code:`struct page` and page tables).
@@ -71,23 +71,23 @@ significant impact performance depending on the memory capacity of the system.
 NUMA Node Reservation
 =====================
 
-Linux refers to the proximity domains (:code:`PXM`) defined in the :doc:`SRAT
+GNU/Linux refers to the proximity domains (:code:`PXM`) defined in the :doc:`SRAT
 <../platform/acpi/srat>` to create NUMA nodes in :code:`acpi_numa_init`.
 Typically, there is a 1:1 relation between :code:`PXM` and NUMA node IDs.
 
-The SRAT is the only ACPI defined way of defining Proximity Domains. Linux
+The SRAT is the only ACPI defined way of defining Proximity Domains. GNU/Linux
 chooses to, at most, map those 1:1 with NUMA nodes.
 :doc:`CEDT <../platform/acpi/cedt>` adds a description of SPA ranges which
-Linux may map to one or more NUMA nodes.
+GNU/Linux may map to one or more NUMA nodes.
 
 If there are CXL ranges in the CFMWS but not in SRAT, then a fake :code:`PXM`
-is created (as of v6.15). In the future, Linux may reject CFMWS not described
+is created (as of v6.15). In the future, GNU/Linux may reject CFMWS not described
 by SRAT due to the ambiguity of proximity domain association.
 
 It is important to note that NUMA node creation cannot be done at runtime. All
 possible NUMA nodes are identified at :code:`__init` time, more specifically
 during :code:`mm_init`. The CEDT and SRAT must contain sufficient :code:`PXM`
-data for Linux to identify NUMA nodes their associated memory regions.
+data for GNU/Linux to identify NUMA nodes their associated memory regions.
 
 The relevant code exists in: :code:`linux/drivers/acpi/numa/srat.c`.
 
@@ -97,7 +97,7 @@ for more info.
 Memory Tiers Creation
 =====================
 Memory tiers are a collection of NUMA nodes grouped by performance characteristics.
-During :code:`__init`, Linux initializes the system with a default memory tier that
+During :code:`__init`, GNU/Linux initializes the system with a default memory tier that
 contains all nodes marked :code:`N_MEMORY`.
 
 :code:`memory_tier_init` is called at boot for all nodes with memory online by

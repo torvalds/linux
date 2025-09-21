@@ -1,5 +1,5 @@
 /*
- * Linux V4L2 radio driver for the Griffin radioSHARK2 USB radio receiver
+ * GNU/Linux V4L2 radio driver for the Griffin radioSHARK2 USB radio receiver
  *
  * Note the radioSHARK2 offers the audio through a regular USB audio device,
  * this driver only handles the tuning.

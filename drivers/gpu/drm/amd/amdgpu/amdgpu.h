@@ -610,7 +610,7 @@ struct amdgpu_allowed_register_entry {
  * @AMD_RESET_BACO: BACO (Bus Alive, Chip Off) method powers off and on the card
  *                  but without powering off the PCI bus. Suitable only for
  *                  discrete GPUs.
- * @AMD_RESET_PCI: Does a full bus reset using core Linux subsystem PCI reset
+ * @AMD_RESET_PCI: Does a full bus reset using core GNU/Linux subsystem PCI reset
  *                 and does a secondary bus reset or FLR, depending on what the
  *                 underlying hardware supports.
  *

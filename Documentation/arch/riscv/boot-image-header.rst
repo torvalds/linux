@@ -1,13 +1,13 @@
 =================================
-Boot image header in RISC-V Linux
+Boot image header in RISC-V GNU/Linux
 =================================
 
 :Author: Atish Patra <atish.patra@wdc.com>
 :Date:   20 May 2019
 
-This document only describes the boot image header details for RISC-V Linux.
+This document only describes the boot image header details for RISC-V GNU/Linux.
 
-The following 64-byte header is present in decompressed Linux kernel image::
+The following 64-byte header is present in decompressed GNU/Linux kernel image::
 
 	u32 code0;		  /* Executable code */
 	u32 code1;		  /* Executable code */

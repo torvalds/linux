@@ -11,23 +11,23 @@ La guida a PGP per manutentori del kernel
 
 :Author: Konstantin Ryabitsev <konstantin@linuxfoundation.org>
 
-Questo documento è destinato agli sviluppatori del kernel Linux, in particolar
+Questo documento è destinato agli sviluppatori del kernel GNU/Linux, in particolar
 modo ai manutentori. Contiene degli approfondimenti riguardo informazioni che
 sono state affrontate in maniera più generale nella sezione
-"`Protecting Code Integrity`_" pubblicata dalla Linux Foundation.
+"`Protecting Code Integrity`_" pubblicata dalla GNU/Linux Foundation.
 Per approfondire alcuni argomenti trattati in questo documento è consigliato
 leggere il documento sopraindicato
 
 .. _`Protecting Code Integrity`: https://github.com/lfit/itpol/blob/master/protecting-code-integrity.md
 
-Il ruolo di PGP nello sviluppo del kernel Linux
+Il ruolo di PGP nello sviluppo del kernel GNU/Linux
 ===============================================
 
 PGP aiuta ad assicurare l'integrità del codice prodotto dalla comunità
 di sviluppo del kernel e, in secondo luogo, stabilisce canali di comunicazione
 affidabili tra sviluppatori attraverso lo scambio di email firmate con PGP.
 
-Il codice sorgente del kernel Linux è disponibile principalmente in due
+Il codice sorgente del kernel GNU/Linux è disponibile principalmente in due
 formati:
 
 - repositori distribuiti di sorgenti (git)
@@ -60,7 +60,7 @@ guida. Vogliamo essere sicuri che il riporre la fiducia negli sviluppatori
 non sia fatto semplicemente per incolpare qualcun'altro per future falle di
 sicurezza. L'obiettivo è quello di fornire una serie di linee guida che gli
 sviluppatori possano seguire per creare un ambiente di lavoro sicuro e
-salvaguardare le chiavi PGP usate nello stabilire l'integrità del kernel Linux
+salvaguardare le chiavi PGP usate nello stabilire l'integrità del kernel GNU/Linux
 stesso.
 
 .. _it_pgp_tools:
@@ -119,7 +119,7 @@ Proteggere la vostra chiave PGP primaria
 ========================================
 
 Questa guida parte dal presupposto che abbiate già una chiave PGP che usate
-per lo sviluppo del kernel Linux. Se non ne avete ancora una, date uno sguardo
+per lo sviluppo del kernel GNU/Linux. Se non ne avete ancora una, date uno sguardo
 al documento "`Protecting Code Integrity`_" che abbiamo menzionato prima.
 
 Dovreste inoltre creare una nuova chiave se quella attuale è inferiore a 2048
@@ -435,7 +435,7 @@ sulla scelta fra dispositivi aperti e proprietari.
 
     Se siete nella lista MAINTAINERS o avete un profilo su kernel.org, allora
     `potrete avere gratuitamente una Nitrokey Start`_ grazie alla fondazione
-    Linux.
+    GNU/Linux.
 
 .. _`Nitrokey Start`: https://shop.nitrokey.com/shop/product/nitrokey-start-6
 .. _`Nitrokey Pro 2`: https://shop.nitrokey.com/shop/product/nitrokey-pro-2-3
@@ -447,7 +447,7 @@ Configurare il vostro dispositivo smartcard
 -------------------------------------------
 
 Il vostro dispositivo smartcard dovrebbe iniziare a funzionare non appena
-lo collegate ad un qualsiasi computer Linux moderno. Potete verificarlo
+lo collegate ad un qualsiasi computer GNU/Linux moderno. Potete verificarlo
 eseguendo::
 
     $ gpg --card-status

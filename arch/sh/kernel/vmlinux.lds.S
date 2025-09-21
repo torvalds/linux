@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * ld script to make SuperH Linux kernel
+ * ld script to make SuperH GNU/Linux kernel
  * Written by Niibe Yutaka and Paul Mundt
  */
 OUTPUT_ARCH(sh)

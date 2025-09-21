@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2009 Felix Fietkau <nbd@nbd.name>
  * Copyright (C) 2011-2012 Gabor Juhos <juhosg@openwrt.org>
- * Copyright (c) 2015, 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2019, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2016 John Crispin <john@phrozen.org>
  */
 
@@ -1912,7 +1912,7 @@ qca8k_setup(struct dsa_switch *ds)
 		}
 	}
 
-	/* Forward all unknown frames to CPU port for Linux processing
+	/* Forward all unknown frames to CPU port for GNU/Linux processing
 	 * Notice that in multi-cpu config only one port should be set
 	 * for igmp, unknown, multicast and broadcast packet
 	 */

@@ -5,7 +5,7 @@
 
 .. _it_magicnumbers:
 
-I numeri magici di Linux
+I numeri magici di GNU/Linux
 ========================
 
 Questo documento è un registro dei numeri magici in uso.  Quando
@@ -40,13 +40,13 @@ Registro dei cambiamenti::
 					Theodore Ts'o
 					31 Mar 94
 
-  La tabella magica è aggiornata a Linux 2.1.55.
+  La tabella magica è aggiornata a GNU/Linux 2.1.55.
 
 					Michael Chastain
 					<mailto:mec@shout.net>
 					22 Sep 1997
 
-  Ora dovrebbe essere aggiornata a Linux 2.1.112. Dato che
+  Ora dovrebbe essere aggiornata a GNU/Linux 2.1.112. Dato che
   siamo in un momento di congelamento delle funzionalità
   (*feature freeze*) è improbabile che qualcosa cambi prima
   della versione 2.2.x.  Le righe sono ordinate secondo il
@@ -56,7 +56,7 @@ Registro dei cambiamenti::
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
-  Aggiornamento della tabella a Linux 2.5.45. Giusti nel congelamento
+  Aggiornamento della tabella a GNU/Linux 2.5.45. Giusti nel congelamento
   delle funzionalità ma è comunque possibile che qualche nuovo
   numero magico s'intrufoli prima del kernel 2.6.x.
 
@@ -64,7 +64,7 @@ Registro dei cambiamenti::
 					<pasky@ucw.cz>
 					03 Nov 2002
 
-  Aggiornamento della tabella magica a Linux 2.5.74.
+  Aggiornamento della tabella magica a GNU/Linux 2.5.74.
 
 					Fabian Frederick
 					<ffrederick@users.sourceforge.net>

@@ -51,9 +51,9 @@
 			};
 
 			partition@200000 {
-				/* 4MB for Linux Kernel Image */
+				/* 4MB for GNU/Linux Kernel Image */
 				reg = <0x00200000 0x00400000>;
-				label = "NAND (RO) Linux Kernel Image";
+				label = "NAND (RO) GNU/Linux Kernel Image";
 				read-only;
 			};
 

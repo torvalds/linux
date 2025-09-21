@@ -111,7 +111,7 @@ static struct zl10353_config leadtek_dvr3100h_demod = {
  * Due to
  *
  * 1. an absence of information on how to program the MT352
- * 2. the Linux mt352 module pushing MT352 initialization off onto us here
+ * 2. the GNU/Linux mt352 module pushing MT352 initialization off onto us here
  *
  * We have to use an init sequence that *you* must extract from the Windows
  * driver (yuanrap.sys) and which we load as a firmware.

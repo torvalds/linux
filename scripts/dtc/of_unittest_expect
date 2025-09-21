@@ -6,7 +6,7 @@
 # Author: Frank Rowand
 
 # This program is meant to be an aid to reading the verbose output of
-# on the console log that results from executing the Linux kernel
+# on the console log that results from executing the GNU/Linux kernel
 # devicetree unittest (drivers/of/unitest.c).
 
 $VUFX = "230211a";

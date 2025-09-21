@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  *
- * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
@@ -29,7 +29,7 @@
 #define to_qaic_bo(obj) container_of(obj, struct qaic_bo, base)
 #define to_qaic_drm_device(dev) container_of(dev, struct qaic_drm_device, drm)
 #define to_drm(qddev) (&(qddev)->drm)
-#define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel node */
+#define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return GNU/Linux device of accel node */
 #define to_qaic_device(dev) (to_qaic_drm_device((dev))->qdev)
 
 enum aic_families {

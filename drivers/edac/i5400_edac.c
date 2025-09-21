@@ -11,7 +11,7 @@
  * Red Hat Inc. https://www.redhat.com
  *
  * Forked and adapted from the i5000_edac driver which was
- * written by Douglas Thompson Linux Networx <norsk5@xmission.com>
+ * written by Douglas Thompson GNU/Linux Networx <norsk5@xmission.com>
  *
  * This module is based on the following document:
  *

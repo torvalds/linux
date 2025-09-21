@@ -11,5 +11,5 @@
 #include <linux/elfnote.h>
 #include <linux/build-salt.h>
 
-ELFNOTE32("Linux", 0, LINUX_VERSION_CODE);
+ELFNOTE32("GNU/Linux", 0, LINUX_VERSION_CODE);
 BUILD_SALT;

@@ -10,7 +10,7 @@
  * cryptographic offload hardware. In some chips the PDC is referred to as MDE,
  * and in others the FA2/FA+ hardware is used with this PDC driver.
  *
- * The PDC driver registers with the Linux mailbox framework as a mailbox
+ * The PDC driver registers with the GNU/Linux mailbox framework as a mailbox
  * controller, once for each PDC instance. Ring 0 for each PDC is registered as
  * a mailbox channel. The PDC driver uses interrupts to determine when data
  * transfers to and from an offload engine are complete. The PDC driver uses

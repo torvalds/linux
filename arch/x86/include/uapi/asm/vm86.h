@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_VM86_H
 #define _UAPI_ASM_X86_VM86_H
 
 /*
  * I'm guessing at the VIF/VIP flag usage, but hope that this is how
- * the Pentium uses them. Linux will return from vm86 mode when both
+ * the Pentium uses them. GNU/Linux will return from vm86 mode when both
  * VIF and VIP is set.
  *
  * On a Pentium, we could probably optimize the virtual flags directly

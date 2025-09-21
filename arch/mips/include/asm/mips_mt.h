@@ -9,7 +9,7 @@
 #include <linux/cpumask.h>
 
 /*
- * How many VPEs and TCs is Linux allowed to use?  0 means no limit.
+ * How many VPEs and TCs is GNU/Linux allowed to use?  0 means no limit.
  */
 extern int tclimit;
 extern int vpelimit;

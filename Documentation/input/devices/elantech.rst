@@ -46,7 +46,7 @@ Elantech Touchpad Driver
 Introduction
 ~~~~~~~~~~~~
 
-Currently the Linux Elantech touchpad driver is aware of four different
+Currently the GNU/Linux Elantech touchpad driver is aware of four different
 hardware versions unimaginatively called version 1,version 2, version 3
 and version 4. Version 1 is found in "older" laptops and uses 4 bytes per
 packet. Version 2 seems to be introduced with the EeePC and uses 6 bytes
@@ -79,7 +79,7 @@ known whether the bits in the registers represent the same thing or might
 have changed their meaning.
 
 On top of that, some register settings have effect only when the touchpad is
-in relative mode and not in absolute mode. As the Linux Elantech touchpad
+in relative mode and not in absolute mode. As the GNU/Linux Elantech touchpad
 driver always puts the hardware into absolute mode not all information
 mentioned below can be used immediately. But because there is no freely
 available Elantech documentation the information is provided here anyway for
@@ -89,7 +89,7 @@ completeness sake.
 Extra knobs
 ~~~~~~~~~~~
 
-Currently the Linux Elantech touchpad driver provides three extra knobs under
+Currently the GNU/Linux Elantech touchpad driver provides three extra knobs under
 /sys/bus/serio/drivers/psmouse/serio? for the user.
 
 * debug

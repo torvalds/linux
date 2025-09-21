@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ==========================================================================
-idpf Linux* Base Driver for the Intel(R) Infrastructure Data Path Function
+idpf GNU/Linux* Base Driver for the Intel(R) Infrastructure Data Path Function
 ==========================================================================
 
-Intel idpf Linux driver.
+Intel idpf GNU/Linux driver.
 Copyright(C) 2023 Intel Corporation.
 
 .. contents::
@@ -16,7 +16,7 @@ Driver information can be obtained using ethtool, lspci, and ip.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel adapter. All hardware requirements listed apply to use
-with Linux.
+with GNU/Linux.
 
 
 Identifying Your Adapter

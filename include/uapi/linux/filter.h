@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
- * Linux Socket Filter Data Structures
+ * GNU/Linux Socket Filter Data Structures
  */
 
 #ifndef _UAPI__LINUX_FILTER_H__

@@ -3,7 +3,7 @@
  * comedi/drivers/rtd520.c
  * Comedi driver for Real Time Devices (RTD) PCI4520/DM7520
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2001 David A. Schleef <ds@schleef.org>
  */
 

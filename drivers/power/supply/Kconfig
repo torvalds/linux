@@ -1051,7 +1051,7 @@ config BATTERY_UG3105
 	  microcontroller reading its coulomb-counter before it can wrap
 	  (it must be read every 400 seconds!).
 
-	  Since Linux does not monitor coulomb-counter changes while the
+	  Since GNU/Linux does not monitor coulomb-counter changes while the
 	  device is off or suspended, the functionality of this driver is
 	  limited to reporting capacity only.
 

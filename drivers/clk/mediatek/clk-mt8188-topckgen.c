@@ -952,7 +952,7 @@ static const char * const mfg_fast_ref_parents[] = {
 static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_0
-	 * axi_sel and bus_aximem_sel are bus clocks, should not be closed by Linux.
+	 * axi_sel and bus_aximem_sel are bus clocks, should not be closed by GNU/Linux.
 	 * spm_sel and scp_sel are main clocks in always-on co-processor.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "top_axi", axi_parents,
@@ -1079,7 +1079,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 			     venc_parents, 0x0B0, 0x0B4, 0x0B8, 24, 4, 31, 0x08, 19),
 	/*
 	 * CLK_CFG_13
-	 * top_mcupm is main clock in co-processor, should not be handled by Linux.
+	 * top_mcupm is main clock in co-processor, should not be handled by GNU/Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_VDEC, "top_vdec",
 			     vdec_parents, 0x0BC, 0x0C0, 0x0C4, 0, 4, 7, 0x08, 20),
@@ -1092,7 +1092,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 			     spmi_p_mst_parents, 0x0BC, 0x0C0, 0x0C4, 24, 4, 31, 0x08, 23),
 	/*
 	 * CLK_CFG_14
-	 * dvfsrc_sel is for internal DVFS usage, should not be handled by Linux.
+	 * dvfsrc_sel is for internal DVFS usage, should not be handled by GNU/Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPMI_M_MST, "top_spmi_m_mst",
 			     spmi_m_mst_parents, 0x0C8, 0x0CC, 0x0D0, 0, 4, 7, 0x08, 24),
@@ -1169,7 +1169,7 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	/*
 	 * CLK_CFG_22
 	 * top_ulposc/top_srck are clock source of always on co-processor,
-	 * should not be closed by Linux.
+	 * should not be closed by GNU/Linux.
 	 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPINOR, "top_spinor",
 			     spinor_parents, 0x0128, 0x012C, 0x0130, 0, 4, 7, 0x0C, 24),

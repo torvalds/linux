@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) BayLibre, SAS.
  * Author : Neil Armstrong <narmstrong@baylibre.com>
  */

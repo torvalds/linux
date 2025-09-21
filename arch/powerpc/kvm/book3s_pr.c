@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009. SUSE Linux Products GmbH. All rights reserved.
+ * Copyright (C) 2009. SUSE GNU/Linux Products GmbH. All rights reserved.
  *
  * Authors:
  *    Alexander Graf <agraf@suse.de>
@@ -628,8 +628,8 @@ static void kvmppc_set_pvr_pr(struct kvm_vcpu *vcpu, u32 pvr)
 	}
 }
 
-/* Book3s_32 CPUs always have 32 bytes cache line size, which Linux assumes. To
- * make Book3s_32 Linux work on Book3s_64, we have to make sure we trap dcbz to
+/* Book3s_32 CPUs always have 32 bytes cache line size, which GNU/Linux assumes. To
+ * make Book3s_32 GNU/Linux work on Book3s_64, we have to make sure we trap dcbz to
  * emulate 32 bytes dcbz length.
  *
  * The Book3s_64 inventors also realized this case and implemented a special bit
@@ -1008,7 +1008,7 @@ static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 
 	switch (fac) {
 	case FSCR_TAR_LG:
-		/* TAR switching isn't lazy in Linux yet */
+		/* TAR switching isn't lazy in GNU/Linux yet */
 		current->thread.tar = mfspr(SPRN_TAR);
 		mtspr(SPRN_TAR, vcpu->arch.tar);
 		vcpu->arch.shadow_fscr |= FSCR_TAR;

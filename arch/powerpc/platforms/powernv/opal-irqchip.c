@@ -2,8 +2,8 @@
 /*
  * This file implements an irqchip for OPAL events. Whenever there is
  * an interrupt that is handled by OPAL we get passed a list of events
- * that Linux needs to do something about. These basically look like
- * interrupts to Linux so we implement an irqchip to handle them.
+ * that GNU/Linux needs to do something about. These basically look like
+ * interrupts to GNU/Linux so we implement an irqchip to handle them.
  *
  * Copyright Alistair Popple, IBM Corporation 2014.
  */

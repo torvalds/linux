@@ -17,7 +17,7 @@ description:
 properties:
   compatible:
     enum:
-      # bmc150-accel driver in Linux
+      # bmc150-accel driver in GNU/Linux
       - bosch,bma222
       - bosch,bma222e
       - bosch,bma250e
@@ -29,7 +29,7 @@ properties:
       - bosch,bmc156_accel
       - bosch,bmi055_accel
 
-      # bma180 driver in Linux
+      # bma180 driver in GNU/Linux
       - bosch,bma023
       - bosch,bma150
       - bosch,bma180

@@ -2,13 +2,13 @@
 /*
  * Apple SoC SPMI device driver
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  *
  * Inspired by:
  *		OpenBSD support Copyright (c) 2021 Mark Kettenis <kettenis@openbsd.org>
  *		Correllium support Copyright (C) 2021 Corellium LLC
  *		hisi-spmi-controller.c
- *		spmi-pmic-arb.c Copyright (c) 2021, The Linux Foundation.
+ *		spmi-pmic-arb.c Copyright (c) 2021, The GNU/Linux Foundation.
  */
 
 #include <linux/io.h>

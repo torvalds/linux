@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -31,7 +31,7 @@ struct statfs {
 	long		f_ffree;
 	long		f_bavail;
 
-	/* Linux specials */
+	/* GNU/Linux specials */
 	__kernel_fsid_t f_fsid;
 	long		f_namelen;
 	long		f_flags;
@@ -73,7 +73,7 @@ struct statfs64 {			/* Same as struct statfs */
 	long		f_ffree;
 	long		f_bavail;
 
-	/* Linux specials */
+	/* GNU/Linux specials */
 	__kernel_fsid_t f_fsid;
 	long		f_namelen;
 	long		f_flags;

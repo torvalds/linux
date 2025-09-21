@@ -438,7 +438,7 @@ static int read_valkyrie_sense(struct fb_info_valkyrie *p)
  * swiping the platinumfb code is that we now have more comprehensible error
  * messages when a vmode/cmode switch fails. (Most of the error messages are
  * platinumfb.c, but I added two of my own, and I also changed some commas
- * into colons to make the messages more consistent with other Linux error
+ * into colons to make the messages more consistent with other GNU/Linux error
  * messages.) In addition, I think the new code *might* fix some vmode-
  * switching oddities, but I'm not sure.
  *

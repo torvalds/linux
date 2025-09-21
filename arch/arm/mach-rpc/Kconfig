@@ -17,5 +17,5 @@ config ARCH_RPC
 	select NEED_MACH_MEMORY_H
 	select NO_IOPORT_MAP
 	help
-	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
+	  On the Acorn Risc-PC, GNU/Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.

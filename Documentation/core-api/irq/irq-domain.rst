@@ -2,11 +2,11 @@
 The irq_domain Interrupt Number Mapping Library
 ===============================================
 
-The current design of the Linux kernel uses a single large number
+The current design of the GNU/Linux kernel uses a single large number
 space where each separate IRQ source is assigned a unique number.
 This is simple when there is only one interrupt controller. But in
 systems with multiple interrupt controllers, the kernel must ensure
-that each one gets assigned non-overlapping allocations of Linux
+that each one gets assigned non-overlapping allocations of GNU/Linux
 IRQ numbers.
 
 The number of interrupt controllers registered as unique irqchips
@@ -22,11 +22,11 @@ this number is just a number and the number loose all kind of
 correspondence to hardware interrupt numbers.
 
 For this reason, we need a mechanism to separate controller-local
-interrupt numbers, called hardware IRQs, from Linux IRQ numbers.
+interrupt numbers, called hardware IRQs, from GNU/Linux IRQ numbers.
 
 The irq_alloc_desc*() and irq_free_desc*() APIs provide allocation of
 IRQ numbers, but they don't provide any support for reverse mapping of
-the controller-local IRQ (hwirq) number into the Linux IRQ number
+the controller-local IRQ (hwirq) number into the GNU/Linux IRQ number
 space.
 
 The irq_domain library adds a mapping between hwirq and IRQ numbers on
@@ -68,7 +68,7 @@ In most cases, the irq_domain will begin empty without any mappings
 between hwirq and IRQ numbers.  Mappings are added to the irq_domain
 by calling irq_create_mapping() which accepts the irq_domain and a
 hwirq number as arguments. If a mapping for the hwirq doesn't already
-exist, irq_create_mapping() allocates a new Linux irq_desc, associates
+exist, irq_create_mapping() allocates a new GNU/Linux irq_desc, associates
 it with the hwirq, and calls the :c:member:`irq_domain_ops.map()`
 callback. In there, the driver can perform any required hardware
 setup.
@@ -79,7 +79,7 @@ variety of methods:
 - irq_resolve_mapping() returns a pointer to the irq_desc structure
   for a given domain and hwirq number, and NULL if there was no
   mapping.
-- irq_find_mapping() returns a Linux IRQ number for a given domain and
+- irq_find_mapping() returns a GNU/Linux IRQ number for a given domain and
   hwirq number, and 0 if there was no mapping
 - generic_handle_domain_irq() handles an interrupt described by a
   domain and a hwirq number
@@ -91,7 +91,7 @@ The irq_create_mapping() function must be called *at least once*
 before any call to irq_find_mapping(), lest the descriptor will not
 be allocated.
 
-If the driver has the Linux IRQ number or the irq_data pointer, and
+If the driver has the GNU/Linux IRQ number or the irq_data pointer, and
 needs to know the associated hwirq number (such as in the irq_chip
 callbacks) then it can be directly obtained from
 :c:member:`irq_data.hwirq`.
@@ -100,7 +100,7 @@ Types of irq_domain Mappings
 ============================
 
 There are several mechanisms available for reverse mapping from hwirq
-to Linux irq, and each mechanism uses a different allocation function.
+to GNU/Linux irq, and each mechanism uses a different allocation function.
 Which reverse map type should be used depends on the use case.  Each
 of the reverse map types are described below:
 
@@ -130,7 +130,7 @@ Tree
 
 	irq_domain_create_tree()
 
-The irq_domain maintains a radix tree map from hwirq numbers to Linux
+The irq_domain maintains a radix tree map from hwirq numbers to GNU/Linux
 IRQs.  When an hwirq is mapped, an irq_desc is allocated and the
 hwirq is used as the lookup key for the radix tree.
 
@@ -150,10 +150,10 @@ No Map
 
 The No Map mapping is to be used when the hwirq number is
 programmable in the hardware.  In this case it is best to program the
-Linux IRQ number into the hardware itself so that no mapping is
-required.  Calling irq_create_direct_mapping() will allocate a Linux
+GNU/Linux IRQ number into the hardware itself so that no mapping is
+required.  Calling irq_create_direct_mapping() will allocate a GNU/Linux
 IRQ number and call the .map() callback so that driver can program the
-Linux IRQ number into the hardware.
+GNU/Linux IRQ number into the hardware.
 
 Most drivers cannot use this mapping, and it is now gated on the
 CONFIG_IRQ_DOMAIN_NOMAP option. Please refrain from introducing new
@@ -172,7 +172,7 @@ range of irq_descs allocated for the hwirqs.  It is used when the
 driver cannot be immediately converted to use the linear mapping.  For
 example, many embedded system board support files use a set of #defines
 for IRQ numbers that are passed to struct device registrations.  In that
-case the Linux IRQ numbers cannot be dynamically assigned and the legacy
+case the GNU/Linux IRQ numbers cannot be dynamically assigned and the legacy
 mapping should be used.
 
 As the name implies, the \*_legacy() functions are deprecated and only
@@ -189,7 +189,7 @@ allocated for every hwirq, even if it is unused.
 
 The legacy map should only be used if fixed IRQ mappings must be
 supported.  For example, ISA controllers would use the legacy map for
-mapping Linux IRQs 0-15 so that existing ISA drivers get the correct IRQ
+mapping GNU/Linux IRQs 0-15 so that existing ISA drivers get the correct IRQ
 numbers.
 
 Most users of legacy mappings should use irq_domain_create_simple()

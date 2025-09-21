@@ -29,8 +29,8 @@ implemented in the tool in their production software.
 intel-speed-select configuration tool
 ======================================
 
-Most Linux distribution packages may include the "intel-speed-select" tool. If not,
-it can be built by downloading the Linux kernel tree from kernel.org. Once
+Most GNU/Linux distribution packages may include the "intel-speed-select" tool. If not,
+it can be built by downloading the GNU/Linux kernel tree from kernel.org. Once
 downloaded, the tool can be built without building the full kernel.
 
 From the kernel tree, run the following commands::
@@ -268,10 +268,10 @@ Changing performance level via BMC Interface
 It is possible to change SST-PP level using out of band (OOB) agent (Via some
 remote management console, through BMC "Baseboard Management Controller"
 interface). This mode is supported from the Sapphire Rapids processor
-generation. The kernel and tool change to support this mode is added to Linux
+generation. The kernel and tool change to support this mode is added to GNU/Linux
 kernel version 5.18. To enable this feature, kernel config
 "CONFIG_INTEL_HFI_THERMAL" is required. The minimum version of the tool
-is "v1.12" to support this feature, which is part of Linux kernel version 5.18.
+is "v1.12" to support this feature, which is part of GNU/Linux kernel version 5.18.
 
 To support such configuration, this tool can be used as a daemon. Add
 a command line option --oob::
@@ -502,7 +502,7 @@ For example to associate CPU 10 to CLOS group 3, execute::
         assoc:success
 
 Once a CPU is associated, its sibling CPUs are also associated to a CLOS group.
-Once associated, avoid changing Linux "cpufreq" subsystem scaling frequency
+Once associated, avoid changing GNU/Linux "cpufreq" subsystem scaling frequency
 limits.
 
 To check the existing association for a CPU, "core-power get-assoc" command can

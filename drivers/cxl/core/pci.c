@@ -442,7 +442,7 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
 	 * [High,Low] when HDM operation is enabled the range register values
 	 * are ignored by the device, but the spec also recommends matching the
 	 * DVSEC Range 1,2 to HDM Decoder Range 0,1. So, non-zero info->ranges
-	 * are expected even though Linux does not require or maintain that
+	 * are expected even though GNU/Linux does not require or maintain that
 	 * match. Check if at least one DVSEC range is enabled and allowed by
 	 * the platform. That is, the DVSEC range must be covered by a locked
 	 * platform window (CFMWS). Fail otherwise as the endpoint's decoders

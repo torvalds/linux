@@ -4,7 +4,7 @@
  */
 
 /*
- * Gunze AHL-51S touchscreen driver for Linux
+ * Gunze AHL-51S touchscreen driver for GNU/Linux
  */
 
 #include <linux/errno.h>

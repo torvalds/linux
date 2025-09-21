@@ -4,11 +4,11 @@
 Reporting regressions
 +++++++++++++++++++++
 
-"*We don't cause regressions*" is the first rule of Linux kernel development;
-Linux founder and lead developer Linus Torvalds established it himself and
+"*We don't cause regressions*" is the first rule of GNU/Linux kernel development;
+GNU/Linux founder and lead developer Linus Torvalds established it himself and
 ensures it's obeyed.
 
-This document describes what the rule means for users and how the Linux kernel's
+This document describes what the rule means for users and how the GNU/Linux kernel's
 development model ensures to address all reported regressions; aspects relevant
 for kernel developers are left to Documentation/process/handling-regressions.rst.
 
@@ -16,7 +16,7 @@ for kernel developers are left to Documentation/process/handling-regressions.rst
 The important bits (aka "TL;DR")
 ================================
 
-#. It's a regression if something running fine with one Linux kernel works worse
+#. It's a regression if something running fine with one GNU/Linux kernel works worse
    or not at all with a newer version. Note, the newer kernel has to be compiled
    using a similar configuration; the detailed explanations below describes this
    and other fine print in more detail.
@@ -28,13 +28,13 @@ The important bits (aka "TL;DR")
    <https://lore.kernel.org/regressions/>`_ (regressions@lists.linux.dev).
 
 #. Optional, but recommended: when sending or forwarding your report, make the
-   Linux kernel regression tracking bot "regzbot" track the issue by specifying
+   GNU/Linux kernel regression tracking bot "regzbot" track the issue by specifying
    when the regression started like this::
 
        #regzbot introduced: v5.13..v5.14-rc1
 
 
-All the details on Linux kernel regressions relevant for users
+All the details on GNU/Linux kernel regressions relevant for users
 ==============================================================
 
 
@@ -46,16 +46,16 @@ What is a "regression" and what is the "no regressions" rule?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It's a regression if some application or practical use case running fine with
-one Linux kernel works worse or not at all with a newer version compiled using a
+one GNU/Linux kernel works worse or not at all with a newer version compiled using a
 similar configuration. The "no regressions" rule forbids this to take place; if
 it happens by accident, developers that caused it are expected to quickly fix
 the issue.
 
-It thus is a regression when a WiFi driver from Linux 5.13 works fine, but with
+It thus is a regression when a WiFi driver from GNU/Linux 5.13 works fine, but with
 5.14 doesn't work at all, works significantly slower, or misbehaves somehow.
 It's also a regression if a perfectly working application suddenly shows erratic
 behavior with a newer kernel version; such issues can be caused by changes in
-procfs, sysfs, or one of the many other interfaces Linux provides to userland
+procfs, sysfs, or one of the many other interfaces GNU/Linux provides to userland
 software. But keep in mind, as mentioned earlier: 5.14 in this example needs to
 be built from a configuration similar to the one from 5.13. This can be achieved
 using ``make olddefconfig``, as explained in more detail below.
@@ -79,7 +79,7 @@ important points. The following aspects outlined there are especially relevant
 for regressions:
 
  * When checking for existing reports to join, also search the `archives of the
-   Linux regressions mailing list <https://lore.kernel.org/regressions/>`_ and
+   GNU/Linux regressions mailing list <https://lore.kernel.org/regressions/>`_ and
    `regzbot's web-interface <https://linux-regtracking.leemhuis.info/regzbot/>`_.
 
  * Start your report's subject with "[REGRESSION]".
@@ -88,7 +88,7 @@ for regressions:
    the first broken one. Ideally try to find the exact change causing the
    regression using a bisection, as explained below in more detail.
 
- * Remember to let the Linux regressions mailing list
+ * Remember to let the GNU/Linux regressions mailing list
    (regressions@lists.linux.dev) know about your report:
 
    * If you report the regression by mail, CC the regressions list.
@@ -98,20 +98,20 @@ for regressions:
      mailing list for the subsystem in question.
 
    If it's a regression within a stable or longterm series (e.g.
-   v5.15.3..v5.15.5), remember to CC the `Linux stable mailing list
+   v5.15.3..v5.15.5), remember to CC the `GNU/Linux stable mailing list
    <https://lore.kernel.org/stable/>`_ (stable@vger.kernel.org).
 
   In case you performed a successful bisection, add everyone to the CC the
   culprit's commit message mentions in lines starting with "Signed-off-by:".
 
 When CCing for forwarding your report to the list, consider directly telling the
-aforementioned Linux kernel regression tracking bot about your report. To do
+aforementioned GNU/Linux kernel regression tracking bot about your report. To do
 that, include a paragraph like this in your mail::
 
        #regzbot introduced: v5.13..v5.14-rc1
 
 Regzbot will then consider your mail a report for a regression introduced in the
-specified version range. In above case Linux v5.13 still worked fine and Linux
+specified version range. In above case GNU/Linux v5.13 still worked fine and GNU/Linux
 v5.14-rc1 was the first version where you encountered the issue. If you
 performed a bisection to find the commit that caused the regression, specify the
 culprit's commit-id instead::
@@ -119,13 +119,13 @@ culprit's commit-id instead::
        #regzbot introduced: 1f2e3d4c5d
 
 Placing such a "regzbot command" is in your interest, as it will ensure the
-report won't fall through the cracks unnoticed. If you omit this, the Linux
+report won't fall through the cracks unnoticed. If you omit this, the GNU/Linux
 kernel's regressions tracker will take care of telling regzbot about your
 regression, as long as you send a copy to the regressions mailing lists. But the
 regression tracker is just one human which sometimes has to rest or occasionally
 might even enjoy some time away from computers (as crazy as that might sound).
 Relying on this person thus will result in an unnecessary delay before the
-regressions becomes mentioned `on the list of tracked and unresolved Linux
+regressions becomes mentioned `on the list of tracked and unresolved GNU/Linux
 kernel regressions <https://linux-regtracking.leemhuis.info/regzbot/>`_ and the
 weekly regression reports sent by regzbot. Such delays can result in Linus
 Torvalds being unaware of important regressions when deciding between "continue
@@ -144,7 +144,7 @@ Who needs to find the root cause of a regression?
 Developers of the affected code area should try to locate the culprit on their
 own. But for them that's often impossible to do with reasonable effort, as quite
 a lot of issues only occur in a particular environment outside the developer's
-reach -- for example, a specific hardware platform, firmware, Linux distro,
+reach -- for example, a specific hardware platform, firmware, GNU/Linux distro,
 system's configuration, or application. That's why in the end it's often up to
 the reporter to locate the culprit commit; sometimes users might even need to
 run additional tests afterwards to pinpoint the exact root cause. Developers
@@ -165,7 +165,7 @@ Who can I ask for advice when it comes to regressions?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Send a mail to the regressions mailing list (regressions@lists.linux.dev) while
-CCing the Linux kernel's regression tracker (regressions@leemhuis.info); if the
+CCing the GNU/Linux kernel's regression tracker (regressions@leemhuis.info); if the
 issue might better be dealt with in private, feel free to omit the list.
 
 
@@ -178,7 +178,7 @@ What is the goal of the "no regressions" rule?
 
 Users should feel safe when updating kernel versions and not have to worry
 something might break. This is in the interest of the kernel developers to make
-updating attractive: they don't want users to stay on stable or longterm Linux
+updating attractive: they don't want users to stay on stable or longterm GNU/Linux
 series that are either abandoned or more than one and a half years old. That's
 in everybody's interest, as `those series might have known bugs, security
 issues, or other problematic aspects already fixed in later versions
@@ -192,7 +192,7 @@ Is the "no regressions" rule really adhered in practice?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It's taken really seriously, as can be seen by many mailing list posts from
-Linux creator and lead developer Linus Torvalds, some of which are quoted in
+GNU/Linux creator and lead developer Linus Torvalds, some of which are quoted in
 Documentation/process/handling-regressions.rst.
 
 Exceptions to this rule are extremely rare; in the past developers almost always
@@ -208,8 +208,8 @@ Greg Kroah-Hartman et al. for various stable/longterm series.
 
 All of them are helped by people trying to ensure no regression report falls
 through the cracks. One of them is Thorsten Leemhuis, who's currently acting as
-the Linux kernel's "regressions tracker"; to facilitate this work he relies on
-regzbot, the Linux kernel regression tracking bot. That's why you want to bring
+the GNU/Linux kernel's "regressions tracker"; to facilitate this work he relies on
+regzbot, the GNU/Linux kernel regression tracking bot. That's why you want to bring
 your report on the radar of these people by CCing or forwarding each report to
 the regressions mailing list, ideally with a "regzbot command" in your mail to
 get it tracked immediately.
@@ -223,7 +223,7 @@ running into the issue; nevertheless developers need to take enough time and
 care to ensure regression fixes do not cause additional damage.
 
 The answer thus depends on various factors like the impact of a regression, its
-age, or the Linux series in which it occurs. In the end though, most regressions
+age, or the GNU/Linux series in which it occurs. In the end though, most regressions
 should be fixed within two weeks.
 
 Is it a regression, if the issue can be avoided by updating some software?
@@ -240,10 +240,10 @@ micro-benchmark thus is unlikely to qualify as regression, unless it also
 influences the results of a broad benchmark by more than one percent. If in
 doubt, ask for advice.
 
-Is it a regression, if an external kernel module breaks when updating Linux?
+Is it a regression, if an external kernel module breaks when updating GNU/Linux?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-No, as the "no regression" rule is about interfaces and services the Linux
+No, as the "no regression" rule is about interfaces and services the GNU/Linux
 kernel provides to the userland. It thus does not cover building or running
 externally developed kernel modules, as they run in kernel-space and hook into
 the kernel using internal interfaces occasionally changed.
@@ -274,7 +274,7 @@ advice if in doubt.
 A quick note while at it: these situations could be avoided, if people would
 regularly give mainline pre-releases (say v5.15-rc1 or -rc3) from each
 development cycle a test run. This is best explained by imagining a change
-integrated between Linux v5.14 and v5.15-rc1 which causes a regression, but at
+integrated between GNU/Linux v5.14 and v5.15-rc1 which causes a regression, but at
 the same time is a hard requirement for some other improvement applied for
 5.15-rc1. All these changes often can simply be reverted and the regression thus
 solved, if someone finds and reports it before 5.15 is released. A few days or
@@ -294,11 +294,11 @@ mainline pre-releases.
 Does the "no regression" rule apply if I seem to be the only affected person?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It does, but only for practical usage: the Linux developers want to be free to
+It does, but only for practical usage: the GNU/Linux developers want to be free to
 remove support for hardware only to be found in attics and museums anymore.
 
 Note, sometimes regressions can't be avoided to make progress -- and the latter
-is needed to prevent Linux from stagnation. Hence, if only very few users seem
+is needed to prevent GNU/Linux from stagnation. Hence, if only very few users seem
 to be affected by a regression, it for the greater good might be in their and
 everyone else's interest to lettings things pass. Especially if there is an
 easy way to circumvent the regression somehow, for example by updating some
@@ -323,7 +323,7 @@ tree was replaced by a totally different one written from scratch.
 Why do later versions have to be "compiled with a similar configuration"?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Because the Linux kernel developers sometimes integrate changes known to cause
+Because the GNU/Linux kernel developers sometimes integrate changes known to cause
 regressions, but make them optional and disable them in the kernel's default
 configuration. This trick allows progress, as the "no regressions" rule
 otherwise would lead to stagnation.
@@ -337,7 +337,7 @@ everyone else can enable it without running into trouble.
 How to create a configuration similar to the one of an older kernel?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Start your machine with a known-good kernel and configure the newer Linux
+Start your machine with a known-good kernel and configure the newer GNU/Linux
 version with ``make olddefconfig``. This makes the kernel's build scripts pick
 up the configuration file (the ".config" file) from the running kernel as base
 for the new one you are about to compile; afterwards they set all new
@@ -361,17 +361,17 @@ What is regression tracking and why should I care about it?
 
 Rules like "no regressions" need someone to ensure they are followed, otherwise
 they are broken either accidentally or on purpose. History has shown this to be
-true for Linux kernel development as well. That's why Thorsten Leemhuis, the
-Linux Kernel's regression tracker, and some people try to ensure all regression
+true for GNU/Linux kernel development as well. That's why Thorsten Leemhuis, the
+GNU/Linux Kernel's regression tracker, and some people try to ensure all regression
 are fixed by keeping an eye on them until they are resolved. Neither of them are
 paid for this, that's why the work is done on a best effort basis.
 
-Why and how are Linux kernel regressions tracked using a bot?
+Why and how are GNU/Linux kernel regressions tracked using a bot?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Tracking regressions completely manually has proven to be quite hard due to the
-distributed and loosely structured nature of Linux kernel development process.
-That's why the Linux kernel's regression tracker developed regzbot to facilitate
+distributed and loosely structured nature of GNU/Linux kernel development process.
+That's why the GNU/Linux kernel's regression tracker developed regzbot to facilitate
 the work, with the long term goal to automate regression tracking as much as
 possible for everyone involved.
 
@@ -390,7 +390,7 @@ What kind of issues are supposed to be tracked by regzbot?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The bot is meant to track regressions, hence please don't involve regzbot for
-regular issues. But it's okay for the Linux kernel's regression tracker if you
+regular issues. But it's okay for the GNU/Linux kernel's regression tracker if you
 involve regzbot to track severe issues, like reports about hangs, corrupted
 data, or internal errors (Panic, Oops, BUG(), warning, ...).
 
@@ -441,11 +441,11 @@ for regzbot.
 ..
    This text is available under GPL-2.0+ or CC-BY-4.0, as stated at the top
    of the file. If you want to distribute this text under CC-BY-4.0 only,
-   please use "The Linux kernel developers" for author attribution and link
+   please use "The GNU/Linux kernel developers" for author attribution and link
    this as source:
    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/Documentation/admin-guide/reporting-regressions.rst
 ..
-   Note: Only the content of this RST file as found in the Linux kernel sources
+   Note: Only the content of this RST file as found in the GNU/Linux kernel sources
    is available under CC-BY-4.0, as versions of this text that were processed
    (for example by the kernel's build system) might contain content taken from
    files which use a more restrictive license.

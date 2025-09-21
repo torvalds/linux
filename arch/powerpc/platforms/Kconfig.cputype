@@ -448,7 +448,7 @@ config PPC_RADIX_BROADCAST_TLBIE
 	bool
 	depends on PPC_RADIX_MMU
 	help
-	  Power ISA v3.0 and later implementations in the Linux Compliancy Subset
+	  Power ISA v3.0 and later implementations in the GNU/Linux Compliancy Subset
 	  and lower are not required to implement broadcast TLBIE instructions.
 	  Platforms with CPUs that do implement TLBIE broadcast, that is, where
 	  a TLB invalidation instruction performed on one CPU operates on the

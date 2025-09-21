@@ -139,7 +139,7 @@ static int __init early_root_info_init(void)
 
 	/*
 	 * The following code extracts routing information for use on old
-	 * systems where Linux doesn't automatically use host bridge _CRS
+	 * systems where GNU/Linux doesn't automatically use host bridge _CRS
 	 * methods (or when the user specifies "pci=nocrs").
 	 *
 	 * We only do this through Fam11h, because _CRS should be enough on

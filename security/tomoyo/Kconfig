@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_TOMOYO
-	bool "TOMOYO Linux Support"
+	bool "TOMOYO GNU/Linux Support"
 	depends on SECURITY
 	depends on NET
 	select SECURITYFS
@@ -8,7 +8,7 @@ config SECURITY_TOMOYO
 	select SECURITY_NETWORK
 	default n
 	help
-	  This selects TOMOYO Linux, pathname-based access control.
+	  This selects TOMOYO GNU/Linux, pathname-based access control.
 	  Required userspace tools and further information may be
 	  found at <https://tomoyo.sourceforge.net/>.
 	  If you are unsure how to answer this question, answer N.

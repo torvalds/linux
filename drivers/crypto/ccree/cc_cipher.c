@@ -1430,7 +1430,7 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata)
 
 	INIT_LIST_HEAD(&drvdata->alg_list);
 
-	/* Linux crypto */
+	/* GNU/Linux crypto */
 	dev_dbg(dev, "Number of algorithms = %zu\n",
 		ARRAY_SIZE(skcipher_algs));
 	for (alg = 0; alg < ARRAY_SIZE(skcipher_algs); alg++) {

@@ -311,7 +311,7 @@ EXPORT_SYMBOL(octeon_is_simulation);
 
 /**
  * octeon_is_pci_host - Return true if Octeon is in PCI Host mode. This means
- * Linux can control the PCI bus.
+ * GNU/Linux can control the PCI bus.
  *
  * Return: Non-zero if Octeon is in host mode.
  */
@@ -382,7 +382,7 @@ static int octeon_get_boot_uart(void)
 }
 
 /**
- * octeon_get_boot_coremask - Get the coremask Linux was booted on.
+ * octeon_get_boot_coremask - Get the coremask GNU/Linux was booted on.
  *
  * Return: Core mask
  */
@@ -832,9 +832,9 @@ void __init prom_init(void)
 	octeon_uart = octeon_get_boot_uart();
 
 #ifdef CONFIG_SMP
-	octeon_write_lcd("LinuxSMP");
+	octeon_write_lcd("GNU/LinuxSMP");
 #else
-	octeon_write_lcd("Linux");
+	octeon_write_lcd("GNU/Linux");
 #endif
 
 	octeon_setup_delays();

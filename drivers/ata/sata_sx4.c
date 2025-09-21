@@ -34,7 +34,7 @@
 	submitted and waited-on as a single unit), and an optional
 	microprocessor.
 
-	The limiting factor is largely software.  This Linux driver was
+	The limiting factor is largely software.  This GNU/Linux driver was
 	written to multiplex the single HDMA engine to copy disk
 	transactions into a fixed DIMM memory space, from where an ATA
 	engine takes over.  As a result, each WRITE looks like this:

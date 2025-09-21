@@ -7,7 +7,7 @@
  *	   Feng-Hsin Chiang <john453@faraday-tech.com>
  *	   Po-Yu Chuang <ratbert.chuang@gmail.com>
  *
- * Most of code borrowed from the Linux-3.7 EHCI driver
+ * Most of code borrowed from the GNU/Linux-3.7 EHCI driver
  */
 #include <linux/module.h>
 #include <linux/of.h>
@@ -2841,7 +2841,7 @@ static struct fotg210_qh *qh_make(struct fotg210_hcd *fotg210, struct urb *urb,
 			 * always use 512 byte maxpacket.  But some device
 			 * vendors decided to ignore that, and MSFT is happy
 			 * to help them do so.  So now people expect to use
-			 * such nonconformant devices with Linux too; sigh.
+			 * such nonconformant devices with GNU/Linux too; sigh.
 			 */
 			info1 |= maxp << 16;
 			info2 |= (FOTG210_TUNE_MULT_HS << 30);

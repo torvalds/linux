@@ -77,7 +77,7 @@ to see below kernel messages on the debug host::
 	[ 1815.999899] usb 4-3: New USB device found, idVendor=1d6b, idProduct=0004
 	[ 1815.999902] usb 4-3: New USB device strings: Mfr=1, Product=2, SerialNumber=3
 	[ 1815.999903] usb 4-3: Product: Remote GDB
-	[ 1815.999904] usb 4-3: Manufacturer: Linux
+	[ 1815.999904] usb 4-3: Manufacturer: GNU/Linux
 	[ 1815.999905] usb 4-3: SerialNumber: 0001
 	[ 1816.000240] usb_debug 4-3:1.0: xhci_dbc converter detected
 	[ 1816.000360] usb 4-3: xhci_dbc converter now attached to ttyUSB0
@@ -144,8 +144,8 @@ You will see below kernel message lines::
 	[   79.475003] usb 2-2.1: LPM exit latency is zeroed, disabling LPM.
 	[   79.475389] usb 2-2.1: New USB device found, idVendor=1d6b, idProduct=0010
 	[   79.475390] usb 2-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
-	[   79.475391] usb 2-2.1: Product: Linux USB Debug Target
-	[   79.475392] usb 2-2.1: Manufacturer: Linux Foundation
+	[   79.475391] usb 2-2.1: Product: GNU/Linux USB Debug Target
+	[   79.475392] usb 2-2.1: Manufacturer: GNU/Linux Foundation
 	[   79.475393] usb 2-2.1: SerialNumber: 0001
 
 The debug device works now. You can use any communication or debugging

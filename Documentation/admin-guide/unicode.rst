@@ -4,14 +4,14 @@ Unicode support
 		 Last update: 2005-01-17, version 1.4
 
 Note: The original version of this document, which was maintained at
-lanana.org as part of the Linux Assigned Names And Numbers Authority
+lanana.org as part of the GNU/Linux Assigned Names And Numbers Authority
 (LANANA) project, is no longer existent.  So, this version in the
-mainline Linux kernel is now the maintained main document.
+mainline GNU/Linux kernel is now the maintained main document.
 
 Introduction
 ------------
 
-The Linux kernel code has been rewritten to use Unicode to map
+The GNU/Linux kernel code has been rewritten to use Unicode to map
 characters to fonts.  By downloading a single Unicode-to-font table,
 both the eight-bit character sets and UTF-8 mode are changed to use
 the font as indicated.
@@ -34,13 +34,13 @@ permits for example the use of block graphics even with a Latin-1 font
 loaded.
 
 Note that although these codes are similar to ISO 2022, neither the
-codes nor their uses match ISO 2022; Linux has two 8-bit codes (G0 and
+codes nor their uses match ISO 2022; GNU/Linux has two 8-bit codes (G0 and
 G1), whereas ISO 2022 has four 7-bit codes (G0-G3).
 
 In accordance with the Unicode standard/ISO 10646 the range U+F000 to
 U+F8FF has been reserved for OS-wide allocation (the Unicode Standard
 refers to this as a "Corporate Zone", since this is inaccurate for
-Linux we call it the "Linux Zone").  U+F000 was picked as the starting
+GNU/Linux we call it the "GNU/Linux Zone").  U+F000 was picked as the starting
 point since it lets the direct-mapping area start on a large power of
 two (in case 1024- or 2048-character fonts ever become necessary).
 This leaves U+E000 to U+EFFF as End User Zone.
@@ -53,7 +53,7 @@ might be shorter; for example, vgacon can only handle 256-character
 (U+F000..U+F0FF) or 512-character (U+F000..U+F1FF) fonts.
 
 
-Actual characters assigned in the Linux Zone
+Actual characters assigned in the GNU/Linux Zone
 --------------------------------------------
 
 In addition, the following characters not present in Unicode 1.1.4
@@ -73,7 +73,7 @@ omitted the scan 5 line, since it is also used as a block-graphics
 character, and hence has been coded as U+2500 FORMS LIGHT HORIZONTAL.
 
 [v1.3]: These characters have been officially added to Unicode 3.2.0;
-they are added at U+23BA, U+23BB, U+23BC, U+23BD.  Linux now uses the
+they are added at U+23BA, U+23BB, U+23BC, U+23BD.  GNU/Linux now uses the
 new values.
 
 [v1.2]: The following characters have been added to represent common
@@ -91,19 +91,19 @@ U+F813 KEYBOARD SYMBOL SOLID APPLE
 Klingon language support
 ------------------------
 
-In 1996, Linux was the first operating system in the world to add
+In 1996, GNU/Linux was the first operating system in the world to add
 support for the artificial language Klingon, created by Marc Okrand
 for the "Star Trek" television series.	This encoding was later
 adopted by the ConScript Unicode Registry and proposed (but ultimately
 rejected) for inclusion in Unicode Plane 1.  Thus, it remains as a
-Linux/CSUR private assignment in the Linux Zone.
+GNU/Linux/CSUR private assignment in the GNU/Linux Zone.
 
 This encoding has been endorsed by the Klingon Language Institute.
 For more information, contact them at:
 
 	http://www.kli.org/
 
-Since the characters in the beginning of the Linux CZ have been more
+Since the characters in the beginning of the GNU/Linux CZ have been more
 of the dingbats/symbols/forms type and this is a language, I have
 located it at the end, on a 16-cell boundary in keeping with standard
 Unicode practice.
@@ -172,7 +172,7 @@ U+F8FF	KLINGON SYMBOL FOR EMPIRE
 Other Fictional and Artificial Scripts
 --------------------------------------
 
-Since the assignment of the Klingon Linux Unicode block, a registry of
+Since the assignment of the Klingon GNU/Linux Unicode block, a registry of
 fictional and artificial scripts has been established by John Cowan
 <jcowan@reutershealth.com> and Michael Everson <everson@evertype.com>.
 The ConScript Unicode Registry is accessible at:
@@ -182,7 +182,7 @@ The ConScript Unicode Registry is accessible at:
 The ranges used fall at the low end of the End User Zone and can hence
 not be normatively assigned, but it is recommended that people who
 wish to encode fictional scripts use these codes, in the interest of
-interoperability.  For Klingon, CSUR has adopted the Linux encoding.
+interoperability.  For Klingon, CSUR has adopted the GNU/Linux encoding.
 The CSUR people are driving adding Tengwar and Cirth into Unicode
 Plane 1; the addition of Klingon to Unicode Plane 1 has been rejected
 and so the above encoding remains official.

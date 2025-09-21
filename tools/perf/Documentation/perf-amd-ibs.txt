@@ -23,8 +23,8 @@ behavior etc. IBS Fetch sampling provides information about instruction fetch
 with details like i-cache hit/miss, i-TLB hit/miss, fetch latency etc. IBS is
 per-smt-thread i.e. each SMT hardware thread contains standalone IBS units.
 
-Both, IBS Op and IBS Fetch, are exposed as PMUs by Linux and can be exploited
-using the Linux perf utility. The following files will be created at boot time
+Both, IBS Op and IBS Fetch, are exposed as PMUs by GNU/Linux and can be exploited
+using the GNU/Linux perf utility. The following files will be created at boot time
 if IBS is supported by the hardware and kernel.
 
   /sys/bus/event_source/devices/ibs_op/

@@ -18,7 +18,7 @@
  */
 
 /* Some rough guidelines on accessing and updating grant-table entries
- * in a concurrency-safe manner. For more information, Linux contains a
+ * in a concurrency-safe manner. For more information, GNU/Linux contains a
  * reference implementation for guest OSes (drivers/xen/grant_table.c, see
  * http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=blob;f=drivers/xen/grant-table.c;hb=HEAD
  *

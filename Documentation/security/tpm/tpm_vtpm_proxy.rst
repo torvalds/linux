@@ -1,17 +1,17 @@
 =============================================
-Virtual TPM Proxy Driver for Linux Containers
+Virtual TPM Proxy Driver for GNU/Linux Containers
 =============================================
 
 | Authors:
 | Stefan Berger <stefanb@linux.vnet.ibm.com>
 
 This document describes the virtual Trusted Platform Module (vTPM)
-proxy device driver for Linux containers.
+proxy device driver for GNU/Linux containers.
 
 Introduction
 ============
 
-The goal of this work is to provide TPM functionality to each Linux
+The goal of this work is to provide TPM functionality to each GNU/Linux
 container. This allows programs to interact with a TPM in a container
 the same way they interact with a TPM on the physical system. Each
 container gets its own unique, emulated, software TPM.

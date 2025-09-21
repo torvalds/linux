@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Roccat Kova[+] driver for Linux
+ * Roccat Kova[+] driver for GNU/Linux
  *
  * Copyright (c) 2011 Stefan Achatz <erazor_de@users.sourceforge.net>
  */

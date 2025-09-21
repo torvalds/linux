@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * oplib.h:  Describes the interface and available routines in the
- *           Linux Prom library.
+ *           GNU/Linux Prom library.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */

@@ -52,7 +52,7 @@ The KVM_MEMORY_ENCRYPT_OP ioctl
 The main ioctl to access SEV is KVM_MEMORY_ENCRYPT_OP, which operates on
 the VM file descriptor.  If the argument to KVM_MEMORY_ENCRYPT_OP is NULL,
 the ioctl returns 0 if SEV is enabled and ``ENOTTY`` if it is disabled
-(on some older versions of Linux, the ioctl tries to run normally even
+(on some older versions of GNU/Linux, the ioctl tries to run normally even
 with a NULL argument, and therefore will likely return ``EFAULT`` instead
 of zero if SEV is enabled).  If non-NULL, the argument to
 KVM_MEMORY_ENCRYPT_OP must be a struct kvm_sev_cmd::

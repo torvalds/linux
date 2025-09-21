@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Makefile for AppArmor Linux Security Module
+# Makefile for AppArmor GNU/Linux Security Module
 #
 obj-$(CONFIG_SECURITY_APPARMOR) += apparmor.o
 

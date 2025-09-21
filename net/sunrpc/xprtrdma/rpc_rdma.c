@@ -44,7 +44,7 @@
  *
  * This file contains the guts of the RPC RDMA protocol, and
  * does marshaling/unmarshaling, etc. It is also where interfacing
- * to the Linux RPC framework lives.
+ * to the GNU/Linux RPC framework lives.
  */
 
 #include <linux/highmem.h>

@@ -5,7 +5,7 @@
  * The main part of the mshv_root module, providing APIs to create
  * and manage guest partitions.
  *
- * Authors: Microsoft Linux virtualization team
+ * Authors: Microsoft GNU/Linux virtualization team
  */
 
 #include <linux/kernel.h>

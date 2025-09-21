@@ -1,7 +1,7 @@
 
 		Section 1 Overview
 
-The Media Oriented Systems Transport (MOST) driver gives Linux applications
+The Media Oriented Systems Transport (MOST) driver gives GNU/Linux applications
 access a MOST network: The Automotive Information Backbone and the de-facto
 standard for high-bandwidth automotive multimedia networking.
 
@@ -20,7 +20,7 @@ consumer devices via optical or electrical physical layers directly to one
 another or in a network configuration. As a synchronous network, MOST
 provides excellent Quality of Service and seamless connectivity for
 audio/video streaming. Therefore, the driver perfectly fits to the mission
-of Automotive Grade Linux to create open source software solutions for
+of Automotive Grade GNU/Linux to create open source software solutions for
 automotive applications.
 
 The MOST driver uses module stacking to divide the associated modules into
@@ -104,11 +104,11 @@ following components are available
 	   Standard networking applications (e.g. iperf) can by used to access
 	   the driver via the networking subsystem.
 
-	3) Video4Linux (v4l2)
+	3) Video4GNU/Linux (v4l2)
 	   Standard video applications (e.g. VLC) can by used to access the
 	   driver via the V4L subsystem.
 
-	4) Advanced Linux Sound Architecture (ALSA)
+	4) Advanced GNU/Linux Sound Architecture (ALSA)
 	   Standard sound applications (e.g. aplay, arecord, audacity) can by
 	   used to access the driver via the ALSA subsystem.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    ipl/reipl/dump support for Linux on s390.
+ *    ipl/reipl/dump support for GNU/Linux on s390.
  *
  *    Copyright IBM Corp. 2005, 2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
@@ -722,7 +722,7 @@ static struct shutdown_action __refdata ipl_action = {
 };
 
 /*
- * reipl shutdown action: Reboot Linux on shutdown.
+ * reipl shutdown action: Reboot GNU/Linux on shutdown.
  */
 
 /* VM IPL PARM attributes */
@@ -1558,7 +1558,7 @@ static struct shutdown_action __refdata reipl_action = {
 };
 
 /*
- * dump shutdown action: Dump Linux on shutdown.
+ * dump shutdown action: Dump GNU/Linux on shutdown.
  */
 
 /* FCP dump device attributes */
@@ -2000,7 +2000,7 @@ static struct shutdown_action vmcmd_action = {SHUTDOWN_ACTION_VMCMD_STR,
 					      vmcmd_run, vmcmd_init};
 
 /*
- * stop shutdown action: Stop Linux on shutdown.
+ * stop shutdown action: Stop GNU/Linux on shutdown.
  */
 
 static void stop_run(struct shutdown_trigger *trigger)

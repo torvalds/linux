@@ -2,7 +2,7 @@
 /*
  * sc7280 device tree source for boards using Max98360 and wcd9385 codec
  *
- * Copyright (c) 2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, The GNU/Linux Foundation. All rights reserved.
  */
 
 / {

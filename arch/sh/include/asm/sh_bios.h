@@ -6,7 +6,7 @@
 
 /*
  * Copyright (C) 2000 Greg Banks, Mitch Davis
- * C API to interface to the standard LinuxSH BIOS
+ * C API to interface to the standard GNU/LinuxSH BIOS
  * usually from within the early stages of kernel boot.
  */
 extern void sh_bios_console_write(const char *buf, unsigned int len);

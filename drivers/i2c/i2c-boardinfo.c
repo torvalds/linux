@@ -33,7 +33,7 @@ EXPORT_SYMBOL_GPL(__i2c_first_dynamic_bus_num);
  * @len: how many descriptors in the vector; may be zero to reserve
  *	the specified bus number.
  *
- * Systems using the Linux I2C driver stack can declare tables of board info
+ * Systems using the GNU/Linux I2C driver stack can declare tables of board info
  * while they initialize.  This should be done in board-specific init code
  * near arch_initcall() time, or equivalent, before any I2C adapter driver is
  * registered.  For example, mainboard init code could define several devices,

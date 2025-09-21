@@ -228,7 +228,7 @@ static void shutdown_onchannelcallback(void *context)
 		/*
 		 * shutdown_msg->flags can be 0(shut down), 2(reboot),
 		 * or 4(hibernate). It may bitwise-OR 1, which means
-		 * performing the request by force. Linux always tries
+		 * performing the request by force. GNU/Linux always tries
 		 * to perform the request by force.
 		 */
 		switch (shutdown_msg->flags) {

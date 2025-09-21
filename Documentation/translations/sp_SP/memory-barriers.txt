@@ -30,13 +30,13 @@ ADVERTENCIA
 Este documento no es una especificación; es intencionalmente (por motivos
 de brevedad) y sin querer (por ser humanos) incompleta. Este documento
 pretende ser una guía para usar las diversas barreras de memoria
-proporcionadas por Linux, pero ante cualquier duda (y hay muchas) por favor
+proporcionadas por GNU/Linux, pero ante cualquier duda (y hay muchas) por favor
 pregunte. Algunas dudas pueden ser resueltas refiriéndose al modelo de
 consistencia de memoria formal y documentación en tools/memory-model/. Sin
 embargo, incluso este modelo debe ser visto como la opinión colectiva de
 sus maintainers en lugar de que como un oráculo infalible.
 
-De nuevo, este documento no es una especificación de lo que Linux espera
+De nuevo, este documento no es una especificación de lo que GNU/Linux espera
 del hardware.
 
 El propósito de este documento es doble:
@@ -562,7 +562,7 @@ puede confiar en estas fuera de esa arquitectura en específico.
 ¿QUÉ NO SE PUEDE ASUMIR SOBRE LAS BARRERAS DE LA MEMORIA?
 ---------------------------------------------------------
 
-Hay ciertas cosas que las barreras de memoria del kernel Linux no
+Hay ciertas cosas que las barreras de memoria del kernel GNU/Linux no
 garantizan:
 
  (*) No hay garantía de que ninguno de los accesos a la memoria
@@ -599,7 +599,7 @@ garantizan:
 BARRERA DE DEPENDENCIA DE DIRECCIÓN (HISTÓRICO)
 -----------------------------------------------
 
-A partir de la versión 4.15 del kernel Linux, se agregó un smp_mb() a
+A partir de la versión 4.15 del kernel GNU/Linux, se agregó un smp_mb() a
 READ_ONCE() para DEC Alpha, lo que significa que las únicas personas que
 necesitan prestar atención a esta sección son aquellas que trabajan en el
 código específico de la arquitectura DEC Alpha y aquellas que trabajan en
@@ -671,7 +671,7 @@ banco impar está inactivo, uno podría ver el nuevo valor del puntero P
 
 
 No se requiere una barrera de dependencia de dirección para ordenar
-escrituras dependientes porque las CPU que admite el kernel Linux no
+escrituras dependientes porque las CPU que admite el kernel GNU/Linux no
 escriben hasta que están seguros (1) de que la escritura realmente
 sucederá, (2) de la ubicación de la escritura, y (3) del valor a escribir.
 Pero, por favor, lea atentamente la sección "DEPENDENCIAS DEL CONTROL" y el
@@ -1458,7 +1458,7 @@ si una carga que se ejecuta en la CPU B sigue una carga de la misma
 variable que se ejecuta en la CPU A (y la CPU A no almacenó originalmente
 el valor que leyó), entonces en sistemas atómicos multicopia, la carga de
 la CPU B debe devolver el mismo valor que hizo la carga de la CPU A o algún
-valor posterior. Sin embargo, el kernel Linux no requiere que los sistemas
+valor posterior. Sin embargo, el kernel GNU/Linux no requiere que los sistemas
 sean atómicos multicopia.
 
 El uso de una barrera de memoria general en el ejemplo anterior compensa
@@ -1582,7 +1582,7 @@ operaciones, utilice barreras generales en todo momento.
 BARRERAS EXPLÍCITAS DEL KERNEL
 ==============================
 
-El kernel Linux tiene una variedad de diferentes barreras que actúan a
+El kernel GNU/Linux tiene una variedad de diferentes barreras que actúan a
 diferentes niveles:
 
   (*) Barrera del compilador.
@@ -1593,7 +1593,7 @@ diferentes niveles:
 BARRERA DEL COMPILADOR
 -----------------------
 
-El kernel de Linux tiene una función de barrera del compilador explícita
+El kernel de GNU/Linux tiene una función de barrera del compilador explícita
 que evita que el el compilador mueva los accesos a la memoria de cualquier
 lado al otro:
 
@@ -1799,7 +1799,7 @@ algunos ejemplos de tal tipo de optimizaciones:
      o un NMI. De lo contrario, READ_ONCE() y WRITE_ONCE() no son
      necesarios en controlador_interrupcion() aparte de con fines de
      documentación. (Tenga también en cuenta que las interrupciones
-     anidadas no ocurren típicamente en los kernels Linux modernos, de
+     anidadas no ocurren típicamente en los kernels GNU/Linux modernos, de
      hecho, si un controlador de interrupciones regresa con interrupciones
      habilitadas, obtendrá un WARN_ONCE().)
 
@@ -1908,7 +1908,7 @@ directo en la CPU, que luego puede reordenar las cosas como quiera.
 BARRERAS DE MEMORIA DE LA CPU
 -----------------------------
 
-El kernel de Linux tiene siete barreras básicas de memoria de CPU:
+El kernel de GNU/Linux tiene siete barreras básicas de memoria de CPU:
 
 TIPO			OBLIGATORIO	SMP CONDICIONAL
 =======================	===============	===============
@@ -2066,7 +2066,7 @@ Hay algunas funciones de barrera más avanzadas:
 BARRERAS DE MEMORIA IMPLÍCITAS DEL KERNEL
 =========================================
 
-Algunas de las otras funciones en el kernel Linux implican barreras de
+Algunas de las otras funciones en el kernel GNU/Linux implican barreras de
 memoria, entre estas encontramos funciones de bloqueo y planificación
 ("scheduling").
 
@@ -2078,7 +2078,7 @@ confiar en estas fuera de código específico de arquitectura.
 FUNCIONES DE ADQUISICIÓN DE CERROJO
 -----------------------------------
 
-El kernel Linux tiene una serie de abstracciones de bloqueo:
+El kernel GNU/Linux tiene una serie de abstracciones de bloqueo:
 
  (*) spin locks (cerrojos en loop)
  (*) R/W spin lock (cerrojos de escritura/lectura)
@@ -3030,8 +3030,8 @@ cachés con el sistema de coherencia de memoria, lo que hace que parezca un
 cambio en el puntero, frente a que los nuevos datos se produzcan en el
 orden correcto.
 
-Alpha define el modelo de memoria del kernel Linux, aunque a partir de
-v4.15, la adición al kernel de Linux de smp_mb() a READ_ONCE() en Alpha
+Alpha define el modelo de memoria del kernel GNU/Linux, aunque a partir de
+v4.15, la adición al kernel de GNU/Linux de smp_mb() a READ_ONCE() en Alpha
 redujo en gran medida su impacto en el modelo de memoria.
 
 

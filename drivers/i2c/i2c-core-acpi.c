@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux I2C core ACPI support code
+ * GNU/Linux I2C core ACPI support code
  *
  * Copyright (C) 2014 Intel Corp, Author: Lan Tianyu <tianyu.lan@intel.com>
  */
@@ -314,7 +314,7 @@ static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
  * @adap: pointer to adapter
  *
  * Enumerate all I2C slave devices behind this adapter by walking the ACPI
- * namespace. When a device is found it will be added to the Linux device
+ * namespace. When a device is found it will be added to the GNU/Linux device
  * model and bound to the corresponding ACPI handle.
  */
 void i2c_acpi_register_devices(struct i2c_adapter *adap)
@@ -357,7 +357,7 @@ static const struct acpi_device_id i2c_acpi_force_400khz_device_ids[] = {
 
 static const struct acpi_device_id i2c_acpi_force_100khz_device_ids[] = {
 	/*
-	 * When a 400KHz freq is used on this model of ELAN touchpad in Linux,
+	 * When a 400KHz freq is used on this model of ELAN touchpad in GNU/Linux,
 	 * excessive smoothing (similar to when the touchpad's firmware detects
 	 * a noisy signal) is sometimes applied. As some devices' (e.g, Lenovo
 	 * V15 G4) ACPI tables specify a 400KHz frequency for this device and

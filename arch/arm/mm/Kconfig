@@ -632,7 +632,7 @@ config CPU_USE_DOMAINS
 	help
 	  This option enables or disables the use of domain switching
 	  using the DACR (domain access control register) to protect memory
-	  domains from each other. In Linux we use three domains: kernel, user
+	  domains from each other. In GNU/Linux we use three domains: kernel, user
 	  and IO. The domains are used to protect userspace from kernelspace
 	  and to handle IO-space as a special type of memory by assigning
 	  manager or client roles to running code (such as a process).

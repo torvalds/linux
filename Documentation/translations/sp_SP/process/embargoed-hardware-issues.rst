@@ -12,7 +12,7 @@ Alcance
 
 Los problemas de hardware que resultan en problemas de seguridad son una
 categoría diferente de errores de seguridad que los errores de software
-puro que solo afectan al kernel de Linux.
+puro que solo afectan al kernel de GNU/Linux.
 
 Los problemas de hardware como Meltdown, Spectre, L1TF, etc. deben
 tratarse de manera diferente porque usualmente afectan a todos los
@@ -27,14 +27,14 @@ necesitan una coordinación adicional.
 Contacto
 --------
 
-El equipo de seguridad de hardware del kernel de Linux es separado del
-equipo regular de seguridad del kernel de Linux.
+El equipo de seguridad de hardware del kernel de GNU/Linux es separado del
+equipo regular de seguridad del kernel de GNU/Linux.
 
 El equipo solo maneja la coordinación de los problemas de seguridad de
 hardware embargados. Los informes de errores de seguridad de software puro
-en el kernel de Linux no son manejados por este equipo y el "reportero"
+en el kernel de GNU/Linux no son manejados por este equipo y el "reportero"
 (quien informa del error) será guiado a contactar el equipo de seguridad
-del kernel de Linux (:doc:`errores de seguridad <security-bugs>`) en su
+del kernel de GNU/Linux (:doc:`errores de seguridad <security-bugs>`) en su
 lugar.
 
 El equipo puede contactar por correo electrónico en
@@ -61,29 +61,29 @@ Oficiales de seguridad de hardware
 
 El equipo actual de oficiales de seguridad de hardware:
 
-  - Linus Torvalds (Linux Foundation Fellow)
-  - Greg Kroah-Hartman (Linux Foundation Fellow)
-  - Thomas Gleixner (Linux Foundation Fellow)
+  - Linus Torvalds (GNU/Linux Foundation Fellow)
+  - Greg Kroah-Hartman (GNU/Linux Foundation Fellow)
+  - Thomas Gleixner (GNU/Linux Foundation Fellow)
 
 Operación de listas de correo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Las listas de correo encriptadas que se utilizan en nuestro proceso están
-alojados en la infraestructura de IT de la Fundación Linux. Al proporcionar
+alojados en la infraestructura de IT de la Fundación GNU/Linux. Al proporcionar
 este servicio, los miembros del personal de operaciones de IT de la
-Fundación Linux técnicamente tienen la capacidad de acceder a la
+Fundación GNU/Linux técnicamente tienen la capacidad de acceder a la
 información embargada, pero están obligados a la confidencialidad por su
-contrato de trabajo. El personal de IT de la Fundación Linux también es
+contrato de trabajo. El personal de IT de la Fundación GNU/Linux también es
 responsable para operar y administrar el resto de la infraestructura de
 kernel.org.
 
 El actual director de infraestructura de proyecto de IT de la Fundación
-Linux es Konstantin Ryabitsev.
+GNU/Linux es Konstantin Ryabitsev.
 
 Acuerdos de no divulgación
 --------------------------
 
-El equipo de seguridad de hardware del kernel de Linux no es un organismo
+El equipo de seguridad de hardware del kernel de GNU/Linux no es un organismo
 formal y, por lo tanto, no puede firmar cualquier acuerdo de no
 divulgación. La comunidad del kernel es consciente de la naturaleza
 delicada de tales problemas y ofrece un Memorando de Entendimiento en su
@@ -92,17 +92,17 @@ lugar.
 Memorando de Entendimiento
 --------------------------
 
-La comunidad del kernel de Linux tiene una comprensión profunda del
+La comunidad del kernel de GNU/Linux tiene una comprensión profunda del
 requisito de mantener los problemas de seguridad de hardware bajo embargo
 para la coordinación entre diferentes vendedores de OS, distribuidores,
 vendedores de hardware y otras partes.
 
-La comunidad del kernel de Linux ha manejado con éxito los problemas de
+La comunidad del kernel de GNU/Linux ha manejado con éxito los problemas de
 seguridad del hardware en el pasado y tiene los mecanismos necesarios para
 permitir el desarrollo compatible con la comunidad bajo restricciones de
 embargo.
 
-La comunidad del kernel de Linux tiene un equipo de seguridad de hardware
+La comunidad del kernel de GNU/Linux tiene un equipo de seguridad de hardware
 dedicado para el contacto inicial, el cual supervisa el proceso de manejo
 de tales problemas bajo las reglas de embargo.
 
@@ -128,7 +128,7 @@ Proceso
 ^^^^^^^
 
 Debido a la naturaleza distribuida globalmente del desarrollo del kernel
-de Linux, las reuniones cara a cara hacen imposible abordar los
+de GNU/Linux, las reuniones cara a cara hacen imposible abordar los
 problemas de seguridad del hardware. Las conferencias telefónicas son
 difíciles de coordinar debido a las zonas horarias y otros factores y
 solo deben usarse cuando sea absolutamente necesario. El correo
@@ -139,7 +139,7 @@ Inicio de la divulgación
 """"""""""""""""""""""""
 
 La divulgación comienza contactado al equipo de seguridad de hardware del
-kernel de Linux por correo electrónico. Este contacto inicial debe
+kernel de GNU/Linux por correo electrónico. Este contacto inicial debe
 contener una descripción del problema y una lista de cualquier hardware
 afectado conocido. Si su organización fabrica o distribuye el hardware
 afectado, le animamos a considerar también que otro hardware podría estar
@@ -162,7 +162,7 @@ de mitigación.
 Si bien los desarrolladores individuales pueden estar cubiertos por un
 acuerdo de no divulgación a través de su empleador, no pueden firmar
 acuerdos individuales de no divulgación en su papel de desarrolladores
-del kernel de Linux. Sin embargo, aceptarán adherirse a este proceso
+del kernel de GNU/Linux. Sin embargo, aceptarán adherirse a este proceso
 documentado y al Memorando de Entendimiento.
 
 La parte reveladora debe proporcionar una lista de contactos para todas
@@ -198,11 +198,11 @@ El equipo de respuesta inicial configura una lista de correo encriptada o
 reutiliza una existente si es apropiada.
 
 El uso de una lista de correo está cerca del proceso normal de desarrollo
-de Linux y se ha utilizado con éxito en el desarrollo de mitigación para
+de GNU/Linux y se ha utilizado con éxito en el desarrollo de mitigación para
 varios problemas de seguridad de hardware en el pasado.
 
 La lista de correo funciona en la misma manera que el desarrollo normal de
-Linux. Los parches se publican, discuten y revisan y, si se acuerda, se
+GNU/Linux. Los parches se publican, discuten y revisan y, si se acuerda, se
 aplican a un repositorio git no público al que solo pueden acceder los
 desarrolladores participantes a través de una conexión segura. El
 repositorio contiene la rama principal de desarrollo en comparación con
@@ -210,7 +210,7 @@ el kernel principal y las ramas backport para versiones estables del
 kernel según sea necesario.
 
 El equipo de respuesta inicial identificará a más expertos de la
-comunidad de desarrolladores del kernel de Linux según sea necesario. La
+comunidad de desarrolladores del kernel de GNU/Linux según sea necesario. La
 incorporación de expertos puede ocurrir en cualquier momento del proceso
 de desarrollo y debe manejarse de manera oportuna.
 
@@ -294,7 +294,7 @@ Si quiere que su organización se añada a la lista de embajadores, por
 favor póngase en contacto con el equipo de seguridad de hardware. El
 embajador nominado tiene que entender y apoyar nuestro proceso
 completamente y está idealmente bien conectado en la comunidad del kernel
-de Linux.
+de GNU/Linux.
 
 Listas de correo encriptadas
 ----------------------------
@@ -329,7 +329,7 @@ Cada suscriptor necesita enviar una solicitud de suscripción al equipo de
 respuesta por correo electrónico. El correo electrónico debe estar firmado
 con la llave PGP del suscriptor o el certificado S/MIME. Si se usa una
 llave PGP, debe estar disponible desde un servidor de llave publica y esta
-idealmente conectada a la red de confianza PGP del kernel de Linux. Véase
+idealmente conectada a la red de confianza PGP del kernel de GNU/Linux. Véase
 también: https://www.kernel.org/signature.html.
 
 El equipo de respuesta verifica que la solicitud del suscriptor sea válida

@@ -155,7 +155,7 @@ Note that the devices listed here correspond to the values populated in
 Using ntb_hw_epf Device
 -----------------------
 
-The host side software follows the standard NTB software architecture in Linux.
+The host side software follows the standard NTB software architecture in GNU/Linux.
 All the existing client side NTB utilities like NTB Transport Client and NTB
 Netdev, NTB Ping Pong Test Client and NTB Tool Test Client can be used with NTB
 function device.

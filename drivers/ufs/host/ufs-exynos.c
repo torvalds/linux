@@ -1301,7 +1301,7 @@ static void exynos_ufs_fmp_init(struct ufs_hba *hba, struct exynos_ufs *ufs)
 	 * The below sequence of SMC calls to enable FMP can be found in the
 	 * downstream driver source for gs101 and other Exynos-based SoCs.  It
 	 * is the only way to enable FMP that works on SoCs such as gs101 that
-	 * don't make the FMP registers accessible to Linux.  It probably works
+	 * don't make the FMP registers accessible to GNU/Linux.  It probably works
 	 * on other Exynos-based SoCs too, and might even still be the only way
 	 * that works.  But this hasn't been properly tested, and this code is
 	 * mutually exclusive with exynos_ufs_config_smu().  So for now only

@@ -27,10 +27,10 @@ assemble any multi-partition volumes, e.g.  Stripes, RAID5.
 
 To prevent legacy applications from repartitioning the disk, the LDM creates a
 dummy MSDOS partition containing one disk-sized partition.  This is what is
-supported with the Linux LDM driver.
+supported with the GNU/Linux LDM driver.
 
 A newer approach that has been implemented with Vista is to put LDM on top of a
-GPT label disk.  This is not supported by the Linux LDM driver yet.
+GPT label disk.  This is not supported by the GNU/Linux LDM driver yet.
 
 
 Example
@@ -66,7 +66,7 @@ Below we have a 50MiB disk, divided into seven partitions.
 The LDM Database may not store the partitions in the order that they appear on
 disk, but the driver will sort them.
 
-When Linux boots, you will see something like::
+When GNU/Linux boots, you will see something like::
 
   hda: 102400 sectors w/32KiB Cache, CHS=50/64/32
   hda: [LDM] hda1 hda2 hda3 hda4 hda5 hda6 hda7

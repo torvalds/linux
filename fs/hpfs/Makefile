@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Linux hpfs filesystem routines.
+# Makefile for the GNU/Linux hpfs filesystem routines.
 #
 
 obj-$(CONFIG_HPFS_FS) += hpfs.o

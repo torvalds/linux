@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Nokia Corporation
  * Tony Lindgren <tony@atomide.com>
  *
- * This file is part of the Inventra Controller Driver for Linux.
+ * This file is part of the Inventra Controller Driver for GNU/Linux.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>

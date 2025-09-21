@@ -16,8 +16,8 @@
  * system will reset and system BIOS will print out an error message to
  * inform the user that an IMR has been violated.
  *
- * This code is based on the Linux MTRR code and reference code from
- * Intel's Quark BSP EFI, Linux and grub code.
+ * This code is based on the GNU/Linux MTRR code and reference code from
+ * Intel's Quark BSP EFI, GNU/Linux and grub code.
  *
  * See quark-x1000-datasheet.pdf for register definitions.
  * http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/quark-x1000-datasheet.pdf

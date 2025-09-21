@@ -105,7 +105,7 @@ static inline void flush_mace_bus(void)
  * 26-31 -> 66-71 Serial 2 (28 E)
  *
  * Note that this means IRQs 12-14, 50, and 52 do not exist.  This is a
- * different IRQ map than IRIX uses, but that's OK as Linux irq handling
+ * different IRQ map than IRIX uses, but that's OK as GNU/Linux irq handling
  * is quite different anyway.
  */
 

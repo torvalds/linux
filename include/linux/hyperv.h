@@ -262,7 +262,7 @@ static inline u32 hv_get_avail_to_write_percent(
  *
  * The WS2008 and WIN7 versions are listed here for
  * completeness but are no longer supported in the
- * Linux kernel.
+ * GNU/Linux kernel.
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
@@ -1441,7 +1441,7 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size);
 			  0x80, 0x2e, 0x27, 0xed, 0xe1, 0x9f)
 
 /*
- * Linux doesn't support these 4 devices: the first two are for
+ * GNU/Linux doesn't support these 4 devices: the first two are for
  * Automatic Virtual Machine Activation, the third is for
  * Remote Desktop Virtualization, and the fourth is Initial
  * Machine Configuration (IMC) used only by Windows guests.

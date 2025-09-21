@@ -524,7 +524,7 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	 */
 	for (i = 0; i < priv->num_reserved_ids; i++) {
 		if (id == priv->reserved_ids[i]) {
-			dev_info(dev, "Ignore Linux non-assigned mod (%s)\n", mod->name);
+			dev_info(dev, "Ignore GNU/Linux non-assigned mod (%s)\n", mod->name);
 			init.flags |= CLK_IGNORE_UNUSED;
 			break;
 		}
@@ -1059,10 +1059,10 @@ static int __init cpg_mssr_reserved_init(struct cpg_mssr_priv *priv,
 
 	/*
 	 * Because clk_disable_unused() will disable all unused clocks, the device which is assigned
-	 * to a non-Linux system will be disabled when Linux is booted.
+	 * to a non-GNU/Linux system will be disabled when GNU/Linux is booted.
 	 *
 	 * To avoid such situation, renesas-cpg-mssr assumes the device which has
-	 * status = "reserved" is assigned to a non-Linux system, and adds CLK_IGNORE_UNUSED flag
+	 * status = "reserved" is assigned to a non-GNU/Linux system, and adds CLK_IGNORE_UNUSED flag
 	 * to its CPG_MOD clocks.
 	 * see also
 	 *	cpg_mssr_register_mod_clk()

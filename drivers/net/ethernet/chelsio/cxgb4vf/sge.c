@@ -1,6 +1,6 @@
 /*
  * This file is part of the Chelsio T4 PCI-E SR-IOV Virtual Function Ethernet
- * driver for Linux.
+ * driver for GNU/Linux.
  *
  * Copyright (c) 2009-2010 Chelsio Communications, Inc. All rights reserved.
  *
@@ -1463,7 +1463,7 @@ out_free:
  *	@gl: source internal packet gather list
  *	@offset: packet start offset in first page
  *
- *	Copy an internal packet gather list into a Linux skb_shared_info
+ *	Copy an internal packet gather list into a GNU/Linux skb_shared_info
  *	structure.
  */
 static inline void copy_frags(struct sk_buff *skb,
@@ -1559,7 +1559,7 @@ static void t4vf_pktgl_free(const struct pkt_gl *gl)
  *	@pkt: CPL header for last packet fragment
  *
  *	Perform Generic Receive Offload (GRO) ingress packet processing.
- *	We use the standard Linux GRO interfaces for this.
+ *	We use the standard GNU/Linux GRO interfaces for this.
  */
 static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		   const struct cpl_rx_pkt *pkt)
@@ -2238,7 +2238,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	/*
 	 * Fill in the Ingress Queue Command.  Note: Ideally this code would
 	 * be in t4vf_hw.c but there are so many parameters and dependencies
-	 * on our Linux SGE state that we would end up having to pass tons of
+	 * on our GNU/Linux SGE state that we would end up having to pass tons of
 	 * parameters.  We'll have to think about how this might be migrated
 	 * into OS-independent common code ...
 	 */

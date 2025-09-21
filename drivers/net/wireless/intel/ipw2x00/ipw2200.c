@@ -11,7 +11,7 @@
 
 
   Contact Information:
-  Intel Linux Wireless <ilw@linux.intel.com>
+  Intel GNU/Linux Wireless <ilw@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 ******************************************************************************/
@@ -3638,7 +3638,7 @@ static int ipw_load(struct ipw_priv *priv)
  * and four transmit queues for data.
  *
  * The four transmit queues allow for performing quality of service (qos)
- * transmissions as per the 802.11 protocol.  Currently Linux does not
+ * transmissions as per the 802.11 protocol.  Currently GNU/Linux does not
  * provide a mechanism to the user for utilizing prioritized queues, so
  * we only utilize the first data transmit queue (queue1).
  */

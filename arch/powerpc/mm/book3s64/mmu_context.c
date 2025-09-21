@@ -336,7 +336,7 @@ void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
  * local TLB to ensure TLB coherency in case the CPU is onlined again.
  *
  * KVM guest translations are not necessarily flushed here. If KVM started
- * using mm_cpumask or the Linux APIs which do, this would have to be resolved.
+ * using mm_cpumask or the GNU/Linux APIs which do, this would have to be resolved.
  */
 #ifdef CONFIG_HOTPLUG_CPU
 void cleanup_cpu_mmu_context(void)

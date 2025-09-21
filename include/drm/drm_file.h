@@ -1,6 +1,6 @@
 /*
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
- * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
+ * Copyright 2000 VA GNU/Linux Systems, Inc., Sunnyvale, California.
  * Copyright (c) 2009-2010, Code Aurora Forum.
  * All rights reserved.
  *
@@ -78,7 +78,7 @@ struct drm_minor {
 	/* private: */
 	int index;			/* Minor device number */
 	int type;                       /* Control or render or accel */
-	struct device *kdev;		/* Linux device */
+	struct device *kdev;		/* GNU/Linux device */
 	struct drm_device *dev;
 
 	struct dentry *debugfs_symlink;

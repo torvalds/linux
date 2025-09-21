@@ -2,7 +2,7 @@
 /*
  * Maxim MAX197 A/D Converter driver
  *
- * Copyright (c) 2012 Savoir-faire Linux Inc.
+ * Copyright (c) 2012 Savoir-faire GNU/Linux Inc.
  *          Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * For further information, see the Documentation/hwmon/max197.rst file.
@@ -338,5 +338,5 @@ static struct platform_driver max197_driver = {
 module_platform_driver(max197_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Savoir-faire Linux Inc. <kernel@savoirfairelinux.com>");
+MODULE_AUTHOR("Savoir-faire GNU/Linux Inc. <kernel@savoirfairelinux.com>");
 MODULE_DESCRIPTION("Maxim MAX197 A/D Converter driver");

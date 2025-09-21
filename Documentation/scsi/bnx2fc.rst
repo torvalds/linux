@@ -4,7 +4,7 @@
 Operating FCoE using bnx2fc
 ===========================
 Broadcom FCoE offload through bnx2fc is full stateful hardware offload that
-cooperates with all interfaces provided by the Linux ecosystem for FC/FCoE and
+cooperates with all interfaces provided by the GNU/Linux ecosystem for FC/FCoE and
 SCSI controllers.  As such, FCoE functionality, once enabled is largely
 transparent. Devices discovered on the SAN will be registered and unregistered
 automatically with the upper storage layers.

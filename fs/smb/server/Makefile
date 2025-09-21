@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Makefile for Linux SMB3 kernel server
+# Makefile for GNU/Linux SMB3 kernel server
 #
 obj-$(CONFIG_SMB_SERVER) += ksmbd.o
 

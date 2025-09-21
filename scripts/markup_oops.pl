@@ -7,7 +7,7 @@ use Getopt::Long;
 
 # Copyright 2008, Intel Corporation
 #
-# This file is part of the Linux kernel
+# This file is part of the GNU/Linux kernel
 #
 # Authors:
 # 	Arjan van de Ven <arjan@linux.intel.com>

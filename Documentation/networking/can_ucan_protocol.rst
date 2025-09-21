@@ -7,7 +7,7 @@ adapter that is integrated on System-on-Modules from Theobroma Systems
 and that is also available as a standalone USB stick.
 
 The UCAN protocol has been designed to be hardware-independent.
-It is modeled closely after how Linux represents CAN devices
+It is modeled closely after how GNU/Linux represents CAN devices
 internally. All multi-byte integers are encoded as Little Endian.
 
 All structures mentioned in this document are defined in
@@ -304,7 +304,7 @@ error frames (see ``uapi/linux/can/error.h``) and sends it using the
 IN endpoint. The driver updates its error statistics and forwards
 it.
 
-Although UCAN devices can suppress error frames completely, in Linux
+Although UCAN devices can suppress error frames completely, in GNU/Linux
 the driver is always interested. Hence, the device is always started with
 the ``UCAN_MODE_BERR_REPORT`` set. Filtering those messages for the
 user space is done by the driver.

@@ -149,7 +149,7 @@ struct dp83td510_priv {
 #define DP83TD510E_TDR_TX_TYPE_1V			0
 #define DP83TD510E_TDR_TX_TYPE_2_4V			1
 /* cfg_post_silence_time: Time after the TDR sequence. Since we force master mode
- * for the TDR will proceed with forced link state after this time. For Linux
+ * for the TDR will proceed with forced link state after this time. For GNU/Linux
  * it is better to set max value to avoid false link state detection.
  */
 #define DP83TD510E_TDR_CFG1_POST_SILENCE_TIME		GENMASK(3, 2)

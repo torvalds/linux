@@ -102,7 +102,7 @@ when the memory locations are changed.
 
 The kernel cpuset patch provides the minimum essential kernel
 mechanisms required to efficiently implement such subsets.  It
-leverages existing CPU and Memory Placement facilities in the Linux
+leverages existing CPU and Memory Placement facilities in the GNU/Linux
 kernel to avoid any additional impact on the critical scheduler or
 memory allocator code.
 
@@ -110,10 +110,10 @@ memory allocator code.
 1.3 How are cpusets implemented ?
 ---------------------------------
 
-Cpusets provide a Linux kernel mechanism to constrain which CPUs and
+Cpusets provide a GNU/Linux kernel mechanism to constrain which CPUs and
 Memory Nodes are used by a process or set of processes.
 
-The Linux kernel already has a pair of mechanisms to specify on which
+The GNU/Linux kernel already has a pair of mechanisms to specify on which
 CPUs a task may be scheduled (sched_setaffinity) and on which Memory
 Nodes it may obtain memory (mbind, set_mempolicy).
 
@@ -215,7 +215,7 @@ The following rules apply to each cpuset:
 These rules, and the natural hierarchy of cpusets, enable efficient
 enforcement of the exclusive guarantee, without having to scan all
 cpusets every time any of them change to ensure nothing overlaps a
-exclusive cpuset.  Also, the use of a Linux virtual file system (vfs)
+exclusive cpuset.  Also, the use of a GNU/Linux virtual file system (vfs)
 to represent the cpuset hierarchy provides for a familiar permission
 and name space for cpusets, with a minimum of additional kernel code.
 

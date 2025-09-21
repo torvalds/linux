@@ -396,7 +396,7 @@ static void error_packet(char *pkt, int error)
 
 /*
  * Thread ID accessors. We represent a flat TID space to GDB, where
- * the per CPU idle threads (which under Linux all have PID 0) are
+ * the per CPU idle threads (which under GNU/Linux all have PID 0) are
  * remapped to negative TIDs.
  */
 

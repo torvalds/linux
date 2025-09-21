@@ -22,7 +22,7 @@ struct platform_device_info;
 struct software_node;
 
 /*
- * Helpers to get Linux IRQ numbers given a description of the IRQ source
+ * Helpers to get GNU/Linux IRQ numbers given a description of the IRQ source
  * (either IOAPIC index, or GPIO chip name + pin-number).
  */
 enum x86_acpi_irq_type {

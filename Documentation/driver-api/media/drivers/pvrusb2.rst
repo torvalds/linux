@@ -40,7 +40,7 @@ roughly:
    system.
 
 5. High level interfaces which glue the driver to various published
-   Linux APIs (V4L, sysfs, maybe DVB in the future).
+   GNU/Linux APIs (V4L, sysfs, maybe DVB in the future).
 
 The most important shearing layer is between the top 2 layers.  A
 lot of work went into the driver to ensure that any kind of
@@ -71,7 +71,7 @@ Source file list / functional overview
 
 (Note: The term "module" used below generally refers to loosely
 defined functional units within the pvrusb2 driver and bears no
-relation to the Linux kernel's concept of a loadable module.)
+relation to the GNU/Linux kernel's concept of a loadable module.)
 
 pvrusb2-audio.[ch] - This is glue logic that resides between this
     driver and the msp3400.ko I2C client driver (which is found

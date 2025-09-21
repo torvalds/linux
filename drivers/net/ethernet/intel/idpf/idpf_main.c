@@ -5,7 +5,7 @@
 #include "idpf_devids.h"
 #include "idpf_virtchnl.h"
 
-#define DRV_SUMMARY	"Intel(R) Infrastructure Data Path Function Linux Driver"
+#define DRV_SUMMARY	"Intel(R) Infrastructure Data Path Function GNU/Linux Driver"
 
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_IMPORT_NS("LIBETH");

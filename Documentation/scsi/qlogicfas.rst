@@ -31,7 +31,7 @@ rest of the modules won't interfere with the operation.  The next
 thing to do is load the kernel without resetting the hardware, which
 can be a simple ctrl-alt-delete with a boot floppy, or by using
 loadlin with the kernel image accessible from DOS.  If you are using
-the Linux PCMCIA driver, you will have to adjust it or otherwise stop
+the GNU/Linux PCMCIA driver, you will have to adjust it or otherwise stop
 it from configuring the card.
 
 I am working with the PCMCIA group to make it more flexible, but that
@@ -84,4 +84,4 @@ work less well because of the heat, or when cables get too long for
 the speed.
 
 Remember, if it doesn't work under DOS, it probably won't work under
-Linux.
+GNU/Linux.

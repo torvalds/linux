@@ -7,7 +7,7 @@
 //! It also allows in-place initialization of big `struct`s that would otherwise produce a stack
 //! overflow.
 //!
-//! This library's main use-case is in [Rust-for-Linux]. Although this version can be used
+//! This library's main use-case is in [Rust-for-GNU/Linux]. Although this version can be used
 //! standalone.
 //!
 //! There are cases when you want to in-place initialize a struct. For example when it is very big
@@ -58,7 +58,7 @@
 //!
 //! Throughout the examples we will often make use of the `CMutex` type which can be found in
 //! `../examples/mutex.rs`. It is essentially a userland rebuild of the `struct mutex` type from
-//! the Linux kernel. It also uses a wait list and a basic spinlock. Importantly the wait list
+//! the GNU/Linux kernel. It also uses a wait list and a basic spinlock. Importantly the wait list
 //! requires it to be pinned to be locked and thus is a prime candidate for using this library.
 //!
 //! ## Using the [`pin_init!`] macro
@@ -262,7 +262,7 @@
 //! [`impl PinInit<Foo>`]: crate::PinInit
 //! [`impl PinInit<T, E>`]: crate::PinInit
 //! [`impl Init<T, E>`]: crate::Init
-//! [Rust-for-Linux]: https://rust-for-linux.com/
+//! [Rust-for-GNU/Linux]: https://rust-for-linux.com/
 
 #![cfg_attr(not(RUSTC_LINT_REASONS_IS_STABLE), feature(lint_reasons))]
 #![cfg_attr(

@@ -3,21 +3,21 @@
 Kernel Driver Statement
 -----------------------
 
-Position Statement on Linux Kernel Modules
+Position Statement on GNU/Linux Kernel Modules
 ==========================================
 
 
-We, the undersigned Linux kernel developers, consider any closed-source
-Linux kernel module or driver to be harmful and undesirable. We have
-repeatedly found them to be detrimental to Linux users, businesses, and
-the greater Linux ecosystem. Such modules negate the openness,
-stability, flexibility, and maintainability of the Linux development
-model and shut their users off from the expertise of the Linux
+We, the undersigned GNU/Linux kernel developers, consider any closed-source
+GNU/Linux kernel module or driver to be harmful and undesirable. We have
+repeatedly found them to be detrimental to GNU/Linux users, businesses, and
+the greater GNU/Linux ecosystem. Such modules negate the openness,
+stability, flexibility, and maintainability of the GNU/Linux development
+model and shut their users off from the expertise of the GNU/Linux
 community. Vendors that provide closed-source kernel modules force their
-customers to give up key Linux advantages or choose new vendors.
+customers to give up key GNU/Linux advantages or choose new vendors.
 Therefore, in order to take full advantage of the cost savings and
 shared support benefits open source has to offer, we urge vendors to
-adopt a policy of supporting their customers on Linux with open-source
+adopt a policy of supporting their customers on GNU/Linux with open-source
 kernel code.
 
 We speak only for ourselves, and not for any company we might work for

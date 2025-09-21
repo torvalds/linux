@@ -44,7 +44,7 @@
  *						and accepted source address
  *						can be configured by an ioctl()
  *						call.
- *						Fixed to match Linux networking
+ *						Fixed to match GNU/Linux networking
  *						changes - 2.1.15.
  *	BPQ   004	Joerg(DL1BKE)		Fixed to not lock up on ifconfig.
  */

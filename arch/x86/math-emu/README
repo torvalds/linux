@@ -22,11 +22,11 @@
 
 
 
-wm-FPU-emu is an FPU emulator for Linux. It is derived from wm-emu387
+wm-FPU-emu is an FPU emulator for GNU/Linux. It is derived from wm-emu387
 which was my 80387 emulator for early versions of djgpp (gcc under
 msdos); wm-emu387 was in turn based upon emu387 which was written by
-DJ Delorie for djgpp.  The interface to the Linux kernel is based upon
-the original Linux math emulator by Linus Torvalds.
+DJ Delorie for djgpp.  The interface to the GNU/Linux kernel is based upon
+the original GNU/Linux math emulator by Linus Torvalds.
 
 My target FPU for wm-FPU-emu is that described in the Intel486
 Programmer's Reference Manual (1992 edition). Unfortunately, numerous
@@ -94,7 +94,7 @@ files:
 As from version 1.12 of the emulator, no static variables are used
 (apart from those in the kernel's per-process tables). The emulator is
 therefore now fully re-entrant, rather than having just the restricted
-form of re-entrancy which is required by the Linux kernel.
+form of re-entrancy which is required by the GNU/Linux kernel.
 
 ----------------------- Limitations of wm-FPU-emu -----------------------
 
@@ -146,7 +146,7 @@ vm86 mode can cause a general protection fault. Address offsets
 greater than 0xffff appear to be illegal in vm86 mode but are quite
 acceptable (and work) in real mode. A small test program developed to
 check the addressing, and which runs successfully in real mode,
-crashes dosemu under Linux and also brings Windows down with a general
+crashes dosemu under GNU/Linux and also brings Windows down with a general
 protection fault message when run under the MS-DOS prompt of Windows
 3.1. (The program simply reads data from a valid address).
 
@@ -171,7 +171,7 @@ Timing: Some simple timing tests have been made on the emulator functions.
 The times include load/store instructions. All times are in microseconds
 measured on a 33MHz 386 with 64k cache. The Turbo C tests were under
 ms-dos, the next two columns are for emulators running with the djgpp
-ms-dos extender. The final column is for wm-FPU-emu in Linux 0.97,
+ms-dos extender. The final column is for wm-FPU-emu in GNU/Linux 0.97,
 using libm4.0 (hard).
 
 function      Turbo C        djgpp 1.06        WM-emu387     wm-FPU-emu
@@ -191,10 +191,10 @@ function      Turbo C        djgpp 1.06        WM-emu387     wm-FPU-emu
  exp()        479.1          6619.2            469.1          850.8
 
 
-The performance under Linux is improved by the use of look-ahead code.
+The performance under GNU/Linux is improved by the use of look-ahead code.
 The following results show the improvement which is obtained under
-Linux due to the look-ahead code. Also given are the times for the
-original Linux emulator with the 4.1 'soft' lib.
+GNU/Linux due to the look-ahead code. Also given are the times for the
+original GNU/Linux emulator with the 4.1 'soft' lib.
 
  [ Linus' note: I changed look-ahead to be the default under linux, as
    there was no reason not to use it after I had edited it to be

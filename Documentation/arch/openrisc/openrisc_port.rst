@@ -1,8 +1,8 @@
 ==============
-OpenRISC Linux
+OpenRISC GNU/Linux
 ==============
 
-This is a port of Linux to the OpenRISC class of microprocessors; the initial
+This is a port of GNU/Linux to the OpenRISC class of microprocessors; the initial
 target architecture, specifically, is the 32-bit OpenRISC 1000 family (or1k).
 
 For information about OpenRISC processors and ongoing development:
@@ -14,10 +14,10 @@ For information about OpenRISC processors and ongoing development:
 
 ---------------------------------------------------------------------
 
-Build instructions for OpenRISC toolchain and Linux
+Build instructions for OpenRISC toolchain and GNU/Linux
 ===================================================
 
-In order to build and run Linux for OpenRISC, you'll need at least a basic
+In order to build and run GNU/Linux for OpenRISC, you'll need at least a basic
 toolchain and, perhaps, the architectural simulator.  Steps to get these bits
 in place are outlined here.
 
@@ -35,7 +35,7 @@ or Stafford's toolchain build and release scripts.
 
 2) Building
 
-Build the Linux kernel as usual::
+Build the GNU/Linux kernel as usual::
 
 	make ARCH=openrisc CROSS_COMPILE="or1k-linux-" defconfig
 	make ARCH=openrisc CROSS_COMPILE="or1k-linux-"
@@ -75,7 +75,7 @@ tools.  Binaries are loaded onto the board with openocd.
 
 QEMU is a processor emulator which we recommend for simulating the OpenRISC
 platform.  Please follow the OpenRISC instructions on the QEMU website to get
-Linux running on QEMU.  You can build QEMU yourself, but your Linux distribution
+GNU/Linux running on QEMU.  You can build QEMU yourself, but your GNU/Linux distribution
 likely provides binary packages to support OpenRISC.
 
 	=============	======================================================
@@ -124,4 +124,4 @@ History
 	added opencores framebuffer driver.
 
 09-10-2010    Jonas Bonn (jonas@southpole.se)
-	major rewrite to bring up to par with upstream Linux 2.6.36
+	major rewrite to bring up to par with upstream GNU/Linux 2.6.36

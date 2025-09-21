@@ -5,11 +5,11 @@
  * All rights reserved
  * www.qlogic.com
  *
- * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
+ * GNU/Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  */
 
 /*
- *  bfad_im.c Linux driver IM module.
+ *  bfad_im.c GNU/Linux driver IM module.
  */
 
 #include <linux/export.h>

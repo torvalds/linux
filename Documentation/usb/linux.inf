@@ -10,23 +10,23 @@
 Signature           = "$Windows NT$"
 Class               = Net
 ClassGUID           = {4d36e972-e325-11ce-bfc1-08002be10318}
-Provider            = %Linux%
+Provider            = %GNU/Linux%
 DriverVer           = 06/21/2006,6.0.6000.16384
 
 [Manufacturer]
-%Linux%             = LinuxDevices,NTx86,NTamd64,NTia64
+%GNU/Linux%             = GNU/LinuxDevices,NTx86,NTamd64,NTia64
 
 ; Decoration for x86 architecture
-[LinuxDevices.NTx86]
-%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
+[GNU/LinuxDevices.NTx86]
+%GNU/LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
 
 ; Decoration for x64 architecture
-[LinuxDevices.NTamd64]
-%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
+[GNU/LinuxDevices.NTamd64]
+%GNU/LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
 
 ; Decoration for ia64 architecture
-[LinuxDevices.NTia64]
-%LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
+[GNU/LinuxDevices.NTia64]
+%GNU/LinuxDevice%       = RNDIS.NT.5.1, USB\VID_0525&PID_a4a2, USB\VID_1d6b&PID_0104&MI_00
 
 ;@@@ This is the common setting for setup
 [ControlFlags]
@@ -61,6 +61,6 @@ HKR, NDI\params\VistaProperty, optional,   0, "1"
 ; We do not support XP SP1-, 2003 SP1-, ME, 9x.
 
 [Strings]
-Linux                 = "Linux Developer Community"
-LinuxDevice           = "Linux USB Ethernet/RNDIS Gadget"
+GNU/Linux                 = "GNU/Linux Developer Community"
+GNU/LinuxDevice           = "GNU/Linux USB Ethernet/RNDIS Gadget"
 Vista_Property        = "Optional Vista Property"

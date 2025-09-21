@@ -63,7 +63,7 @@ this table marked with no it means default is without **no**.
 
    * - nohidden
      - Files with the Windows-specific HIDDEN (FILE_ATTRIBUTE_HIDDEN) attribute
-       will not be shown under Linux.
+       will not be shown under GNU/Linux.
 
    * - sys_immutable
      - Files with the Windows-specific SYSTEM (FILE_ATTRIBUTE_SYSTEM) attribute
@@ -116,7 +116,7 @@ Todo list
 
 References
 ==========
-- Commercial version of the NTFS driver for Linux.
+- Commercial version of the NTFS driver for GNU/Linux.
 	https://www.paragon-software.com/home/ntfs-linux-professional/
 
 - Direct e-mail address for feedback and requests on the NTFS3 implementation.

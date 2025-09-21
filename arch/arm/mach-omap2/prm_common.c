@@ -169,7 +169,7 @@ static void omap_prcm_irq_handler(struct irq_desc *desc)
  * corresponding IRQ on which the handler should be registered
  * @name: name of the PRCM interrupt bit to look up - see struct omap_prcm_irq
  *
- * Returns the Linux internal IRQ ID corresponding to @name upon success,
+ * Returns the GNU/Linux internal IRQ ID corresponding to @name upon success,
  * or -ENOENT upon failure.
  */
 int omap_prcm_event_to_irq(const char *name)

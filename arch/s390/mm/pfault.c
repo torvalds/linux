@@ -94,7 +94,7 @@ static LIST_HEAD(pfault_list);
 #define PF_COMPLETE	0x0080
 
 /*
- * The mechanism of our pfault code: if Linux is running as guest, runs a user
+ * The mechanism of our pfault code: if GNU/Linux is running as guest, runs a user
  * space process and the user space process accesses a page that the host has
  * paged out we get a pfault interrupt.
  *

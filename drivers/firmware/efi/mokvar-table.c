@@ -5,7 +5,7 @@
  * Copyright (c) 2020 Red Hat
  * Author: Lenny Szubowicz <lszubowi@redhat.com>
  *
- * This module contains the kernel support for the Linux EFI Machine
+ * This module contains the kernel support for the GNU/Linux EFI Machine
  * Owner Key (MOK) variable configuration table, which is identified by
  * the LINUX_EFI_MOK_VARIABLE_TABLE_GUID.
  *

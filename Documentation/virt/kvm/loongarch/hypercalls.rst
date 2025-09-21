@@ -21,7 +21,7 @@ CPUCFG_KVM_BASE range between 0x40000000 - 0x400000FF is marked as reserved.
 Consequently, all current and future processors will not implement any
 feature within this range.
 
-On a KVM-virtualized Linux system, a read operation on cpucfg() at index
+On a KVM-virtualized GNU/Linux system, a read operation on cpucfg() at index
 CPUCFG_KVM_BASE (0x40000000) returns the magic string 'KVM\0'.
 
 Once you have determined that your host is running on a paravirtualization-

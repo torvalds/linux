@@ -1,5 +1,5 @@
 /*
- * Linux ARCnet driver - RFC1051 ("simple" standard) packet encapsulation
+ * GNU/Linux ARCnet driver - RFC1051 ("simple" standard) packet encapsulation
  *
  * Written 1994-1999 by Avery Pennarun.
  * Derived from skeleton.c by Donald Becker.

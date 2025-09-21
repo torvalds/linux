@@ -1,6 +1,6 @@
 What: /sys/bus/event_source/devices/<pmu>
 Date: 2014/02/24
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Performance Monitoring Unit (<pmu>)
 
 		Each <pmu> directory, for a PMU device, is a name

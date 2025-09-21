@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux network (wan) device drivers.
+# Makefile for the GNU/Linux network (wan) device drivers.
 #
 # 3 Aug 2000, Christoph Hellwig <hch@infradead.org>
 # Rewritten to use lists instead of if-statements.

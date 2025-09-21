@@ -31,15 +31,15 @@ MODULE_PARM_DESC(swi_tru_install, "TRU-Install mode (1=Full Logic (def),"
 struct swoc_info {
 	__u8 rev;
 	__u8 reserved[8];
-	__u16 LinuxSKU;
-	__u16 LinuxVer;
+	__u16 GNU/LinuxSKU;
+	__u16 GNU/LinuxVer;
 	__u8 reserved2[47];
 } __attribute__((__packed__));
 
-static bool containsFullLinuxPackage(struct swoc_info *swocInfo)
+static bool containsFullGNU/LinuxPackage(struct swoc_info *swocInfo)
 {
-	if ((swocInfo->LinuxSKU >= 0x2100 && swocInfo->LinuxSKU <= 0x2FFF) ||
-	   (swocInfo->LinuxSKU >= 0x7100 && swocInfo->LinuxSKU <= 0x7FFF))
+	if ((swocInfo->GNU/LinuxSKU >= 0x2100 && swocInfo->GNU/LinuxSKU <= 0x2FFF) ||
+	   (swocInfo->GNU/LinuxSKU >= 0x7100 && swocInfo->GNU/LinuxSKU <= 0x7FFF))
 		return true;
 	else
 		return false;
@@ -77,16 +77,16 @@ static int sierra_get_swoc_info(struct usb_device *udev,
 			sizeof(struct swoc_info),	/* __u16 size 	     */
 			USB_CTRL_SET_TIMEOUT);		/* int timeout 	     */
 
-	swocInfo->LinuxSKU = le16_to_cpu(swocInfo->LinuxSKU);
-	swocInfo->LinuxVer = le16_to_cpu(swocInfo->LinuxVer);
+	swocInfo->GNU/LinuxSKU = le16_to_cpu(swocInfo->GNU/LinuxSKU);
+	swocInfo->GNU/LinuxVer = le16_to_cpu(swocInfo->GNU/LinuxVer);
 	return result;
 }
 
 static void debug_swoc(const struct device *dev, struct swoc_info *swocInfo)
 {
 	dev_dbg(dev, "SWIMS: SWoC Rev: %02d\n", swocInfo->rev);
-	dev_dbg(dev, "SWIMS: Linux SKU: %04X\n", swocInfo->LinuxSKU);
-	dev_dbg(dev, "SWIMS: Linux Version: %04X\n", swocInfo->LinuxVer);
+	dev_dbg(dev, "SWIMS: GNU/Linux SKU: %04X\n", swocInfo->GNU/LinuxSKU);
+	dev_dbg(dev, "SWIMS: GNU/Linux Version: %04X\n", swocInfo->GNU/LinuxVer);
 }
 
 
@@ -116,8 +116,8 @@ static ssize_t truinst_show(struct device *dev, struct device_attribute *attr,
 		result = sysfs_emit(buf,
 				    "REV=%02d SKU=%04X VER=%04X\n",
 				    swocInfo->rev,
-				    swocInfo->LinuxSKU,
-				    swocInfo->LinuxVer);
+				    swocInfo->GNU/LinuxSKU,
+				    swocInfo->GNU/LinuxVer);
 		kfree(swocInfo);
 	}
 	return result;
@@ -173,10 +173,10 @@ int sierra_ms_init(struct us_data *us)
 		debug_swoc(&us->pusb_dev->dev, swocInfo);
 
 		/*
-		 * If there is not Linux software on the TRU-Install device
+		 * If there is not GNU/Linux software on the TRU-Install device
 		 * then switch to modem mode
 		 */
-		if (!containsFullLinuxPackage(swocInfo)) {
+		if (!containsFullGNU/LinuxPackage(swocInfo)) {
 			usb_stor_dbg(us, "SWIMS: Switching to Modem Mode\n");
 			result = sierra_set_ms_mode(udev,
 				SWIMS_SET_MODE_Modem);

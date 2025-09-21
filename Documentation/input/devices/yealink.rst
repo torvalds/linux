@@ -115,7 +115,7 @@ Reading /sys/../lineX will return the format string with its current value.
 
     cat ./line3
     888888888888
-    Linux Rocks!
+    GNU/Linux Rocks!
 
 Writing to /sys/../lineX will set the corresponding LCD line.
 

@@ -179,7 +179,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 				 * if host mode is already set. The HCD
 				 * interrupt handler won't get called if the
 				 * HCD state is HALT. This means that the
-				 * interrupt does not get handled and Linux
+				 * interrupt does not get handled and GNU/Linux
 				 * complains loudly.
 				 */
 				gintmsk = dwc2_readl(hsotg, GINTMSK);

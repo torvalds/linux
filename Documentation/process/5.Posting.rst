@@ -271,7 +271,7 @@ The tags in common use are:
 Be careful in the addition of the aforementioned tags to your patches, as all
 except for Cc:, Reported-by:, and Suggested-by: need explicit permission of the
 person named. For those three implicit permission is sufficient if the person
-contributed to the Linux kernel using that name and email address according
+contributed to the GNU/Linux kernel using that name and email address according
 to the lore archives or the commit history -- and in case of Reported-by:
 and Suggested-by: did the reporting or suggestion in public. Note,
 bugzilla.kernel.org is a public place in this sense, but email addresses

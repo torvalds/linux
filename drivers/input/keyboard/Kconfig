@@ -65,7 +65,7 @@ config KEYBOARD_AMIGA
 	tristate "Amiga keyboard"
 	depends on AMIGA
 	help
-	  Say Y here if you are running Linux on any AMIGA and have a keyboard
+	  Say Y here if you are running GNU/Linux on any AMIGA and have a keyboard
 	  attached.
 
 	  To compile this driver as a module, choose M here: the
@@ -79,7 +79,7 @@ config KEYBOARD_APPLESPI
 	depends on LEDS_CLASS
 	select CRC16
 	help
-	  Say Y here if you are running Linux on any Apple MacBook8,1 or later,
+	  Say Y here if you are running GNU/Linux on any Apple MacBook8,1 or later,
 	  or any MacBookPro13,* or MacBookPro14,*.
 
 	  You will also need to enable appropriate SPI master controllers:
@@ -94,7 +94,7 @@ config KEYBOARD_ATARI
 	depends on ATARI
 	select ATARI_KBD_CORE
 	help
-	  Say Y here if you are running Linux on any Atari and have a keyboard
+	  Say Y here if you are running GNU/Linux on any Atari and have a keyboard
 	  attached.
 
 	  To compile this driver as a module, choose M here: the
@@ -384,7 +384,7 @@ config KEYBOARD_LOCOMO
 	tristate "LoCoMo Keyboard Support"
 	depends on SHARP_LOCOMO
 	help
-	  Say Y here if you are running Linux on a Sharp Zaurus Collie or Poodle based PDA
+	  Say Y here if you are running GNU/Linux on a Sharp Zaurus Collie or Poodle based PDA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called locomokbd.
@@ -404,7 +404,7 @@ config KEYBOARD_MAPLE
 	tristate "Maple bus keyboard"
 	depends on SH_DREAMCAST && MAPLE
 	help
-	  Say Y here if you have a Dreamcast console running Linux and have
+	  Say Y here if you have a Dreamcast console running GNU/Linux and have
 	  a keyboard attached to its Maple bus.
 
 	  To compile this driver as a module, choose M here: the
@@ -728,7 +728,7 @@ config KEYBOARD_XTKBD
 	  Say Y here if you want to use the old IBM PC/XT keyboard (or
 	  compatible) on your system. This is only possible with a
 	  parallel port keyboard adapter, you cannot connect it to the
-	  keyboard port on a PC that runs Linux.
+	  keyboard port on a PC that runs GNU/Linux.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called xtkbd.

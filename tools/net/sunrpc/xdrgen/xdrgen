@@ -2,7 +2,7 @@
 # ex: set filetype=python:
 
 """Translate an XDR specification into executable code that
-can be compiled for the Linux kernel."""
+can be compiled for the GNU/Linux kernel."""
 
 __author__ = "Chuck Lever"
 __copyright__ = "Copyright (c) 2024 Oracle and/or its affiliates."
@@ -25,7 +25,7 @@ def main() -> int:
     """Parse command-line options"""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Convert an XDR specification to Linux kernel source code",
+        description="Convert an XDR specification to GNU/Linux kernel source code",
         epilog="""\
 Copyright (c) 2024 Oracle and/or its affiliates.
 

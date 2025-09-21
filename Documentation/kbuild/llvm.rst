@@ -1,22 +1,22 @@
 .. _kbuild_llvm:
 
 ==============================
-Building Linux with Clang/LLVM
+Building GNU/Linux with Clang/LLVM
 ==============================
 
-This document covers how to build the Linux kernel with Clang and LLVM
+This document covers how to build the GNU/Linux kernel with Clang and LLVM
 utilities.
 
 About
 -----
 
-The Linux kernel has always traditionally been compiled with GNU toolchains
+The GNU/Linux kernel has always traditionally been compiled with GNU toolchains
 such as GCC and binutils. Ongoing work has allowed for `Clang
 <https://clang.llvm.org/>`_ and `LLVM <https://llvm.org/>`_ utilities to be
 used as viable substitutes. Distributions such as `Android
 <https://www.android.com/>`_, `ChromeOS
 <https://www.chromium.org/chromium-os>`_, `OpenMandriva
-<https://www.openmandriva.org/>`_, and `Chimera Linux
+<https://www.openmandriva.org/>`_, and `Chimera GNU/Linux
 <https://chimera-linux.org/>`_ use Clang built kernels. Google's and Meta's
 datacenter fleets also run kernels built with Clang.
 
@@ -136,7 +136,7 @@ in order to avoid 100% cache misses, see Reproducible_builds_ for more info)::
 Supported Architectures
 -----------------------
 
-LLVM does not target all of the architectures that Linux supports and
+LLVM does not target all of the architectures that GNU/Linux supports and
 just because a target is supported in LLVM does not mean that the kernel
 will build or work without any issues. Below is a general summary of
 architectures that currently work with ``CC=clang`` or ``LLVM=1``. Level
@@ -195,11 +195,11 @@ Getting Help
 - `Website <https://clangbuiltlinux.github.io/>`_
 - `Mailing List <https://lore.kernel.org/llvm/>`_: <llvm@lists.linux.dev>
 - `Old Mailing List Archives <https://groups.google.com/g/clang-built-linux>`_
-- `Issue Tracker <https://github.com/ClangBuiltLinux/linux/issues>`_
+- `Issue Tracker <https://github.com/ClangBuiltGNU/Linux/linux/issues>`_
 - IRC: #clangbuiltlinux on irc.libera.chat
-- `Telegram <https://t.me/ClangBuiltLinux>`_: @ClangBuiltLinux
-- `Wiki <https://github.com/ClangBuiltLinux/linux/wiki>`_
-- `Beginner Bugs <https://github.com/ClangBuiltLinux/linux/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22>`_
+- `Telegram <https://t.me/ClangBuiltGNU/Linux>`_: @ClangBuiltGNU/Linux
+- `Wiki <https://github.com/ClangBuiltGNU/Linux/linux/wiki>`_
+- `Beginner Bugs <https://github.com/ClangBuiltGNU/Linux/linux/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22>`_
 
 .. _getting_llvm:
 
@@ -208,7 +208,7 @@ Getting LLVM
 
 We provide prebuilt stable versions of LLVM on `kernel.org
 <https://kernel.org/pub/tools/llvm/>`_. These have been optimized with profile
-data for building Linux kernels, which should improve kernel build times
+data for building GNU/Linux kernels, which should improve kernel build times
 relative to other distributions of LLVM.
 
 Below are links that may be useful for building LLVM from source or procuring
@@ -220,6 +220,6 @@ it through a distribution's package manager.
 - https://llvm.org/docs/CMake.html
 - https://apt.llvm.org/
 - https://www.archlinux.org/packages/extra/x86_64/llvm/
-- https://github.com/ClangBuiltLinux/tc-build
-- https://github.com/ClangBuiltLinux/linux/wiki/Building-Clang-from-source
+- https://github.com/ClangBuiltGNU/Linux/tc-build
+- https://github.com/ClangBuiltGNU/Linux/linux/wiki/Building-Clang-from-source
 - https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/

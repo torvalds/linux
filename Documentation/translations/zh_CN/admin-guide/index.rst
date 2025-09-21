@@ -4,7 +4,7 @@
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
 
 
-Linux 内核用户和管理员指南
+GNU/Linux 内核用户和管理员指南
 ==========================
 
 下面是一组随时间添加到内核中的面向用户的文档的集合。到目前为止，还没有一个

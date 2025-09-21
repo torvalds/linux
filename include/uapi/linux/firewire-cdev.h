@@ -249,7 +249,7 @@ struct fw_cdev_event_request2 {
  * i.e. encodes the extended transaction code.
  *
  * @card may differ from &fw_cdev_get_info.card because requests are received
- * from all cards of the Linux host.  @source_node_id, @destination_node_id, and
+ * from all cards of the GNU/Linux host.  @source_node_id, @destination_node_id, and
  * @generation pertain to that card.  Destination node ID and bus generation may
  * therefore differ from the corresponding fields of the last
  * &fw_cdev_event_bus_reset.
@@ -1049,7 +1049,7 @@ struct fw_cdev_get_cycle_timer {
  *
  * @clk_id lets you choose a clock like with POSIX' clock_gettime function.
  * Supported @clk_id values are POSIX' %CLOCK_REALTIME and %CLOCK_MONOTONIC
- * and Linux' %CLOCK_MONOTONIC_RAW.
+ * and GNU/Linux' %CLOCK_MONOTONIC_RAW.
  *
  * @cycle_timer consists of 7 bits cycleSeconds, 13 bits cycleCount, and
  * 12 bits cycleOffset, in host byte order.  Cf. the Cycle Time register

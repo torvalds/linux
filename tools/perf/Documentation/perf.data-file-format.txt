@@ -272,7 +272,7 @@ recorded from perf stat record.
 
 	HEADER_CACHE = 20,
 
-Description of the cache hierarchy. Based on the Linux sysfs format
+Description of the cache hierarchy. Based on the GNU/Linux sysfs format
 in /sys/devices/system/cpu/cpu*/cache/
 
 	u32 version	Currently always 1
@@ -470,7 +470,7 @@ by an ID. This can be either through the PERF_SAMPLE_ID or the
 PERF_SAMPLE_IDENTIFIER header. The PERF_SAMPLE_IDENTIFIER header is
 at a fixed offset from the event header, which allows reliable
 parsing of the header. Relying on ID may be ambiguous.
-IDENTIFIER is only supported by newer Linux kernels.
+IDENTIFIER is only supported by newer GNU/Linux kernels.
 
 Perf record specific events:
 
@@ -679,7 +679,7 @@ A manpage describing perf_event and perf_event_attr is here:
 http://web.eece.maine.edu/~vweaver/projects/perf_events/programming.html
 This tends to be slightly behind the kernel include, but has better
 descriptions.  An (typically older) version of the man page may be
-included with the standard Linux man pages, available with "man
+included with the standard GNU/Linux man pages, available with "man
 perf_events"
 
 pmu-tools

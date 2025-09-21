@@ -1,5 +1,5 @@
 /*
- * Linux driver attachment glue for aic7770 based controllers.
+ * GNU/Linux driver attachment glue for aic7770 based controllers.
  *
  * Copyright (c) 2000-2003 Adaptec Inc.
  * All rights reserved.

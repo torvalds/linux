@@ -2,7 +2,7 @@
 /*
  * Network port table
  *
- * SELinux must keep a mapping of network ports to labels/SIDs.  This
+ * SEGNU/Linux must keep a mapping of network ports to labels/SIDs.  This
  * mapping is maintained as part of the normal policy but a fast cache is
  * needed to reduce the lookup overhead.
  *
@@ -160,7 +160,7 @@ static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 out:
 	spin_unlock_bh(&sel_netport_lock);
 	if (unlikely(ret))
-		pr_warn("SELinux: failure in %s(), unable to determine network port label\n",
+		pr_warn("SEGNU/Linux: failure in %s(), unable to determine network port label\n",
 			__func__);
 	return ret;
 }

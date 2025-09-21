@@ -219,12 +219,12 @@ static int __init opal_register_exception_handlers(void)
 	 *
 	 * Check if we are running on newer (post Oct 2014) firmware that
 	 * exports the OPAL_HANDLE_HMI token. If yes, then don't ask OPAL to
-	 * patch the HMI interrupt and we catch it directly in Linux.
+	 * patch the HMI interrupt and we catch it directly in GNU/Linux.
 	 *
 	 * For older firmware (i.e < FW810.20), we fallback to old behavior and
 	 * let OPAL patch the HMI vector and handle it inside OPAL firmware.
 	 *
-	 * For newer firmware we catch/handle the HMI directly in Linux.
+	 * For newer firmware we catch/handle the HMI directly in GNU/Linux.
 	 */
 	if (!opal_check_token(OPAL_HANDLE_HMI)) {
 		pr_info("Old firmware detected, OPAL handles HMIs.\n");
@@ -699,7 +699,7 @@ int opal_hmi_exception_early(struct pt_regs *regs)
 	/*
 	 * call opal hmi handler. Pass paca address as token.
 	 * The return value OPAL_SUCCESS is an indication that there is
-	 * an HMI event generated waiting to pull by Linux.
+	 * an HMI event generated waiting to pull by GNU/Linux.
 	 */
 	rc = opal_handle_hmi();
 	if (rc == OPAL_SUCCESS) {

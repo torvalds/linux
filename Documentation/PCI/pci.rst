@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==============================
-How To Write Linux PCI Drivers
+How To Write GNU/Linux PCI Drivers
 ==============================
 
 :Authors: - Martin Mares <mj@ucw.cz>
@@ -10,11 +10,11 @@ How To Write Linux PCI Drivers
 The world of PCI is vast and full of (mostly unpleasant) surprises.
 Since each CPU architecture implements different chip-sets and PCI devices
 have different requirements (erm, "features"), the result is the PCI support
-in the Linux kernel is not as trivial as one would wish. This short paper
-tries to introduce all potential driver authors to Linux APIs for
+in the GNU/Linux kernel is not as trivial as one would wish. This short paper
+tries to introduce all potential driver authors to GNU/Linux APIs for
 PCI device drivers.
 
-A more complete resource is the third edition of "Linux Device Drivers"
+A more complete resource is the third edition of "GNU/Linux Device Drivers"
 by Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman.
 LDD3 is available for free (under Creative Commons License) from:
 https://lwn.net/Kernel/LDD3/.
@@ -22,8 +22,8 @@ https://lwn.net/Kernel/LDD3/.
 However, keep in mind that all documents are subject to "bit rot".
 Refer to the source code if things are not working as described here.
 
-Please send questions/comments/patches about Linux PCI API to the
-"Linux PCI" <linux-pci@atrey.karlin.mff.cuni.cz> mailing list.
+Please send questions/comments/patches about GNU/Linux PCI API to the
+"GNU/Linux PCI" <linux-pci@atrey.karlin.mff.cuni.cz> mailing list.
 
 
 Structure of PCI drivers

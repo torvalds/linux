@@ -10,7 +10,7 @@ Introduction
 
 
 A preemptible kernel creates new locking issues.  The issues are the same as
-those under SMP: concurrency and reentrancy.  Thankfully, the Linux preemptible
+those under SMP: concurrency and reentrancy.  Thankfully, the GNU/Linux preemptible
 kernel model leverages existing SMP locking mechanisms.  Thus, the kernel
 requires explicit additional locking for very few additional situations.
 

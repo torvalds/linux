@@ -8,7 +8,7 @@
 Per maggiori informazioni
 =========================
 
-Esistono numerose fonti di informazioni sullo sviluppo del kernel Linux
+Esistono numerose fonti di informazioni sullo sviluppo del kernel GNU/Linux
 e argomenti correlati. Primo tra questi sarà sempre la cartella Documentation
 che si trova nei sorgenti kernel.
 
@@ -37,13 +37,13 @@ definitivo per le informazioni sui rilasci del kernel.
 
 Ci sono numerosi libri sullo sviluppo del kernel:
 
-	Linux Device Drivers, 3rd Edition (Jonathan Corbet, Alessandro
+	GNU/Linux Device Drivers, 3rd Edition (Jonathan Corbet, Alessandro
 	Rubini, and Greg Kroah-Hartman).  In linea all'indirizzo
 	http://lwn.net/Kernel/LDD3/.
 
-	Linux Kernel Development (Robert Love).
+	GNU/Linux Kernel Development (Robert Love).
 
-	Understanding the Linux Kernel (Daniel Bovet and Marco Cesati).
+	Understanding the GNU/Linux Kernel (Daniel Bovet and Marco Cesati).
 
 Tutti questi libri soffrono di un errore comune: tendono a risultare in un
 certo senso obsoleti dal momento che si trovano in libreria da diverso
@@ -62,12 +62,12 @@ Conclusioni
 
 Congratulazioni a chiunque ce l'abbia fatta a terminare questo documento di
 lungo-respiro.  Si spera che abbia fornito un'utile comprensione d'insieme
-di come il kernel Linux viene sviluppato e di come potete partecipare a
+di come il kernel GNU/Linux viene sviluppato e di come potete partecipare a
 tale processo.
 
 Infine, quello che conta è partecipare.  Qualsiasi progetto software
 open-source non è altro che la somma di quello che i suoi contributori
-mettono al suo interno.  Il kernel Linux è cresciuto velocemente e bene
+mettono al suo interno.  Il kernel GNU/Linux è cresciuto velocemente e bene
 perché ha ricevuto il supporto di un impressionante gruppo di sviluppatori,
 ognuno dei quali sta lavorando per renderlo migliore.  Il kernel è un esempio
 importante di cosa può essere fatto quando migliaia di persone lavorano
@@ -75,7 +75,7 @@ insieme verso un obiettivo comune.
 
 Il kernel può sempre beneficiare di una larga base di sviluppatori, tuttavia,
 c'è sempre molto lavoro da fare.  Ma, cosa non meno importante, molti degli
-altri partecipanti all'ecosistema Linux possono trarre beneficio attraverso
+altri partecipanti all'ecosistema GNU/Linux possono trarre beneficio attraverso
 il contributo al kernel.  Inserire codice nel ramo principale è la chiave
 per arrivare ad una qualità del codice più alta, bassa manutenzione e
 bassi prezzi di distribuzione, alti livelli d'influenza sulla direzione

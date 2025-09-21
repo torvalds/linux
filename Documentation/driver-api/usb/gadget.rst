@@ -1,5 +1,5 @@
 ========================
-USB Gadget API for Linux
+USB Gadget API for GNU/Linux
 ========================
 
 :Author: David Brownell
@@ -8,10 +8,10 @@ USB Gadget API for Linux
 Introduction
 ============
 
-This document presents a Linux-USB "Gadget" kernel mode API, for use
-within peripherals and other USB devices that embed Linux. It provides
+This document presents a GNU/Linux-USB "Gadget" kernel mode API, for use
+within peripherals and other USB devices that embed GNU/Linux. It provides
 an overview of the API structure, and shows how that fits into a system
-development project. This is the first such API released on Linux to
+development project. This is the first such API released on GNU/Linux to
 address a number of important problems, including:
 
 -  Supports USB 2.0, for high speed devices which can stream data at
@@ -26,9 +26,9 @@ address a number of important problems, including:
    and alternate interface settings.
 
 -  USB "On-The-Go" (OTG) support, in conjunction with updates to the
-   Linux-USB host side.
+   GNU/Linux-USB host side.
 
--  Sharing data structures and API models with the Linux-USB host side
+-  Sharing data structures and API models with the GNU/Linux-USB host side
    API. This helps the OTG support, and looks forward to more-symmetric
    frameworks (where the same I/O model is used by both host and device
    side drivers).
@@ -37,17 +37,17 @@ address a number of important problems, including:
    I/O processing doesn't imply large demands for memory or CPU
    resources.
 
-Most Linux developers will not be able to use this API, since they have
-USB ``host`` hardware in a PC, workstation, or server. Linux users with
+Most GNU/Linux developers will not be able to use this API, since they have
+USB ``host`` hardware in a PC, workstation, or server. GNU/Linux users with
 embedded systems are more likely to have USB peripheral hardware. To
 distinguish drivers running inside such hardware from the more familiar
-Linux "USB device drivers", which are host side proxies for the real USB
+GNU/Linux "USB device drivers", which are host side proxies for the real USB
 devices, a different term is used: the drivers inside the peripherals
 are "USB gadget drivers". In USB protocol interactions, the device
 driver is the master (or "client driver") and the gadget driver is the
 slave (or "function driver").
 
-The gadget API resembles the host side Linux-USB API in that both use
+The gadget API resembles the host side GNU/Linux-USB API in that both use
 queues of request objects to package I/O buffers, and those requests may
 be submitted or canceled. They share common definitions for the standard
 USB *Chapter 9* messages, structures, and constants. Also, both APIs
@@ -68,7 +68,7 @@ additional layers in user space code. The ``gadget`` API is used by the
 middle layer to interact with the lowest level (which directly handles
 hardware).
 
-In Linux, from the bottom up, these layers are:
+In GNU/Linux, from the bottom up, these layers are:
 
 *USB Controller Driver*
     This is the lowest software level. It is the only layer that talks
@@ -113,11 +113,11 @@ In Linux, from the bottom up, these layers are:
     -  managing IN and OUT transfers on all currently enabled endpoints
 
     Such drivers may be modules of proprietary code, although that
-    approach is discouraged in the Linux community.
+    approach is discouraged in the GNU/Linux community.
 
 *Upper Level*
     Most gadget drivers have an upper boundary that connects to some
-    Linux driver or framework in Linux. Through that boundary flows the
+    GNU/Linux driver or framework in GNU/Linux. Through that boundary flows the
     data which the gadget driver produces and/or consumes through
     protocol transfers over USB. Examples include:
 
@@ -127,7 +127,7 @@ In Linux, from the bottom up, these layers are:
     -  networking subsystem (for network gadgets, like the CDC Ethernet
        Model gadget driver)
 
-    -  data capture drivers, perhaps video4Linux or a scanner driver; or
+    -  data capture drivers, perhaps video4GNU/Linux or a scanner driver; or
        test and measurement hardware.
 
     -  input subsystem (for HID gadgets)
@@ -148,7 +148,7 @@ In Linux, from the bottom up, these layers are:
     be an option. Such user mode code will not necessarily be subject to
     the GNU General Public License (GPL).
 
-OTG-capable systems will also need to include a standard Linux-USB host
+OTG-capable systems will also need to include a standard GNU/Linux-USB host
 side stack, with ``usbcore``, one or more *Host Controller Drivers*
 (HCDs), *USB Device Drivers* to support the OTG "Targeted Peripheral
 List", and so forth. There will also be an *OTG Controller Driver*,
@@ -194,7 +194,7 @@ and you will understand how this API works.
     understand the API.
 
     The part of the API implementing some basic driver capabilities is
-    specific to the version of the Linux kernel that's in use. The 2.6
+    specific to the version of the GNU/Linux kernel that's in use. The 2.6
     and upper kernel versions include a *driver model* framework that has
     no analogue on earlier kernels; so those parts of the gadget API are
     not fully portable. (They are implemented on 2.4 kernels, but in a
@@ -220,7 +220,7 @@ find ones matching the driver requirements (relying on those
 conventions), to eliminate some of the most common reasons for
 conditional compilation.
 
-Like the Linux-USB host side API, this API exposes the "chunky" nature
+Like the GNU/Linux-USB host side API, this API exposes the "chunky" nature
 of USB messages: I/O requests are in terms of one or more "packets", and
 packet boundaries are visible to drivers. Compared to RS-232 serial
 protocols, USB resembles synchronous protocols like HDLC (N bytes per
@@ -241,7 +241,7 @@ needs to handle some differences. Use the API like this:
 
 1. Register a driver for the particular device side usb controller
    hardware, such as the net2280 on PCI (USB 2.0), sa11x0 or pxa25x as
-   found in Linux PDAs, and so on. At this point the device is logically
+   found in GNU/Linux PDAs, and so on. At this point the device is logically
    in the USB ch9 initial state (``attached``), drawing no power and not
    usable (since it does not yet support enumeration). Any host should
    not see the device, since it's not activated the data line pullup
@@ -283,7 +283,7 @@ needs to handle some differences. Use the API like this:
    callback is issued. That lets the controller driver be unloaded.
 
 Drivers will normally be arranged so that just loading the gadget driver
-module (or statically linking it into a Linux kernel) allows the
+module (or statically linking it into a GNU/Linux kernel) allows the
 peripheral device to be enumerated, but some drivers will defer
 enumeration until some higher level component (like a user mode daemon)
 enables it. Note that at this lowest level there are no policies about
@@ -305,7 +305,7 @@ USB 2.0 Chapter 9 Types and Constants
 
 Gadget drivers rely on common USB structures and constants defined in
 the :ref:`linux/usb/ch9.h <usb_chapter9>` header file, which is standard in
-Linux 2.6+ kernels. These are the same types and constants used by host side
+GNU/Linux 2.6+ kernels. These are the same types and constants used by host side
 drivers (and usbcore).
 
 Core Objects and Methods
@@ -364,7 +364,7 @@ Peripheral Controller Drivers
 
 The first hardware supporting this API was the NetChip 2280 controller,
 which supports USB 2.0 high speed and is based on PCI. This is the
-``net2280`` driver module. The driver supports Linux kernel versions 2.4
+``net2280`` driver module. The driver supports GNU/Linux kernel versions 2.4
 and 2.6; contact NetChip Technologies for development boards and product
 information.
 
@@ -384,7 +384,7 @@ act like a net2280, a pxa25x, or an sa11x0 in terms of available
 endpoints and device speeds; and it simulates control, bulk, and to some
 extent interrupt transfers. That lets you develop some parts of a gadget
 driver on a normal PC, without any special hardware, and perhaps with
-the assistance of tools such as GDB running with User Mode Linux. At
+the assistance of tools such as GDB running with User Mode GNU/Linux. At
 least one person has expressed interest in adapting that approach,
 hooking it up to a simulator for a microcontroller. Such simulators can
 help debug subsystems where the runtime hardware is unfriendly to
@@ -423,7 +423,7 @@ This provides a *User Mode API* that presents each endpoint as a single
 file descriptor. I/O is done using normal ``read()`` and ``read()`` calls.
 Familiar tools like GDB and pthreads can be used to develop and debug
 user mode drivers, so that once a robust controller driver is available
-many applications for it won't require new kernel mode software. Linux
+many applications for it won't require new kernel mode software. GNU/Linux
 2.6 *Async I/O (AIO)* support is available, so that user mode software
 can stream data with only slightly more overhead than a kernel driver.
 
@@ -447,7 +447,7 @@ contributed over time, as this driver framework evolves.
 USB On-The-GO (OTG)
 ===================
 
-USB OTG support on Linux 2.6 was initially developed by Texas
+USB OTG support on GNU/Linux 2.6 was initially developed by Texas
 Instruments for `OMAP <http://www.omap.com>`__ 16xx and 17xx series
 processors. Other OTG systems should work in similar ways, but the
 hardware level details could be very different.
@@ -455,7 +455,7 @@ hardware level details could be very different.
 Systems need specialized hardware support to implement OTG, notably
 including a special *Mini-AB* jack and associated transceiver to support
 *Dual-Role* operation: they can act either as a host, using the standard
-Linux-USB host side driver stack, or as a peripheral, using this
+GNU/Linux-USB host side driver stack, or as a peripheral, using this
 ``gadget`` framework. To do that, the system software relies on small
 additions to those programming interfaces, and on a new internal
 component (here called an "OTG Controller") affecting which driver stack
@@ -483,11 +483,11 @@ support OTG can also benefit non-OTG products.
 
 -  Also on the host side, a driver must support the OTG "Targeted
    Peripheral List". That's just a whitelist, used to reject peripherals
-   not supported with a given Linux OTG host. *This whitelist is
+   not supported with a given GNU/Linux OTG host. *This whitelist is
    product-specific; each product must modify* ``otg_whitelist.h`` *to
    match its interoperability specification.*
 
-   Non-OTG Linux hosts, like PCs and workstations, normally have some
+   Non-OTG GNU/Linux hosts, like PCs and workstations, normally have some
    solution for adding drivers, so that peripherals that aren't
    recognized can eventually be supported. That approach is unreasonable
    for consumer products that may never have their firmware upgraded,

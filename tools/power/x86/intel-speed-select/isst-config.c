@@ -1585,7 +1585,7 @@ static void set_tdp_level(int arg)
 		fprintf(stderr,
 			"\t Optional Arguments: -o | online : online/offline for the tdp level\n");
 		fprintf(stderr,
-			"\t  online/offline operation has limitations, refer to Linux hotplug documentation\n");
+			"\t  online/offline operation has limitations, refer to GNU/Linux hotplug documentation\n");
 		exit(0);
 	}
 

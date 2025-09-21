@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * JMicron JMC2x0 series PCIe Ethernet Linux Device Driver
+ * JMicron JMC2x0 series PCIe Ethernet GNU/Linux Device Driver
  *
  * Copyright 2008 JMicron Technology Corporation
  * https://www.jmicron.com/

@@ -54,7 +54,7 @@ static DEFINE_RAW_SPINLOCK(cmci_discover_lock);
  */
 static DEFINE_SPINLOCK(cmci_poll_lock);
 
-/* Linux non-storm CMCI threshold (may be overridden by BIOS) */
+/* GNU/Linux non-storm CMCI threshold (may be overridden by BIOS) */
 #define CMCI_THRESHOLD		1
 
 /*
@@ -200,7 +200,7 @@ static bool cmci_skip_bank(int bank, u64 *val)
  * Decide which CMCI interrupt threshold to use:
  * 1: If this bank is in storm mode from whichever CPU was
  *    the previous owner, stay in storm mode.
- * 2: If ignoring any threshold set by BIOS, set Linux default
+ * 2: If ignoring any threshold set by BIOS, set GNU/Linux default
  * 3: Try to honor BIOS threshold (unless buggy BIOS set it at zero).
  */
 static u64 cmci_pick_threshold(u64 val, int *bios_zero_thresh)

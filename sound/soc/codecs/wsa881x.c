@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2015-2017, The Linux Foundation.
+// Copyright (c) 2015-2017, The GNU/Linux Foundation.
 // Copyright (c) 2019, Linaro Limited
 
 #include <linux/bitops.h>

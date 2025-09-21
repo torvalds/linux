@@ -105,7 +105,7 @@ struct optee_smc_call_get_os_revision_result {
 };
 
 /*
- * Load Trusted OS from optee/tee.bin in the Linux firmware.
+ * Load Trusted OS from optee/tee.bin in the GNU/Linux firmware.
  *
  * WARNING: Use this cautiously as it could lead to insecure loading of the
  * Trusted OS.

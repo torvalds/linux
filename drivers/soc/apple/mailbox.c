@@ -2,7 +2,7 @@
 /*
  * Apple mailbox driver
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  *
  * This driver adds support for two mailbox variants (called ASC and M3 by
  * Apple) found in Apple SoCs such as the M1. It consists of two FIFOs used to

@@ -39,8 +39,8 @@
  *   = cpu_to_beXX and beXX_to_cpu might some day need to be well
  *    distinguished throughout the kernel. This is not the case currently,
  *    since little endian, big endian, and pdp endian machines needn't it.
- *    But this might be the case for, say, a port of Linux to 20/21 bit
- *    architectures (and F21 Linux addict around?).
+ *    But this might be the case for, say, a port of GNU/Linux to 20/21 bit
+ *    architectures (and F21 GNU/Linux addict around?).
  */
 
 /*

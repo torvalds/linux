@@ -17,7 +17,7 @@ published by the Free Software Foundation.
 Introduction
 ============
 
-mac80211_hwsim is a Linux kernel module that can be used to simulate
+mac80211_hwsim is a GNU/Linux kernel module that can be used to simulate
 arbitrary number of IEEE 802.11 radios for mac80211. It can be used to
 test most of the mac80211 functionality and user space tools (e.g.,
 hostapd and wpa_supplicant) in a way that matches very closely with

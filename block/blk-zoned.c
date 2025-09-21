@@ -3,7 +3,7 @@
  * Zoned block device handling
  *
  * Copyright (c) 2015, Hannes Reinecke
- * Copyright (c) 2015, SUSE Linux GmbH
+ * Copyright (c) 2015, SUSE GNU/Linux GmbH
  *
  * Copyright (c) 2016, Damien Le Moal
  * Copyright (c) 2016, Western Digital

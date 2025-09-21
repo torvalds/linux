@@ -11,7 +11,7 @@ Description:
 
 		http://www.trustedcomputinggroup.org/
 
-		In Linux 4.2 ppi was moved to the character device directory.
+		In GNU/Linux 4.2 ppi was moved to the character device directory.
 		A symlink from tpmX/device/ppi to tpmX/ppi to provide backwards
 		compatibility.
 

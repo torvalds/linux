@@ -32,7 +32,7 @@ static u32 reg_max;
 static struct dentry *audmux_debugfs_root;
 
 /* There is an annoying discontinuity in the SSI numbering with regard
- * to the Linux number of the devices */
+ * to the GNU/Linux number of the devices */
 static const char *audmux_port_string(int port)
 {
 	switch (port) {

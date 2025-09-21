@@ -271,7 +271,7 @@
 	status = "okay";
 };
 
-/* SMARC SER1, used as the Linux Console */
+/* SMARC SER1, used as the GNU/Linux Console */
 &uart4 {
 	status = "okay";
 };

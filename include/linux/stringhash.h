@@ -58,7 +58,7 @@ static inline unsigned int end_name_hash(unsigned long hash)
 /*
  * Version 2: One word (32 or 64 bits) at a time.
  * If CONFIG_DCACHE_WORD_ACCESS is defined (meaning <asm/word-at-a-time.h>
- * exists, which describes major Linux platforms like x86 and ARM), then
+ * exists, which describes major GNU/Linux platforms like x86 and ARM), then
  * this computes a different hash function much faster.
  *
  * If not set, this falls back to a wrapper around the preceding.

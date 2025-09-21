@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * w83792d.c - Part of lm_sensors, Linux kernel modules for hardware
+ * w83792d.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *	       monitoring
  * Copyright (C) 2004, 2005 Winbond Electronics Corp.
  *			    Shane Huang,

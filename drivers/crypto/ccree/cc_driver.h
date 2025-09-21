@@ -2,7 +2,7 @@
 /* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 /* \file cc_driver.h
- * ARM CryptoCell Linux Crypto Driver
+ * ARM CryptoCell GNU/Linux Crypto Driver
  */
 
 #ifndef __CC_DRIVER_H__

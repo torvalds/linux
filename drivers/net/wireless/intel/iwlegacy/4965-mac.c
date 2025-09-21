@@ -7,7 +7,7 @@
  * as portions of the ieee80211 subsystem header files.
  *
  * Contact Information:
- *  Intel Linux Wireless <ilw@linux.intel.com>
+ *  Intel GNU/Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -47,7 +47,7 @@
 /*
  * module name, copyright, version, etc.
  */
-#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi 4965 driver for Linux"
+#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi 4965 driver for GNU/Linux"
 
 #ifdef CONFIG_IWLEGACY_DEBUG
 #define VD "d"

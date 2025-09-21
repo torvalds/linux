@@ -15,7 +15,7 @@ How it works
 ============
 
 The _DSC (Device State for Configuration) object that evaluates to an integer
-may be used to tell Linux the highest allowed D state for a device during
+may be used to tell GNU/Linux the highest allowed D state for a device during
 probe. The support for _DSC requires support from the kernel bus type if the
 bus driver normally sets the device in D0 state for probe.
 

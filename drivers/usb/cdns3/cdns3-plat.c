@@ -178,7 +178,7 @@ err_phy3_init:
 
 /**
  * cdns3_plat_remove() - unbind drd driver and clean up
- * @pdev: Pointer to Linux platform device
+ * @pdev: Pointer to GNU/Linux platform device
  */
 static void cdns3_plat_remove(struct platform_device *pdev)
 {

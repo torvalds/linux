@@ -44,7 +44,7 @@
 #define FDB_AGE_INTERVAL (10 * HZ)	/* rescan interval */
 
 /* UDP port for VXLAN traffic.
- * The IANA assigned port is 4789, but the Linux default is 8472
+ * The IANA assigned port is 4789, but the GNU/Linux default is 8472
  * for compatibility with early adopters.
  */
 static unsigned short vxlan_port __read_mostly = 8472;

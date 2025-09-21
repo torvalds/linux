@@ -2,7 +2,7 @@
 /*
  *   Copyright (C) 2016 T-Platforms. All Rights Reserved.
  *
- * IDT PCIe-switch NTB Linux driver
+ * IDT PCIe-switch NTB GNU/Linux driver
  *
  * Contact Information:
  * Serge Semin <fancer.lancer@gmail.com>, <Sergey.Semin@t-platforms.ru>

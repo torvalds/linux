@@ -91,7 +91,7 @@ This is a character device with major number is 86, so use
 If the module finds the changer, it prints some messages about the
 device [ try "dmesg" if you don't see anything ] and should show up in
 /proc/devices. If not....  some changers use ID ? / LUN 0 for the
-device and ID ? / LUN 1 for the robot mechanism. But Linux does *not*
+device and ID ? / LUN 1 for the robot mechanism. But GNU/Linux does *not*
 look for LUNs other than 0 as default, because there are too many
 broken devices. So you can try:
 

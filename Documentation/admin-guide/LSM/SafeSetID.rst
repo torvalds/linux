@@ -10,11 +10,11 @@ allowing a user to set up user namespace UID/GID mappings.
 
 Background
 ==========
-In absence of file capabilities, processes spawned on a Linux system that need
+In absence of file capabilities, processes spawned on a GNU/Linux system that need
 to switch to a different user must be spawned with CAP_SETUID privileges.
 CAP_SETUID is granted to programs running as root or those running as a non-root
 user that have been explicitly given the CAP_SETUID runtime capability. It is
-often preferable to use Linux runtime capabilities rather than file
+often preferable to use GNU/Linux runtime capabilities rather than file
 capabilities, since using file capabilities to run a program with elevated
 privileges opens up possible security holes since any user with access to the
 file can exec() that program to gain the elevated privileges.
@@ -26,7 +26,7 @@ since CAP_SETUID allows changing to any user on the system, including the root
 user, it is an overpowered capability for what is needed in this scenario,
 especially since programs often only call setuid() to drop privileges to a
 lesser-privileged user -- not elevate privileges. Unfortunately, there is no
-generally feasible way in Linux to restrict the potential UIDs that a user can
+generally feasible way in GNU/Linux to restrict the potential UIDs that a user can
 switch to through setuid() beyond allowing a switch to any user on the system.
 This SafeSetID LSM seeks to provide a solution for restricting setid
 capabilities in such a way.
@@ -61,7 +61,7 @@ fork(), parent processes specifying custom environment variables or command line
 args for spawned child processes, or inheritance of file handles across a
 fork()/exec(). Because of this, as solution that uses a privileged helper in
 userspace would likely be less appealing to incorporate into existing projects
-that rely on certain process-spawning semantics in Linux.
+that rely on certain process-spawning semantics in GNU/Linux.
 
 Use user namespaces
 -------------------
@@ -72,8 +72,8 @@ own user namespace, and only approved UIDs/GIDs could be mapped back to the
 initial system user namespace, affectively preventing privilege escalation.
 Unfortunately, it is not generally feasible to use user namespaces in isolation,
 without pairing them with other namespace types, which is not always an option.
-Linux checks for capabilities based off of the user namespace that "owns" some
-entity. For example, Linux has the notion that network namespaces are owned by
+GNU/Linux checks for capabilities based off of the user namespace that "owns" some
+entity. For example, GNU/Linux has the notion that network namespaces are owned by
 the user namespace in which they were created. A consequence of this is that
 capability checks for access to a given network namespace are done by checking
 whether a task has the given capability in the context of the user namespace
@@ -88,9 +88,9 @@ other system interactions, including use of pid namespaces and device creation.
 Use an existing LSM
 -------------------
 None of the other in-tree LSMs have the capability to gate setid transitions, or
-even employ the security_task_fix_setuid hook at all. SELinux says of that hook:
-"Since setuid only affects the current process, and since the SELinux controls
-are not based on the Linux identity attributes, SELinux does not need to control
+even employ the security_task_fix_setuid hook at all. SEGNU/Linux says of that hook:
+"Since setuid only affects the current process, and since the SEGNU/Linux controls
+are not based on the GNU/Linux identity attributes, SEGNU/Linux does not need to control
 this operation."
 
 

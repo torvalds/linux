@@ -6,7 +6,7 @@
 
 /* This workload was initially added to test enum augmentation with BTF in perf
  * trace because its the only syscall that has an enum argument. Since it is
- * a recent addition to the Linux kernel (at the time of the introduction of this
+ * a recent addition to the GNU/Linux kernel (at the time of the introduction of this
  * 'perf test' workload) we just add the required types and defines here instead
  * of including linux/landlock, that isn't available in older systems.
  *

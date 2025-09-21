@@ -16,7 +16,7 @@
  *		Alan Cox	:	tidied skbuff lists.
  *		Alan Cox	:	Now uses generic datagram routines I
  *					added. Also fixed the peek/read crash
- *					from all old Linux datagram code.
+ *					from all old GNU/Linux datagram code.
  *		Alan Cox	:	Uses the improved datagram code.
  *		Alan Cox	:	Added NULL's for socket options.
  *		Alan Cox	:	Re-commented the code.

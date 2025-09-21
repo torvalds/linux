@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only OR Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0-only OR GNU/Linux-OpenIB
 /*
  * Mellanox BlueField Performance Monitoring Counters driver
  *

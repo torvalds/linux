@@ -1,23 +1,23 @@
 =======
-SELinux
+SEGNU/Linux
 =======
 
-Information about the SELinux kernel subsystem can be found at the
+Information about the SEGNU/Linux kernel subsystem can be found at the
 following links:
 
 	https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/selinux.git/tree/README.md
 
 	https://github.com/selinuxproject/selinux-kernel/wiki
 
-Information about the SELinux userspace can be found at:
+Information about the SEGNU/Linux userspace can be found at:
 
-	https://github.com/SELinuxProject/selinux/wiki
+	https://github.com/SEGNU/LinuxProject/selinux/wiki
 
-If you want to use SELinux, chances are you will want
+If you want to use SEGNU/Linux, chances are you will want
 to use the distro-provided policies, or install the
 latest reference policy release from
 
-	https://github.com/SELinuxProject/refpolicy
+	https://github.com/SEGNU/LinuxProject/refpolicy
 
 However, if you want to install a dummy policy for
 testing, you can do using ``mdp`` provided under
@@ -29,7 +29,7 @@ fixfiles to label the filesystem.
 	1. Compile the kernel with selinux enabled.
 	2. Type ``make`` to compile ``mdp``.
 	3. Make sure that you are not running with
-	   SELinux enabled and a real policy.  If
+	   SEGNU/Linux enabled and a real policy.  If
 	   you are, reboot with selinux disabled
 	   before continuing.
 	4. Run install_policy.sh::

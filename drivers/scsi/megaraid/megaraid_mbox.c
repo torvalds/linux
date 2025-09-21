@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- *			Linux MegaRAID device driver
+ *			GNU/Linux MegaRAID device driver
  *
  * Copyright (c) 2003-2004  LSI Logic Corporation.
  *
@@ -2282,7 +2282,7 @@ megaraid_mbox_dpc(unsigned long devp)
 			}
 		}
 
-		// Convert MegaRAID status to Linux error code
+		// Convert MegaRAID status to GNU/Linux error code
 		switch (status) {
 
 		case 0x00:

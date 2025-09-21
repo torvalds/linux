@@ -146,7 +146,7 @@ Kconfig options:
   recommended to disable this option.
 
 To use the strictest possible rules, select ``CONFIG_KCSAN_STRICT=y``, which
-configures KCSAN to follow the Linux-kernel memory consistency model (LKMM) as
+configures KCSAN to follow the GNU/Linux-kernel memory consistency model (LKMM) as
 closely as possible.
 
 DebugFS interface
@@ -205,7 +205,7 @@ Accesses and Data Races" in the LKMM`_.
 
 .. _"Plain Accesses and Data Races" in the LKMM: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/memory-model/Documentation/explanation.txt?id=8f6629c004b193d23612641c3607e785819e97ab#n2164
 
-Relationship with the Linux-Kernel Memory Consistency Model (LKMM)
+Relationship with the GNU/Linux-Kernel Memory Consistency Model (LKMM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The LKMM defines the propagation and ordering rules of various memory

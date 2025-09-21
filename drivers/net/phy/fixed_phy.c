@@ -200,7 +200,7 @@ static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
 
 	/*
 	 * As the fixed link is just a device tree node without any
-	 * Linux device associated with it, we simply have obtain
+	 * GNU/Linux device associated with it, we simply have obtain
 	 * the GPIO descriptor from the device tree like this.
 	 */
 	gpiod = fwnode_gpiod_get_index(of_fwnode_handle(fixed_link_node),

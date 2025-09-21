@@ -8,7 +8,7 @@
    Please note that this translation is independent of the previous one.
 
 ======================================
-Linux カーネルパッチ投稿チェックリスト
+GNU/Linux カーネルパッチ投稿チェックリスト
 ======================================
 
 .. note:: 【訳註】
@@ -23,7 +23,7 @@ Linux カーネルパッチ投稿チェックリスト
 べき基本的な事項です。
 
 これは、 Documentation/process/submitting-patches.rst およびその他の
-Linux カーネルパッチ投稿に関する文書を踏まえ、それを補足するものです。
+GNU/Linux カーネルパッチ投稿に関する文書を踏まえ、それを補足するものです。
 
 .. note:: 【訳註】
    可能な項目については、パッチもしくはパッチ内の更新を暗黙の主語として、

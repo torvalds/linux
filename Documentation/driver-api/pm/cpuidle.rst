@@ -45,7 +45,7 @@ one of the logical CPUs in the system turns out to be idle.  Its role is to
 select an idle state to ask the processor to enter in order to save some energy.
 
 ``CPUIdle`` governors are generic and each of them can be used on any hardware
-platform that the Linux kernel can run on.  For this reason, data structures
+platform that the GNU/Linux kernel can run on.  For this reason, data structures
 operated on by them cannot depend on any hardware architecture or platform
 design details as well.
 

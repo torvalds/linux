@@ -3,7 +3,7 @@
  * module/mite.h
  * Hardware driver for NI Mite PCI interface chip
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1999 David A. Schleef <ds@schleef.org>
  */
 

@@ -1,5 +1,5 @@
 ==================
-Linux Firmware API
+GNU/Linux Firmware API
 ==================
 
 .. toctree::

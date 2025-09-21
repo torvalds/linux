@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2010-2015,2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2015,2019 The GNU/Linux Foundation. All rights reserved.
  */
 #ifndef __QCOM_SCM_INT_H
 #define __QCOM_SCM_INT_H

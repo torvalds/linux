@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux network (ATM) device drivers.
+# Makefile for the GNU/Linux network (ATM) device drivers.
 #
 
 fore_200e-y	:= fore200e.o

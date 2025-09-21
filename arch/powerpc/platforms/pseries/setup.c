@@ -888,9 +888,9 @@ static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
 #ifdef __BIG_ENDIAN__
-	ppc_md.progress("Linux ppc64\n", 0);
+	ppc_md.progress("GNU/Linux ppc64\n", 0);
 #else
-	ppc_md.progress("Linux ppc64le\n", 0);
+	ppc_md.progress("GNU/Linux ppc64le\n", 0);
 #endif
 	ppc_md.progress(init_utsname()->version, 0);
 

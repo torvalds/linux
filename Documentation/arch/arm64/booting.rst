@@ -1,5 +1,5 @@
 =====================
-Booting AArch64 Linux
+Booting AArch64 GNU/Linux
 =====================
 
 Author: Will Deacon <will.deacon@arm.com>
@@ -7,7 +7,7 @@ Author: Will Deacon <will.deacon@arm.com>
 Date  : 07 September 2012
 
 This document is based on the ARM booting document by Russell King and
-is relevant to all public releases of the AArch64 Linux kernel.
+is relevant to all public releases of the AArch64 GNU/Linux kernel.
 
 The AArch64 exception model is made up of a number of exception levels
 (EL0 - EL3), with EL0, EL1 and EL2 having a secure and a non-secure
@@ -16,7 +16,7 @@ level and exists only in secure mode. Both are architecturally optional.
 
 For the purposes of this document, we will use the term `boot loader`
 simply to define all software that executes on the CPU(s) before control
-is passed to the Linux kernel.  This may include secure monitor and
+is passed to the GNU/Linux kernel.  This may include secure monitor and
 hypervisor code, or it may just be a handful of instructions for
 preparing a minimal boot environment.
 

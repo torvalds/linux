@@ -2198,7 +2198,7 @@ int __init kvmppc_booke_init(void)
 	if (!kvmppc_booke_handlers)
 		return -ENOMEM;
 
-	/* XXX make sure our handlers are smaller than Linux's */
+	/* XXX make sure our handlers are smaller than GNU/Linux's */
 
 	/* Copy our interrupt handlers to match host IVORs. That way we don't
 	 * have to swap the IVORs on every guest/host transition. */

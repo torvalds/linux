@@ -10,7 +10,7 @@ When a process runs in kernel mode, it often has to access user
 mode memory whose address has been passed by an untrusted program.
 To protect itself the kernel has to verify this address.
 
-In older versions of Linux this was done with the
+In older versions of GNU/Linux this was done with the
 int verify_area(int type, const void * addr, unsigned long size)
 function (which has since been replaced by access_ok()).
 
@@ -24,7 +24,7 @@ tests, this normally unneeded verification used up a considerable
 amount of time.
 
 To overcome this situation, Linus decided to let the virtual memory
-hardware present in every Linux-capable CPU handle this test.
+hardware present in every GNU/Linux-capable CPU handle this test.
 
 How does this work?
 
@@ -312,7 +312,7 @@ only use exceptions for code in the .text section.  Any other section
 will cause the exception table to not be sorted correctly, and the
 exceptions will fail.
 
-Things changed when 64-bit support was added to x86 Linux. Rather than
+Things changed when 64-bit support was added to x86 GNU/Linux. Rather than
 double the size of the exception table by expanding the two entries
 from 32-bits to 64 bits, a clever trick was used to store addresses
 as relative offsets from the table itself. The assembly code changed

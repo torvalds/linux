@@ -2,7 +2,7 @@
 /*
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2009-2012,2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2012,2014, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/clocksource.h>

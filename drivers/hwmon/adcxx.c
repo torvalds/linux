@@ -228,5 +228,5 @@ static struct spi_driver adcxx_driver = {
 module_spi_driver(adcxx_driver);
 
 MODULE_AUTHOR("Marc Pignat");
-MODULE_DESCRIPTION("National Semiconductor adcxx8sxxx Linux driver");
+MODULE_DESCRIPTION("National Semiconductor adcxx8sxxx GNU/Linux driver");
 MODULE_LICENSE("GPL");

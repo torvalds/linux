@@ -11,14 +11,14 @@ The author wishes to express his appreciation and thanks to:
 Andrew Tridgell (Samba team) for his early suggestions about SMB/CIFS VFS
 improvements. Thanks to IBM for allowing me time and test resources to pursue
 this project, to Jim McDonough from IBM (and the Samba Team) for his help, to
-the IBM Linux JFS team for explaining many esoteric Linux filesystem features.
+the IBM GNU/Linux JFS team for explaining many esoteric GNU/Linux filesystem features.
 Jeremy Allison of the Samba team has done invaluable work in adding the server
 side of the original CIFS Unix extensions and reviewing and implementing
 portions of the newer CIFS POSIX extensions into the Samba 3 file server. Thank
 Dave Boutcher of IBM Rochester (author of the OS/400 smb/cifs filesystem client)
 for proving years ago that very good smb/cifs clients could be done on Unix-like
 operating systems.  Volker Lendecke, Andrew Tridgell, Urban Widmark, John
-Newbigin and others for their work on the Linux smbfs module.  Thanks to
+Newbigin and others for their work on the GNU/Linux smbfs module.  Thanks to
 the other members of the Storage Network Industry Association CIFS Technical
 Workgroup for their work specifying this highly complex protocol and finally
 thanks to the Samba team for their technical advice and encouragement.

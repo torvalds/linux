@@ -863,7 +863,7 @@ config PFAULT
 	  pseudo page fault handling will be used.
 	  Note that VM 4.2 supports PFAULT but has a bug in its
 	  implementation that causes some problems.
-	  Everybody who wants to run Linux under VM != VM4.2 should select
+	  Everybody who wants to run GNU/Linux under VM != VM4.2 should select
 	  this option.
 
 config CMM
@@ -876,7 +876,7 @@ config CMM
 	  makes sense for a system running under VM where the unused pages
 	  will be reused by VM for other guest systems. The interface
 	  allows an external monitor to balance memory of many systems.
-	  Everybody who wants to run Linux under VM should select this
+	  Everybody who wants to run GNU/Linux under VM should select this
 	  option.
 
 config CMM_IUCV
@@ -889,14 +889,14 @@ config CMM_IUCV
 
 config APPLDATA_BASE
 	def_bool n
-	prompt "Linux - VM Monitor Stream, base infrastructure"
+	prompt "GNU/Linux - VM Monitor Stream, base infrastructure"
 	depends on PROC_SYSCTL
 	help
 	  This provides a kernel interface for creating and updating z/VM APPLDATA
 	  monitor records. The monitor records are updated at certain time
 	  intervals, once the timer is started.
 	  Writing 1 or 0 to /proc/appldata/timer starts(1) or stops(0) the timer,
-	  i.e. enables or disables monitoring on the Linux side.
+	  i.e. enables or disables monitoring on the GNU/Linux side.
 	  A custom interval value (in seconds) can be written to
 	  /proc/appldata/interval.
 
@@ -908,7 +908,7 @@ config APPLDATA_MEM
 	prompt "Monitor memory management statistics"
 	depends on APPLDATA_BASE && VM_EVENT_COUNTERS
 	help
-	  This provides memory management related data to the Linux - VM Monitor
+	  This provides memory management related data to the GNU/Linux - VM Monitor
 	  Stream, like paging/swapping rate, memory utilisation, etc.
 	  Writing 1 or 0 to /proc/appldata/memory creates(1) or removes(0) a z/VM
 	  APPLDATA monitor record, i.e. enables or disables monitoring this record
@@ -925,7 +925,7 @@ config APPLDATA_OS
 	prompt "Monitor OS statistics"
 	depends on APPLDATA_BASE
 	help
-	  This provides OS related data to the Linux - VM Monitor Stream, like
+	  This provides OS related data to the GNU/Linux - VM Monitor Stream, like
 	  CPU utilisation, etc.
 	  Writing 1 or 0 to /proc/appldata/os creates(1) or removes(0) a z/VM
 	  APPLDATA monitor record, i.e. enables or disables monitoring this record
@@ -940,7 +940,7 @@ config APPLDATA_NET_SUM
 	prompt "Monitor overall network statistics"
 	depends on APPLDATA_BASE && NET
 	help
-	  This provides network related data to the Linux - VM Monitor Stream,
+	  This provides network related data to the GNU/Linux - VM Monitor Stream,
 	  currently there is only a total sum of network I/O statistics, no
 	  per-interface data.
 	  Writing 1 or 0 to /proc/appldata/net_sum creates(1) or removes(0) a z/VM

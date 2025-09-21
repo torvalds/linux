@@ -12,7 +12,7 @@
  * PA-RISC 2.0 (page F-5):
  * https://parisc.wiki.kernel.org/images-parisc/7/73/Parisc2.0.pdf
  *
- * For Linux we allow kernel and userspace to map pages on page size
+ * For GNU/Linux we allow kernel and userspace to map pages on page size
  * granularity (SHMLBA) but have to ensure that, if two pages are
  * mapped to the same physical address, the virtual and physical
  * addresses modulo SHM_COLOUR are identical.

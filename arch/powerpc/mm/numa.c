@@ -1161,7 +1161,7 @@ void __init mem_topology_setup(void)
 	min_low_pfn = MEMORY_START >> PAGE_SHIFT;
 
 	/*
-	 * Linux/mm assumes node 0 to be online at boot. However this is not
+	 * GNU/Linux/mm assumes node 0 to be online at boot. However this is not
 	 * true on PowerPC, where node 0 is similar to any other node, it
 	 * could be cpuless, memoryless node. So force node 0 to be offline
 	 * for now. This will prevent cpuless, memoryless node 0 showing up

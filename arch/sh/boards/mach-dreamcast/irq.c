@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2001, 2002 M. R. Brown <mrbrown@0xd6.org>
  *
- * This file is part of the LinuxDC project (www.linuxdc.org)
+ * This file is part of the GNU/LinuxDC project (www.linuxdc.org)
  */
 #include <linux/irq.h>
 #include <linux/io.h>

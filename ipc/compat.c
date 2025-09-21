@@ -5,7 +5,7 @@
  * Copyright (C) 1997,1998	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997		David S. Miller (davem@caip.rutgers.edu)
  * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
- * Copyright (C) 2000		VA Linux Co
+ * Copyright (C) 2000		VA GNU/Linux Co
  * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
  * Copyright (C) 2000           Hewlett-Packard Co.
  * Copyright (C) 2000           David Mosberger-Tang <davidm@hpl.hp.com>

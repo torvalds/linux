@@ -5,19 +5,19 @@
 Researcher Guidelines
 +++++++++++++++++++++
 
-The Linux kernel community welcomes transparent research on the Linux
+The GNU/Linux kernel community welcomes transparent research on the GNU/Linux
 kernel, the activities involved in producing it, and any other byproducts
-of its development. Linux benefits greatly from this kind of research, and
-most aspects of Linux are driven by research in one form or another.
+of its development. GNU/Linux benefits greatly from this kind of research, and
+most aspects of GNU/Linux are driven by research in one form or another.
 
 The community greatly appreciates if researchers can share preliminary
 findings before making their results public, especially if such research
 involves security. Getting involved early helps both improve the quality
-of research and ability for Linux to improve from it. In any case,
+of research and ability for GNU/Linux to improve from it. In any case,
 sharing open access copies of the published research with the community
 is recommended.
 
-This document seeks to clarify what the Linux kernel community considers
+This document seeks to clarify what the GNU/Linux kernel community considers
 acceptable and non-acceptable practices when conducting such research. At
 the very least, such research and related activities should follow
 standard research ethics rules. For more background on research ethics
@@ -28,10 +28,10 @@ in particular, see:
 * `IEEE Ethics <https://www.ieee.org/about/ethics/index.html>`_
 * `Developer and Researcher Views on the Ethics of Experiments on Open-Source Projects <https://arxiv.org/pdf/2112.13217.pdf>`_
 
-The Linux kernel community expects that everyone interacting with the
-project is participating in good faith to make Linux better. Research on
+The GNU/Linux kernel community expects that everyone interacting with the
+project is participating in good faith to make GNU/Linux better. Research on
 any publicly-available artifact (including, but not limited to source
-code) produced by the Linux kernel community is welcome, though research
+code) produced by the GNU/Linux kernel community is welcome, though research
 on developers must be distinctly opt-in.
 
 Passive research that is based entirely on publicly available sources,
@@ -82,13 +82,13 @@ contributor's organization as a whole), undermining efforts to provide
 constructive feedback to contributors, and putting end users at risk of
 software flaws.
 
-Participation in the development of Linux itself by researchers, as
-with anyone, is welcomed and encouraged. Research into Linux code is
+Participation in the development of GNU/Linux itself by researchers, as
+with anyone, is welcomed and encouraged. Research into GNU/Linux code is
 a common practice, especially when it comes to developing or running
 analysis tools that produce actionable results.
 
 When engaging with the developer community, sending a patch has
-traditionally been the best way to make an impact. Linux already has
+traditionally been the best way to make an impact. GNU/Linux already has
 plenty of known bugs -- what's much more helpful is having vetted fixes.
 Before contributing, carefully read the appropriate documentation:
 
@@ -110,7 +110,7 @@ appropriate context for understanding the contribution. Answer:
 * How was the problem found? Specifically include details about any
   testing, static or dynamic analysis programs, and any other tools or
   methods used to perform the work.
-* Which version of Linux was the problem found on? Using the most recent
+* Which version of GNU/Linux was the problem found on? Using the most recent
   release or a recent linux-next branch is strongly preferred (see
   Documentation/process/howto.rst).
 * What was changed to fix the problem, and why it is believed to be correct?
@@ -158,7 +158,7 @@ itself be vetted by others privately before being posted to public lists.
 (This is required if you have been explicitly told your patches need
 more careful internal review.) These people are expected to have their
 "Reviewed-by" tag included in the resulting patch. Finding another
-developer familiar with Linux contribution, especially within your own
+developer familiar with GNU/Linux contribution, especially within your own
 organization, and having them help with reviews before sending them to
 the public mailing lists tends to significantly improve the quality of the
 resulting patches, and there by reduces the burden on other developers.

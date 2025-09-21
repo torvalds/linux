@@ -37,7 +37,7 @@ config 9P_FS_SECURITY
 	depends on 9P_FS
 	help
 	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
+	  implemented by security modules like SEGNU/Linux.  This option
 	  enables an extended attribute handler for file security
 	  labels in the 9P filesystem.
 

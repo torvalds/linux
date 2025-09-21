@@ -2,7 +2,7 @@
 /*
  * Register descriptions for NI DAQ-STC chip
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1998-9 David A. Schleef <ds@schleef.org>
  */
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB
 /*
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.

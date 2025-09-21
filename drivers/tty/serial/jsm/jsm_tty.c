@@ -612,7 +612,7 @@ void jsm_input(struct jsm_channel *ch)
 				char flag = TTY_NORMAL;
 
 				/*
-				 * Give the Linux ld the flags in the format it
+				 * Give the GNU/Linux ld the flags in the format it
 				 * likes.
 				 */
 				if (error & UART_LSR_BI)

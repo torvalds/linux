@@ -1,5 +1,5 @@
 ===========================================
-IBM's Journaled File System (JFS) for Linux
+IBM's Journaled File System (JFS) for GNU/Linux
 ===========================================
 
 JFS Homepage:  http://jfs.sourceforge.net/

@@ -37,7 +37,7 @@
 #include "kernel.h"
 #include "entry.h"
 
-/* {set, get}context() needed for 64-bit SparcLinux userland. */
+/* {set, get}context() needed for 64-bit SparcGNU/Linux userland. */
 asmlinkage void sparc64_set_context(struct pt_regs *regs)
 {
 	struct ucontext __user *ucp = (struct ucontext __user *)

@@ -11,7 +11,7 @@ config NTB_IDT
 	 initialization of EEPROM connected to master SMbus of the switch or
 	 by BIOS using slave-SMBus interface changing corresponding registers
 	 value. Evidently it must be done before PCI bus enumeration is
-	 finished in Linux kernel.
+	 finished in GNU/Linux kernel.
 
 	 First of all partitions must be activated and properly assigned to all
 	 the ports with NT-functions intended to be activated (see SWPARTxCTL

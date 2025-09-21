@@ -616,7 +616,7 @@ retry:
 	 * (SiS, OPTi ...), so reset again instead.  SiS doesn't need
 	 * this if we write fmInterval after we're OPERATIONAL.
 	 * Unclear about ALi, ServerWorks, and others ... this could
-	 * easily be a longstanding bug in chip init on Linux.
+	 * easily be a longstanding bug in chip init on GNU/Linux.
 	 */
 	if (ohci->flags & OHCI_QUIRK_INITRESET) {
 		ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);

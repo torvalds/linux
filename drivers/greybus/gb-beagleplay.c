@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Beagleplay Linux Driver for Greybus
+ * Beagleplay GNU/Linux Driver for Greybus
  *
  * Copyright (c) 2023 Ayush Singh <ayushdevel1325@gmail.com>
  * Copyright (c) 2023 BeagleBoard.org Foundation

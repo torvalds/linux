@@ -33,7 +33,7 @@
  *   one semop() are handled.
  * - sem_ctime (time of last semctl()) is updated in the IPC_SET, SETVAL and
  *   SETALL calls.
- * - two Linux specific semctl() commands: SEM_STAT, SEM_INFO.
+ * - two GNU/Linux specific semctl() commands: SEM_STAT, SEM_INFO.
  * - undo adjustments at process exit are limited to 0..SEMVMX.
  * - namespace are supported.
  * - SEMMSL, SEMMNS, SEMOPM and SEMMNI can be configured at runtime by writing
@@ -96,7 +96,7 @@ struct sem {
 	int	semval;		/* current value */
 	/*
 	 * PID of the process that last modified the semaphore. For
-	 * Linux, specifically these are:
+	 * GNU/Linux, specifically these are:
 	 *  - semop
 	 *  - semctl, via SETVAL and SETALL.
 	 *  - at task exit when performing undo adjustments (see exit_sem).
@@ -1075,11 +1075,11 @@ static int check_qop(struct sem_array *sma, int semnum, struct sem_queue *q,
 	struct sembuf *sop = q->blocking;
 
 	/*
-	 * Linux always (since 0.99.10) reported a task as sleeping on all
+	 * GNU/Linux always (since 0.99.10) reported a task as sleeping on all
 	 * semaphores. This violates SUS, therefore it was changed to the
 	 * standard compliant behavior.
 	 * Give the administrators a chance to notice that an application
-	 * might misbehave because it relies on the Linux behavior.
+	 * might misbehave because it relies on the GNU/Linux behavior.
 	 */
 	pr_info_once("semctl(GETNCNT/GETZCNT) is since 3.16 Single Unix Specification compliant.\n"
 			"The task %s (%d) triggered the difference, watch for misbehavior.\n",
@@ -1294,7 +1294,7 @@ static int semctl_stat(struct ipc_namespace *ns, int semid,
 		err = 0;
 	} else {
 		/*
-		 * SEM_STAT and SEM_STAT_ANY (both Linux specific)
+		 * SEM_STAT and SEM_STAT_ANY (both GNU/Linux specific)
 		 * Return the full id, including the sequence number
 		 */
 		err = sma->sem_perm.id;
@@ -2422,7 +2422,7 @@ void exit_sem(struct task_struct *tsk)
 				 * - some cap the value (e.g. FreeBSD caps
 				 *   at 0, but doesn't enforce SEMVMX)
 				 *
-				 * Linux caps the semaphore value, both at 0
+				 * GNU/Linux caps the semaphore value, both at 0
 				 * and at SEMVMX.
 				 *
 				 *	Manfred <manfred@colorfullife.com>

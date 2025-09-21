@@ -54,7 +54,7 @@ occurrence and stores them in a buffer from where they can be read by
 userspace at its convenience using `read()`.
 
 The source of the clock for :c:type:`event.timestamp<gpioevent_data>` is
-``CLOCK_MONOTONIC``, except for kernels earlier than Linux 5.7 when it was
+``CLOCK_MONOTONIC``, except for kernels earlier than GNU/Linux 5.7 when it was
 ``CLOCK_REALTIME``.  There is no indication in the :c:type:`gpioevent_data`
 as to which clock source is used, it must be determined from either the kernel
 version or sanity checks on the timestamp itself.

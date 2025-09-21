@@ -10,7 +10,7 @@
  * Copyright (C) 2002 Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>
  * Copyright (C) 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 

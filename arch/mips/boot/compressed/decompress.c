@@ -94,8 +94,8 @@ void decompress_kernel(unsigned long boot_heap_start)
 	free_mem_ptr = boot_heap_start;
 	free_mem_end_ptr = boot_heap_start + BOOT_HEAP_SIZE;
 
-	/* Display standard Linux/MIPS boot prompt */
-	puts("Uncompressing Linux at load address ");
+	/* Display standard GNU/Linux/MIPS boot prompt */
+	puts("Uncompressing GNU/Linux at load address ");
 	puthex(VMLINUX_LOAD_ADDRESS_ULL);
 	puts("\n");
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for Linux kernel RxRPC
+# Makefile for GNU/Linux kernel RxRPC
 #
 
 obj-$(CONFIG_AF_RXRPC) += rxrpc.o

@@ -3,12 +3,12 @@ ARM Allwinner SoCs
 ==================
 
 This document lists all the ARM Allwinner SoCs that are currently
-supported in mainline by the Linux kernel. This document will also
+supported in mainline by the GNU/Linux kernel. This document will also
 provide links to documentation and/or datasheet for these SoCs.
 
 SunXi family
 ------------
-  Linux kernel mach directory: arch/arm/mach-sunxi
+  GNU/Linux kernel mach directory: arch/arm/mach-sunxi
 
   Flavors:
 

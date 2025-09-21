@@ -7,7 +7,7 @@
  */
 
 /*
- * SpaceTec SpaceOrb 360 and Avenger 6dof controller driver for Linux
+ * SpaceTec SpaceOrb 360 and Avenger 6dof controller driver for GNU/Linux
  */
 
 #include <linux/kernel.h>

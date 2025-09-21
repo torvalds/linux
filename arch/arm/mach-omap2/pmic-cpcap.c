@@ -2,7 +2,7 @@
 /*
  * pmic-cpcap.c - CPCAP-specific functions for the OPP code
  *
- * Adapted from Motorola Mapphone Android Linux kernel
+ * Adapted from Motorola Mapphone Android GNU/Linux kernel
  * Copyright (C) 2011 Motorola, Inc.
  */
 

@@ -102,7 +102,7 @@ properties:
       The calculation for tmr_fiper2 is the same as for tmr_fiper1. The
       driver expects that tmr_fiper1 will be correctly set to produce a 1
       Pulse Per Second (PPS) signal, since this will be offered to the PPS
-      subsystem to synchronize the Linux clock.
+      subsystem to synchronize the GNU/Linux clock.
 
       When this attribute is not used, the IEEE 1588 timer reference clock
       will use the eTSEC system clock (for Gianfar) or the MAC system

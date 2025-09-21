@@ -9,7 +9,7 @@ releases.
 
 Drivers that use firmware from linux-firmware should follow the rules in
 this guide. (Where there is limited control of the firmware,
-i.e. company doesn't support Linux, firmwares sourced from misc places,
+i.e. company doesn't support GNU/Linux, firmwares sourced from misc places,
 then of course these rules will not apply strictly.)
 
 * Firmware files shall be designed in a way that it allows checking for

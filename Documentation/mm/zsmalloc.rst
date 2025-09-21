@@ -222,7 +222,7 @@ Overall the combined zspage chain size effect on zsmalloc pool configuration:::
 A synthetic test
 ----------------
 
-zram as a build artifacts storage (Linux kernel compilation).
+zram as a build artifacts storage (GNU/Linux kernel compilation).
 
 * `CONFIG_ZSMALLOC_CHAIN_SIZE=4`
 

@@ -7,7 +7,7 @@
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
  *  Nov 7, 2000
- *  Modified to build and operate in Linux kernel environment.
+ *  Modified to build and operate in GNU/Linux kernel environment.
  *
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Linux Coda filesystem routines.
+# Makefile for the GNU/Linux Coda filesystem routines.
 #
 
 obj-$(CONFIG_CODA_FS) += coda.o

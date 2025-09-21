@@ -1,5 +1,5 @@
 =========================
-Linux I2C fault injection
+GNU/Linux I2C fault injection
 =========================
 
 The GPIO based I2C bus master driver can be configured to provide fault
@@ -34,7 +34,7 @@ By reading this file, you get the current state of SDA. By writing, you can
 change its state to either force it low or to release it again. So, by using
 "echo 0 > sda" you force SDA low and thus, data cannot be transmitted. The bus
 master under test should detect this condition and trigger a bus recovery (see
-I2C specification version 4, section 3.1.16) using the helpers of the Linux I2C
+I2C specification version 4, section 3.1.16) using the helpers of the GNU/Linux I2C
 core (see 'struct bus_recovery_info'). However, the bus recovery will not
 succeed because SDA is still pinned low until you manually release it again
 with "echo 1 > sda". A test with an automatic release can be done with the

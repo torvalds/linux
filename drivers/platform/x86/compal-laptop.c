@@ -17,7 +17,7 @@
  *   wake_up_XXX   Whether or not we listen to such wake up events (rw)
  *
  * In addition to these platform device attributes the driver
- * registers itself in the Linux backlight control, power_supply, rfkill
+ * registers itself in the GNU/Linux backlight control, power_supply, rfkill
  * and hwmon subsystem and is available to userspace under:
  *
  *   /sys/class/backlight/compal-laptop/
@@ -48,7 +48,7 @@
  * power, wake_on_XXX, a hwmon and power_supply interface.
  *
  * In case this gets merged into the kernel source: I want to dedicate this
- * to Kasper Meerts, the awesome guy who showed me Linux and C!
+ * to Kasper Meerts, the awesome guy who showed me GNU/Linux and C!
  */
 
 /* NOTE: currently the wake_on_XXX, hwmon and power_supply interfaces are

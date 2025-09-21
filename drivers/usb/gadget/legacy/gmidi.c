@@ -68,7 +68,7 @@ MODULE_PARM_DESC(out_ports, "Number of MIDI output ports");
  * Instead:  allocate your own, using normal USB-IF procedures.
  */
 #define DRIVER_VENDOR_NUM	0x17b3		/* Grey Innovation */
-#define DRIVER_PRODUCT_NUM	0x0004		/* Linux-USB "MIDI Gadget" */
+#define DRIVER_PRODUCT_NUM	0x0004		/* GNU/Linux-USB "MIDI Gadget" */
 
 /* string IDs are assigned dynamically */
 

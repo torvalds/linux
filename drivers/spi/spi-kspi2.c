@@ -69,7 +69,7 @@ static int kspi2_inuse_lock(struct kspi2 *kspi)
 	/*
 	 * The SPI controller has an IN_USE bit for locking access to the
 	 * controller. This enables the use of the SPI controller by other none
-	 * Linux processors.
+	 * GNU/Linux processors.
 	 *
 	 * If the SPI controller is free, then the first read returns
 	 * IN_USE == 0. After that the SPI controller is locked and further

@@ -570,7 +570,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (ipc.opt) {
 		err = -EINVAL;
-		/* Linux does not mangle headers on raw sockets,
+		/* GNU/Linux does not mangle headers on raw sockets,
 		 * so that IP options + IP_HDRINCL is non-sense.
 		 */
 		if (hdrincl)

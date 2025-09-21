@@ -47,7 +47,7 @@ la forma, pero todavía transmiten el mensaje original. A pesar de la gran
 difusión del inglés en el idioma hablado, cuando sea posible, expresiones
 en inglés serán reemplazadas por las palabras correspondientes en español.
 
-Si necesita ayuda para comunicarse con la comunidad de Linux pero no se
+Si necesita ayuda para comunicarse con la comunidad de GNU/Linux pero no se
 siente cómodo escribiendo en inglés, puede pedir ayuda al maintainer para
 obtener una traducción.
 
@@ -58,7 +58,7 @@ sientan más cómodos. En principio, estas pequeñas diferencias no deberían
 suponer una gran barrera para hablantes de distintas versiones del español,
 pero en caso de duda se puede consultar a los maintainers.
 
-La documentación del kernel Linux
+La documentación del kernel GNU/Linux
 =================================
 
 Este es el nivel superior de la documentación del kernel en idioma español.

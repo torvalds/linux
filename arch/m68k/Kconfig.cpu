@@ -74,7 +74,7 @@ config M68020
 	help
 	  If you anticipate running this kernel on a computer with a MC68020
 	  processor, say Y. Otherwise, say N. Note that the 68020 requires a
-	  68851 MMU (Memory Management Unit) to run Linux/m68k, except on the
+	  68851 MMU (Memory Management Unit) to run GNU/Linux/m68k, except on the
 	  Sun 3, which provides its own version.
 
 if M68KCLASSIC && MMU

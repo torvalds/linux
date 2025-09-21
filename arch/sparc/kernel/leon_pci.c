@@ -16,7 +16,7 @@
 #include <asm/leon_pci.h>
 
 /* The LEON architecture does not rely on a BIOS or bootloader to setup
- * PCI for us. The Linux generic routines are used to setup resources,
+ * PCI for us. The GNU/Linux generic routines are used to setup resources,
  * reset values of configuration-space register settings are preserved.
  *
  * PCI Memory and Prefetchable Memory is direct-mapped. However I/O Space is

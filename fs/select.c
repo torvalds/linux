@@ -2,7 +2,7 @@
 /*
  * This file contains the procedures for the handling of select and poll
  *
- * Created for Linux based loosely upon Mathius Lattner's minix
+ * Created for GNU/Linux based loosely upon Mathius Lattner's minix
  * patches by Peter MacDonald. Heavily edited by Linus.
  *
  *  4 February 1994
@@ -352,7 +352,7 @@ static int poll_select_finish(struct timespec64 *end_time,
 	}
 	/*
 	 * If an application puts its timeval in read-only memory, we
-	 * don't want the Linux-specific update to the timeval to
+	 * don't want the GNU/Linux-specific update to the timeval to
 	 * cause a fault after the select has completed
 	 * successfully. However, because we're not updating the
 	 * timeval, we can't restart the system call.

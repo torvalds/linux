@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * raid10.c : Multiple Devices driver for Linux
+ * raid10.c : Multiple Devices driver for GNU/Linux
  *
  * Copyright (C) 2000-2004 Neil Brown
  *

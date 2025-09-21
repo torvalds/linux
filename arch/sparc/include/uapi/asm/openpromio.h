@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef	_SPARC_OPENPROMIO_H
 #define	_SPARC_OPENPROMIO_H
 
@@ -29,7 +29,7 @@ struct openpromio {
 #define	OPROMGETCONS		0x20004F0A
 #define	OPROMGETFBNAME		0x20004F0B
 #define	OPROMGETBOOTARGS	0x20004F0C
-/* Linux extensions */				/* Arguments in oprom_array: */
+/* GNU/Linux extensions */				/* Arguments in oprom_array: */
 #define OPROMSETCUR		0x20004FF0	/* int node - Sets current node */
 #define OPROMPCI2NODE		0x20004FF1	/* int pci_bus, pci_devfn - Sets current node to PCI device's node */
 #define OPROMPATH2NODE		0x20004FF2	/* char path[] - Set current node from fully qualified PROM path */

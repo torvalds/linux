@@ -4,7 +4,7 @@
  */
 
 /*
- * Genius Flight 2000 joystick driver for Linux
+ * Genius Flight 2000 joystick driver for GNU/Linux
  */
 
 #include <linux/delay.h>

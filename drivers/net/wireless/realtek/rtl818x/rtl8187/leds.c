@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linux LED driver for RTL8187
+ * GNU/Linux LED driver for RTL8187
  *
  * Copyright 2009 Larry Finger <Larry.Finger@lwfinger.net>
  *

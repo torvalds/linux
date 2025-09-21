@@ -1,5 +1,5 @@
 =================================
-Red-black Trees (rbtree) in Linux
+Red-black Trees (rbtree) in GNU/Linux
 =================================
 
 
@@ -21,7 +21,7 @@ worst case performance for insertion and deletion (at most two rotations and
 three rotations, respectively, to balance the tree), with slightly slower
 (but still O(log n)) lookup time.
 
-To quote Linux Weekly News:
+To quote GNU/Linux Weekly News:
 
     There are a number of red-black trees in use in the kernel.
     The deadline and CFQ I/O schedulers employ rbtrees to
@@ -32,22 +32,22 @@ To quote Linux Weekly News:
     trees, as are epoll file descriptors, cryptographic keys, and network
     packets in the "hierarchical token bucket" scheduler.
 
-This document covers use of the Linux rbtree implementation.  For more
+This document covers use of the GNU/Linux rbtree implementation.  For more
 information on the nature and implementation of Red Black Trees,  see:
 
-  Linux Weekly News article on red-black trees
+  GNU/Linux Weekly News article on red-black trees
     https://lwn.net/Articles/184495/
 
   Wikipedia entry on red-black trees
     https://en.wikipedia.org/wiki/Red-black_tree
 
-Linux implementation of red-black trees
+GNU/Linux implementation of red-black trees
 ---------------------------------------
 
-Linux's rbtree implementation lives in the file "lib/rbtree.c".  To use it,
+GNU/Linux's rbtree implementation lives in the file "lib/rbtree.c".  To use it,
 "#include <linux/rbtree.h>".
 
-The Linux rbtree implementation is optimized for speed, and thus has one
+The GNU/Linux rbtree implementation is optimized for speed, and thus has one
 less layer of indirection (and better cache locality) than more traditional
 tree implementations.  Instead of using pointers to separate rb_node and data
 structures, each instance of struct rb_node is embedded in the data structure

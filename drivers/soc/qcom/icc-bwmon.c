@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2021-2022 Linaro Ltd
  * Author: Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>, based on
  *         previous work of Thara Gopinath and msm-4.9 downstream sources.

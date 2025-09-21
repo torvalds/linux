@@ -164,7 +164,7 @@ void panic_flush_kmsg_start(void)
 	 * relatively minimal work. Don't use delay functions (TB may
 	 * be broken), don't crash dump (need to set a firmware log),
 	 * don't run notifiers. We do want to get some information to
-	 * Linux console.
+	 * GNU/Linux console.
 	 */
 	console_verbose();
 	bust_spinlocks(1);
@@ -385,7 +385,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
  * recoverable.
  *
  * An alternative would be for HV NMIs to use SPRG for scratch to avoid the
- * HSPRG1 clobber, however this would cause guest SPRG to be clobbered. Linux
+ * HSPRG1 clobber, however this would cause guest SPRG to be clobbered. GNU/Linux
  * guests should always have MSR[RI]=0 when its scratch SPRG is in use, so
  * that would work. However any other guest OS that may have the SPRG live
  * and MSR[RI]=1 could encounter silent corruption.

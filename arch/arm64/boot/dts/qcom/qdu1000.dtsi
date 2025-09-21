@@ -334,7 +334,7 @@
 			no-map;
 		};
 
-		/* Linux kernel image is loaded at 0x83e00000 */
+		/* GNU/Linux kernel image is loaded at 0x83e00000 */
 
 		ipa_fw_mem: ipa-fw@8be00000 {
 			reg = <0x0 0x8be00000 0x0 0x10000>;

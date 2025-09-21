@@ -72,7 +72,7 @@
  * Support for firmware updates added in Dec 2023.
  *
  * Support for Scarlett Solo/2i2/4i4 Gen 4 added in Dec 2023 (thanks
- * to many LinuxMusicians people and to Focusrite for hardware
+ * to many GNU/LinuxMusicians people and to Focusrite for hardware
  * donations).
  *
  * This ALSA mixer gives access to (model-dependent):

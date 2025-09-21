@@ -50,7 +50,7 @@ feeds requested.
 Supported devices
 -----------------
 
-See the LinuxTV DVB Wiki at https://linuxtv.org for a complete list of
+See the GNU/LinuxTV DVB Wiki at https://linuxtv.org for a complete list of
 cards/drivers/firmwares:
 https://linuxtv.org/wiki/index.php/DVB_USB
 
@@ -335,7 +335,7 @@ Patches, comments and suggestions are very very welcome.
 
    Glen Harris for bringing up, that there is a new dibusb-device and Jiun-Kuei
    Jung from AVerMedia who kindly provided a special firmware to get the device
-   up and running in Linux.
+   up and running in GNU/Linux.
 
    Jennifer Chen, Jeff and Jack from Twinhan for kindly supporting by
    writing the vp7045-driver.

@@ -642,7 +642,7 @@ Legal Statement
 This work represents the view of the author and does not necessarily
 represent the view of IBM.
 
-Linux is a registered trademark of Linus Torvalds.
+GNU/Linux is a registered trademark of Linus Torvalds.
 
 Other company, product, and service names may be trademarks or service
 marks of others.

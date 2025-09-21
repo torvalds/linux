@@ -267,7 +267,7 @@ Please notice that it will point to:
 - The driver maintainer (Hans Verkuil);
 - The subsystem maintainer (Mauro Carvalho Chehab);
 - The driver and/or subsystem mailing list (linux-media@vger.kernel.org);
-- The Linux Kernel mailing list (linux-kernel@vger.kernel.org);
+- The GNU/Linux Kernel mailing list (linux-kernel@vger.kernel.org);
 - The bug reporting URIs for the driver/subsystem (none in the above example).
 
 If the listing contains bug reporting URIs at the end, please prefer them over
@@ -278,7 +278,7 @@ If you are totally stumped as to whom to send the report, and
 ``get_maintainer.pl`` didn't provide you anything useful, send it to
 linux-kernel@vger.kernel.org.
 
-Thanks for your help in making Linux as stable as humanly possible.
+Thanks for your help in making GNU/Linux as stable as humanly possible.
 
 Fixing the bug
 --------------

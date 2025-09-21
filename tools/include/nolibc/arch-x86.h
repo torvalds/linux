@@ -191,7 +191,7 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
  *     don't have to experience issues with register constraints.
  *   - the syscall number is always specified last in order to allow to force
  *     some registers before (gcc refuses a %-register at the last position).
- *   - see also x86-64 ABI section A.2 AMD64 Linux Kernel Conventions, A.2.1
+ *   - see also x86-64 ABI section A.2 AMD64 GNU/Linux Kernel Conventions, A.2.1
  *     Calling Conventions.
  *
  * Link x86-64 ABI: https://gitlab.com/x86-psABIs/x86-64-ABI/-/wikis/home

@@ -275,7 +275,7 @@ struct irq_domain_chip_generic_info;
  * @direct_max:		Maximum value of direct maps;
  *			Use ~0 for no limit; 0 for no direct mapping
  * @hwirq_base:		The first hardware interrupt number (legacy domains only)
- * @virq_base:		The first Linux interrupt number for legacy domains to
+ * @virq_base:		The first GNU/Linux interrupt number for legacy domains to
  *			immediately associate the interrupts after domain creation
  * @bus_token:		Domain bus token
  * @name_suffix:	Optional name suffix to avoid collisions when multiple
@@ -450,7 +450,7 @@ void irq_dispose_mapping(unsigned int virq);
  * If the sense/trigger is to be specified, set_irq_type() should be called
  * on the number returned from that call.
  *
- * Returns: Linux irq number or 0 on error
+ * Returns: GNU/Linux irq number or 0 on error
  */
 static inline unsigned int irq_create_mapping(struct irq_domain *domain, irq_hw_number_t hwirq)
 {
@@ -479,7 +479,7 @@ static inline struct irq_desc *irq_resolve_mapping(struct irq_domain *domain,
  * @domain:	domain owning this hardware interrupt
  * @hwirq:	hardware irq number in that domain space
  *
- * Returns: Linux irq number or 0 if not found
+ * Returns: GNU/Linux irq number or 0 if not found
  */
 static inline unsigned int irq_find_mapping(struct irq_domain *domain,
 					    irq_hw_number_t hwirq)

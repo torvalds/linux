@@ -26,7 +26,7 @@ multiple Host Bridges and endpoints while another may opt for fault tolerance
 and disable any striping in the CXL.mem topology.
 
 Platform firmware enumerates a menu of interleave options at the "CXL root port"
-(Linux term for the top of the CXL decode topology). From there, PCIe topology
+(GNU/Linux term for the top of the CXL decode topology). From there, PCIe topology
 dictates which endpoints can participate in which Host Bridge decode regimes.
 Each PCIe Switch in the path between the root and an endpoint introduces a point
 at which the interleave can be split. For example, platform firmware may say a
@@ -193,7 +193,7 @@ status is metadata for CXL.mem set assembly. The CXL Port topology is enumerated
 by the arrival of a CXL.mem device. I.e. unless and until the PCIe core attaches
 the cxl_pci driver to a CXL Memory Expander there is no role for CXL Port
 objects. Conversely for hot-unplug / removal scenarios, there is no need for
-the Linux PCI core to tear down switch-level CXL resources because the endpoint
+the GNU/Linux PCI core to tear down switch-level CXL resources because the endpoint
 ->remove() event cleans up the port data that was established to support that
 Memory Expander.
 

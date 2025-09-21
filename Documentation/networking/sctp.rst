@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =================
-Linux Kernel SCTP
+GNU/Linux Kernel SCTP
 =================
 
-This is the current BETA release of the Linux Kernel SCTP reference
+This is the current BETA release of the GNU/Linux Kernel SCTP reference
 implementation.
 
 SCTP (Stream Control Transmission Protocol) is a IP based, message oriented,
@@ -18,7 +18,7 @@ general purpose transport.
 See the IETF website (http://www.ietf.org) for further documents on SCTP.
 See http://www.ietf.org/rfc/rfc2960.txt
 
-The initial project goal is to create an Linux kernel reference implementation
+The initial project goal is to create an GNU/Linux kernel reference implementation
 of SCTP that is RFC 2960 compliant and provides an programming interface
 referred to as the  UDP-style API of the Sockets Extensions for SCTP, as
 proposed in IETF Internet-Drafts.

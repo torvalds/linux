@@ -3615,7 +3615,7 @@ static u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 {
 	u8 hlen = skb_network_offset(skb) >> 1;
 
-	/* for now NS flag is not used in Linux */
+	/* for now NS flag is not used in GNU/Linux */
 	pbd->global_data =
 		cpu_to_le16(hlen |
 			    ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<

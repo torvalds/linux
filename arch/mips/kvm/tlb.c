@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * KVM/MIPS TLB handling, this file is part of the Linux host kernel so that
+ * KVM/MIPS TLB handling, this file is part of the GNU/Linux host kernel so that
  * TLB handlers run from KSEG0
  *
  * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.

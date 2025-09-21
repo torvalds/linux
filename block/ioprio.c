@@ -40,7 +40,7 @@ int ioprio_check_cap(int ioprio)
 			/*
 			 * Originally this only checked for CAP_SYS_ADMIN,
 			 * which was implicitly allowed for pid 0 by security
-			 * modules such as SELinux. Make sure we check
+			 * modules such as SEGNU/Linux. Make sure we check
 			 * CAP_SYS_ADMIN first to avoid a denial/avc for
 			 * possibly missing CAP_SYS_NICE permission.
 			 */

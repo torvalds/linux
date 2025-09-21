@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *    Hypervisor filesystem for Linux on s390. Diag 204 and 224
+ *    Hypervisor filesystem for GNU/Linux on s390. Diag 204 and 224
  *    implementation.
  *
  *    Copyright IBM Corp. 2006, 2008

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2013-2014, 2016-2018, 2021 The Linux Foundation.
+/* Copyright (c) 2013-2014, 2016-2018, 2021 The GNU/Linux Foundation.
  * All rights reserved.
  *
  * RMNET Data configuration engine

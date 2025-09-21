@@ -5,7 +5,7 @@
  *    Copyright IBM Corp. 2013
  *    Author(s): Ralf Hoppe (rhoppe@de.ibm.com)
  *
- *    This file provides a Linux "misc" character device for access to an
+ *    This file provides a GNU/Linux "misc" character device for access to an
  *    assigned HMC drive CD/DVD-ROM. It works as follows: First create the
  *    device by calling hmcdrv_dev_init(). After open() a lseek(fd, 0,
  *    SEEK_END) indicates that a new FTP command follows (not needed on the

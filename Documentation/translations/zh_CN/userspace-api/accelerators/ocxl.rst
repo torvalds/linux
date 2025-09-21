@@ -19,7 +19,7 @@ OpenCAPI是处理器和加速器之间的一个接口，致力于达到低延迟
 它允许加速器（可以是FPGA、ASIC等）使用虚拟地址连贯地访问主机内存。一个OpenCAPI
 设备也可以托管它自己的内存，并可以由主机访问。
 
-OpenCAPI在Linux中称为“ocxl”，它作为“cxl”（用于powerpc的IBM CAPI接口的驱动）的
+OpenCAPI在GNU/Linux中称为“ocxl”，它作为“cxl”（用于powerpc的IBM CAPI接口的驱动）的
 开放、处理器无关的演进，这么命名是为了避免与ISDN CAPI子系统相混淆。
 
 
@@ -63,7 +63,7 @@ OpenCAPI定义了一个在物理链路层上实现的数据链路层（TL）和�
 OpenCAPI依赖一个在设备上实现的与PCI类似的配置空间。因此主机可以通过查询
 配置空间来发现AFU。
 
-OpenCAPI设备在Linux中被当作类PCI设备（有一些注意事项）。固件需要对硬件进行
+OpenCAPI设备在GNU/Linux中被当作类PCI设备（有一些注意事项）。固件需要对硬件进行
 抽象，就好像它是一个PCI链路。许多已有的PCI架构被重用：在模拟标准PCI时，
 设备被扫描并且BAR（基址寄存器）被分配。像“lspci”的命令因此可以被用于查看
 哪些设备可用。

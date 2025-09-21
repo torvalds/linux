@@ -110,7 +110,7 @@ static void rxrpc_set_rto(struct rxrpc_call *call)
 	 *    It cannot be less due to utterly erratic ACK generation made
 	 *    at least by solaris and freebsd. "Erratic ACKs" has _nothing_
 	 *    to do with delayed acks, because at cwnd>2 true delack timeout
-	 *    is invisible. Actually, Linux-2.4 also generates erratic
+	 *    is invisible. Actually, GNU/Linux-2.4 also generates erratic
 	 *    ACKs in some circumstances.
 	 */
 	rto = __rxrpc_set_rto(call);

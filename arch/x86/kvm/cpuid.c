@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Kernel-based Virtual Machine driver for Linux
+ * Kernel-based Virtual Machine driver for GNU/Linux
  * cpuid support routines
  *
  * derived from arch/x86/kvm/x86.c
@@ -1157,7 +1157,7 @@ void kvm_set_cpu_caps(void)
 		/*
 		 * Synthesize "LFENCE is serializing" into the AMD-defined entry
 		 * in KVM's supported CPUID, i.e. if the feature is reported as
-		 * supported by the kernel.  LFENCE_RDTSC was a Linux-defined
+		 * supported by the kernel.  LFENCE_RDTSC was a GNU/Linux-defined
 		 * synthetic feature long before AMD joined the bandwagon, e.g.
 		 * LFENCE is serializing on most CPUs that support SSE2.  On
 		 * CPUs that don't support AMD's leaf, ANDing with the raw host

@@ -527,7 +527,7 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @dummy_rx: dummy receive buffer for full-duplex devices
  * @dummy_tx: dummy transmit buffer for full-duplex devices
  * @fw_translate_cs: If the boot firmware uses different numbering scheme
- *	what Linux expects, this optional hook can be used to translate
+ *	what GNU/Linux expects, this optional hook can be used to translate
  *	between the two.
  * @ptp_sts_supported: If the driver sets this to true, it must provide a
  *	time snapshot in @spi_transfer->ptp_sts as close as possible to the

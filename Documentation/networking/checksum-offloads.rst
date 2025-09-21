@@ -8,7 +8,7 @@ Checksum Offloads
 Introduction
 ============
 
-This document describes a set of techniques in the Linux networking stack to
+This document describes a set of techniques in the GNU/Linux networking stack to
 take advantage of checksum offload capabilities of various NICs.
 
 The following technologies are described:
@@ -137,7 +137,7 @@ RCO is detailed in the following Internet-Drafts:
 * https://tools.ietf.org/html/draft-herbert-remotecsumoffload-00
 * https://tools.ietf.org/html/draft-herbert-vxlan-rco-00
 
-In Linux, RCO is implemented individually in each encapsulation protocol, and
+In GNU/Linux, RCO is implemented individually in each encapsulation protocol, and
 most tunnel types have flags controlling its use.  For instance, VXLAN has the
 flag VXLAN_F_REMCSUM_TX (per struct vxlan_rdst) to indicate that RCO should be
 used when transmitting to a given remote destination.

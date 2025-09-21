@@ -9,7 +9,7 @@ Agregando una Nueva Llamada del Sistema
 =======================================
 
 Este documento describe qué involucra agregar una nueva llamada del sistema
-al kernel Linux, más allá de la presentación y consejos normales en
+al kernel GNU/Linux, más allá de la presentación y consejos normales en
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` que
 también puede encontrar traducido a este idioma.
 

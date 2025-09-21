@@ -7,7 +7,7 @@ Summary of CDROM ioctl calls
 November, 2004
 
 This document attempts to describe the ioctl(2) calls supported by
-the CDROM layer.  These are by-and-large implemented (as of Linux 2.6)
+the CDROM layer.  These are by-and-large implemented (as of GNU/Linux 2.6)
 in drivers/cdrom/cdrom.c and drivers/block/scsi_ioctl.c
 
 ioctl values are listed in <linux/cdrom.h>.  As of this writing, they

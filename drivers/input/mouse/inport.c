@@ -10,7 +10,7 @@
  */
 
 /*
- * Inport (ATI XL and Microsoft) busmouse driver for Linux
+ * Inport (ATI XL and Microsoft) busmouse driver for GNU/Linux
  */
 
 #include <linux/module.h>

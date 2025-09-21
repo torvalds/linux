@@ -59,9 +59,9 @@ In general there's no way to know the maximum filehandle size given out
 by an NFS server without asking the server vendor.
 
 But the following table gives a few examples.  The first column is the
-typical length of the filehandle from a Linux server exporting the given
+typical length of the filehandle from a GNU/Linux server exporting the given
 filesystem, the second is the length after that nfs export is reexported
-by another Linux host:
+by another GNU/Linux host:
 
 +--------+-------------------+----------------+
 |        | filehandle length | after reexport |
@@ -76,7 +76,7 @@ by another Linux host:
 All will therefore fit in an NFSv3 or NFSv4 filehandle after reexport,
 but none are reexportable over NFSv2.
 
-Linux server filehandles are a bit more complicated than this, though;
+GNU/Linux server filehandles are a bit more complicated than this, though;
 for example:
 
         - The (non-default) "subtreecheck" export option generally
@@ -91,12 +91,12 @@ for example:
 
 As you can see, the 128-byte NFSv4 filehandle is large enough that
 you're unlikely to have trouble using NFSv4 to reexport any filesystem
-exported from a Linux server.  In general, if the original server is
+exported from a GNU/Linux server.  In general, if the original server is
 something that also supports NFSv3, you're *probably* OK.  Re-exporting
 over NFSv3 may be dicier, and reexporting over NFSv2 will probably
 never work.
 
-For more details of Linux filehandle structure, the best reference is
+For more details of GNU/Linux filehandle structure, the best reference is
 the source code and comments; see in particular:
 
         - include/linux/exportfs.h:enum fid_type
@@ -109,7 +109,7 @@ Open DENY bits ignored
 
 NFS since NFSv4 supports ALLOW and DENY bits taken from Windows, which
 allow you, for example, to open a file in a mode which forbids other
-read opens or write opens. The Linux client doesn't use them, and the
+read opens or write opens. The GNU/Linux client doesn't use them, and the
 server's support has always been incomplete: they are enforced only
 against other NFS users, not against processes accessing the exported
 filesystem locally. A reexport server will also not pass them along to

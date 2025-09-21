@@ -4,7 +4,7 @@
 Introduction
 ============
 
-This document covers the Linux Kernel to Userspace API's used by video
+This document covers the GNU/Linux Kernel to Userspace API's used by video
 and radio streaming devices, including video cameras, analog and digital
 TV receiver cards, AM/FM receiver cards, Software Defined Radio (SDR),
 streaming capture and output devices, codec devices and remote controllers.
@@ -42,5 +42,5 @@ It should also be noted that a media device may also have audio components, like
 mixers, PCM capture, PCM playback, etc, which are controlled via ALSA API.  For
 additional information and for the latest development code, see:
 `https://linuxtv.org <https://linuxtv.org>`__.  For discussing improvements,
-reporting troubles, sending new drivers, etc, please mail to: `Linux Media
+reporting troubles, sending new drivers, etc, please mail to: `GNU/Linux Media
 Mailing List (LMML) <http://vger.kernel.org/vger-lists.html#linux-media>`__.

@@ -25,7 +25,7 @@ setting is very flexible - able to set nearly arbitrary modes from any timing.
 Advantages of USB graphics in general:
 
  * Ability to add a nearly arbitrary number of displays to any USB 2.0
-   capable system. On Linux, number of displays is limited by fbdev interface
+   capable system. On GNU/Linux, number of displays is limited by fbdev interface
    (FB_MAX is currently 32). Of course, all USB devices on the same
    host controller share the same 480Mbs USB 2.0 interface.
 

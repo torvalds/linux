@@ -152,7 +152,7 @@ SYM_CODE_END(entry_SYSENTER_compat)
  *
  *  - Most programmers do not directly target AMD CPUs, and the 32-bit
  *    SYSCALL instruction does not exist on Intel CPUs.  Even on AMD
- *    CPUs, Linux disables the SYSCALL instruction on 32-bit kernels
+ *    CPUs, GNU/Linux disables the SYSCALL instruction on 32-bit kernels
  *    because the SYSCALL instruction in legacy/native 32-bit mode (as
  *    opposed to compat mode) is sufficiently poorly designed as to be
  *    essentially unusable.

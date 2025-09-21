@@ -418,7 +418,7 @@ int kasan_populate_vmalloc(unsigned long addr, unsigned long size, gfp_t gfp_mas
 	shadow_end = (unsigned long)kasan_mem_to_shadow((void *)addr + size);
 
 	/*
-	 * User Mode Linux maps enough shadow memory for all of virtual memory
+	 * User Mode GNU/Linux maps enough shadow memory for all of virtual memory
 	 * at boot, so doesn't need to allocate more on vmalloc, just clear it.
 	 *
 	 * The remaining CONFIG_UML checks in this file exist for the same

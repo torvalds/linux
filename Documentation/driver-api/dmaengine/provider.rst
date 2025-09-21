@@ -81,7 +81,7 @@ memory-to-device (mem2dev) kind of transfers. Most devices often
 support other kind of transfers or memory operations that dmaengine
 support and will be detailed later in this document.
 
-DMA Support in Linux
+DMA Support in GNU/Linux
 ====================
 
 Historically, DMA controller drivers have been implemented using the

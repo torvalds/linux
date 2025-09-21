@@ -1,14 +1,14 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================
-Scaling in the Linux Networking Stack
+Scaling in the GNU/Linux Networking Stack
 =====================================
 
 
 Introduction
 ============
 
-This document describes a set of complementary techniques in the Linux
+This document describes a set of complementary techniques in the GNU/Linux
 networking stack to increase parallelism and improve performance for
 multi-processor systems.
 

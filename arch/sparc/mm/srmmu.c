@@ -1179,7 +1179,7 @@ static void __init init_swift(void)
 		 * Gee george, I wonder why Sun is so hush hush about
 		 * this hardware bug... really braindamage stuff going
 		 * on here.  However I think we can find a way to avoid
-		 * all of the workaround overhead under Linux.  Basically,
+		 * all of the workaround overhead under GNU/Linux.  Basically,
 		 * any page fault can cause kernel pages to become user
 		 * accessible (the mmu gets confused and clears some of
 		 * the ACC bits in kernel ptes).  Aha, sounds pretty
@@ -1569,7 +1569,7 @@ static void __init get_srmmu_type(void)
 		case 14:
 		case 15:
 		default:
-			prom_printf("Sparc-Linux Cypress support does not longer exit.\n");
+			prom_printf("Sparc-GNU/Linux Cypress support does not longer exit.\n");
 			prom_halt();
 			break;
 		}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Simple NUMA memory policy for the Linux kernel.
+ * Simple NUMA memory policy for the GNU/Linux kernel.
  *
  * Copyright 2003,2004 Andi Kleen, SuSE Labs.
  * (C) Copyright 2005 Christoph Lameter, Silicon Graphics, Inc.
@@ -42,7 +42,7 @@
  *                similar to preferred without the special case.
  *
  * default        Allocate on the local node first, or when on a VMA
- *                use the process policy. This is what Linux always did
+ *                use the process policy. This is what GNU/Linux always did
  *		  in a NUMA aware kernel and still does by, ahem, default.
  *
  * The process policy is applied for most non interrupt memory allocations

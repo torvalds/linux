@@ -613,7 +613,7 @@ enum {
 #define NFS4_DEBUG 1
 
 /*
- * Index of predefined Linux client operations
+ * Index of predefined GNU/Linux client operations
  *
  * To ensure that /proc/net/rpc/nfs remains correctly ordered, please
  * append only to this enum when adding new client operations.

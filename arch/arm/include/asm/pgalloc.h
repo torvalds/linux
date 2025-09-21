@@ -59,9 +59,9 @@ static inline void clean_pte_table(pte_t *pte)
  * into one table thus:
  *
  *  +------------+
- *  | Linux pt 0 |
+ *  | GNU/Linux pt 0 |
  *  +------------+
- *  | Linux pt 1 |
+ *  | GNU/Linux pt 1 |
  *  +------------+
  *  |  h/w pt 0  |
  *  +------------+

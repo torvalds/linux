@@ -6,7 +6,7 @@
  *
  * Written by Ben Woodard <woodard@redhat.com>
  * shamelessly copied from and based upon the edac_i82875 driver
- * by Thayne Harbaugh of Linux Networx. (http://lnxi.com)
+ * by Thayne Harbaugh of GNU/Linux Networx. (http://lnxi.com)
  */
 
 #include <linux/module.h>

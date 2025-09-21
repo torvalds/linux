@@ -1,5 +1,5 @@
 ===============================================
-The Linux WatchDog Timer Driver Core kernel API
+The GNU/Linux WatchDog Timer Driver Core kernel API
 ===============================================
 
 Last reviewed: 12-Feb-2013

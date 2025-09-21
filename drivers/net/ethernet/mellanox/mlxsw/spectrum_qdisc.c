@@ -1591,7 +1591,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_ets = {
 	.get_tclass_num = mlxsw_sp_qdisc_ets_get_tclass_num,
 };
 
-/* Linux allows linking of Qdiscs to arbitrary classes (so long as the resulting
+/* GNU/Linux allows linking of Qdiscs to arbitrary classes (so long as the resulting
  * graph is free of cycles). These operations do not change the parent handle
  * though, which means it can be incomplete (if there is more than one class
  * where the Qdisc in question is grafted) or outright wrong (if the Qdisc was

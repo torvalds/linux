@@ -1,7 +1,7 @@
 .. _amu_index:
 
 =======================================================
-Activity Monitors Unit (AMU) extension in AArch64 Linux
+Activity Monitors Unit (AMU) extension in AArch64 GNU/Linux
 =======================================================
 
 Author: Ionela Voinescu <ionela.voinescu@arm.com>
@@ -9,7 +9,7 @@ Author: Ionela Voinescu <ionela.voinescu@arm.com>
 Date: 2019-09-10
 
 This document briefly describes the provision of Activity Monitors Unit
-support in AArch64 Linux.
+support in AArch64 GNU/Linux.
 
 
 Architecture overview

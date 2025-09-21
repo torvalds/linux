@@ -50,7 +50,7 @@ static uint64_t get_val(const fdt32_t *cells, uint32_t ncells)
  *
  * Traditionally, the start address of physical memory is obtained by masking
  * the program counter.  However, this does require that this address is a
- * multiple of 128 MiB, precluding booting Linux on platforms where this
+ * multiple of 128 MiB, precluding booting GNU/Linux on platforms where this
  * requirement is not fulfilled.
  * Hence validate the calculated address against the memory information in the
  * DTB, and, if out-of-range, replace it by the real start address.

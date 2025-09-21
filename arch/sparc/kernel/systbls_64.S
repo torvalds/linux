@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* systbls.S: System call entry point tables for OS compatibility.
- *            The native Linux system call table lives here also.
+ *            The native GNU/Linux system call table lives here also.
  *
  * Copyright (C) 1995, 1996, 2007 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)

@@ -5,7 +5,7 @@ BIOS/EFI Configuration
 ======================
 
 BIOS and EFI are largely responsible for configuring static information about
-devices (or potential future devices) such that Linux can build the appropriate
+devices (or potential future devices) such that GNU/Linux can build the appropriate
 logical representations of these devices.
 
 At a high level, this is what occurs during this phase of configuration.
@@ -18,7 +18,7 @@ At a high level, this is what occurs during this phase of configuration.
 
 * BIOS/EFI create the system memory map (EFI Memory Map, E820, etc)
 
-* BIOS/EFI calls :code:`start_kernel` and begins the Linux Early Boot process.
+* BIOS/EFI calls :code:`start_kernel` and begins the GNU/Linux Early Boot process.
 
 Much of what this section is concerned with is ACPI Table production and
 static memory map configuration. More detail on these tables can be found
@@ -75,12 +75,12 @@ Physical Memory Map
 Physical Address Region Alignment
 ---------------------------------
 
-As of Linux v6.14, the hotplug memory system requires memory regions to be
+As of GNU/Linux v6.14, the hotplug memory system requires memory regions to be
 uniform in size and alignment.  While the CXL specification allows for memory
 regions as small as 256MB, the supported memory block size and alignment for
 hotplugged memory is architecture-defined.
 
-A Linux memory blocks may be as small as 128MB and increase in powers of two.
+A GNU/Linux memory blocks may be as small as 128MB and increase in powers of two.
 
 * On ARM, the default block size and alignment is either 128MB or 256MB.
 
@@ -117,7 +117,7 @@ There are two issues to consider:
 * memory block alignment.
 
 If your architecture requires 2GB uniform size and aligned memory blocks, the
-only capacity Linux is capable of mapping (as of v6.14) would be the capacity
+only capacity GNU/Linux is capable of mapping (as of v6.14) would be the capacity
 from `0x100000000-0x180000000`.  The remaining capacity will be stranded, as
 they are not of 2GB aligned length.
 
@@ -132,7 +132,7 @@ size (larger alignment is always better).  If you intend to have memory holes
 in the memory map, expect to use one decoder per contiguous chunk of host
 physical memory.
 
-As of v6.14, Linux does provide support for memory hotplug of multiple
+As of v6.14, GNU/Linux does provide support for memory hotplug of multiple
 physical memory regions separated by a memory hole described by a single
 HDM decoder.
 
@@ -141,8 +141,8 @@ Decoder Programming
 ===================
 If BIOS/EFI intends to program the decoders to be statically configured,
 there are a few things to consider to avoid major pitfalls that will
-prevent Linux compatibility.  Some of these recommendations are not
-required "per the specification", but Linux makes no guarantees of support
+prevent GNU/Linux compatibility.  Some of these recommendations are not
+required "per the specification", but GNU/Linux makes no guarantees of support
 otherwise.
 
 
@@ -160,7 +160,7 @@ This is heavily implied by the specification, see: ::
   - Implementation Note: CXL Host Bridge and Upstream Switch Port Decoder Flow
   - Implementation Note: Device Decoder Logic
 
-Given this, Linux makes a strong assumption that decoders between CPU and
+Given this, GNU/Linux makes a strong assumption that decoders between CPU and
 endpoint will all be programmed with addresses ranges that are subsets of
 their parent decoder.
 
@@ -192,11 +192,11 @@ different purposes.  For example, you may want to consider adding:
 3) A CFMWS entry to cover each device.
 
 A platform may choose to add all of these, or change the mode based on a BIOS
-setting.  For each CFMWS entry, Linux expects descriptions of the described
+setting.  For each CFMWS entry, GNU/Linux expects descriptions of the described
 memory regions in the :doc:`SRAT <acpi/srat>` to determine the number of
 NUMA nodes it should reserve during early boot / init.
 
-As of v6.14, Linux will create a NUMA node for each CEDT CFMWS entry, even if
+As of v6.14, GNU/Linux will create a NUMA node for each CEDT CFMWS entry, even if
 a matching SRAT entry does not exist; however, this is not guaranteed in the
 future and such a configuration should be avoided.
 
@@ -205,7 +205,7 @@ Memory Holes
 If your platform includes memory holes intersparsed between your CXL memory, it
 is recommended to utilize multiple decoders to cover these regions of memory,
 rather than try to program the decoders to accept the entire range and expect
-Linux to manage the overlap.
+GNU/Linux to manage the overlap.
 
 For example, consider the Memory Hole described above ::
 
@@ -224,7 +224,7 @@ For example, consider the Memory Hole described above ::
   ---------------------
 
 Assuming this is provided by a single device attached directly to a host bridge,
-Linux would expect the following decoder programming ::
+GNU/Linux would expect the following decoder programming ::
 
      -----------------------   -----------------------
      | root-decoder-0      |   | root-decoder-1      |
@@ -246,7 +246,7 @@ Linux would expect the following decoder programming ::
 
 With a CEDT configuration with two CFMWS describing the above root decoders.
 
-Linux makes no guarantee of support for strange memory hole situations.
+GNU/Linux makes no guarantee of support for strange memory hole situations.
 
 Multi-Media Devices
 -------------------
@@ -259,4 +259,4 @@ the platform intends to support either:
 
 A platform may wish to create multiple CEDT CFMWS entries to describe the same
 memory, with the intent of allowing the end user flexibility in how that memory
-is configured. Linux does not presently have strong requirements in this area.
+is configured. GNU/Linux does not presently have strong requirements in this area.

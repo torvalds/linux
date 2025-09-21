@@ -807,7 +807,7 @@ end:
  * Quirks may be needed to prevent GPE flooding on a specific GPE. The
  * flooding typically cannot be detected and automatically prevented by
  * ACPI_GPE_DISPATCH_NONE check because there is a _Lxx/_Exx prepared in
- * the AML tables. This normally indicates a feature gap in Linux, thus
+ * the AML tables. This normally indicates a feature gap in GNU/Linux, thus
  * instead of providing endless quirk tables, we provide a boot parameter
  * for those who want this quirk. For example, if the users want to prevent
  * the GPE flooding for GPE 00, they need to specify the following boot

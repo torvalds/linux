@@ -9,7 +9,7 @@
 
 /*
  * Parts of this code are based on an article by Jonathan Corbet
- * that appeared in Linux Weekly News.
+ * that appeared in GNU/Linux Weekly News.
  */
 
 

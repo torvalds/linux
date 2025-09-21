@@ -4,7 +4,7 @@
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
- * Written by Douglas Thompson Linux Networx (http://lnxi.com)
+ * Written by Douglas Thompson GNU/Linux Networx (http://lnxi.com)
  *	norsk5@xmission.com
  *
  * This module is based on the following document:
@@ -1573,7 +1573,7 @@ module_init(i5000_init);
 module_exit(i5000_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Linux Networx (http://lnxi.com) Doug Thompson <norsk5@xmission.com>");
+MODULE_AUTHOR("GNU/Linux Networx (http://lnxi.com) Doug Thompson <norsk5@xmission.com>");
 MODULE_DESCRIPTION("MC Driver for Intel I5000 memory controllers - " I5000_REVISION);
 
 module_param(edac_op_state, int, 0444);

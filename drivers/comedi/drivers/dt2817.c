@@ -3,7 +3,7 @@
  * comedi/drivers/dt2817.c
  * Hardware driver for Data Translation DT2817
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
  */
 /*

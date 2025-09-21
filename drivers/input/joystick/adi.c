@@ -4,7 +4,7 @@
  */
 
 /*
- * Logitech ADI joystick family driver for Linux
+ * Logitech ADI joystick family driver for GNU/Linux
  */
 
 #include <linux/delay.h>

@@ -4,7 +4,7 @@
  *
  * mshv_root module's main interrupt handler and associated functionality.
  *
- * Authors: Microsoft Linux virtualization team
+ * Authors: Microsoft GNU/Linux virtualization team
  */
 
 #include <linux/kernel.h>

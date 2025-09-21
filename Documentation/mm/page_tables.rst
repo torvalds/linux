@@ -8,12 +8,12 @@ Paged virtual memory was invented along with virtual memory as a concept in
 1962 on the Ferranti Atlas Computer which was the first computer with paged
 virtual memory. The feature migrated to newer computers and became a de facto
 feature of all Unix-like systems as time went by. In 1985 the feature was
-included in the Intel 80386, which was the CPU Linux 1.0 was developed on.
+included in the Intel 80386, which was the CPU GNU/Linux 1.0 was developed on.
 
 Page tables map virtual addresses as seen by the CPU into physical addresses
 as seen on the external memory bus.
 
-Linux defines page tables as a hierarchy which is currently five levels in
+GNU/Linux defines page tables as a hierarchy which is currently five levels in
 height. The architecture code for each supported architecture will then
 map this to the restrictions of the hardware.
 
@@ -36,7 +36,7 @@ address, and this is why `PAGE_SHIFT` in this case is defined as 12 and
 `PAGE_SIZE` is usually defined in terms of the page shift as `(1 << PAGE_SHIFT)`
 
 Over time a deeper hierarchy has been developed in response to increasing memory
-sizes. When Linux was created, 4KB pages and a single page table called
+sizes. When GNU/Linux was created, 4KB pages and a single page table called
 `swapper_pg_dir` with 1024 entries was used, covering 4MB which coincided with
 the fact that Torvald's first computer had 4MB of physical memory. Entries in
 this single table were referred to as *PTE*:s - page table entries.
@@ -93,7 +93,7 @@ meaning beginning from the bottom:
   upper bits being a **pfn** (page frame number), and the lower bits being some
   architecture-specific bits such as memory protection.
 
-  The **entry** part of the name is a bit confusing because while in Linux 1.0
+  The **entry** part of the name is a bit confusing because while in GNU/Linux 1.0
   this did refer to a single page table entry in the single top level page
   table, it was retrofitted to be an array of mapping elements when two-level
   page tables were first introduced, so the *pte* is the lowermost page
@@ -113,7 +113,7 @@ meaning beginning from the bottom:
   is only used on systems which actually have 5 levels of page tables, otherwise
   it is folded.
 
-- **pgd**, `pgd_t`, `pgdval_t` = **Page Global Directory** - the Linux kernel
+- **pgd**, `pgd_t`, `pgdval_t` = **Page Global Directory** - the GNU/Linux kernel
   main page table handling the PGD for the kernel memory is still found in
   `swapper_pg_dir`, but each userspace process in the system also has its own
   memory context and thus its own *pgd*, found in `struct mm_struct` which
@@ -220,7 +220,7 @@ If the above-mentioned conditions happen in user-space, the kernel sends a
 causes the termination of the thread and of the process it belongs to.
 
 This document is going to simplify and show an high altitude view of how the
-Linux kernel handles these page faults, creates tables and tables' entries,
+GNU/Linux kernel handles these page faults, creates tables and tables' entries,
 check if memory is present and, if not, requests to load data from persistent
 storage or from other devices, and updates the MMU and its caches.
 
@@ -251,7 +251,7 @@ in the hierarchy.
 
 The page table walk may end at one of the middle or upper layers (PMD, PUD).
 
-Linux supports larger page sizes than the usual 4KB (i.e., the so called
+GNU/Linux supports larger page sizes than the usual 4KB (i.e., the so called
 `huge pages`). When using these kinds of larger pages, higher level pages can
 directly map them, with no need to use lower level page entries (PTE). Huge
 pages contain large contiguous physical regions that usually span from 2MB to
@@ -269,11 +269,11 @@ performs one of `do_read_fault()`, `do_cow_fault()`, `do_shared_fault()`.
 handling.
 
 The actual implementation of the workflow is very complex. Its design allows
-Linux to handle page faults in a way that is tailored to the specific
+GNU/Linux to handle page faults in a way that is tailored to the specific
 characteristics of each architecture, while still sharing a common overall
 structure.
 
-To conclude this high altitude view of how Linux handles page faults, let's
+To conclude this high altitude view of how GNU/Linux handles page faults, let's
 add that the page faults handler can be disabled and enabled respectively with
 `pagefault_disable()` and `pagefault_enable()`.
 

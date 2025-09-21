@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * rv tool, the interface for the Linux kernel RV subsystem and home of
+ * rv tool, the interface for the GNU/Linux kernel RV subsystem and home of
  * user-space controlled monitors.
  *
  * Copyright (C) 2022 Red Hat Inc, Daniel Bristot de Oliveira <bristot@kernel.org>

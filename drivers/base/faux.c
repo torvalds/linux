@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2025 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
- * Copyright (c) 2025 The Linux Foundation
+ * Copyright (c) 2025 The GNU/Linux Foundation
  *
  * A "simple" faux bus that allows devices to be created and added
  * automatically to it.  This is to be used whenever you need to create a

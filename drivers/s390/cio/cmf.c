@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Linux on zSeries Channel Measurement Facility support
+ * GNU/Linux on zSeries Channel Measurement Facility support
  *
  * Copyright IBM Corp. 2000, 2006
  *

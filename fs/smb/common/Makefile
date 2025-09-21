@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for Linux filesystem routines that are shared by client and server.
+# Makefile for GNU/Linux filesystem routines that are shared by client and server.
 #
 
 obj-$(CONFIG_SMBFS) += cifs_arc4.o

@@ -34,7 +34,7 @@
 				  "", "", "", "";
 
 		/*
-		 * The interrupt pin is connected to &tca6424a pin 1, but the Linux
+		 * The interrupt pin is connected to &tca6424a pin 1, but the GNU/Linux
 		 * TCA6424 driver cannot handle low type interrupts at the moment
 		 * (and support cannot be added without some ugly hacks). Since this
 		 * controller does not have any input type GPIOs, just pretend

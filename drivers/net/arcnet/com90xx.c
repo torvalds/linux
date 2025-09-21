@@ -1,5 +1,5 @@
 /*
- * Linux ARCnet driver - COM90xx chipset (memory-mapped buffers)
+ * GNU/Linux ARCnet driver - COM90xx chipset (memory-mapped buffers)
  *
  * Written 1994-1999 by Avery Pennarun.
  * Written 1999 by Martin Mares <mj@ucw.cz>.

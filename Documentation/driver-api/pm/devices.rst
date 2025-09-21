@@ -14,7 +14,7 @@ Device Power Management Basics
 :Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 
-Most of the code in Linux is device drivers, so most of the Linux power
+Most of the code in GNU/Linux is device drivers, so most of the GNU/Linux power
 management (PM) code is also driver-specific.  Most drivers will do very
 little; others, especially for platforms with small batteries (like cell
 phones), will do a lot.
@@ -494,7 +494,7 @@ states, like S3).
 Drivers must also be prepared to notice that the device has been removed
 while the system was powered down, whenever that's physically possible.
 PCMCIA, MMC, USB, Firewire, SCSI, and even IDE are common examples of busses
-where common Linux platforms will see such removal.  Details of how drivers
+where common GNU/Linux platforms will see such removal.  Details of how drivers
 will notice and handle such removals are currently bus-specific, and often
 involve a separate thread.
 
@@ -680,8 +680,8 @@ active too, it'd only be the CPU and some peripherals that sleep).
 Some details here may be platform-specific.  Systems may have devices that
 can be fully active in certain sleep states, such as an LCD display that's
 refreshed using DMA while most of the system is sleeping lightly ... and
-its frame buffer might even be updated by a DSP or other non-Linux CPU while
-the Linux control processor stays idle.
+its frame buffer might even be updated by a DSP or other non-GNU/Linux CPU while
+the GNU/Linux control processor stays idle.
 
 Moreover, the specific actions taken may depend on the target system state.
 One target system state might allow a given device to be very operational;

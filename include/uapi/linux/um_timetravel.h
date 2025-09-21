@@ -11,7 +11,7 @@
  *
  * This is the basic message type, going in both directions.
  *
- * This is the message passed between the host (user-mode Linux instance)
+ * This is the message passed between the host (user-mode GNU/Linux instance)
  * and the calendar (the application on the other side of the socket) in
  * order to implement common scheduling.
  *

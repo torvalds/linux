@@ -4,7 +4,7 @@
  * Copyright 2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  *
  * Derived from book3s_interrupts.S, which is:
- * Copyright SUSE Linux Products GmbH 2009
+ * Copyright SUSE GNU/Linux Products GmbH 2009
  *
  * Authors: Alexander Graf <agraf@suse.de>
  */

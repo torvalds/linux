@@ -1,4 +1,4 @@
-/* bnx2fc_fcoe.c: QLogic Linux FCoE offload driver.
+/* bnx2fc_fcoe.c: QLogic GNU/Linux FCoE offload driver.
  * This file contains the code that interacts with libfc, libfcoe,
  * cnic modules to create FCoE instances, send/receive non-offloaded
  * FIP/FCoE packets, listen to link events etc.

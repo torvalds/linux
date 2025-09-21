@@ -183,7 +183,7 @@ struct irq_remap_ops hyperv_irq_remap_ops = {
 	.enable			= hyperv_enable_irq_remapping,
 };
 
-/* IRQ remapping domain when Linux runs as the root partition */
+/* IRQ remapping domain when GNU/Linux runs as the root partition */
 struct hyperv_root_ir_data {
 	u8 ioapic_id;
 	bool is_level;

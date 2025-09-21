@@ -25,7 +25,7 @@ User-space Daemons
 ------------------
 Both APM and ACPI rely on user-space daemons, apmd and acpid
 respectively, to be completely functional.  Obtain both of these
-daemons from your Linux distribution or from the Internet (see below)
+daemons from your GNU/Linux distribution or from the Internet (see below)
 and be sure that they are started sometime in the system boot process.
 Go ahead and start both.  If ACPI or APM is not available on your
 system the associated daemon will exit gracefully.

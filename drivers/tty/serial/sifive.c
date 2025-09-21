@@ -283,7 +283,7 @@ static void __ssp_transmit_char(struct sifive_serial_port *ssp, int ch)
  * __ssp_transmit_chars() - enqueue multiple bytes onto the TX FIFO
  * @ssp: pointer to a struct sifive_serial_port
  *
- * Transfer up to a TX FIFO size's worth of characters from the Linux serial
+ * Transfer up to a TX FIFO size's worth of characters from the GNU/Linux serial
  * transmit buffer to the SiFive UART TX FIFO.
  *
  * Context: Any context.  Expects @ssp->port.lock to be held by caller.
@@ -370,7 +370,7 @@ static void __ssp_disable_rxwm(struct sifive_serial_port *ssp)
  * Try to read a byte from the SiFive UART RX FIFO, referenced by
  * @ssp, and to return it.  Also returns the RX FIFO empty bit in
  * the char pointed to by @ch.  The caller must pass the byte back to the
- * Linux serial layer if needed.
+ * GNU/Linux serial layer if needed.
  *
  * Returns: the byte read from the UART RX FIFO.
  */
@@ -398,7 +398,7 @@ static char __ssp_receive_char(struct sifive_serial_port *ssp, char *is_empty)
  * @ssp: pointer to a struct sifive_serial_port
  *
  * Receive up to an RX FIFO's worth of bytes from the SiFive UART referred
- * to by @ssp and pass them up to the Linux serial layer.
+ * to by @ssp and pass them up to the GNU/Linux serial layer.
  *
  * Context: Expects ssp->port.lock to be held by caller.
  */
@@ -495,7 +495,7 @@ static void __maybe_unused __ssp_wait_for_xmitr(struct sifive_serial_port *ssp)
 }
 
 /*
- * Linux serial API functions
+ * GNU/Linux serial API functions
  */
 
 static void sifive_serial_stop_tx(struct uart_port *port)
@@ -774,7 +774,7 @@ OF_EARLYCON_DECLARE(sifive, "sifive,fu540-c000-uart",
 #endif /* CONFIG_SERIAL_EARLYCON */
 
 /*
- * Linux console interface
+ * GNU/Linux console interface
  */
 
 #ifdef CONFIG_SERIAL_SIFIVE_CONSOLE

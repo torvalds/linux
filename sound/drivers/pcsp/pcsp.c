@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * PC-Speaker driver for Linux
+ * PC-Speaker driver for GNU/Linux
  *
  * Copyright (C) 1997-2001  David Woodhouse
  * Copyright (C) 2001-2008  Stas Sergeev

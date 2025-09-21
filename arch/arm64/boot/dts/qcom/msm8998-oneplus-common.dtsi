@@ -3,7 +3,7 @@
  * OnePlus 5(T) (cheeseburger / dumpling) common device tree source based on msm8998-mtp.dtsi
  *
  * Copyright (c) 2021, Jami Kettunen <jamipkettunen@gmail.com>
- * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016, The GNU/Linux Foundation. All rights reserved.
  */
 
 /dts-v1/;

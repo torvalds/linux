@@ -1,4 +1,4 @@
-Linux-Kernel Memory Model Litmus Tests
+GNU/Linux-Kernel Memory Model Litmus Tests
 ======================================
 
 This file describes the LKMM litmus-test format by example, describes
@@ -57,7 +57,7 @@ Message-Passing Example
 
 This section gives an overview of the format of a litmus test using an
 example based on the common message-passing use case.  This use case
-appears often in the Linux kernel.  For example, a flag (modeled by "y"
+appears often in the GNU/Linux kernel.  For example, a flag (modeled by "y"
 below) indicates that a buffer (modeled by "x" below) is now completely
 filled in and ready for use.  It would be very bad if the consumer saw the
 flag set, but, due to memory misordering, saw old values in the buffer.
@@ -92,7 +92,7 @@ of the full C language).  The remainder of line 1 is the name of
 the test, which by convention is the filename with the ".litmus"
 suffix stripped.  In this case, the actual test may be found in
 tools/memory-model/litmus-tests/MP+pooncerelease+poacquireonce.litmus
-in the Linux-kernel source tree.
+in the GNU/Linux-kernel source tree.
 
 Mechanically generated litmus tests will often have an optional
 double-quoted comment string on the second line.  Such strings are ignored
@@ -109,7 +109,7 @@ initialization must have non-empty initialization sections, as in the
 example that will be presented later in this document.
 
 Lines 5-9 show the first process and lines 11-18 the second process.  Each
-process corresponds to a Linux-kernel task (or kthread, workqueue, thread,
+process corresponds to a GNU/Linux-kernel task (or kthread, workqueue, thread,
 and so on; LKMM discussions often use these terms interchangeably).
 The name of the first process is "P0" and that of the second "P1".
 You can name your processes anything you like as long as the names consist
@@ -136,8 +136,8 @@ This will sometimes result in an error message, but can also cause the
 intended global to instead be silently treated as an undeclared local
 variable.
 
-Each process's code is similar to Linux-kernel C, as can be seen on lines
-7-8 and 13-17.  This code may use many of the Linux kernel's atomic
+Each process's code is similar to GNU/Linux-kernel C, as can be seen on lines
+7-8 and 13-17.  This code may use many of the GNU/Linux kernel's atomic
 operations, some of its exclusive-lock functions, and some of its RCU
 and SRCU functions.  An approximate list of the currently supported
 functions may be found in the linux-kernel.def file.
@@ -311,7 +311,7 @@ LKMM supports the C-language "if" statement, which allows modeling of
 conditional branches.  In LKMM, conditional branches can affect ordering,
 but only if you are *very* careful (compilers are surprisingly able
 to optimize away conditional branches).  The following example shows
-the "load buffering" (LB) use case that is used in the Linux kernel to
+the "load buffering" (LB) use case that is used in the GNU/Linux kernel to
 synchronize between ring-buffer producers and consumers.  In the example
 below, P0() is one side checking to see if an operation may proceed and
 P1() is the other side completing its update.
@@ -426,7 +426,7 @@ The herd7 output is as follows:
 13 Hash=c7f30fe0faebb7d565405d55b7318ada
 
 (This output indicates that CPUs are permitted to "snoop their own
-store buffers", which all of Linux's CPU families other than s390 will
+store buffers", which all of GNU/Linux's CPU families other than s390 will
 happily do.  Such snooping results in disagreement among CPUs on the
 order of stores from different CPUs, which is rarely an issue.)
 
@@ -930,7 +930,7 @@ helpful when developing and debugging litmus tests.
 LIMITATIONS
 ===========
 
-Limitations of the Linux-kernel memory model (LKMM) include:
+Limitations of the GNU/Linux-kernel memory model (LKMM) include:
 
 1.	Compiler optimizations are not accurately modeled.  Of course,
 	the use of READ_ONCE() and WRITE_ONCE() limits the compiler's
@@ -1001,7 +1001,7 @@ Limitations of the Linux-kernel memory model (LKMM) include:
 
 	Here are specific limitations:
 
-	a.	When rcu_assign_pointer() is passed NULL, the Linux
+	a.	When rcu_assign_pointer() is passed NULL, the GNU/Linux
 		kernel provides no ordering, but LKMM models this
 		case as a store release.
 
@@ -1076,7 +1076,7 @@ limited and in some ways non-standard:
 	allocated variables.
 
 Some of these limitations may be overcome in the future, but others are
-more likely to be addressed by incorporating the Linux-kernel memory model
+more likely to be addressed by incorporating the GNU/Linux-kernel memory model
 into other tools.
 
 Finally, please note that LKMM is subject to change as hardware, use cases,

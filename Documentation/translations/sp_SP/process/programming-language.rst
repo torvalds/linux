@@ -12,7 +12,7 @@ El kernel está escrito en el lenguaje de programación C [sp-c-language]_.
 Más concretamente, el kernel normalmente se compila con ``gcc`` [sp-gcc]_
 bajo ``-std=gnu11`` [sp-gcc-c-dialect-options]_: el dialecto GNU de ISO C11.
 ``clang`` [sp-clang]_ también es compatible, consulte los documentos en
-:ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
+:ref:`Building GNU/Linux with Clang/LLVM <kbuild_llvm>`.
 
 Este dialecto contiene muchas extensiones del lenguaje [sp-gnu-extensions]_,
 y muchos de ellos se usan dentro del kernel de forma habitual.

@@ -63,7 +63,7 @@ the following _BCL package::
 	}
 
 The first two levels are for when laptop are on AC or on battery and are
-not used by Linux currently. The remaining 10 levels are supported levels
+not used by GNU/Linux currently. The remaining 10 levels are supported levels
 that we can choose from. The applicable index values are from 0 (that
 corresponds to the 0x0A brightness value) to 9 (that corresponds to the
 0x64 brightness value) inclusive. Each of those index values is regarded

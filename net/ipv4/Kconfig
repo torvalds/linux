@@ -15,7 +15,7 @@ config IP_MULTICAST
 config IP_ADVANCED_ROUTER
 	bool "IP: advanced router"
 	help
-	  If you intend to run your Linux box mostly as a router, i.e. as a
+	  If you intend to run your GNU/Linux box mostly as a router, i.e. as a
 	  computer that forwards and redistributes network packets, say Y; you
 	  will then be presented with several options that allow more precise
 	  control about the routing process.
@@ -67,11 +67,11 @@ config IP_MULTIPLE_TABLES
 	help
 	  Normally, a router decides what to do with a received packet based
 	  solely on the packet's final destination address. If you say Y here,
-	  the Linux router will also be able to take the packet's source
+	  the GNU/Linux router will also be able to take the packet's source
 	  address into account. Furthermore, the TOS (Type-Of-Service) field
 	  of the packet can be used for routing decisions as well.
 
-	  If you need more information, see the Linux Advanced
+	  If you need more information, see the GNU/Linux Advanced
 	  Routing and Traffic Control documentation at
 	  <https://lartc.org/howto/lartc.rpdb.html>
 
@@ -118,12 +118,12 @@ config IP_PNP_DHCP
 	bool "IP: DHCP support"
 	depends on IP_PNP
 	help
-	  If you want your Linux box to mount its whole root file system (the
+	  If you want your GNU/Linux box to mount its whole root file system (the
 	  one containing the directory /) from some other computer over the
 	  net via NFS and you want the IP address of your computer to be
 	  discovered automatically at boot time using the DHCP protocol (a
 	  special protocol designed for doing this job), say Y here. In case
-	  the boot ROM of your network card was designed for booting Linux and
+	  the boot ROM of your network card was designed for booting GNU/Linux and
 	  does DHCP itself, providing all necessary information on the kernel
 	  command line, you can say N here.
 
@@ -135,12 +135,12 @@ config IP_PNP_BOOTP
 	bool "IP: BOOTP support"
 	depends on IP_PNP
 	help
-	  If you want your Linux box to mount its whole root file system (the
+	  If you want your GNU/Linux box to mount its whole root file system (the
 	  one containing the directory /) from some other computer over the
 	  net via NFS and you want the IP address of your computer to be
 	  discovered automatically at boot time using the BOOTP protocol (a
 	  special protocol designed for doing this job), say Y here. In case
-	  the boot ROM of your network card was designed for booting Linux and
+	  the boot ROM of your network card was designed for booting GNU/Linux and
 	  does BOOTP itself, providing all necessary information on the kernel
 	  command line, you can say N here. If unsure, say Y. Note that if you
 	  want to use BOOTP, a BOOTP server must be operating on your network.
@@ -150,7 +150,7 @@ config IP_PNP_RARP
 	bool "IP: RARP support"
 	depends on IP_PNP
 	help
-	  If you want your Linux box to mount its whole root file system (the
+	  If you want your GNU/Linux box to mount its whole root file system (the
 	  one containing the directory /) from some other computer over the
 	  net via NFS and you want the IP address of your computer to be
 	  discovered automatically at boot time using the RARP protocol (an
@@ -200,7 +200,7 @@ config NET_IPGRE
 	  GRE (Generic Routing Encapsulation) and at this time allows
 	  encapsulating of IPv4 or IPv6 over existing IPv4 infrastructure.
 	  This driver is useful if the other endpoint is a Cisco router: Cisco
-	  likes GRE much better than the other Linux tunneling driver ("IP
+	  likes GRE much better than the other GNU/Linux tunneling driver ("IP
 	  tunneling" above). In addition, GRE allows multicast redistribution
 	  through the tunnel.
 
@@ -426,7 +426,7 @@ config INET_DIAG
 	default y
 	help
 	  Support for INET (TCP, UDP, etc) socket monitoring interface used by
-	  native Linux tools such as ss. ss is included in iproute2, currently
+	  native GNU/Linux tools such as ss. ss is included in iproute2, currently
 	  downloadable at:
 
 	    http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2

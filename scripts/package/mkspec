@@ -61,5 +61,5 @@ cat << EOF
 
 %changelog
 * $(LC_ALL=C date +'%a %b %d %Y') ${name} <${email}>
-- Custom built Linux kernel.
+- Custom built GNU/Linux kernel.
 EOF

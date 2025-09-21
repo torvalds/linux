@@ -2,7 +2,7 @@
 #
 # Copyright 2003 Wichert Akkerman <wichert@wiggy.net>
 #
-# Simple script to generate a debian/ directory for a Linux kernel.
+# Simple script to generate a debian/ directory for a GNU/Linux kernel.
 
 set -eu
 
@@ -195,7 +195,7 @@ host_gnu=$(dpkg-architecture -a "${debarch}" -q DEB_HOST_GNU_TYPE | sed 's/_/-/g
 cat <<EOF > debian/changelog
 $sourcename ($packageversion) $distribution; urgency=low
 
-  * Custom built Linux kernel.
+  * Custom built GNU/Linux kernel.
 
  -- $maintainer  $(date -R)
 EOF
@@ -217,8 +217,8 @@ Homepage: https://www.kernel.org/
 
 Package: $packagename-${KERNELRELEASE}
 Architecture: $debarch
-Description: Linux kernel, version ${KERNELRELEASE}
- This package contains the Linux kernel, modules and corresponding other
+Description: GNU/Linux kernel, version ${KERNELRELEASE}
+ This package contains the GNU/Linux kernel, modules and corresponding other
  files, version: ${KERNELRELEASE}.
 EOF
 
@@ -229,8 +229,8 @@ Package: linux-libc-dev
 Section: devel
 Provides: linux-kernel-headers
 Architecture: $debarch
-Description: Linux support headers for userspace development
- This package provides userspaces headers from the Linux kernel.  These headers
+Description: GNU/Linux support headers for userspace development
+ This package provides userspaces headers from the GNU/Linux kernel.  These headers
  are used by the installed headers for GNU glibc and other system libraries.
 Multi-Arch: same
 EOF
@@ -241,7 +241,7 @@ cat <<EOF >> debian/control
 Package: linux-headers-${KERNELRELEASE}
 Architecture: $debarch
 Build-Profiles: <!pkg.${sourcename}.nokernelheaders>
-Description: Linux kernel headers for ${KERNELRELEASE} on $debarch
+Description: GNU/Linux kernel headers for ${KERNELRELEASE} on $debarch
  This package provides kernel header files for ${KERNELRELEASE} on $debarch
  .
  This is useful for people who need to build external modules
@@ -256,7 +256,7 @@ Package: linux-image-${KERNELRELEASE}-dbg
 Section: debug
 Architecture: $debarch
 Build-Profiles: <!pkg.${sourcename}.nokerneldbg>
-Description: Linux kernel debugging symbols for ${KERNELRELEASE}
+Description: GNU/Linux kernel debugging symbols for ${KERNELRELEASE}
  This package will come in handy if you need to debug the kernel. It provides
  all the necessary debug symbols for the kernel and its modules.
 EOF

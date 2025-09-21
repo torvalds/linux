@@ -14,7 +14,7 @@ filesystem driver may be used to read and write disks from these
 devices.
 
 Note, it is not recommended that this FS be used in place of a general
-filesystem for your own streaming media device.  Native Linux filesystems
+filesystem for your own streaming media device.  Native GNU/Linux filesystems
 will likely perform better.
 
 More information is available at:

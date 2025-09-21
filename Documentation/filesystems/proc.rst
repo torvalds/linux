@@ -62,9 +62,9 @@ Preface
 ------------------------
 
 This documentation is  part of a soon (or  so we hope) to be  released book on
-the SuSE  Linux distribution. As  there is  no complete documentation  for the
+the SuSE  GNU/Linux distribution. As  there is  no complete documentation  for the
 /proc file system and we've used  many freely available sources to write these
-chapters, it  seems only fair  to give the work  back to the  Linux community.
+chapters, it  seems only fair  to give the work  back to the  GNU/Linux community.
 This work is  based on the 2.2.*  kernel version and the  upcoming 2.4.*. I'm
 afraid it's still far from complete, but we  hope it will be useful. As far as
 we know, it is the first 'all-in-one' document about the /proc file system. It
@@ -78,7 +78,7 @@ We'd like  to  thank Alan Cox, Rik van Riel, and Alexey Kuznetsov and a lot of
 other people for help compiling this documentation. We'd also like to extend a
 special thank  you to Andi Kleen for documentation, which we relied on heavily
 to create  this  document,  as well as the additional information he provided.
-Thanks to  everybody  else  who contributed source or docs to the Linux kernel
+Thanks to  everybody  else  who contributed source or docs to the GNU/Linux kernel
 and helped create a great piece of software... :)
 
 If you  have  any comments, corrections or additions, please don't hesitate to
@@ -105,7 +105,7 @@ Chapter 1: Collecting System Information
 In This Chapter
 ---------------
 * Investigating  the  properties  of  the  pseudo  file  system  /proc and its
-  ability to provide information on the running Linux system
+  ability to provide information on the running GNU/Linux system
 * Examining /proc's structure
 * Uncovering  various  information  about the kernel and the processes running
   on the system
@@ -934,7 +934,7 @@ directory scsi  may  not  exist. The same is true with the net, which is there
 only when networking support is present in the running kernel.
 
 The slabinfo  file  gives  information  about  memory usage at the slab level.
-Linux uses  slab  pools for memory management above page level in version 2.2.
+GNU/Linux uses  slab  pools for memory management above page level in version 2.2.
 Commonly used  objects  have  their  own  slab  pool (such as network buffers,
 directory cache, and so on).
 
@@ -1708,14 +1708,14 @@ You need to be root to do this. You  can  create  your  own  boot script
 to perform this every time your system boots.
 
 The files  in /proc/sys can be used to fine tune and monitor miscellaneous and
-general things  in  the operation of the Linux kernel. Since some of the files
+general things  in  the operation of the GNU/Linux kernel. Since some of the files
 can inadvertently  disrupt  your  system,  it  is  advisable  to  read  both
 documentation and  source  before actually making adjustments. In any case, be
 very careful  when  writing  to  any  of these files. The entries in /proc may
 change slightly between the 2.1.* and the 2.2 kernel, so if there is any doubt
 review the kernel documentation in the directory linux/Documentation.
 This chapter  is  heavily  based  on the documentation included in the pre 2.2
-kernels, and became part of it in version 2.2.1 of the Linux kernel.
+kernels, and became part of it in version 2.2.1 of the GNU/Linux kernel.
 
 Please see: Documentation/admin-guide/sysctl/ directory for descriptions of
 these entries.

@@ -25,7 +25,7 @@ linux-2.6.29/Documentation/process/stable-kernel-rules.rst
          神宮信太郎さん <jin at libjingu dot jp>
 ==================================
 
-ずっと知りたかった Linux 2.6 -stable リリースの全て
+ずっと知りたかった GNU/Linux 2.6 -stable リリースの全て
 
 "-stable" ツリーにどのような種類のパッチが受け入れられるか、どのような
 ものが受け入れられないか、についての規則-

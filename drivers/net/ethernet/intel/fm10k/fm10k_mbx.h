@@ -196,7 +196,7 @@ enum fm10k_msg_type {
 /* All error messages returned by mailbox functions
  * The value -511 is 0xFE01 in hex.  The idea is to order the errors
  * from 0xFE01 - 0xFEFF so error codes are easily visible in the mailbox
- * messages.  This also helps to avoid error number collisions as Linux
+ * messages.  This also helps to avoid error number collisions as GNU/Linux
  * doesn't appear to use error numbers 256 - 511.
  */
 #define FM10K_MBX_ERR(_n) ((_n) - 512)

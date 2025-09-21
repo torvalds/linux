@@ -2,7 +2,7 @@
 /*
  * TI ADS7828 A/D Converter platform data definition
  *
- * Copyright (c) 2012 Savoir-faire Linux Inc.
+ * Copyright (c) 2012 Savoir-faire GNU/Linux Inc.
  *          Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * For further information, see the Documentation/hwmon/ads7828.rst file.

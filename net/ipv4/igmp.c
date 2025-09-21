@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	Linux NET3:	Internet Group Management Protocol  [IGMP]
+ *	GNU/Linux NET3:	Internet Group Management Protocol  [IGMP]
  *
  *	This code implements the IGMP protocol as defined in RFC1112. There has
  *	been a further revision of this protocol since which is now supported.

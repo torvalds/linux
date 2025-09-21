@@ -9,7 +9,7 @@
 /*                                                                        */
 /*                                                                        */
 /* This module contains the implementation of a virtual ethernet device   */
-/* for use with IBM i/pSeries LPAR Linux.  It utilizes the logical LAN    */
+/* for use with IBM i/pSeries LPAR GNU/Linux.  It utilizes the logical LAN    */
 /* option of the RS/6000 Platform Architecture to interface with virtual */
 /* ethernet NICs that are presented to the partition by the hypervisor.   */
 /*                                                                        */

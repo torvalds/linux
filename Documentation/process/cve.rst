@@ -13,12 +13,12 @@ security identifiers, and ongoing abuses by individuals and companies
 outside of the kernel community has made it clear that the kernel
 community should have control over those assignments.
 
-The Linux kernel developer team does have the ability to assign CVEs for
-potential Linux kernel security issues.  This assignment is independent
-of the :doc:`normal Linux kernel security bug reporting
+The GNU/Linux kernel developer team does have the ability to assign CVEs for
+potential GNU/Linux kernel security issues.  This assignment is independent
+of the :doc:`normal GNU/Linux kernel security bug reporting
 process<../process/security-bugs>`.
 
-A list of all assigned CVEs for the Linux kernel can be found in the
+A list of all assigned CVEs for the GNU/Linux kernel can be found in the
 archives of the linux-cve mailing list, as seen on
 https://lore.kernel.org/linux-cve-announce/.  To get notice of the
 assigned CVEs, please `subscribe
@@ -33,12 +33,12 @@ for CVE number assignments and have CVE numbers automatically assigned
 to them.  These assignments are published on the linux-cve-announce
 mailing list as announcements on a frequent basis.
 
-Note, due to the layer at which the Linux kernel is in a system, almost
+Note, due to the layer at which the GNU/Linux kernel is in a system, almost
 any bug might be exploitable to compromise the security of the kernel,
 but the possibility of exploitation is often not evident when the bug is
 fixed.  Because of this, the CVE assignment team is overly cautious and
 assign CVE numbers to any bugfix that they identify.  This
-explains the seemingly large number of CVEs that are issued by the Linux
+explains the seemingly large number of CVEs that are issued by the GNU/Linux
 kernel team.
 
 If the CVE assignment team misses a specific fix that any user feels
@@ -47,11 +47,11 @@ and the team there will work with you on it.  Note that no potential
 security issues should be sent to this alias, it is ONLY for assignment
 of CVEs for fixes that are already in released kernel trees.  If you
 feel you have found an unfixed security issue, please follow the
-:doc:`normal Linux kernel security bug reporting
+:doc:`normal GNU/Linux kernel security bug reporting
 process<../process/security-bugs>`.
 
 No CVEs will be automatically assigned for unfixed security issues in
-the Linux kernel; assignment will only automatically happen after a fix
+the GNU/Linux kernel; assignment will only automatically happen after a fix
 is available and applied to a stable kernel tree, and it will be tracked
 that way by the git commit id of the original fix.  If anyone wishes to
 have a CVE assigned before an issue is resolved with a commit, please
@@ -79,14 +79,14 @@ reporting, and ultimately, compromised systems.
 Invalid CVEs
 ============
 
-If a security issue is found in a Linux kernel that is only supported by
-a Linux distribution due to the changes that have been made by that
+If a security issue is found in a GNU/Linux kernel that is only supported by
+a GNU/Linux distribution due to the changes that have been made by that
 distribution, or due to the distribution supporting a kernel version
 that is no longer one of the kernel.org supported releases, then a CVE
-can not be assigned by the Linux kernel CVE team, and must be asked for
-from that Linux distribution itself.
+can not be assigned by the GNU/Linux kernel CVE team, and must be asked for
+from that GNU/Linux distribution itself.
 
-Any CVE that is assigned against the Linux kernel for an actively
+Any CVE that is assigned against the GNU/Linux kernel for an actively
 supported kernel version, by any group other than the kernel assignment
 CVE team should not be treated as a valid CVE.  Please notify the
 kernel CVE assignment team at <cve@kernel.org> so that they can work to
@@ -95,15 +95,15 @@ invalidate such entries through the CNA remediation process.
 Applicability of specific CVEs
 ==============================
 
-As the Linux kernel can be used in many different ways, with many
+As the GNU/Linux kernel can be used in many different ways, with many
 different ways of accessing it by external users, or no access at all,
-the applicability of any specific CVE is up to the user of Linux to
+the applicability of any specific CVE is up to the user of GNU/Linux to
 determine, it is not up to the CVE assignment team.  Please do not
 contact us to attempt to determine the applicability of any specific
 CVE.
 
 Also, as the source tree is so large, and any one system only uses a
-small subset of the source tree, any users of Linux should be aware that
+small subset of the source tree, any users of GNU/Linux should be aware that
 large numbers of assigned CVEs are not relevant for their systems.
 
 In short, we do not know your use case, and we do not know what portions

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Test ECN: verify that Linux TCP ECN sending code uses ECT0 (not ECT1).
+// Test ECN: verify that GNU/Linux TCP ECN sending code uses ECT0 (not ECT1).
 //
 `./defaults.sh
 sysctl -q net.ipv4.tcp_ecn=1  # fully enabled

@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Linaro Ltd., Rob Herring <robh@kernel.org>
  *
  * Based on drivers/spmi/spmi.c:
- * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/acpi.h>

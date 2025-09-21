@@ -5,7 +5,7 @@
  * Copyright (C) 2008 Intel Corp.
  *
  * Author: Sarah Sharp
- * Some code borrowed from the Linux EHCI driver.
+ * Some code borrowed from the GNU/Linux EHCI driver.
  */
 
 /* HC should halt within 16 ms, but use 32 ms as some hosts take longer */

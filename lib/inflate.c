@@ -5,7 +5,7 @@
    version c10p1, 10 January 1993 */
 
 /* 
- * Adapted for booting Linux by Hannu Savolainen 1993
+ * Adapted for booting GNU/Linux by Hannu Savolainen 1993
  * based on gzip-1.0.3 
  *
  * Nicolas Pitre <nico@fluxnic.net>, 1999/04/14 :

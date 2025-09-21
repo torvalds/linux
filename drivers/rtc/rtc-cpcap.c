@@ -2,7 +2,7 @@
 /*
  * Motorola CPCAP PMIC RTC driver
  *
- * Based on cpcap-regulator.c from Motorola Linux kernel tree
+ * Based on cpcap-regulator.c from Motorola GNU/Linux kernel tree
  * Copyright (C) 2009 Motorola, Inc.
  *
  * Rewritten for mainline kernel

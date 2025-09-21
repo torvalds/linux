@@ -85,11 +85,11 @@ P8 supports up to 256 Partitionable Endpoints per PHB.
       * Drops the top bits of the address (above the size) and replaces
 	them with a configurable value.  This is typically used to generate
 	32-bit PCIe accesses.  We configure that window at boot from FW and
-	don't touch it from Linux; it's usually set to forward a 2GB
+	don't touch it from GNU/Linux; it's usually set to forward a 2GB
 	portion of address space from the CPU to PCIe
 	0x8000_0000..0xffff_ffff.  (Note: The top 64KB are actually
 	reserved for MSIs but this is not a problem at this point; we just
-	need to ensure Linux doesn't assign anything there, the M32 logic
+	need to ensure GNU/Linux doesn't assign anything there, the M32 logic
 	ignores that however and will forward in that space if we try).
 
       * It is divided into 256 segments of equal size.  A table in the chip
@@ -97,7 +97,7 @@ P8 supports up to 256 Partitionable Endpoints per PHB.
 	to be assigned to PEs on a segment granularity.  For a 2GB window,
 	the segment granularity is 2GB/256 = 8MB.
 
-    Now, this is the "main" window we use in Linux today (excluding
+    Now, this is the "main" window we use in GNU/Linux today (excluding
     SR-IOV).  We basically use the trick of forcing the bridge MMIO windows
     onto a segment alignment/granularity so that the space behind a bridge
     can be assigned to a PE.

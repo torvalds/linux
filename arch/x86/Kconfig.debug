@@ -127,7 +127,7 @@ choice
 config IO_DELAY_0X80
 	bool "port 0x80 based port-IO delay [recommended]"
 	help
-	  This is the traditional Linux IO delay used for in/out_p.
+	  This is the traditional GNU/Linux IO delay used for in/out_p.
 	  It is the most tested hence safest selection here.
 
 config IO_DELAY_0XED

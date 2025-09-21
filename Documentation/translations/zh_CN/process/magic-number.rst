@@ -10,7 +10,7 @@
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
 
-Linux 魔术数
+GNU/Linux 魔术数
 ============
 
 这个文件是有关当前使用的魔术值注册表。当你给一个结构体添加了一个魔术值，你也
@@ -37,27 +37,27 @@ tty源码经常通过特定驱动使用这种方法用来反复地排列特定�
 					Theodore Ts'o
 					31 Mar 94
 
-  给当前的Linux 2.1.55添加魔术表。
+  给当前的GNU/Linux 2.1.55添加魔术表。
 
 					Michael Chastain
 					<mailto:mec@shout.net>
 					22 Sep 1997
 
-  现在应该最新的Linux 2.1.112.因为在特性冻结期间，不能在2.2.x前改变任
+  现在应该最新的GNU/Linux 2.1.112.因为在特性冻结期间，不能在2.2.x前改变任
   何东西。这些条目被数域所排序。
 
 					Krzysztof G.Baranowski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
-  更新魔术表到Linux 2.5.45。刚好越过特性冻结，但是有可能还会有一些新的魔
+  更新魔术表到GNU/Linux 2.5.45。刚好越过特性冻结，但是有可能还会有一些新的魔
   术值在2.6.x之前融入到内核中。
 
 					Petr Baudis
 					<pasky@ucw.cz>
 					03 Nov 2002
 
-  更新魔术表到Linux 2.5.74。
+  更新魔术表到GNU/Linux 2.5.74。
 
 					Fabian Frederick
 					<ffrederick@users.sourceforge.net>

@@ -4,7 +4,7 @@
  */
 
 /*
- * Analog joystick and gamepad driver for Linux
+ * Analog joystick and gamepad driver for GNU/Linux
  */
 
 #include <linux/delay.h>

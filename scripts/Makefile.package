@@ -34,7 +34,7 @@ suffix-bzip2 := .bz2
 suffix-lzma  := .lzma
 suffix-xz    := .xz
 
-# Linux source tarball
+# GNU/Linux source tarball
 # ---------------------------------------------------------------------------
 
 linux-tarballs := $(addprefix linux, .tar.gz .tar.bz2 .tar.lzma .tar.xz)

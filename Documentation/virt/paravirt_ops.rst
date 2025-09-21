@@ -4,10 +4,10 @@
 Paravirt_ops
 ============
 
-Linux provides support for different hypervisor virtualization technologies.
+GNU/Linux provides support for different hypervisor virtualization technologies.
 Historically, different binary kernels would be required in order to support
 different hypervisors; this restriction was removed with pv_ops.
-Linux pv_ops is a virtualization API which enables support for different
+GNU/Linux pv_ops is a virtualization API which enables support for different
 hypervisors. It allows each hypervisor to override critical operations and
 allows a single kernel binary to run on all supported execution environments
 including native machine -- without any hypervisors.

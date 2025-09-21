@@ -26,7 +26,7 @@ User handshake agent
 ====================
 
 As of this writing, there is no TLS handshake implementation in the
-Linux kernel. To provide a handshake service, a handshake agent
+GNU/Linux kernel. To provide a handshake service, a handshake agent
 (typically in user space) is started in each network namespace where a
 kernel consumer might require a TLS handshake. Handshake agents listen
 for events sent from the kernel that indicate a handshake request is

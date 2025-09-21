@@ -7,7 +7,7 @@ Last update: 2004-12-20 tlh
 
 "Early userspace" is a set of libraries and programs that provide
 various pieces of functionality that are important enough to be
-available while a Linux kernel is coming up, but that don't need to be
+available while a GNU/Linux kernel is coming up, but that don't need to be
 run inside the kernel itself.
 
 It consists of several major infrastructure components:

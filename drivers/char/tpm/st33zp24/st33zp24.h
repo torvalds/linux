@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * STMicroelectronics TPM Linux driver for TPM ST33ZP24
+ * STMicroelectronics TPM GNU/Linux driver for TPM ST33ZP24
  * Copyright (C) 2009 - 2016  STMicroelectronics
  */
 

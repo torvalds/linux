@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * bios-less APM driver for ARM Linux
+ * bios-less APM driver for ARM GNU/Linux
  *  Jamey Hicks <jamey@crl.dec.com>
- *  adapted from the APM BIOS driver for Linux by Stephen Rothwell (sfr@linuxcare.com)
+ *  adapted from the APM BIOS driver for GNU/Linux by Stephen Rothwell (sfr@linuxcare.com)
  *
  * APM 1.2 Reference:
  *   Intel Corporation, Microsoft Corporation. Advanced Power Management
@@ -395,7 +395,7 @@ static struct miscdevice apm_device = {
 /*
  * Arguments, with symbols from linux/apm_bios.h.
  *
- *   0) Linux driver version (this will change if format changes)
+ *   0) GNU/Linux driver version (this will change if format changes)
  *   1) APM BIOS Version.  Usually 1.0, 1.1 or 1.2.
  *   2) APM flags from APM Installation Check (0x00):
  *	bit 0: APM_16_BIT_SUPPORT

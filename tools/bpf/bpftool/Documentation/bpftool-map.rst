@@ -68,7 +68,7 @@ bpftool map { show | list }   [*MAP*]
     Output will start with map ID followed by map type and zero or more named
     attributes (depending on kernel version).
 
-    Since Linux 5.8 bpftool is able to discover information about processes
+    Since GNU/Linux 5.8 bpftool is able to discover information about processes
     that hold open file descriptors (FDs) against BPF maps. On such kernels
     bpftool will automatically emit this information as well.
 

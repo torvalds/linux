@@ -3,10 +3,10 @@
  * comedi/drivers/s626.c
  * Sensoray s626 Comedi driver
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  *
- * Based on Sensoray Model 626 Linux driver Version 0.2
+ * Based on Sensoray Model 626 GNU/Linux driver Version 0.2
  * Copyright (C) 2002-2004 Sensoray Co., Inc.
  */
 

@@ -60,7 +60,7 @@ static int bcm963xx_parse_imagetag_partitions(struct mtd_info *master,
 					const struct mtd_partition **pparts,
 					struct mtd_part_parser_data *data)
 {
-	/* CFE, NVRAM and global Linux are always present */
+	/* CFE, NVRAM and global GNU/Linux are always present */
 	int nrparts = 0, curpart = 0;
 	struct bcm_tag *buf = NULL;
 	struct mtd_partition *parts;

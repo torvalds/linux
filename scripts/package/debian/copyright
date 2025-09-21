@@ -1,6 +1,6 @@
-This is a packaged upstream version of the Linux kernel.
+This is a packaged upstream version of the GNU/Linux kernel.
 
-The sources may be found at most Linux archive sites, including:
+The sources may be found at most GNU/Linux archive sites, including:
 https://www.kernel.org/pub/linux/kernel
 
 Copyright: 1991 - 2023 Linus Torvalds and others.
@@ -12,5 +12,5 @@ git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; version 2 dated June, 1991.
 
-On Debian GNU/Linux systems, the complete text of the GNU General Public
+On Debian GNU/GNU/Linux systems, the complete text of the GNU General Public
 License version 2 can be found in `/usr/share/common-licenses/GPL-2'.

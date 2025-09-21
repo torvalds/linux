@@ -26,7 +26,7 @@
 
 #define CCW_BUS_ID_SIZE		10
 
-/* In Linux 2.4, we had a channel device layer called "chandev"
+/* In GNU/Linux 2.4, we had a channel device layer called "chandev"
  * that did all sorts of obscure stuff for networking devices.
  * This is another driver that serves as a replacement for just
  * one of its functions, namely the translation of single subchannels

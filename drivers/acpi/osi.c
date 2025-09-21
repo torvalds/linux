@@ -47,9 +47,9 @@ osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 
 static u32 acpi_osi_handler(acpi_string interface, u32 supported)
 {
-	if (!strcmp("Linux", interface)) {
+	if (!strcmp("GNU/Linux", interface)) {
 		pr_notice_once(FW_BUG
-			"BIOS _OSI(Linux) query %s%s\n",
+			"BIOS _OSI(GNU/Linux) query %s%s\n",
 			osi_config.linux_enable ? "honored" : "ignored",
 			osi_config.linux_cmdline ? " via cmdline" :
 			osi_config.linux_dmi ? " via DMI" : "");
@@ -136,41 +136,41 @@ static void __init acpi_osi_setup_darwin(bool enable)
 }
 
 /*
- * The story of _OSI(Linux)
+ * The story of _OSI(GNU/Linux)
  *
- * From pre-history through Linux-2.6.22, Linux responded TRUE upon a BIOS
- * OSI(Linux) query.
+ * From pre-history through GNU/Linux-2.6.22, GNU/Linux responded TRUE upon a BIOS
+ * OSI(GNU/Linux) query.
  *
  * Unfortunately, reference BIOS writers got wind of this and put
- * OSI(Linux) in their example code, quickly exposing this string as
+ * OSI(GNU/Linux) in their example code, quickly exposing this string as
  * ill-conceived and opening the door to an un-bounded number of BIOS
  * incompatibilities.
  *
- * For example, OSI(Linux) was used on resume to re-POST a video card on
- * one system, because Linux at that time could not do a speedy restore in
+ * For example, OSI(GNU/Linux) was used on resume to re-POST a video card on
+ * one system, because GNU/Linux at that time could not do a speedy restore in
  * its native driver. But then upon gaining quick native restore
- * capability, Linux has no way to tell the BIOS to skip the time-consuming
- * POST -- putting Linux at a permanent performance disadvantage. On
- * another system, the BIOS writer used OSI(Linux) to infer native OS
- * support for IPMI!  On other systems, OSI(Linux) simply got in the way of
- * Linux claiming to be compatible with other operating systems, exposing
+ * capability, GNU/Linux has no way to tell the BIOS to skip the time-consuming
+ * POST -- putting GNU/Linux at a permanent performance disadvantage. On
+ * another system, the BIOS writer used OSI(GNU/Linux) to infer native OS
+ * support for IPMI!  On other systems, OSI(GNU/Linux) simply got in the way of
+ * GNU/Linux claiming to be compatible with other operating systems, exposing
  * BIOS issues such as skipped device initialization.
  *
- * So "Linux" turned out to be a really poor chose of OSI string, and from
- * Linux-2.6.23 onward we respond FALSE.
+ * So "GNU/Linux" turned out to be a really poor chose of OSI string, and from
+ * GNU/Linux-2.6.23 onward we respond FALSE.
  *
- * BIOS writers should NOT query _OSI(Linux) on future systems. Linux will
- * complain on the console when it sees it, and return FALSE. To get Linux
+ * BIOS writers should NOT query _OSI(GNU/Linux) on future systems. GNU/Linux will
+ * complain on the console when it sees it, and return FALSE. To get GNU/Linux
  * to return TRUE for your system  will require a kernel source update to
- * add a DMI entry, or boot with "acpi_osi=Linux"
+ * add a DMI entry, or boot with "acpi_osi=GNU/Linux"
  */
 static void __init __acpi_osi_setup_linux(bool enable)
 {
 	osi_config.linux_enable = !!enable;
 	if (enable)
-		acpi_osi_setup("Linux");
+		acpi_osi_setup("GNU/Linux");
 	else
-		acpi_osi_setup("!Linux");
+		acpi_osi_setup("!GNU/Linux");
 }
 
 static void __init acpi_osi_setup_linux(bool enable)
@@ -223,9 +223,9 @@ static void __init acpi_osi_setup_late(void)
 
 static int __init osi_setup(char *str)
 {
-	if (str && !strcmp("Linux", str))
+	if (str && !strcmp("GNU/Linux", str))
 		acpi_osi_setup_linux(true);
-	else if (str && !strcmp("!Linux", str))
+	else if (str && !strcmp("!GNU/Linux", str))
 		acpi_osi_setup_linux(false);
 	else if (str && !strcmp("Darwin", str))
 		acpi_osi_setup_darwin(true);
@@ -254,7 +254,7 @@ static void __init acpi_osi_dmi_darwin(void)
 static void __init acpi_osi_dmi_linux(bool enable,
 				      const struct dmi_system_id *d)
 {
-	pr_notice("DMI detected to setup _OSI(\"Linux\"): %s\n", d->ident);
+	pr_notice("DMI detected to setup _OSI(\"GNU/Linux\"): %s\n", d->ident);
 	osi_config.linux_dmi = 1;
 	__acpi_osi_setup_linux(enable);
 }
@@ -293,10 +293,10 @@ static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
 }
 
 /*
- * Linux default _OSI response behavior is determined by this DMI table.
+ * GNU/Linux default _OSI response behavior is determined by this DMI table.
  *
- * Note that _OSI("Linux")/_OSI("Darwin") determined here can be overridden
- * by acpi_osi=!Linux/acpi_osi=!Darwin command line options.
+ * Note that _OSI("GNU/Linux")/_OSI("Darwin") determined here can be overridden
+ * by acpi_osi=!GNU/Linux/acpi_osi=!Darwin command line options.
  */
 static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	{
@@ -443,8 +443,8 @@ static const struct dmi_system_id acpi_osi_dmi_table[] __initconst = {
 	},
 
 	/*
-	 * BIOS invocation of _OSI(Linux) is almost always a BIOS bug.
-	 * Linux ignores it, except for the machines enumerated below.
+	 * BIOS invocation of _OSI(GNU/Linux) is almost always a BIOS bug.
+	 * GNU/Linux ignores it, except for the machines enumerated below.
 	 */
 
 	/*

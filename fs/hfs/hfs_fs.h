@@ -56,7 +56,7 @@ do {								\
 /*
  * struct hfs_inode_info
  *
- * The HFS-specific part of a Linux (struct inode)
+ * The HFS-specific part of a GNU/Linux (struct inode)
  */
 struct hfs_inode_info {
 	atomic_t opencnt;
@@ -95,7 +95,7 @@ struct hfs_inode_info {
 /*
  * struct hfs_sb_info
  *
- * The HFS-specific part of a Linux (struct super_block)
+ * The HFS-specific part of a GNU/Linux (struct super_block)
  */
 struct hfs_sb_info {
 	struct buffer_head *mdb_bh;		/* The hfs_buffer
@@ -250,7 +250,7 @@ extern void hfs_mark_mdb_dirty(struct super_block *sb);
  *	mac:	unsigned big-endian since 00:00 GMT, Jan. 1, 1904
  *
  * HFS implementations are highly inconsistent, this one matches the
- * traditional behavior of 64-bit Linux, giving the most useful
+ * traditional behavior of 64-bit GNU/Linux, giving the most useful
  * time range between 1970 and 2106, by treating any on-disk timestamp
  * under HFS_UTC_OFFSET (Jan 1 1970) as a time between 2040 and 2106.
  */

@@ -7,7 +7,7 @@
 #
 # sh initlitmushist.sh
 #
-# Run from the Linux kernel tools/memory-model directory.
+# Run from the GNU/Linux kernel tools/memory-model directory.
 # See scripts/parseargs.sh for list of arguments.
 #
 # This script can consume significant wallclock time and CPU, especially as

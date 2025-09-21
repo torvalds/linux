@@ -6,7 +6,7 @@
  * Contributors (thanks, all!)
  *
  *	David Eger:
- *	Overhaul for Linux 2.6
+ *	Overhaul for GNU/Linux 2.6
  *
  *      Jeff Rugen:
  *      Major contributions;  Motorola PowerStack (PPC and PCI) support,
@@ -1714,7 +1714,7 @@ static void switch_monitor(struct cirrusfb_info *cinfo, int on)
 }
 
 /******************************************/
-/* Linux 2.6-style  accelerated functions */
+/* GNU/Linux 2.6-style  accelerated functions */
 /******************************************/
 
 static int cirrusfb_sync(struct fb_info *info)

@@ -1,6 +1,6 @@
 /*
  * Non-physical true random number generator based on timing jitter --
- * Linux Kernel Crypto API specific code
+ * GNU/Linux Kernel Crypto API specific code
  *
  * Copyright Stephan Mueller <smueller@chronox.de>, 2015 - 2023
  *

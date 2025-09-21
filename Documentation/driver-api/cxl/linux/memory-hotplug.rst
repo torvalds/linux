@@ -42,7 +42,7 @@ Hotplug Memory Block Size
 =========================
 By default, on most architectures, the Hotplug Memory Block Size is either
 128MB or 256MB.  On x86, the block size increases up to 2GB as total memory
-capacity exceeds 64GB.  As of v6.15, Linux does not take into account the
+capacity exceeds 64GB.  As of v6.15, GNU/Linux does not take into account the
 size and alignment of the ACPI CEDT CFMWS regions (see Early Boot docs) when
 deciding the Hotplug Memory Block Size.
 

@@ -49,7 +49,7 @@
  *  block on the disk. The hardware extra commands are get/set chip status,
  *  rebuild, get rebuild status.
  *
- *  In Linux the driver supports pass through mode as if the device was
+ *  In GNU/Linux the driver supports pass through mode as if the device was
  *  just another IDE controller. If the smart mode is running then
  *  volumes are managed by the controller firmware and each IDE "disk"
  *  is a raid volume. Even more cute - the controller can do automated

@@ -2,7 +2,7 @@
 /*
  * Qualcomm SM8350 interconnect IDs
  *
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2021, Linaro Limited
  */
 

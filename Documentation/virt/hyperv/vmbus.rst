@@ -12,13 +12,13 @@ and the synthetic device implementation that is part of Hyper-V, and
 signaling primitives to allow Hyper-V and the guest to interrupt
 each other.
 
-VMBus is modeled in Linux as a bus, with the expected /sys/bus/vmbus
-entry in a running Linux guest.  The VMBus driver (drivers/hv/vmbus_drv.c)
+VMBus is modeled in GNU/Linux as a bus, with the expected /sys/bus/vmbus
+entry in a running GNU/Linux guest.  The VMBus driver (drivers/hv/vmbus_drv.c)
 establishes the VMBus control path with the Hyper-V host, then
-registers itself as a Linux bus driver.  It implements the standard
+registers itself as a GNU/Linux bus driver.  It implements the standard
 bus functions for adding and removing devices to/from the bus.
 
-Most synthetic devices offered by Hyper-V have a corresponding Linux
+Most synthetic devices offered by Hyper-V have a corresponding GNU/Linux
 device driver.  These devices include:
 
 * SCSI controller
@@ -38,14 +38,14 @@ Guest VMs may have multiple instances of the synthetic SCSI
 controller, synthetic NIC, and PCI pass-thru devices.  Other
 synthetic devices are limited to a single instance per VM.  Not
 listed above are a small number of synthetic devices offered by
-Hyper-V that are used only by Windows guests and for which Linux
+Hyper-V that are used only by Windows guests and for which GNU/Linux
 does not have a driver.
 
 Hyper-V uses the terms "VSP" and "VSC" in describing synthetic
 devices.  "VSP" refers to the Hyper-V code that implements a
 particular synthetic device, while "VSC" refers to the driver for
-the device in the guest VM.  For example, the Linux driver for the
-synthetic NIC is referred to as "netvsc" and the Linux driver for
+the device in the guest VM.  For example, the GNU/Linux driver for the
+synthetic NIC is referred to as "netvsc" and the GNU/Linux driver for
 the synthetic SCSI controller is "storvsc".  These drivers contain
 functions with names like "storvsc_connect_to_vsp".
 
@@ -63,7 +63,7 @@ and writes pointers are equal, the ring buffer is considered to be
 empty, so a full ring buffer always has at least one byte unused.
 The "in" ring buffer is for messages from the Hyper-V host to the
 guest, and the "out" ring buffer is for messages from the guest to
-the Hyper-V host.  In Linux, the "in" and "out" designations are as
+the Hyper-V host.  In GNU/Linux, the "in" and "out" designations are as
 viewed by the guest side.  The ring buffers are memory that is
 shared between the guest and the host, and they follow the standard
 paradigm where the memory is allocated by the guest, with the list
@@ -76,7 +76,7 @@ making up the ring is communicated to the Hyper-V host over the
 VMBus control path as a GPA Descriptor List (GPADL).  See function
 vmbus_establish_gpadl().
 
-Each ring buffer is mapped into contiguous Linux kernel virtual
+Each ring buffer is mapped into contiguous GNU/Linux kernel virtual
 space in three parts:  1) the 4 Kbyte header page, 2) the memory
 that makes up the ring itself, and 3) a second mapping of the memory
 that makes up the ring itself.  Because (2) and (3) are contiguous
@@ -150,8 +150,8 @@ Three functions exist to send VMBus channel messages:
    associated with a list of GPAs.  The GPAs must describe a
    single logical area of guest memory to be targeted.
 
-Historically, Linux guests have trusted Hyper-V to send well-formed
-and valid messages, and Linux drivers for synthetic devices did not
+Historically, GNU/Linux guests have trusted Hyper-V to send well-formed
+and valid messages, and GNU/Linux drivers for synthetic devices did not
 fully validate messages.  With the introduction of processor
 technologies that fully encrypt guest memory and that allow the
 guest to not trust the hypervisor (AMD SEV-SNP, Intel TDX), trusting
@@ -169,29 +169,29 @@ Synthetic Interrupt Controller (synic)
 --------------------------------------
 Hyper-V provides each guest CPU with a synthetic interrupt controller
 that is used by VMBus for host-guest communication. While each synic
-defines 16 synthetic interrupts (SINT), Linux uses only one of the 16
+defines 16 synthetic interrupts (SINT), GNU/Linux uses only one of the 16
 (VMBUS_MESSAGE_SINT). All interrupts related to communication between
 the Hyper-V host and a guest CPU use that SINT.
 
 The SINT is mapped to a single per-CPU architectural interrupt (i.e,
 an 8-bit x86/x64 interrupt vector, or an arm64 PPI INTID). Because
 each CPU in the guest has a synic and may receive VMBus interrupts,
-they are best modeled in Linux as per-CPU interrupts. This model works
-well on arm64 where a single per-CPU Linux IRQ is allocated for
+they are best modeled in GNU/Linux as per-CPU interrupts. This model works
+well on arm64 where a single per-CPU GNU/Linux IRQ is allocated for
 VMBUS_MESSAGE_SINT. This IRQ appears in /proc/interrupts as an IRQ labelled
 "Hyper-V VMbus". Since x86/x64 lacks support for per-CPU IRQs, an x86
 interrupt vector is statically allocated (HYPERVISOR_CALLBACK_VECTOR)
 across all CPUs and explicitly coded to call vmbus_isr(). In this case,
-there's no Linux IRQ, and the interrupts are visible in aggregate in
+there's no GNU/Linux IRQ, and the interrupts are visible in aggregate in
 /proc/interrupts on the "HYP" line.
 
 The synic provides the means to demultiplex the architectural interrupt into
 one or more logical interrupts and route the logical interrupt to the proper
-VMBus handler in Linux. This demultiplexing is done by vmbus_isr() and
+VMBus handler in GNU/Linux. This demultiplexing is done by vmbus_isr() and
 related functions that access synic data structures.
 
-The synic is not modeled in Linux as an irq chip or irq domain,
-and the demultiplexed logical interrupts are not Linux IRQs. As such,
+The synic is not modeled in GNU/Linux as an irq chip or irq domain,
+and the demultiplexed logical interrupts are not GNU/Linux IRQs. As such,
 they don't appear in /proc/interrupts or /proc/irq. The CPU
 affinity for one of these logical interrupts is controlled via an
 entry under /sys/bus/vmbus as described below.
@@ -239,17 +239,17 @@ selection.  VMBus devices are broadly grouped into two categories:
 
 The assignment of VMBus channel interrupts to CPUs is done in the
 function init_vp_index().  This assignment is done outside of the
-normal Linux interrupt affinity mechanism, so the interrupts are
+normal GNU/Linux interrupt affinity mechanism, so the interrupts are
 neither "unmanaged" nor "managed" interrupts.
 
 The CPU that a VMBus channel will interrupt can be seen in
 /sys/bus/vmbus/devices/<deviceGUID>/ channels/<channelRelID>/cpu.
 When running on later versions of Hyper-V, the CPU can be changed
 by writing a new value to this sysfs entry. Because VMBus channel
-interrupts are not Linux IRQs, there are no entries in /proc/interrupts
+interrupts are not GNU/Linux IRQs, there are no entries in /proc/interrupts
 or /proc/irq corresponding to individual VMBus channel interrupts.
 
-An online CPU in a Linux guest may not be taken offline if it has
+An online CPU in a GNU/Linux guest may not be taken offline if it has
 VMBus channel interrupts assigned to it. Starting in kernel v6.15,
 any such interrupts are automatically reassigned to some other CPU
 at the time of offlining. The "other" CPU is chosen by the
@@ -275,7 +275,7 @@ new CPU.  See comments in target_cpu_store().
 
 VMBus device creation/deletion
 ------------------------------
-Hyper-V and the Linux guest have a separate message-passing path
+Hyper-V and the GNU/Linux guest have a separate message-passing path
 that is used for synthetic device creation and deletion. This
 path does not use a VMBus channel.  See vmbus_post_msg() and
 vmbus_on_msg_dpc().
@@ -283,7 +283,7 @@ vmbus_on_msg_dpc().
 The first step is for the guest to connect to the generic
 Hyper-V VMBus mechanism.  As part of establishing this connection,
 the guest and Hyper-V agree on a VMBus protocol version they will
-use.  This negotiation allows newer Linux kernels to run on older
+use.  This negotiation allows newer GNU/Linux kernels to run on older
 Hyper-V versions, and vice versa.
 
 The guest then tells Hyper-V to "send offers".  Hyper-V sends an
@@ -295,8 +295,8 @@ both GUIDs to uniquely (within the VM) identify the device.
 There is one offer message for each device instance, so a VM with
 two synthetic NICs will get two offers messages with the NIC
 class ID. The ordering of offer messages can vary from boot-to-boot
-and must not be assumed to be consistent in Linux code. Offer
-messages may also arrive long after Linux has initially booted
+and must not be assumed to be consistent in GNU/Linux code. Offer
+messages may also arrive long after GNU/Linux has initially booted
 because Hyper-V supports adding devices, such as synthetic NICs,
 to running VMs. A new offer message is processed by
 vmbus_process_offer(), which indirectly invokes vmbus_add_channel_work().
@@ -304,7 +304,7 @@ vmbus_process_offer(), which indirectly invokes vmbus_add_channel_work().
 Upon receipt of an offer message, the guest identifies the device
 type based on the class ID, and invokes the correct driver to set up
 the device.  Driver/device matching is performed using the standard
-Linux mechanism.
+GNU/Linux mechanism.
 
 The device driver probe function opens the primary VMBus channel to
 the corresponding VSP. It allocates guest memory for the channel
@@ -314,7 +314,7 @@ vmbus_establish_gpadl().
 
 Once the ring buffer is set up, the device driver and VSP exchange
 setup messages via the primary channel.  These messages may include
-negotiating the device protocol version to be used between the Linux
+negotiating the device protocol version to be used between the GNU/Linux
 VSC and the VSP on the Hyper-V host.  The setup messages may also
 include creating additional VMBus channels, which are somewhat
 mis-named as "sub-channels" since they are functionally
@@ -324,11 +324,11 @@ Finally, the device driver may create entries in /dev as with
 any device driver.
 
 The Hyper-V host can send a "rescind" message to the guest to
-remove a device that was previously offered. Linux drivers must
+remove a device that was previously offered. GNU/Linux drivers must
 handle such a rescind message at any time. Rescinding a device
 invokes the device driver "remove" function to cleanly shut
 down the device and remove it. Once a synthetic device is
-rescinded, neither Hyper-V nor Linux retains any state about
+rescinded, neither Hyper-V nor GNU/Linux retains any state about
 its previous existence. Such a device might be re-added later,
 in which case it is treated as an entirely new device. See
 vmbus_onoffer_rescind().
@@ -336,11 +336,11 @@ vmbus_onoffer_rescind().
 For some devices, such as the KVP device, Hyper-V automatically
 sends a rescind message when the primary channel is closed,
 likely as a result of unbinding the device from its driver.
-The rescind causes Linux to remove the device. But then Hyper-V
+The rescind causes GNU/Linux to remove the device. But then Hyper-V
 immediately reoffers the device to the guest, causing a new
-instance of the device to be created in Linux. For other
+instance of the device to be created in GNU/Linux. For other
 devices, such as the synthetic SCSI and NIC devices, closing the
 primary channel does *not* result in Hyper-V sending a rescind
-message. The device continues to exist in Linux on the VMBus,
+message. The device continues to exist in GNU/Linux on the VMBus,
 but with no driver bound to it. The same driver or a new driver
 can subsequently be bound to the existing instance of the device.

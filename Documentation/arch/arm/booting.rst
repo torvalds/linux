@@ -1,5 +1,5 @@
 =================
-Booting ARM Linux
+Booting ARM GNU/Linux
 =================
 
 Author:	Russell King
@@ -8,9 +8,9 @@ Date  : 18 May 2002
 
 The following documentation is relevant to 2.4.18-rmk6 and beyond.
 
-In order to boot ARM Linux, you require a boot loader, which is a small
+In order to boot ARM GNU/Linux, you require a boot loader, which is a small
 program that runs before the main kernel.  The boot loader is expected
-to initialise various devices, and eventually call the Linux kernel,
+to initialise various devices, and eventually call the GNU/Linux kernel,
 passing information to the kernel.
 
 Essentially, the boot loader should provide (as a minimum) the

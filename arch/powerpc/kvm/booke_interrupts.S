@@ -224,13 +224,13 @@ _GLOBAL(kvmppc_resume_host)
 	mtspr	SPRN_PID, r3
 
 #ifdef CONFIG_PPC_85xx
-	/* we cheat and know that Linux doesn't use PID1 which is always 0 */
+	/* we cheat and know that GNU/Linux doesn't use PID1 which is always 0 */
 	lis	r3, 0
 	mtspr	SPRN_PID1, r3
 #endif
 
 	/* Restore host IVPR before re-enabling interrupts. We cheat and know
-	 * that Linux IVPR is always 0xc0000000. */
+	 * that GNU/Linux IVPR is always 0xc0000000. */
 	lis	r3, 0xc000
 	mtspr	SPRN_IVPR, r3
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Parallel port to Keyboard port adapter driver for Linux
+ *  Parallel port to Keyboard port adapter driver for GNU/Linux
  *
  *  Copyright (c) 1999-2004 Vojtech Pavlik
  */

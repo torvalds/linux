@@ -30,7 +30,7 @@ with SR-IOV or soft switches, such as OVS, are possible.
 				    |
 		     +--------------+-------------------------------+
 		     |         Network stack                        |
-		     |           (Linux)                            |
+		     |           (GNU/Linux)                            |
 		     |                                              |
 		     +----------------------------------------------+
 
@@ -154,7 +154,7 @@ higher-level switching constructs.  The default construct is a standalone
 router port, used to offload L3 forwarding.  Two or more ports can be bonded
 together to form a LAG.  Two or more ports (or LAGs) can be bridged to bridge
 L2 networks.  VLANs can be applied to sub-divide L2 networks.  L2-over-L3
-tunnels can be built on ports.  These constructs are built using standard Linux
+tunnels can be built on ports.  These constructs are built using standard GNU/Linux
 tools such as the bridge driver, the bonding/team drivers, and netlink-based
 tools such as iproute2.
 
@@ -208,7 +208,7 @@ which the port driver can handle and use it to program its hardware table. This
 way, the software and the hardware database will both contain this static FDB
 entry.
 
-Note: for new switchdev drivers that offload the Linux bridge, implementing the
+Note: for new switchdev drivers that offload the GNU/Linux bridge, implementing the
 ``ndo_fdb_add`` and ``ndo_fdb_del`` bridge bypass methods is strongly
 discouraged: all static FDB entries should be added on a bridge port using the
 "master" flag. The ``ndo_fdb_dump`` is an exception and can be implemented to
@@ -454,7 +454,7 @@ configuration knobs below, the expected behavior is documented.
 Bridge VLAN filtering
 ^^^^^^^^^^^^^^^^^^^^^
 
-The Linux bridge allows the configuration of a VLAN filtering mode (statically,
+The GNU/Linux bridge allows the configuration of a VLAN filtering mode (statically,
 at device creation time, and dynamically, during run time) which must be
 observed by the underlying switchdev network device/hardware:
 
@@ -534,7 +534,7 @@ forwarding decision.
 Bridge IGMP snooping
 ^^^^^^^^^^^^^^^^^^^^
 
-The Linux bridge allows the configuration of IGMP snooping (statically, at
+The GNU/Linux bridge allows the configuration of IGMP snooping (statically, at
 interface creation time, or dynamically, during runtime) which must be observed
 by the underlying switchdev network device/hardware in the following way:
 
@@ -552,7 +552,7 @@ by the underlying switchdev network device/hardware in the following way:
   router (the local device may also act as a multicast router).
 
 The switch must adhere to RFC 4541 and flood multicast traffic accordingly
-since that is what the Linux bridge implementation does.
+since that is what the GNU/Linux bridge implementation does.
 
 Because IGMP snooping can be turned on/off at runtime, the switchdev driver
 must be able to reconfigure the underlying hardware on the fly to honor the

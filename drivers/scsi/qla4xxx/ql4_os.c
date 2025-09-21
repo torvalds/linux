@@ -4097,10 +4097,10 @@ void qla4xxx_srb_compl(struct kref *ref)
 /**
  * qla4xxx_queuecommand - scsi layer issues scsi command to driver.
  * @host: scsi host
- * @cmd: Pointer to Linux's SCSI command structure
+ * @cmd: Pointer to GNU/Linux's SCSI command structure
  *
  * Remarks:
- * This routine is invoked by Linux to send a SCSI command to the driver.
+ * This routine is invoked by GNU/Linux to send a SCSI command to the driver.
  * The mid-level driver tries to ensure that queuecommand never gets
  * invoked concurrently with itself or the interrupt handler (although
  * the interrupt handler may call this routine as part of request-
@@ -9204,9 +9204,9 @@ static int qla4xxx_eh_wait_for_commands(struct scsi_qla_host *ha,
 
 /**
  * qla4xxx_eh_abort - callback for abort task.
- * @cmd: Pointer to Linux's SCSI command structure
+ * @cmd: Pointer to GNU/Linux's SCSI command structure
  *
- * This routine is called by the Linux OS to abort the specified
+ * This routine is called by the GNU/Linux OS to abort the specified
  * command.
  **/
 static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
@@ -9270,9 +9270,9 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
 
 /**
  * qla4xxx_eh_device_reset - callback for target reset.
- * @cmd: Pointer to Linux's SCSI command structure
+ * @cmd: Pointer to GNU/Linux's SCSI command structure
  *
- * This routine is called by the Linux OS to reset all luns on the
+ * This routine is called by the GNU/Linux OS to reset all luns on the
  * specified target.
  **/
 static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
@@ -9340,9 +9340,9 @@ eh_dev_reset_done:
 
 /**
  * qla4xxx_eh_target_reset - callback for target reset.
- * @cmd: Pointer to Linux's SCSI command structure
+ * @cmd: Pointer to GNU/Linux's SCSI command structure
  *
- * This routine is called by the Linux OS to reset the target.
+ * This routine is called by the GNU/Linux OS to reset the target.
  **/
 static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd)
 {
@@ -9418,9 +9418,9 @@ static int qla4xxx_is_eh_active(struct Scsi_Host *shost)
 
 /**
  * qla4xxx_eh_host_reset - kernel callback
- * @cmd: Pointer to Linux's SCSI command structure
+ * @cmd: Pointer to GNU/Linux's SCSI command structure
  *
- * This routine is invoked by the Linux kernel to perform fatal error
+ * This routine is invoked by the GNU/Linux kernel to perform fatal error
  * recovery on the specified adapter.
  **/
 static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)

@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ===========================================================
-Linux Base Virtual Function Driver for Intel(R) 1G Ethernet
+GNU/Linux Base Virtual Function Driver for Intel(R) 1G Ethernet
 ===========================================================
 
-Intel Gigabit Virtual Function Linux driver.
+Intel Gigabit Virtual Function GNU/Linux driver.
 Copyright(c) 1999-2018 Intel Corporation.
 
 Contents
@@ -22,7 +22,7 @@ The guest OS loading this driver must support MSI-X interrupts.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel adapter. All hardware requirements listed apply to use
-with Linux.
+with GNU/Linux.
 
 Driver information can be obtained using ethtool, lspci, and ifconfig.
 Instructions on updating ethtool can be found in the section Additional

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * fscrypt user API
  *
@@ -114,7 +114,7 @@ struct fscrypt_key_specifier {
 };
 
 /*
- * Payload of Linux keyring key of type "fscrypt-provisioning", referenced by
+ * Payload of GNU/Linux keyring key of type "fscrypt-provisioning", referenced by
  * fscrypt_add_key_arg::key_id as an alternative to fscrypt_add_key_arg::raw.
  */
 struct fscrypt_provisioning_key_payload {

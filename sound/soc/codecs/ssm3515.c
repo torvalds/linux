@@ -2,7 +2,7 @@
 //
 // Analog Devices' SSM3515 audio amp driver
 //
-// Copyright (C) The Asahi Linux Contributors
+// Copyright (C) The Asahi GNU/Linux Contributors
 
 #include <linux/bits.h>
 #include <linux/bitfield.h>

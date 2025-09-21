@@ -120,7 +120,7 @@ config CUSTOM_CACHE_SETTINGS
 	help
 	  This option allows you to tweak the cache settings used during early
 	  boot (where the information from device tree is not yet available).
-	  There should be no reason to change these values. Linux will work
+	  There should be no reason to change these values. GNU/Linux will work
 	  perfectly fine, even if the Nios II is configured with smaller caches.
 
 	  Say N here unless you know what you are doing.

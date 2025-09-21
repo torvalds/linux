@@ -48,9 +48,9 @@
 		};
 
 		partition@80000 {
-			/* 7 MB for Linux Kernel Image */
+			/* 7 MB for GNU/Linux Kernel Image */
 			reg = <0x00080000 0x00700000>;
-			label = "NOR Linux Kernel Image";
+			label = "NOR GNU/Linux Kernel Image";
 		};
 
 		partition@800000 {
@@ -129,9 +129,9 @@
 			};
 
 			partition@180000 {
-				/* 4MB for Linux Kernel Image */
+				/* 4MB for GNU/Linux Kernel Image */
 				reg = <0x00180000 0x00400000>;
-				label = "SPI Flash Linux Kernel Image";
+				label = "SPI Flash GNU/Linux Kernel Image";
 			};
 
 			partition@580000 {

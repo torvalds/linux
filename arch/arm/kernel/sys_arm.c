@@ -6,7 +6,7 @@
  *  Copyright (C) 1995, 1996 Russell King.
  *
  *  This file contains various random system calls that
- *  have a non-standard calling sequence on the Linux/arm
+ *  have a non-standard calling sequence on the GNU/Linux/arm
  *  platform.
  */
 #include <linux/export.h>

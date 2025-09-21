@@ -1,5 +1,5 @@
 /*
- *  Linux MegaRAID driver for SAS based RAID controllers
+ *  GNU/Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2003-2018  LSI Corporation.
  *  Copyright (c) 2003-2018  Avago Technologies.

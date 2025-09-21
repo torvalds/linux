@@ -20,7 +20,7 @@
  * a hash for speeding up directory search (lookup).
  *
  * The hash may be empty and in fact we do not use it all in the
- * Linux driver for now.
+ * GNU/Linux driver for now.
  */
 struct vxfs_dirblk {
 	__fs16		d_free;		/* free space in dirblock */

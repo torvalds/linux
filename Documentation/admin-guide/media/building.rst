@@ -18,15 +18,15 @@ you should use the main media development tree ``master`` branch:
     https://git.linuxtv.org/media.git/
 
 In this case, you may find some useful information at the
-`LinuxTv wiki pages <https://linuxtv.org/wiki>`_:
+`GNU/LinuxTv wiki pages <https://linuxtv.org/wiki>`_:
 
     https://linuxtv.org/wiki/index.php/How_to_Obtain,_Build_and_Install_V4L-DVB_Device_Drivers
 
-.. [1] The upstream Linux Kernel development tree is located at
+.. [1] The upstream GNU/Linux Kernel development tree is located at
 
        https://git.kernel.org/pub/scm/li  nux/kernel/git/torvalds/linux.git/
 
-Configuring the Linux Kernel
+Configuring the GNU/Linux Kernel
 ============================
 
 You can access a menu of Kernel building options with::
@@ -58,7 +58,7 @@ The ``Remote Controller support`` option enables the core support for
 remote controllers\ [2]_.
 
 The ``HDMI CEC RC integration`` option enables integration of HDMI CEC
-with Linux, allowing to receive data via HDMI CEC as if it were produced
+with GNU/Linux, allowing to receive data via HDMI CEC as if it were produced
 by a remote controller directly connected to the machine.
 
 The ``HDMI CEC drivers`` option allow selecting platform and USB drivers
@@ -97,7 +97,7 @@ Media dependencies
 ------------------
 
 It should be noticed that enabling the above from a clean config is
-usually not enough. The media subsystem depends on several other Linux
+usually not enough. The media subsystem depends on several other GNU/Linux
 core support in order to work.
 
 For example, most media devices use a serial communication bus in
@@ -138,10 +138,10 @@ from remote controllers.
 
 The ``Support for eBPF programs attached to lirc devices`` option allows
 the usage of special programs (called eBPF) that would allow applications
-to add extra remote controller decoding functionality to the Linux Kernel.
+to add extra remote controller decoding functionality to the GNU/Linux Kernel.
 
 The ``Remote controller decoders`` option allows selecting the
-protocols that will be recognized by the Linux Kernel. Except if you
+protocols that will be recognized by the GNU/Linux Kernel. Except if you
 want to disable some specific decoder, it is suggested to keep all
 sub-options enabled.
 
@@ -200,7 +200,7 @@ Once selected, you should see the following options::
 	[*] Autoselect ancillary drivers
 	    Media device types --->
 	    Media core support --->
-	    Video4Linux options --->
+	    Video4GNU/Linux options --->
 	    Media controller options --->
 	    Digital TV options --->
 	    HDMI CEC options --->
@@ -251,7 +251,7 @@ functionality using the settings under each of the following
 ``Media support`` sub-menus::
 
 	    Media core support --->
-	    Video4Linux options --->
+	    Video4GNU/Linux options --->
 	    Media controller options --->
 	    Digital TV options --->
 	    HDMI CEC options --->
@@ -310,11 +310,11 @@ Running a new development Kernel from the development tree is usually risky,
 because it may have experimental changes that may have bugs. So, there are
 some ways to build just the new drivers, using alternative trees.
 
-There is the `Linux Kernel backports project
+There is the `GNU/Linux Kernel backports project
 <https://backports.wiki.kernel.org/index.php/Main_Page>`_, with contains
 newer drivers meant to be compiled against stable Kernels.
 
-The LinuxTV developers, with are responsible for maintaining the media
+The GNU/LinuxTV developers, with are responsible for maintaining the media
 subsystem also maintains a backport tree, with just the media drivers
 daily updated from the newest kernel. Such tree is available at:
 
@@ -326,7 +326,7 @@ it would work (or even build) on a random Kernel. This tree is maintained
 using a "best-efforts" principle, as time permits us to fix issues there.
 
 If you notice anything wrong on it, feel free to submit patches at the
-Linux media subsystem's mailing list: media@vger.kernel.org. Please
+GNU/Linux media subsystem's mailing list: media@vger.kernel.org. Please
 add ``[PATCH media-build]`` at the e-mail's subject if you submit a new
 patch for the media-build.
 

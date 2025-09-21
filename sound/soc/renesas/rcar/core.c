@@ -449,7 +449,7 @@ u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
 	 * This is needed for 24bit data
 	 * We need to shift 8bit
 	 *
-	 * Linux 24bit data is located as 0x00******
+	 * GNU/Linux 24bit data is located as 0x00******
 	 * HW    24bit data is located as 0x******00
 	 *
 	 */

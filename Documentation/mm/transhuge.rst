@@ -65,7 +65,7 @@ hugepage aware.
 
 If you're not walking pagetables but you run into a physical hugepage
 that you can't handle natively in your code, you can split it by
-calling split_huge_page(page). This is what the Linux VM does before
+calling split_huge_page(page). This is what the GNU/Linux VM does before
 it tries to swapout the hugepage for example. split_huge_page() can fail
 if the page is pinned and you must handle this correctly.
 

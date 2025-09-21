@@ -4,11 +4,11 @@
  */
 
 /*
- * LK keyboard driver for Linux, based on sunkbd.c (C) by Vojtech Pavlik
+ * LK keyboard driver for GNU/Linux, based on sunkbd.c (C) by Vojtech Pavlik
  */
 
 /*
- * DEC LK201 and LK401 keyboard driver for Linux (primary for DECstations
+ * DEC LK201 and LK401 keyboard driver for GNU/Linux (primary for DECstations
  * and VAXstations, but can also be used on any standard RS232 with an
  * adaptor).
  *

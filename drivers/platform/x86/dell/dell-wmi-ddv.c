@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux driver for WMI sensor information on Dell notebooks.
+ * GNU/Linux driver for WMI sensor information on Dell notebooks.
  *
  * Copyright (C) 2022 Armin Wolf <W_Armin@gmx.de>
  */

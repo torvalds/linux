@@ -4,7 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * Bugreports.to..: <GNU/Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2009
  */
 
@@ -48,7 +48,7 @@ EXPORT_SYMBOL(dasd_diag_discipline_pointer);
 void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 
 MODULE_AUTHOR("Holger Smolinski <Holger.Smolinski@de.ibm.com>");
-MODULE_DESCRIPTION("Linux on S/390 DASD device driver,"
+MODULE_DESCRIPTION("GNU/Linux on S/390 DASD device driver,"
 		   " Copyright IBM Corp. 2000");
 MODULE_LICENSE("GPL");
 

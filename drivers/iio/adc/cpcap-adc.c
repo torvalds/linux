@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2017 Tony Lindgren <tony@atomide.com>
  *
- * Rewritten for Linux IIO framework with some code based on
- * earlier driver found in the Motorola Linux kernel:
+ * Rewritten for GNU/Linux IIO framework with some code based on
+ * earlier driver found in the Motorola GNU/Linux kernel:
  *
  * Copyright (C) 2009-2010 Motorola, Inc.
  */
@@ -349,7 +349,7 @@ static const int temp_map[CPCAP_MAX_TEMP_LVL][2] = {
 }
 
 /*
- * The datasheet names are from Motorola mapphone Linux kernel except
+ * The datasheet names are from Motorola mapphone GNU/Linux kernel except
  * for the last two which might be uncalibrated charge voltage and
  * current.
  */

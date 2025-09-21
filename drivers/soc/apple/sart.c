@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Apple SART device driver
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  *
  * Apple SART is a simple address filter for some DMA transactions.
  * Regions of physical memory must be added to the SART's allow

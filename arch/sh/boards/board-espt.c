@@ -23,7 +23,7 @@ static struct mtd_partition espt_nor_flash_partitions[] = {
 		.size = (2 * SZ_128K),
 		.mask_flags = MTD_WRITEABLE,	/* Read-only */
 	}, {
-		.name = "Linux-Kernel",
+		.name = "GNU/Linux-Kernel",
 		.offset = MTDPART_OFS_APPEND,
 		.size = (20 * SZ_128K),
 	}, {

@@ -8,7 +8,7 @@
   History:
    - 02/15/2004 first release
    
-  This Driver is based on the OSS Driver version from Linuxant (riptide-0.6lnxtbeta03111100)
+  This Driver is based on the OSS Driver version from GNU/Linuxant (riptide-0.6lnxtbeta03111100)
   credits from the original files:
   
   MODULE NAME:        cnxt_rt.h                       
@@ -35,7 +35,7 @@
   HISTORY:         Major Revision               Date        By
             -----------------------------     --------     -----
             Adopted from NT4 driver            6/22/99      OLD
-            Ported to Linux                    9/01/99      KNL
+            Ported to GNU/Linux                    9/01/99      KNL
 
   MODULE NAME:        rt_hw.c                       
   AUTHOR:             O. Druzhinin  (Transcribed by OLD)
@@ -51,7 +51,7 @@
             (A1) are coded
             Boot loader is included           05/07/98      CNL
             Redesigned for WDM                07/27/98      CNL
-            Redesigned for Linux              09/01/99      CNL
+            Redesigned for GNU/Linux              09/01/99      CNL
 
   MODULE NAME:        rt_hw.h
   AUTHOR:             C. Lazarev    (Transcribed by CNL)

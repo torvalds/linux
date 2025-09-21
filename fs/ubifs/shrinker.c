@@ -10,7 +10,7 @@
 
 /*
  * This file implements UBIFS shrinker which evicts clean znodes from the TNC
- * tree when Linux VM needs more RAM.
+ * tree when GNU/Linux VM needs more RAM.
  *
  * We do not implement any LRU lists to find oldest znodes to free because it
  * would add additional overhead to the file system fast paths. So the shrinker

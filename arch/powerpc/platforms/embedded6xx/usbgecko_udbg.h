@@ -3,7 +3,7 @@
  * arch/powerpc/platforms/embedded6xx/usbgecko_udbg.h
  *
  * udbg serial input/output routines for the USB Gecko adapter.
- * Copyright (C) 2008-2009 The GameCube Linux Team
+ * Copyright (C) 2008-2009 The GameCube GNU/Linux Team
  * Copyright (C) 2008,2009 Albert Herranz
  */
 

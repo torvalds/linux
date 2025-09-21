@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Terratec ActiveRadio ISA Standalone card driver for Linux radio support
+/* Terratec ActiveRadio ISA Standalone card driver for GNU/Linux radio support
  * (c) 1999 R. Offermanns (rolf@offermanns.de)
  * based on the aimslab radio driver from M. Kirkwood
  * many thanks to Michael Becker and Friedhelm Birth (from TerraTec)

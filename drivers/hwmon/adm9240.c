@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * adm9240.c	Part of lm_sensors, Linux kernel modules for hardware
+ * adm9240.c	Part of lm_sensors, GNU/Linux kernel modules for hardware
  *		monitoring
  *
  * Copyright (C) 1999	Frodo Looijaard <frodol@dds.nl>

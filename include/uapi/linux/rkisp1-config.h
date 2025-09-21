@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH GNU/Linux-syscall-note) OR MIT) */
 /*
  * Rockchip ISP1 userspace API
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.

@@ -28,7 +28,7 @@ fairly easy to swap files and replace their contents.
 Other full disk encryption systems like dm-crypt cover all filesystem metadata,
 which makes such kinds of attacks more complicated, but not impossible.
 Especially, if the attacker is given access to the device multiple points in
-time. For dm-crypt and other filesystems that build upon the Linux block IO
+time. For dm-crypt and other filesystems that build upon the GNU/Linux block IO
 layer, the dm-integrity or dm-verity subsystems [DM-INTEGRITY, DM-VERITY]
 can be used to get full data authentication at the block layer.
 These can also be combined with dm-crypt [CRYPTSETUP2].
@@ -43,7 +43,7 @@ be possible to use UBIFS authentication without using encryption.
 MTD, UBI & UBIFS
 ----------------
 
-On Linux, the MTD (Memory Technology Devices) subsystem provides a uniform
+On GNU/Linux, the MTD (Memory Technology Devices) subsystem provides a uniform
 interface to access raw flash devices. One of the more prominent subsystems that
 work on top of MTD is UBI (Unsorted Block Images). It provides volume management
 for flash devices and is thus somewhat similar to LVM for block devices. In
@@ -70,7 +70,7 @@ scalability, performance and recoverability.
 	|         NAND DRIVERS        | |        NOR DRIVERS       | | ... |
 	+-----------------------------+ +--------------------------+ +-----+
 
-            Figure 1: Linux kernel subsystems for dealing with raw flash
+            Figure 1: GNU/Linux kernel subsystems for dealing with raw flash
 
 
 

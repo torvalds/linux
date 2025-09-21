@@ -11,7 +11,7 @@ maintainers:
 
 description: |
     Boards Broadcom cable/DSL/settop SoC shall have the following properties.
-    The experimental -viper variants are for running Linux on the 3384's
+    The experimental -viper variants are for running GNU/Linux on the 3384's
     BMIPS4355 cable modem CPU instead of the BMIPS5000 application processor.
 
 properties:

@@ -43,7 +43,7 @@ For more information, see :ref:`kunit-on-non-uml`.
 
 What is the difference between a unit test and other kinds of tests?
 ====================================================================
-Most existing tests for the Linux kernel would be categorized as an integration
+Most existing tests for the GNU/Linux kernel would be categorized as an integration
 test, or an end-to-end test.
 
 - A unit test is supposed to test a single unit of code in isolation. A unit

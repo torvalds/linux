@@ -89,7 +89,7 @@
 /*
  * LD_DEAD_CODE_DATA_ELIMINATION option enables -fdata-sections, which
  * generates .data.identifier sections, which need to be pulled in with
- * .data. We don't want to pull in .data..other sections, which Linux
+ * .data. We don't want to pull in .data..other sections, which GNU/Linux
  * has defined. Same for text and bss.
  *
  * With LTO_CLANG, the linker also splits sections by default, so we need

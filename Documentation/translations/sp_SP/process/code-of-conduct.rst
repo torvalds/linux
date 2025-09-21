@@ -94,4 +94,4 @@ Interpretación
 ==============
 
 Consulte el documento :ref:`code_of_conduct_interpretation` para ver cómo
-interpretará la comunidad del kernel Linux este documento.
+interpretará la comunidad del kernel GNU/Linux este documento.

@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2001-5, B2C2 inc.
  *
- *  GPL/Linux driver written by Patrick Boettcher <patrick.boettcher@posteo.de>
+ *  GPL/GNU/Linux driver written by Patrick Boettcher <patrick.boettcher@posteo.de>
  */
 #ifndef __BCM3510_PRIV_H__
 #define __BCM3510_PRIV_H__

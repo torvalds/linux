@@ -4,7 +4,7 @@ config EXT2_FS
 	select BUFFER_HEAD
 	select FS_IOMAP
 	help
-	  Ext2 is a standard Linux file system for hard disks.
+	  Ext2 is a standard GNU/Linux file system for hard disks.
 
 	  This filesystem driver is deprecated because it does not properly
 	  support inode time stamps beyond 03:14:07 UTC on 19 January 2038.
@@ -42,7 +42,7 @@ config EXT2_FS_SECURITY
 	depends on EXT2_FS_XATTR
 	help
 	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
+	  implemented by security modules like SEGNU/Linux.  This option
 	  enables an extended attribute handler for file security
 	  labels in the ext2 filesystem.
 

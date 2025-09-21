@@ -21,7 +21,7 @@ VXLAN 将标识符的大小扩展到 24 位（16777216）。
 
 VXLAN 在 IETF RFC 7348 中进行了描述，并已由多家供应商设计实现。
 该协议通过 UDP 协议运行，并使用特定目的端口。
-本文档介绍了 Linux 内核隧道设备，Openvswitch 也有单独的 VXLAN 实现。
+本文档介绍了 GNU/Linux 内核隧道设备，Openvswitch 也有单独的 VXLAN 实现。
 
 与大多数隧道不同，VXLAN 是 1 对 N 的网络，而不仅仅是点对点网络。
 VXLAN 设备可以通过类似于学习桥接器的方式动态学习另一端点的 IP 地址，也可以利用静态配置的转发条目。
@@ -34,8 +34,8 @@ VXLAN 的管理方式与它的两个近邻 GRE 和 VLAN 相似。
 	# ip link add vxlan0 type vxlan id 42 group 239.1.1.1 dev eth1 dstport 4789
 
 这将创建一个名为 vxlan0 的网络设备，该设备通过 eth1 使用组播组 239.1.1.1 处理转发表中没有对应条目的流量。
-目标端口号设置为 IANA 分配的值 4789，VXLAN 的 Linux 实现早于 IANA 选择标准目的端口号的时间。
-因此默认使用 Linux 选择的值，以保持向后兼容性。
+目标端口号设置为 IANA 分配的值 4789，VXLAN 的 GNU/Linux 实现早于 IANA 选择标准目的端口号的时间。
+因此默认使用 GNU/Linux 选择的值，以保持向后兼容性。
 
 2. 删除 vxlan 设备::
 

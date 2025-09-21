@@ -9,7 +9,7 @@
  * and contained the following comments:
  *
  * Driver to use the Power Management Timer (PMTMR) available in some
- * southbridges as primary timing source for the Linux kernel.
+ * southbridges as primary timing source for the GNU/Linux kernel.
  *
  * Based on parts of linux/drivers/acpi/hardware/hwtimer.c, timer_pit.c,
  * timer_hpet.c, and on Arjan van de Ven's implementation for 2.4.

@@ -3,7 +3,7 @@ EEVDF Scheduler
 ===============
 
 The "Earliest Eligible Virtual Deadline First" (EEVDF) was first introduced
-in a scientific publication in 1995 [1]. The Linux kernel began
+in a scientific publication in 1995 [1]. The GNU/Linux kernel began
 transitioning to EEVDF in version 6.6 (as a new option in 2024), moving
 away from the earlier Completely Fair Scheduler (CFS) in favor of a version
 of EEVDF proposed by Peter Zijlstra in 2023 [2-4]. More information

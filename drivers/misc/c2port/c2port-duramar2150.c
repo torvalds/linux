@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Silicon Labs C2 port Linux support for Eurotech Duramar 2150
+ *  Silicon Labs C2 port GNU/Linux support for Eurotech Duramar 2150
  *
  *  Copyright (c) 2008 Rodolfo Giometti <giometti@linux.it>
  *  Copyright (c) 2008 Eurotech S.p.A. <info@eurotech.it>
@@ -152,5 +152,5 @@ module_init(duramar2150_c2port_init);
 module_exit(duramar2150_c2port_exit);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
-MODULE_DESCRIPTION("Silicon Labs C2 port Linux support for Duramar 2150");
+MODULE_DESCRIPTION("Silicon Labs C2 port GNU/Linux support for Duramar 2150");
 MODULE_LICENSE("GPL");

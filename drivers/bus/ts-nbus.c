@@ -2,7 +2,7 @@
 /*
  * NBUS driver for TS-4600 based boards
  *
- * Copyright (c) 2016 - Savoir-faire Linux
+ * Copyright (c) 2016 - Savoir-faire GNU/Linux
  * Author: Sebastien Bourdelin <sebastien.bourdelin@savoirfairelinux.com>
  *
  * This driver implements a GPIOs bit-banged bus, called the NBUS by Technologic

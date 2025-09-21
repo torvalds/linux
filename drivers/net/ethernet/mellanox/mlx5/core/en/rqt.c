@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB
 /* Copyright (c) 2021, Mellanox Technologies inc. All rights reserved. */
 
 #include "rqt.h"

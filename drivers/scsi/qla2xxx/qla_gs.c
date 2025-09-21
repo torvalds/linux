@@ -1744,7 +1744,7 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 		alen = scnprintf(
 			eiter->a.os_version, sizeof(eiter->a.os_version),
 			"%s %s",
-			"Linux", fc_host_system_hostname(vha->host));
+			"GNU/Linux", fc_host_system_hostname(vha->host));
 	}
 	alen += FDMI_ATTR_ALIGNMENT(alen);
 	alen += FDMI_ATTR_TYPELEN(eiter);
@@ -1924,7 +1924,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_PORT_HOST_NAME);
 	if (!*hostname || !strncmp(hostname, "(none)", 6))
-		hostname = "Linux-default";
+		hostname = "GNU/Linux-default";
 	alen = scnprintf(
 		eiter->a.host_name, sizeof(eiter->a.host_name),
 		"%s", hostname);

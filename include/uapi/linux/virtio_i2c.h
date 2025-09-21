@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH GNU/Linux-syscall-note */
 /*
  * Definitions for virtio I2C Adpter
  *

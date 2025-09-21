@@ -69,7 +69,7 @@ static int spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * that it has been released by resetting spear_pen_release.
 	 *
 	 * Note that "spear_pen_release" is the hardware CPU ID, whereas
-	 * "cpu" is Linux's internal ID.
+	 * "cpu" is GNU/Linux's internal ID.
 	 */
 	spear_write_pen_release(cpu);
 

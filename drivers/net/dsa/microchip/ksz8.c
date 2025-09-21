@@ -1764,7 +1764,7 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 		}
 
 		/* Turn off PTP function as the switch's proprietary way of
-		 * handling timestamp is not supported in current Linux PTP
+		 * handling timestamp is not supported in current GNU/Linux PTP
 		 * stack implementation.
 		 */
 		regmap_update_bits(ksz_regmap_16(dev),
@@ -1804,7 +1804,7 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
  * However, there is a potential limitation in this configuration. It is
  * currently not possible to force disable flow control on a port if we still
  * advertise pause support. While such a configuration is not currently
- * supported by Linux, and may not make practical sense, it's important to be
+ * supported by GNU/Linux, and may not make practical sense, it's important to be
  * aware of this limitation when working with the KSZ8873 and similar devices.
  */
 static void ksz8_phy_port_link_up(struct ksz_device *dev, int port, int duplex,

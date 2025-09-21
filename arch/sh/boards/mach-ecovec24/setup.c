@@ -51,8 +51,8 @@
  *  Address      Interface        BusWidth
  *-----------------------------------------
  *  0x0000_0000  uboot            16bit
- *  0x0004_0000  Linux romImage   16bit
- *  0x0014_0000  MTD for Linux    16bit
+ *  0x0004_0000  GNU/Linux romImage   16bit
+ *  0x0014_0000  MTD for GNU/Linux    16bit
  *  0x0400_0000  Internal I/O     16/32bit
  *  0x0800_0000  DRAM             32bit
  *  0x1800_0000  MFI              16bit

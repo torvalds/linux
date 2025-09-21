@@ -481,7 +481,7 @@ static int __init pps_init(void)
 		goto remove_class;
 	}
 
-	pr_info("LinuxPPS API ver. %d registered\n", PPS_API_VERS);
+	pr_info("GNU/LinuxPPS API ver. %d registered\n", PPS_API_VERS);
 	pr_info("Software ver. %s - Copyright 2005-2007 Rodolfo Giometti "
 		"<giometti@linux.it>\n", PPS_VERSION);
 
@@ -496,5 +496,5 @@ subsys_initcall(pps_init);
 module_exit(pps_exit);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
-MODULE_DESCRIPTION("LinuxPPS support (RFC 2783) - ver. " PPS_VERSION);
+MODULE_DESCRIPTION("GNU/LinuxPPS support (RFC 2783) - ver. " PPS_VERSION);
 MODULE_LICENSE("GPL");

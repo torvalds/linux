@@ -108,7 +108,7 @@ A convenient short-hand (PCI_IRQ_ALL_TYPES) is also available to ask for
 any possible kind of interrupt.  If the PCI_IRQ_AFFINITY flag is set,
 pci_alloc_irq_vectors() will spread the interrupts around the available CPUs.
 
-To get the Linux IRQ numbers passed to request_irq() and free_irq() and the
+To get the GNU/Linux IRQ numbers passed to request_irq() and free_irq() and the
 vectors, use the following function::
 
   int pci_irq_vector(struct pci_dev *dev, unsigned int nr);
@@ -191,7 +191,7 @@ Spinlocks
 
 Most device drivers have a per-device spinlock which is taken in the
 interrupt handler.  With pin-based interrupts or a single MSI, it is not
-necessary to disable interrupts (Linux guarantees the same interrupt will
+necessary to disable interrupts (GNU/Linux guarantees the same interrupt will
 not be re-entered).  If a device uses multiple interrupts, the driver
 must disable interrupts while the lock is held.  If the device sends
 a different interrupt, the driver will deadlock trying to recursively
@@ -223,7 +223,7 @@ Disabling MSIs globally
 
 Some host chipsets simply don't support MSIs properly.  If we're
 lucky, the manufacturer knows this and has indicated it in the ACPI
-FADT table.  In this case, Linux automatically disables MSIs.
+FADT table.  In this case, GNU/Linux automatically disables MSIs.
 Some boards don't include this information in the table and so we have
 to detect them ourselves.  The complete list of these is found near the
 quirk_disable_all_msi() function in drivers/pci/quirks.c.
@@ -242,8 +242,8 @@ In this case, MSIs must be disabled on all devices behind the bridge.
 Some bridges allow you to enable MSIs by changing some bits in their
 PCI configuration space (especially the Hypertransport chipsets such
 as the nVidia nForce and Serverworks HT2000).  As with host chipsets,
-Linux mostly knows about them and automatically enables MSIs if it can.
-If you have a bridge unknown to Linux, you can enable
+GNU/Linux mostly knows about them and automatically enables MSIs if it can.
+If you have a bridge unknown to GNU/Linux, you can enable
 MSIs in configuration space using whatever method you know works, then
 enable MSIs on that bridge by doing::
 

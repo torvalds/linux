@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2023 Intel Corporation
 
-# Makefile for Intel(R) Infrastructure Data Path Function Linux Driver
+# Makefile for Intel(R) Infrastructure Data Path Function GNU/Linux Driver
 
 obj-$(CONFIG_IDPF) += idpf.o
 

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 Keith M Wesolowski (wesolows@foobazco.org)
  *
- * Based on include/asm/cpudata.h and Linux 2.4 smp.h
+ * Based on include/asm/cpudata.h and GNU/Linux 2.4 smp.h
  * both (C) David S. Miller.
  */
 

@@ -4,7 +4,7 @@ Driver for EP93xx LCD controller
 
 The EP93xx LCD controller can drive both standard desktop monitors and
 embedded LCD displays. If you have a standard desktop monitor then you
-can use the standard Linux video mode database. In your board file::
+can use the standard GNU/Linux video mode database. In your board file::
 
 	static struct ep93xxfb_mach_info some_board_fb_info = {
 		.num_modes	= EP93XXFB_USE_MODEDB,
@@ -110,7 +110,7 @@ The video mode is set using the following syntax::
 	video=XRESxYRES[-BPP][@REFRESH]
 
 If the EP93xx video driver is built-in then the video mode is set on
-the Linux kernel command line, for example::
+the GNU/Linux kernel command line, for example::
 
 	video=ep93xx-fb:800x600-16@60
 

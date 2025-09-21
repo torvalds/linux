@@ -6,7 +6,7 @@ Testing BPF on s390
 ***************
 
 IBM Z are mainframe computers, which are descendants of IBM System/360 from
-year 1964. They are supported by the Linux kernel under the name "s390". This
+year 1964. They are supported by the GNU/Linux kernel under the name "s390". This
 document describes how to test BPF in an s390 QEMU guest.
 
 2. One-time setup

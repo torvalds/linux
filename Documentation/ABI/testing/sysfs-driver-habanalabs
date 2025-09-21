@@ -2,8 +2,8 @@ What:           /sys/class/accel/accel<n>/device/armcp_kernel_ver
 Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
-Description:    Version of the Linux kernel running on the device's CPU.
-                Will be DEPRECATED in Linux kernel version 5.10, and be
+Description:    Version of the GNU/Linux kernel running on the device's CPU.
+                Will be DEPRECATED in GNU/Linux kernel version 5.10, and be
                 replaced with cpucp_kernel_ver
 
 What:           /sys/class/accel/accel<n>/device/armcp_ver
@@ -11,7 +11,7 @@ Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Version of the application running on the device's CPU
-                Will be DEPRECATED in Linux kernel version 5.10, and be
+                Will be DEPRECATED in GNU/Linux kernel version 5.10, and be
                 replaced with cpucp_ver
 
 What:           /sys/class/accel/accel<n>/device/clk_max_freq_mhz
@@ -41,7 +41,7 @@ What:           /sys/class/accel/accel<n>/device/cpucp_kernel_ver
 Date:           Oct 2020
 KernelVersion:  5.10
 Contact:        ogabbay@kernel.org
-Description:    Version of the Linux kernel running on the device's CPU
+Description:    Version of the GNU/Linux kernel running on the device's CPU
 
 What:           /sys/class/accel/accel<n>/device/cpucp_ver
 Date:           Oct 2020

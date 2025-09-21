@@ -20,19 +20,19 @@ Documentation License".
 Preface
 
 The purpose of this document is to familiarize users with the user
-interface to Speakup, a Linux Screen Reader.  If you need instructions
+interface to Speakup, a GNU/Linux Screen Reader.  If you need instructions
 for installing or obtaining Speakup, visit the web site at
 http://linux-speakup.org/.  Speakup is a set of patches to the standard
-Linux kernel source tree.  It can be built as a series of modules, or as
+GNU/Linux kernel source tree.  It can be built as a series of modules, or as
 a part of a monolithic kernel.  These details are beyond the scope of
 this manual, but the user may need to be aware of the module
 capabilities, depending on how your system administrator has installed
 Speakup.  If Speakup is built as a part of a monolithic kernel, and the
 user is using a hardware synthesizer, then Speakup will be able to
 provide speech access from the time the kernel is loaded, until the time
-the system is shutdown.  This means that if you have obtained Linux
+the system is shutdown.  This means that if you have obtained GNU/Linux
 installation media for a distribution which includes Speakup as a part
-of its kernel, you will be able, as a blind person, to install Linux
+of its kernel, you will be able, as a blind person, to install GNU/Linux
 with speech access unaided by a sighted person.  Again, these details
 are beyond the scope of this manual, but the user should be aware of
 them.  See the web site mentioned above for further details.
@@ -155,10 +155,10 @@ At this point, you'll need to type in your user id and password, as
 provided by your system administrator.  You will hear Speakup speak the
 letters of your user id as you type it, but not the password.  This is
 because the password is not displayed on the screen for security
-reasons.  This has nothing to do with Speakup, it's a Linux security
+reasons.  This has nothing to do with Speakup, it's a GNU/Linux security
 feature.
 
-Once you've logged in, you can run any Linux command or program which is
+Once you've logged in, you can run any GNU/Linux command or program which is
 allowed by your user id.  Normal users will not be able to run programs
 which require root privileges.
 
@@ -637,7 +637,7 @@ of both.
 
 Espeakup is a connector between Speakup and the eSpeak software synthesizer.
 Espeakup may already be available as a package for your distribution
-of Linux.  If it is not packaged, you need to install it manually.
+of GNU/Linux.  If it is not packaged, you need to install it manually.
 You can find it in the contrib/ subdirectory of the Speakup sources.
 The filename is espeakup-$VERSION.tar.bz2, where $VERSION
 depends on the current release of Espeakup.  The Speakup 3.1.2 source
@@ -654,7 +654,7 @@ echo soft > /speakup/synth
 Finally, start the espeakup program.  There are two ways to do it.
 Both require root privileges.
 
-If Espeakup was installed as a package for your Linux distribution,
+If Espeakup was installed as a package for your GNU/Linux distribution,
 you probably have a distribution-specific script that controls the operation
 of the daemon.  Look for a file named espeakup under /etc/init.d or
 /etc/rc.d.  Execute the following command with root privileges:
@@ -685,8 +685,8 @@ If you run a google search for Fonix, you'll find their web site.
 You can obtain a copy of Speech Dispatcher from free(b)soft at
 http://www.freebsoft.org/.  Follow the installation instructions that
 come with Speech Dispatcher in order to install and configure Speech
-Dispatcher.  You can check out the web site for your Linux distribution
-in order to get a copy of either Flite or Festival.  Your Linux
+Dispatcher.  You can check out the web site for your GNU/Linux distribution
+in order to get a copy of either Flite or Festival.  Your GNU/Linux
 distribution may also have a precompiled Speech Dispatcher package.
 
 Once you've installed, configured, and tested Speech Dispatcher with your
@@ -831,7 +831,7 @@ Suppose you want to start lynx and go to the Speakup site.
 
 You can switch to a different console with the alt left and right
 arrows, or you can switch to a specific console by typing alt and a
-function key.  These are not Speakup commands, just standard Linux
+function key.  These are not Speakup commands, just standard GNU/Linux
 console capabilities.
 
 Once you've changed to an appropriate console, and are at a shell prompt,
@@ -907,7 +907,7 @@ won't display it here, but leave you to look at it at your convenience.
 
 Speakup has the capability of allowing you to assign or "map" keys to
 internal Speakup commands.  This section necessarily assumes you have a
-Linux kernel source tree installed, and that it has been patched and
+GNU/Linux kernel source tree installed, and that it has been patched and
 configured with Speakup.  How you do this is beyond the scope of this
 manual.  For this information, visit the Speakup web site at
 http://linux-speakup.org/.  The reason you'll need the kernel source
@@ -915,7 +915,7 @@ tree patched with Speakup is that the genmap utility you'll need for
 processing keymaps is in the
 /usr/src/linux-<version_number>/drivers/char/speakup directory.  The
 <version_number> in the above directory path is the version number of
-the Linux source tree you are working with.
+the GNU/Linux source tree you are working with.
 
 So ok, you've gone off and gotten your kernel source tree, and patched
 and configured it.  Now you can start manipulating keymaps.

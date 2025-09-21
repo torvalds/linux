@@ -157,7 +157,7 @@ figure out if things have become worse or better.
 
 This means sometimes these tests fail as they don't capture all the
 data needed. This is about tracking quality and amount of data
-produced over time and to see when changes to the Linux kernel improve
+produced over time and to see when changes to the GNU/Linux kernel improve
 quality of traces.
 
 Be aware that some of these tests take quite a while to run, specifically

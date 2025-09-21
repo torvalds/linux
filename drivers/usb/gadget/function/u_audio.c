@@ -135,7 +135,7 @@ static void u_audio_set_fback_frequency(enum usb_device_speed speed,
 		 *
 		 * Win10 and OSX UAC2 drivers require number of samples per packet
 		 * in order to honor the feedback value.
-		 * Linux snd-usb-audio detects the applied bit-shift automatically.
+		 * GNU/Linux snd-usb-audio detects the applied bit-shift automatically.
 		 */
 		ep_desc = out_ep->desc;
 		freq <<= 4 + (ep_desc->bInterval - 1);

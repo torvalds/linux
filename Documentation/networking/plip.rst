@@ -32,10 +32,10 @@ Advantages of PLIP
 
 It's cheap, it's available everywhere, and it's easy.
 
-The PLIP cable is all that's needed to connect two Linux boxes, and it
+The PLIP cable is all that's needed to connect two GNU/Linux boxes, and it
 can be built for very few bucks.
 
-Connecting two Linux boxes takes only a second's decision and a few
+Connecting two GNU/Linux boxes takes only a second's decision and a few
 minutes' work, no need to search for a [supported] netcard. This might
 even be especially important in the case of notebooks, where netcards
 are not easily available.
@@ -48,7 +48,7 @@ Disadvantages of PLIP
 =====================
 
 Doesn't work over a modem, like SLIP and PPP. Limited range, 15 m.
-Can only be used to connect three (?) Linux boxes. Doesn't connect to
+Can only be used to connect three (?) GNU/Linux boxes. Doesn't connect to
 an existing Ethernet. Isn't standard (not even de facto standard, like
 SLIP).
 
@@ -61,7 +61,7 @@ it *is* getting late. EOB)
 PLIP driver details
 -------------------
 
-The Linux PLIP driver is an implementation of the original Crynwr protocol,
+The GNU/Linux PLIP driver is an implementation of the original Crynwr protocol,
 that uses the parallel port subsystem of the kernel in order to properly
 share parallel ports between PLIP and other services.
 
@@ -104,7 +104,7 @@ above calculation. It isn't an important issue, unless the wire is faulty,
 in which case a long timeout would stall the machine when, for whatever
 reason, bits are dropped.
 
-A utility that can perform this change in Linux is plipconfig, which is part
+A utility that can perform this change in GNU/Linux is plipconfig, which is part
 of the net-tools package (its location can be found in the
 Documentation/Changes file). An example command would be
 'plipconfig plipX trigger 10000', where plipX is the appropriate

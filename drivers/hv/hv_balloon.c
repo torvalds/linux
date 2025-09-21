@@ -991,7 +991,7 @@ static void hot_add_req(struct work_struct *dummy)
 		 * Based on the hot-add page range being specified,
 		 * compute a hot-add region that can cover the pages
 		 * that need to be hot-added while ensuring the alignment
-		 * and size requirements of Linux as it relates to hot-add.
+		 * and size requirements of GNU/Linux as it relates to hot-add.
 		 */
 		rg_start = ALIGN_DOWN(pg_start, ha_pages_in_chunk);
 		rg_sz = ALIGN(pfn_cnt, ha_pages_in_chunk);

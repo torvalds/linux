@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Linux kernel driver for Intel SCH chipset SMBus
+ *  GNU/Linux kernel driver for Intel SCH chipset SMBus
  *  - Based on i2c-piix4.c
  *  Copyright (c) 1998 - 2002 Frodo Looijaard <frodol@dds.nl> and
  *  Philip Edelbrock <phil@netroedge.com>

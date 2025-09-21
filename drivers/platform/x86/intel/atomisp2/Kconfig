@@ -12,7 +12,7 @@ config INTEL_ATOMISP2_LED
 	select INTEL_ATOMISP2_PDX86
 	help
 	  Many Bay Trail and Cherry Trail devices come with a camera attached
-	  to Intel's Image Signal Processor. Linux currently does not have a
+	  to Intel's Image Signal Processor. GNU/Linux currently does not have a
 	  driver for these, so they do not work as a camera. Some of these
 	  camera's have a LED which is controlled through a GPIO.
 

@@ -17,7 +17,7 @@ In 1982, Manber and Ladner [Manber82,Manber84] recommended deferring
 destruction until all threads running at that time have terminated, again
 for a parallel binary search tree.  This approach works well in systems
 with short-lived threads, such as the K42 research operating system.
-However, Linux has long-lived tasks, so more is needed.
+However, GNU/Linux has long-lived tasks, so more is needed.
 
 In 1986, Hennessy, Osisek, and Seigh [Hennessy89] introduced passive
 serialization, which is an RCU-like mechanism that relies on the presence
@@ -102,7 +102,7 @@ greatly simplifies locking hierarchies and helps avoid deadlocks.
 The year 2000 saw an email exchange that would likely have
 led to yet another independent invention of something like RCU
 [RustyRussell2000a,RustyRussell2000b].  Instead, 2001 saw the first
-RCU presentation involving Linux [McKenney01a] at OLS.  The resulting
+RCU presentation involving GNU/Linux [McKenney01a] at OLS.  The resulting
 abundance of RCU patches was presented the following year [McKenney02a],
 and use of RCU in dcache was first described that same year [Linder02a].
 
@@ -137,15 +137,15 @@ hot-pluggable implementations of operating-system functions [Appavoo03a].
 Later that year saw a paper describing an RCU implementation
 of System V IPC [Arcangeli03] (following up on a suggestion by
 Hugh Dickins [Dickins02a] and an implementation by Mingming Cao
-[MingmingCao2002IPCRCU]), and an introduction to RCU in Linux Journal
+[MingmingCao2002IPCRCU]), and an introduction to RCU in GNU/Linux Journal
 [McKenney03a].
 
-2004 has seen a Linux-Journal article on use of RCU in dcache
+2004 has seen a GNU/Linux-Journal article on use of RCU in dcache
 [McKenney04a], a performance comparison of locking to RCU on several
 different CPUs [McKenney04b], a dissertation describing use of RCU in a
 number of operating-system kernels [PaulEdwardMcKenneyPhD], a paper
 describing how to make RCU safe for soft-realtime applications [Sarma04c],
-and a paper describing SELinux performance with RCU [JamesMorris04b].
+and a paper describing SEGNU/Linux performance with RCU [JamesMorris04b].
 
 2005 brought further adaptation of RCU to realtime use, permitting
 preemption of RCU realtime critical sections [PaulMcKenney05a,
@@ -168,7 +168,7 @@ LWN "What is RCU?" series [PaulEMcKenney2007WhatIsRCUFundamentally,
 PaulEMcKenney2008WhatIsRCUUsage, and PaulEMcKenney2008WhatIsRCUAPI].
 
 2008 saw a journal paper on real-time RCU [DinakarGuniguntala2008IBMSysJ],
-a history of how Linux changed RCU more than RCU changed Linux
+a history of how GNU/Linux changed RCU more than RCU changed GNU/Linux
 [PaulEMcKenney2008RCUOSR], and a design overview of hierarchical RCU
 [PaulEMcKenney2008HierarchicalRCU].
 
@@ -190,7 +190,7 @@ hash table with atomic node move [JoshTriplett2010RPHash], an update on
 the RCU API [PaulEMcKenney2010RCUAPI].
 
 2011 marked the inclusion of Nick Piggin's fully lockless dentry search
-[LinusTorvalds2011Linux2:6:38:rc1:NPigginVFS], an RCU-protected red-black
+[LinusTorvalds2011GNU/Linux2:6:38:rc1:NPigginVFS], an RCU-protected red-black
 tree using software transactional memory to protect concurrent updates
 (strange, but true!) [PhilHoward2011RCUTMRBTree], yet another variant of
 RCU-protected resizable hash tables [Triplett:2011:RPHash], the 3.0 RCU
@@ -607,14 +607,14 @@ Operating System Design and Implementation}"
 
 @unpublished{McKenney01b
 ,Author="Paul E. McKenney and Dipankar Sarma"
-,Title="Read-Copy Update Mutual Exclusion in {Linux}"
+,Title="Read-Copy Update Mutual Exclusion in {GNU/Linux}"
 ,month="February"
 ,year="2001"
 ,note="Available:
 \url{http://lse.sourceforge.net/locking/rcu/rcupdate_doc.html}
 [Viewed October 18, 2004]"
 ,annotation={
-	Prototypical Linux documentation for RCU.
+	Prototypical GNU/Linux documentation for RCU.
 }
 }
 
@@ -637,7 +637,7 @@ Utilizing Execution History and Thread Monitoring"
 ,Author="Paul E. McKenney and Jonathan Appavoo and Andi Kleen and
 Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 ,Title="Read-Copy Update"
-,Booktitle="{Ottawa Linux Symposium}"
+,Booktitle="{Ottawa GNU/Linux Symposium}"
 ,Month="July"
 ,Year="2001"
 ,note="Available:
@@ -646,7 +646,7 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 [Viewed June 23, 2004]"
 ,annotation={
 	Described RCU, and presented some patches implementing and using
-	it in the Linux kernel.
+	it in the GNU/Linux kernel.
 }
 }
 
@@ -672,7 +672,7 @@ Orran Krieger and Rusty Russell and Dipankar Sarma and Maneesh Soni"
 \url{http://marc.theaimsgroup.com/?l=linux-kernel&m=100264675012867&w=2}
 [Viewed June 23, 2004]"
 ,annotation={
-	Suggested burying memory barriers in Linux's list-manipulation
+	Suggested burying memory barriers in GNU/Linux's list-manipulation
 	primitives.
 }
 }
@@ -716,12 +716,12 @@ Like the title says...
 @Conference{Linder02a
 ,Author="Hanna Linder and Dipankar Sarma and Maneesh Soni"
 ,Title="Scalability of the Directory Entry Cache"
-,Booktitle="{Ottawa Linux Symposium}"
+,Booktitle="{Ottawa GNU/Linux Symposium}"
 ,Month="June"
 ,Year="2002"
 ,pages="289-300"
 ,annotation={
-	Measured scalability of Linux 2.4 kernel's directory-entry cache
+	Measured scalability of GNU/Linux 2.4 kernel's directory-entry cache
 	(dcache), and measured some scalability enhancements.
 }
 }
@@ -730,7 +730,7 @@ Like the title says...
 ,Author="Paul E. McKenney and Dipankar Sarma and
 Andrea Arcangeli and Andi Kleen and Orran Krieger and Rusty Russell"
 ,Title="Read-Copy Update"
-,Booktitle="{Ottawa Linux Symposium}"
+,Booktitle="{Ottawa GNU/Linux Symposium}"
 ,Month="June"
 ,Year="2002"
 ,pages="338-367"
@@ -739,7 +739,7 @@ Andrea Arcangeli and Andi Kleen and Orran Krieger and Rusty Russell"
 [Viewed June 23, 2004]"
 ,annotation={
 	Presented and compared a number of RCU implementations for the
-	Linux kernel.
+	GNU/Linux kernel.
 }
 }
 
@@ -883,7 +883,7 @@ B. Rosenburg and M. Stumm and J. Xenidis"
 ,Author="Andrea Arcangeli and Mingming Cao and Paul E. McKenney and
 Dipankar Sarma"
 ,Title="Using Read-Copy Update Techniques for {System V IPC} in the
-{Linux} 2.5 Kernel"
+{GNU/Linux} 2.5 Kernel"
 ,Booktitle="Proceedings of the 2003 USENIX Annual Technical Conference
 (FREENIX Track)"
 ,Publisher="USENIX Association"
@@ -891,7 +891,7 @@ Dipankar Sarma"
 ,month="June"
 ,pages="297-310"
 ,annotation={
-	Compared updated RCU implementations for the Linux kernel, and
+	Compared updated RCU implementations for the GNU/Linux kernel, and
 	described System V IPC use of RCU, including order-of-magnitude
 	performance improvements.
 	http://www.rdrop.com/users/paulmck/RCU/rcu.FREENIX.2003.06.14.pdf
@@ -913,10 +913,10 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 
 @article{McKenney03a
 ,author="Paul E. McKenney"
-,title="Using {RCU} in the {Linux} 2.5 Kernel"
+,title="Using {RCU} in the {GNU/Linux} 2.5 Kernel"
 ,Year="2003"
 ,Month="October"
-,journal="Linux Journal"
+,journal="GNU/Linux Journal"
 ,volume="1"
 ,number="114"
 ,pages="18-26"
@@ -961,7 +961,7 @@ Michal Ostrowski and Bryan Rosenburg and Jimi Xenidis"
 ,title="Scaling dcache with {RCU}"
 ,Year="2004"
 ,Month="January"
-,journal="Linux Journal"
+,journal="GNU/Linux Journal"
 ,volume="1"
 ,number="118"
 ,pages="38-46"
@@ -1059,7 +1059,7 @@ Realtime Applications"
 ,month="June"
 ,pages="182-191"
 ,annotation={
-	Describes and compares a number of modifications to the Linux RCU
+	Describes and compares a number of modifications to the GNU/Linux RCU
 	implementation that make it friendly to realtime applications.
 	https://www.usenix.org/conference/2004-usenix-annual-technical-conference/making-rcu-safe-deep-sub-millisecond-response
 	[Viewed July 26, 2012]
@@ -1130,14 +1130,14 @@ Oregon Health and Sciences University"
 
 @unpublished{TomHart04a
 ,Author="Thomas E. Hart"
-,Title="Master's Thesis: Applying Lock-free Techniques to the {Linux} Kernel"
+,Title="Master's Thesis: Applying Lock-free Techniques to the {GNU/Linux} Kernel"
 ,month="October"
 ,year="2004"
 ,note="Available:
 \url{http://www.cs.toronto.edu/~tomhart/masters_thesis.html}
 [Viewed October 15, 2004]"
 ,annotation={
-	Proposes comparing RCU to lock-free methods for the Linux kernel.
+	Proposes comparing RCU to lock-free methods for the GNU/Linux kernel.
 }
 }
 
@@ -1195,7 +1195,7 @@ Oregon Health and Sciences University"
 
 @unpublished{JamesMorris04a
 ,Author="James Morris"
-,Title="{[PATCH 2/3] SELinux} scalability - convert {AVC} to {RCU}"
+,Title="{[PATCH 2/3] SEGNU/Linux} scalability - convert {AVC} to {RCU}"
 ,day="15"
 ,month="November"
 ,year="2004"
@@ -1209,14 +1209,14 @@ Oregon Health and Sciences University"
 
 @unpublished{JamesMorris04b
 ,Author="James Morris"
-,Title="Recent Developments in {SELinux} Kernel Performance"
+,Title="Recent Developments in {SEGNU/Linux} Kernel Performance"
 ,month="December"
 ,year="2004"
 ,note="Available:
 \url{http://www.livejournal.com/users/james_morris/2153.html}
 [Viewed December 10, 2004]"
 ,annotation={
-	RCU helps SELinux performance.  ;-)  Made LWN.
+	RCU helps SEGNU/Linux performance.  ;-)  Made LWN.
 }
 }
 
@@ -1312,7 +1312,7 @@ Data Structures"
 
 @conference{PaulMcKenney05b
 ,Author="Paul E. McKenney and Dipankar Sarma"
-,Title="Towards Hard Realtime Response from the {Linux} Kernel on {SMP} Hardware"
+,Title="Towards Hard Realtime Response from the {GNU/Linux} Kernel on {SMP} Hardware"
 ,Booktitle="linux.conf.au 2005"
 ,month="April"
 ,year="2005"
@@ -1322,7 +1322,7 @@ Data Structures"
 [Viewed May 13, 2005]"
 ,annotation={
 	Realtime turns into making RCU yet more realtime friendly.
-	http://lca2005.linux.org.au/Papers/Paul%20McKenney/Towards%20Hard%20Realtime%20Response%20from%20the%20Linux%20Kernel/LKS.2005.04.22a.pdf
+	http://lca2005.linux.org.au/Papers/Paul%20McKenney/Towards%20Hard%20Realtime%20Response%20from%20the%20GNU/Linux%20Kernel/LKS.2005.04.22a.pdf
 }
 }
 
@@ -1475,7 +1475,7 @@ Distributed Processing Symposium"
 ,Author="Paul E. McKenney and Dipankar Sarma and Ingo Molnar and
 Suparna Bhattacharya"
 ,Title="Extending {RCU} for Realtime and Embedded Workloads"
-,Booktitle="{Ottawa Linux Symposium}"
+,Booktitle="{Ottawa GNU/Linux Symposium}"
 ,Month="July"
 ,Year="2006"
 ,pages="v2 123-138"
@@ -1505,8 +1505,8 @@ Canis Rufus and Zoicon5 and Anome and Hal Eisen"
 
 @Conference{NickPiggin2006LocklessPageCache
 ,Author="Nick Piggin"
-,Title="A Lockless Pagecache in Linux---Introduction, Progress, Performance"
-,Booktitle="{Ottawa Linux Symposium}"
+,Title="A Lockless Pagecache in GNU/Linux---Introduction, Progress, Performance"
+,Booktitle="{Ottawa GNU/Linux Symposium}"
 ,Month="July"
 ,Year="2006"
 ,pages="v2 249-254"
@@ -1560,28 +1560,28 @@ Revised:
 
 @unpublished{PaulEMcKenneyRCUusagePage
 ,Author="Paul E. McKenney"
-,Title="{RCU} {Linux} Usage"
+,Title="{RCU} {GNU/Linux} Usage"
 ,month="October"
 ,year="2006"
 ,note="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/linuxusage.html}
 [Viewed January 14, 2007]"
 ,annotation={
-	Paul McKenney's RCU page showing graphs plotting Linux-kernel
+	Paul McKenney's RCU page showing graphs plotting GNU/Linux-kernel
 	usage of RCU.
 }
 }
 
 @unpublished{PaulEMcKenneyRCUusageRawDataPage
 ,Author="Paul E. McKenney"
-,Title="Read-Copy Update {(RCU)} Usage in {Linux} Kernel"
+,Title="Read-Copy Update {(RCU)} Usage in {GNU/Linux} Kernel"
 ,month="October"
 ,year="2006"
 ,note="Available:
 \url{http://www.rdrop.com/users/paulmck/RCU/linuxusage/rculocktab.html}
 [Viewed January 14, 2007]"
 ,annotation={
-	Paul McKenney's RCU page showing Linux usage of RCU in tabular
+	Paul McKenney's RCU page showing GNU/Linux usage of RCU in tabular
 	form, with links to corresponding cscope databases.
 }
 }
@@ -1663,7 +1663,7 @@ Revised:
 [Viewed October 28, 2008]"
 ,annotation={
 	Using RCU as a pure delay leads to a 2.5x slowdown in skbs in
-	the Linux kernel.
+	the GNU/Linux kernel.
 }
 }
 
@@ -1808,7 +1808,7 @@ Revised:
 @conference{PeterZijlstra2007ConcurrentPagecacheRCU
 ,Author="Peter Zijlstra"
 ,Title="Concurrent Pagecache"
-,Booktitle="Linux Symposium"
+,Booktitle="GNU/Linux Symposium"
 ,month="June"
 ,year="2007"
 ,address="Ottawa, Canada"
@@ -1830,7 +1830,7 @@ Revised:
 \url{http://www.rdrop.com/users/paulmck/RCU/whatisRCU.html}
 [Viewed July 6, 2007]"
 ,annotation={
-	Describes RCU in Linux kernel.
+	Describes RCU in GNU/Linux kernel.
 }
 }
 
@@ -1928,7 +1928,7 @@ Revised:
 # MathieuDesnoyers2007call_rcu_schedNeeded
 @unpublished{MathieuDesnoyers2007call:rcu:schedNeeded
 ,Author="Mathieu Desnoyers"
-,Title="Re: [patch 1/2] {Linux} Kernel Markers - Support Multiple Probes"
+,Title="Re: [patch 1/2] {GNU/Linux} Kernel Markers - Support Multiple Probes"
 ,month="December"
 ,day="20"
 ,year="2007"
@@ -1995,7 +1995,7 @@ Revised:
 \url{http://lwn.net/Articles/264090/}
 [Viewed January 10, 2008]"
 ,annotation={
-	Gives an overview of the Linux-kernel RCU API and a brief annotated RCU
+	Gives an overview of the GNU/Linux-kernel RCU API and a brief annotated RCU
 	bibliography.
 }
 }
@@ -2037,16 +2037,16 @@ Revised:
 
 @Conference{PaulEMcKenney2008Beijing
 ,Author="Paul E. McKenney"
-,Title="Introducing Technology Into {Linux} Or:
-Introducing your technology Into {Linux} will require introducing a
-lot of {Linux} into your technology!!!"
-,Booktitle="2008 Linux Developer Symposium - China"
+,Title="Introducing Technology Into {GNU/Linux} Or:
+Introducing your technology Into {GNU/Linux} will require introducing a
+lot of {GNU/Linux} into your technology!!!"
+,Booktitle="2008 GNU/Linux Developer Symposium - China"
 ,Publisher="OSS China"
 ,Month="February"
 ,Year="2008"
 ,Address="Beijing, China"
 ,note="Available:
-\url{http://www.rdrop.com/users/paulmck/RCU/TechIntroLinux.2008.02.19a.pdf}
+\url{http://www.rdrop.com/users/paulmck/RCU/TechIntroGNU/Linux.2008.02.19a.pdf}
 [Viewed August 12, 2008]"
 }
 
@@ -2067,7 +2067,7 @@ lot of {Linux} into your technology!!!"
 
 @article{DinakarGuniguntala2008IBMSysJ
 ,author="D. Guniguntala and P. E. McKenney and J. Triplett and J. Walpole"
-,title="The read-copy-update mechanism for supporting real-time applications on shared-memory multiprocessor systems with {Linux}"
+,title="The read-copy-update mechanism for supporting real-time applications on shared-memory multiprocessor systems with {GNU/Linux}"
 ,Year="2008"
 ,Month="May"
 ,journal="IBM Systems Journal"
@@ -2099,7 +2099,7 @@ lot of {Linux} into your technology!!!"
 
 @article{PaulEMcKenney2008RCUOSR
 ,author="Paul E. McKenney and Jonathan Walpole"
-,title="Introducing technology into the {Linux} kernel: a case study"
+,title="Introducing technology into the {GNU/Linux} kernel: a case study"
 ,Year="2008"
 ,journal="SIGOPS Oper. Syst. Rev."
 ,volume="42"
@@ -2110,7 +2110,7 @@ lot of {Linux} into your technology!!!"
 ,publisher="ACM"
 ,address="New York, NY, USA"
 ,annotation={
-	Linux changed RCU to a far greater degree than RCU has changed Linux.
+	GNU/Linux changed RCU to a far greater degree than RCU has changed GNU/Linux.
 	http://portal.acm.org/citation.cfm?doid=1400097.1400099
 }
 }
@@ -2208,7 +2208,7 @@ lot of {Linux} into your technology!!!"
 
 @unpublished{MathieuDesnoyers2009URCU
 ,Author="Mathieu Desnoyers"
-,Title="[{RFC} git tree] Userspace {RCU} (urcu) for {Linux}"
+,Title="[{RFC} git tree] Userspace {RCU} (urcu) for {GNU/Linux}"
 ,month="February"
 ,day="5"
 ,year="2009"
@@ -2284,7 +2284,7 @@ lot of {Linux} into your technology!!!"
 ,Title="Scalable concurrent hash tables via relativistic programming"
 ,month="September"
 ,year="2009"
-,note="Linux Plumbers Conference presentation"
+,note="GNU/Linux Plumbers Conference presentation"
 ,annotation={
 	RP fun with hash tables.
 	Superseded by JoshTriplett2010RPHash
@@ -2321,7 +2321,7 @@ lot of {Linux} into your technology!!!"
 @conference{PaulEMcKenney2009DeterministicRCU
 ,Author="Paul E. McKenney"
 ,Title="Deterministic Synchronization in Multicore Systems: the Role of {RCU}"
-,Booktitle="Eleventh Real Time Linux Workshop"
+,Booktitle="Eleventh Real Time GNU/Linux Workshop"
 ,month="September"
 ,year="2009"
 ,address="Dresden, Germany"
@@ -2512,9 +2512,9 @@ lot of {Linux} into your technology!!!"
 }
 }
 
-@unpublished{LinusTorvalds2011Linux2:6:38:rc1:NPigginVFS
+@unpublished{LinusTorvalds2011GNU/Linux2:6:38:rc1:NPigginVFS
 ,Author="Linus Torvalds"
-,Title="Linux 2.6.38-rc1"
+,Title="GNU/Linux 2.6.38-rc1"
 ,month="January"
 ,year="2011"
 ,note="Available:
@@ -2594,7 +2594,7 @@ lot of {Linux} into your technology!!!"
 ,year="2011"
 ,note="\url{http://lwn.net/Articles/453002/}"
 ,annotation={
-	Analysis of the RCU trainwreck in Linux kernel 3.0.
+	Analysis of the RCU trainwreck in GNU/Linux kernel 3.0.
 	[Viewed July 27, 2011]
 }
 }
@@ -2667,7 +2667,7 @@ lot of {Linux} into your technology!!!"
 }
 }
 
-@inproceedings{AustinClements2012RCULinux:mmapsem
+@inproceedings{AustinClements2012RCUGNU/Linux:mmapsem
 ,author = {Austin Clements and Frans Kaashoek and Nickolai Zeldovich}
 ,title = {Scalable Address Spaces Using {RCU} Balanced Trees}
 ,booktitle = {Architectural Support for Programming Languages and Operating Systems (ASPLOS 2012)}
@@ -2737,7 +2737,7 @@ lot of {Linux} into your technology!!!"
 
 @unpublished{PaulMcKenney2012RCUUsage
 ,Author="Paul E. McKenney and Silas Boyd-Wickizer and Jonathan Walpole"
-,Title="{RCU} Usage In the Linux Kernel: One Decade Later"
+,Title="{RCU} Usage In the GNU/Linux Kernel: One Decade Later"
 ,month="September"
 ,day="17"
 ,year="2012"
@@ -2776,13 +2776,13 @@ lot of {Linux} into your technology!!!"
 
 @unpublished{PaulEMcKenney2013RCUUsage
 ,Author="Paul E. McKenney and Silas Boyd-Wickizer and Jonathan Walpole"
-,Title="{RCU} Usage in the {Linux} Kernel: One Decade Later"
+,Title="{RCU} Usage in the {GNU/Linux} Kernel: One Decade Later"
 ,month="February"
 ,day="24"
 ,year="2013"
 ,note="\url{http://rdrop.com/users/paulmck/techreports/RCUUsage.2013.02.24a.pdf}"
 ,annotation={
-	Usage of RCU within the Linux kernel.
+	Usage of RCU within the GNU/Linux kernel.
 }
 }
 

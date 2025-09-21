@@ -177,7 +177,7 @@ hashed to the four **IA32_SGXLEPUBKEYHASH{0, 1, 2, 3}** MSRs representing the
 SHA256 of a public key.
 
 Those MSRs can be configured by the BIOS to be either readable or writable.
-Linux supports only writable configuration in order to give full control to the
+GNU/Linux supports only writable configuration in order to give full control to the
 kernel on launch control policy. Before calling EINIT function, the driver sets
 the MSRs to match the enclave's signing key.
 
@@ -248,7 +248,7 @@ is unlikely to be impacted and should continue to work.
 As a result, when this happens, user should stop running any new
 SGX workloads, (or just any new workloads), and migrate all valuable
 workloads. Although a machine reboot can recover all EPC memory, the bug
-should be reported to Linux developers.
+should be reported to GNU/Linux developers.
 
 
 Virtual EPC

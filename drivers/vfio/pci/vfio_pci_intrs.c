@@ -407,8 +407,8 @@ static int vfio_msi_enable(struct vfio_pci_core_device *vdev, int nvec, bool msi
 }
 
 /*
- * vfio_msi_alloc_irq() returns the Linux IRQ number of an MSI or MSI-X device
- * interrupt vector. If a Linux IRQ number is not available then a new
+ * vfio_msi_alloc_irq() returns the GNU/Linux IRQ number of an MSI or MSI-X device
+ * interrupt vector. If a GNU/Linux IRQ number is not available then a new
  * interrupt is allocated if dynamic MSI-X is supported.
  *
  * Where is vfio_msi_free_irq()? Allocated interrupts are maintained,

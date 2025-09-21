@@ -26,7 +26,7 @@ config IPW2100
 	  You will also very likely need the Wireless Tools in order to
 	  configure your card:
 
-	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/GNU/Linux/Tools.html>.
 
 	  It is recommended that you compile this driver as a module (M)
 	  rather than built-in (Y). This driver requires firmware at device
@@ -85,7 +85,7 @@ config IPW2200
 	  You will also very likely need the Wireless Tools in order to
 	  configure your card:
 
-	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+	  <https://www.hpl.hp.com/personal/Jean_Tourrilhes/GNU/Linux/Tools.html>.
 
 	  It is recommended that you compile this driver as a module (M)
 	  rather than built-in (Y). This driver requires firmware at device

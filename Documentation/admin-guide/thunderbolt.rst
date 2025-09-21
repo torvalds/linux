@@ -13,9 +13,9 @@ and early USB4 capable systems. Apple systems on the other hand use
 software connection manager and the later USB4 compliant devices follow
 the suit.
 
-The Linux Thunderbolt driver supports both and can detect at runtime which
+The GNU/Linux Thunderbolt driver supports both and can detect at runtime which
 connection manager implementation is to be used. To be on the safe side the
-software connection manager in Linux also advertises security level
+software connection manager in GNU/Linux also advertises security level
 ``user`` which means PCIe tunneling is disabled by default. The
 documentation below applies to both implementations with the exception that
 the software connection manager only supports ``user`` security level and
@@ -181,7 +181,7 @@ DMA protection utilizing IOMMU
 Recent systems from 2018 and forward with Thunderbolt ports may natively
 support IOMMU. This means that Thunderbolt security is handled by an IOMMU
 so connected devices cannot access memory regions outside of what is
-allocated for them by drivers. When Linux is running on such system it
+allocated for them by drivers. When GNU/Linux is running on such system it
 automatically enables IOMMU if not enabled by the user already. These
 systems can be identified by reading ``1`` from
 ``/sys/bus/thunderbolt/devices/domainX/iommu_dma_protection`` attribute.
@@ -340,7 +340,7 @@ currently we only support Apple ThunderboltIP protocol.
 If the other host is running Windows or macOS, the only thing you need to
 do is to connect a Thunderbolt cable between the two hosts; the
 ``thunderbolt-net`` driver is loaded automatically. If the other host is
-also Linux you should load ``thunderbolt-net`` manually on one host (it
+also GNU/Linux you should load ``thunderbolt-net`` manually on one host (it
 does not matter which one)::
 
   # modprobe thunderbolt-net

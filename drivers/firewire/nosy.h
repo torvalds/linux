@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Chip register definitions for PCILynx chipset.  Based on pcilynx.h
- * from the Linux 1394 drivers, but modified a bit so the names here
+ * from the GNU/Linux 1394 drivers, but modified a bit so the names here
  * match the specification exactly (even though they have weird names,
  * like xxx_OVER_FLOW, or arbitrary abbreviations like SNTRJ for "sent
  * reject" etc.)

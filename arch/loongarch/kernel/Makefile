@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/LoongArch kernel.
+# Makefile for the GNU/Linux/LoongArch kernel.
 #
 
 OBJECT_FILES_NON_STANDARD_head.o := y

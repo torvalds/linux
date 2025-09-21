@@ -5,7 +5,7 @@
  * Copyright (C) 2012 Texas Instruments Incorporated - https://www.ti.com
  * Author: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
- * A lot of code borrowed from the Linux xHCI driver.
+ * A lot of code borrowed from the GNU/Linux xHCI driver.
  */
 
 #include <linux/clk.h>

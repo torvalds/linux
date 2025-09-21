@@ -260,7 +260,7 @@ of the devices.
 ASPM
 ----
 For the best runtime power consumption, ASPM should be programmed as intended
-by the BIOS from the hardware vendor.  To accomplish this the Linux kernel
+by the BIOS from the hardware vendor.  To accomplish this the GNU/Linux kernel
 should be compiled with ``CONFIG_PCIEASPM_DEFAULT`` set to ``y`` and the
 sysfs file ``/sys/module/pcie_aspm/parameters/policy`` should not be modified.
 
@@ -279,7 +279,7 @@ BIOS debug messages
 
 Most OEM machines don't have a serial UART for outputting kernel or BIOS
 debug messages. However BIOS debug messages are useful for understanding
-both BIOS bugs and bugs with the Linux kernel drivers that call BIOS AML.
+both BIOS bugs and bugs with the GNU/Linux kernel drivers that call BIOS AML.
 
 As the BIOS on most OEM AMD systems are based off an AMD reference BIOS,
 the infrastructure used for exporting debugging messages is often the same
@@ -299,7 +299,7 @@ Here is an example of a string that BIOS AML may call out using ``\M460``::
   M460 ("  OEM-ASL-PCIe Address (0x%X)._REG (%d %d)  PCSA = %d\n", DADR, Arg0, Arg1, PCSA, Zero, Zero)
 
 Normally when executed, the ``\M460`` method would populate the additional
-arguments into the string.  In order to get these messages from the Linux
+arguments into the string.  In order to get these messages from the GNU/Linux
 kernel a hook has been added into ACPICA that can capture the *arguments*
 sent to ``\M460`` and print them to the kernel ring buffer.
 For example the following message could be emitted into kernel ring buffer::

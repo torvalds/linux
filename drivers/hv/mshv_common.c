@@ -6,7 +6,7 @@
  * If any of these modules are configured to build, this file is built and just
  * statically linked in.
  *
- * Authors: Microsoft Linux virtualization team
+ * Authors: Microsoft GNU/Linux virtualization team
  */
 
 #include <linux/kernel.h>

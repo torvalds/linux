@@ -18,9 +18,9 @@
 
 /*
  *  Note that this register image is in a different order than
- *  the register image that Linux produces at interrupt time.
+ *  the register image that GNU/Linux produces at interrupt time.
  *
- *  Linux's register image is defined by struct pt_regs in ptrace.h.
+ *  GNU/Linux's register image is defined by struct pt_regs in ptrace.h.
  *  Just why GDB uses a different order is a historical mystery.
  */
 #ifdef CONFIG_X86_32

@@ -601,7 +601,7 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 			exception->retry = 1;
 			break;
 		case -NFS4ERR_BADOWNER:
-			/* The following works around a Linux server bug! */
+			/* The following works around a GNU/Linux server bug! */
 		case -NFS4ERR_BADNAME:
 			if (server->caps & NFS_CAP_UIDGID_NOMAP) {
 				server->caps &= ~NFS_CAP_UIDGID_NOMAP;
@@ -6531,12 +6531,12 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 
 	rcu_read_lock();
 	if (buflen)
-		scnprintf(str, len, "Linux NFSv4.0 %s/%s/%s",
+		scnprintf(str, len, "GNU/Linux NFSv4.0 %s/%s/%s",
 			  clp->cl_rpcclient->cl_nodename, buf,
 			  rpc_peeraddr2str(clp->cl_rpcclient,
 					   RPC_DISPLAY_ADDR));
 	else
-		scnprintf(str, len, "Linux NFSv4.0 %s/%s",
+		scnprintf(str, len, "GNU/Linux NFSv4.0 %s/%s",
 			  clp->cl_rpcclient->cl_nodename,
 			  rpc_peeraddr2str(clp->cl_rpcclient,
 					   RPC_DISPLAY_ADDR));
@@ -6577,11 +6577,11 @@ nfs4_init_uniform_client_string(struct nfs_client *clp)
 		return -ENOMEM;
 
 	if (buflen)
-		scnprintf(str, len, "Linux NFSv%u.%u %s/%s",
+		scnprintf(str, len, "GNU/Linux NFSv%u.%u %s/%s",
 			  clp->rpc_ops->version, clp->cl_minorversion,
 			  buf, clp->cl_rpcclient->cl_nodename);
 	else
-		scnprintf(str, len, "Linux NFSv%u.%u %s",
+		scnprintf(str, len, "GNU/Linux NFSv%u.%u %s",
 			  clp->rpc_ops->version, clp->cl_minorversion,
 			  clp->cl_rpcclient->cl_nodename);
 	clp->cl_owner_id = str;

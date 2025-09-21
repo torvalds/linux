@@ -3,7 +3,7 @@
 #
 # This code is based on drivers/scsi/mpt3sas/Kconfig
 # Copyright (C) 2012-2014  LSI Corporation
-#  (mailto:DL-MPTFusionLinux@lsi.com)
+#  (mailto:DL-MPTFusionGNU/Linux@lsi.com)
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License

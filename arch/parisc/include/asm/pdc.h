@@ -104,7 +104,7 @@ static inline char * os_id_to_string(u16 os_id) {
 	case OS_ID_OSF:		return "OSF";
 	case OS_ID_HPRT:	return "HP-RT";
 	case OS_ID_NOVEL:	return "Novell Netware";
-	case OS_ID_LINUX:	return "Linux";
+	case OS_ID_LINUX:	return "GNU/Linux";
 	default:	return "Unknown";
 	}
 }

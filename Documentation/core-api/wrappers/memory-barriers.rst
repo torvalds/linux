@@ -3,7 +3,7 @@
    until such a time as that file can be converted directly.
 
 ============================
-Linux kernel memory barriers
+GNU/Linux kernel memory barriers
 ============================
 
 .. raw:: latex

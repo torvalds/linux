@@ -1,5 +1,5 @@
 /*
-** asm-m68k/pcmcia.c -- Amiga Linux PCMCIA support
+** asm-m68k/pcmcia.c -- Amiga GNU/Linux PCMCIA support
 **                      most information was found by disassembling card.resource
 **                      I'm still looking for an official doc !
 **

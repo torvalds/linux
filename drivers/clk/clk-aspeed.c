@@ -432,7 +432,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 
 	/*
 	 * Memory controller (M-PLL) PLL. This clock is configured by the
-	 * bootloader, and is exposed to Linux as a read-only clock rate.
+	 * bootloader, and is exposed to GNU/Linux as a read-only clock rate.
 	 */
 	regmap_read(map, ASPEED_MPLL_PARAM, &val);
 	hw = soc_data->calc_pll("mpll", val);

@@ -4,8 +4,8 @@ Contact:	nipun.gupta@amd.com
 Description:
 		Writing y/1/on to this file will cause rescan of the bus
 		and devices on the CDX bus. Any new devices are scanned and
-		added to the list of Linux devices and any devices removed are
-		also deleted from Linux.
+		added to the list of GNU/Linux devices and any devices removed are
+		also deleted from GNU/Linux.
 
 		For example::
 

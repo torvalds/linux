@@ -618,7 +618,7 @@ Buffer Flags
 
       - ``V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN``
       - 0x00000000
-      - Unknown timestamp type. This type is used by drivers before Linux
+      - Unknown timestamp type. This type is used by drivers before GNU/Linux
 	3.9 and may be either monotonic (see below) or realtime (wall
 	clock). Monotonic clock has been favoured in embedded systems
 	whereas most of the drivers use the realtime clock. Either kinds

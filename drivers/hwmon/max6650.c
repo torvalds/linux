@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * max6650.c - Part of lm_sensors, Linux kernel modules for hardware
+ * max6650.c - Part of lm_sensors, GNU/Linux kernel modules for hardware
  *             monitoring.
  *
  * (C) 2007 by Hans J. Koch <hjk@hansjkoch.de>

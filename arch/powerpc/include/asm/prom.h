@@ -174,7 +174,7 @@ extern unsigned int boot_cpu_node_count;
 #define OV5_DRC_INFO		0x1640	/* Redef Prop Structures: drc-info   */
 
 /* Option Vector 6: IBM PAPR hints */
-#define OV6_LINUX		0x02	/* Linux is our OS */
+#define OV6_LINUX		0x02	/* GNU/Linux is our OS */
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

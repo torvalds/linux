@@ -8,7 +8,7 @@
  *  Derived from "arch/i386/kernel/sys_i386.c"
  *
  *  This file contains various random system calls that
- *  have a non-standard calling sequence on the Linux/s390
+ *  have a non-standard calling sequence on the GNU/Linux/s390
  *  platform.
  */
 

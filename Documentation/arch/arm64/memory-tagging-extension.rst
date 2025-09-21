@@ -1,5 +1,5 @@
 ===============================================
-Memory Tagging Extension (MTE) in AArch64 Linux
+Memory Tagging Extension (MTE) in AArch64 GNU/Linux
 ===============================================
 
 Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
@@ -8,7 +8,7 @@ Authors: Vincenzo Frascino <vincenzo.frascino@arm.com>
 Date: 2020-02-25
 
 This document describes the provision of the Memory Tagging Extension
-functionality in AArch64 Linux.
+functionality in AArch64 GNU/Linux.
 
 Introduction
 ============
@@ -120,7 +120,7 @@ Excluding Tags in the ``IRG``, ``ADDG`` and ``SUBG`` instructions
 -----------------------------------------------------------------
 
 The architecture allows excluding certain tags to be randomly generated
-via the ``GCR_EL1.Exclude`` register bit-field. By default, Linux
+via the ``GCR_EL1.Exclude`` register bit-field. By default, GNU/Linux
 excludes all tags other than 0. A user thread can enable specific tags
 in the randomly generated set using the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
 flags, 0, 0, 0)`` system call where ``flags`` contains the tags bitmap

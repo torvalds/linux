@@ -3,7 +3,7 @@
  * ni_6527.c
  * Comedi driver for National Instruments PCI-6527
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1999,2002,2003 David A. Schleef <ds@schleef.org>
  */
 

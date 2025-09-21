@@ -247,14 +247,14 @@ struct edma_cc {
 
 	/*
 	 * The slot_inuse bit for each PaRAM slot is clear unless the slot is
-	 * in use by Linux or if it is allocated to be used by DSP.
+	 * in use by GNU/Linux or if it is allocated to be used by DSP.
 	 */
 	unsigned long *slot_inuse;
 
 	/*
 	 * For tracking reserved channels used by DSP.
 	 * If the bit is cleared, the channel is allocated to be used by DSP
-	 * and Linux must not touch it.
+	 * and GNU/Linux must not touch it.
 	 */
 	unsigned long *channels_mask;
 
@@ -2386,7 +2386,7 @@ static int edma_probe(struct platform_device *pdev)
 					   reserved[i][1]);
 		}
 
-		/* Clear channels not usable for Linux */
+		/* Clear channels not usable for GNU/Linux */
 		reserved = info->rsv->rsv_chans;
 		if (reserved) {
 			for (i = 0; reserved[i][0] != -1; i++)

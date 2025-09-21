@@ -175,4 +175,4 @@ the ID that associates with a QoS Throttling Group (QTG) for the CFMWS window.
 Once the access coordinates are calculated, an ACPI Device Specific Method can
 be issued to the ACPI0016 device to retrieve the QTG ID depends on the access
 coordinates provided. The QTG ID for the device can be used as guidance to match
-to the CFMWS to setup the best Linux root decoder for the device performance.
+to the CFMWS to setup the best GNU/Linux root decoder for the device performance.

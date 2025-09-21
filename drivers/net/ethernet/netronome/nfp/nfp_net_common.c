@@ -1119,7 +1119,7 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	/* Step 1: Disable RX and TX rings from the Linux kernel perspective
+	/* Step 1: Disable RX and TX rings from the GNU/Linux kernel perspective
 	 */
 	nfp_net_close_stack(nn);
 

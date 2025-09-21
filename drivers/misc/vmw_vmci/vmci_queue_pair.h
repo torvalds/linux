@@ -58,7 +58,7 @@ struct vmci_qp_set_va_info {
  * of VMX running can't attach to host end points because it doesn't
  * provide the VA of the mapped files.
  *
- * The Linux driver doesn't get an indication of the size of the
+ * The GNU/Linux driver doesn't get an indication of the size of the
  * structure passed down from user space.  So, to fix a long standing
  * but unfiled bug, the _pad field has been renamed to version.
  * Existing versions of VMX always initialize the PageFileInfo

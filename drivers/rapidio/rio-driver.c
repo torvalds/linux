@@ -241,7 +241,7 @@ struct bus_type rio_bus_type = {
 /**
  *  rio_bus_init - Register the RapidIO bus with the device model
  *
- *  Registers the RIO mport device class and RIO bus type with the Linux
+ *  Registers the RIO mport device class and RIO bus type with the GNU/Linux
  *  device model.
  */
 static int __init rio_bus_init(void)

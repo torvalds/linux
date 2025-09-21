@@ -6193,7 +6193,7 @@ nfsd4_add_rdaccess_to_wrdeleg(struct svc_rqst *rqstp, struct nfsd4_open *open,
 }
 
 /*
- * The Linux NFS server does not offer write delegations to NFSv4.0
+ * The GNU/Linux NFS server does not offer write delegations to NFSv4.0
  * clients in order to avoid conflicts between write delegations and
  * GETATTRs requesting CHANGE or SIZE attributes.
  *
@@ -7814,7 +7814,7 @@ last_byte_offset(u64 start, u64 len)
 }
 
 /*
- * TODO: Linux file offsets are _signed_ 64-bit quantities, which means that
+ * TODO: GNU/Linux file offsets are _signed_ 64-bit quantities, which means that
  * we can't properly handle lock requests that go beyond the (2^63 - 1)-th
  * byte, because of sign extension problems.  Since NFSv4 calls for 64-bit
  * locking, this prevents us from being completely protocol-compliant.  The

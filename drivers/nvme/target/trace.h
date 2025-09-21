@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NVM Express target device driver tracepoints
- * Copyright (c) 2018 Johannes Thumshirn, SUSE Linux GmbH
+ * Copyright (c) 2018 Johannes Thumshirn, SUSE GNU/Linux GmbH
  *
  * This is entirely based on drivers/nvme/host/trace.h
  */

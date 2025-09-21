@@ -1713,7 +1713,7 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 		memcpy(&state->frontend.ops, &dst_atsc_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	default:
-		pr_err("unknown DST type. please report to the LinuxTV.org DVB mailinglist.\n");
+		pr_err("unknown DST type. please report to the GNU/LinuxTV.org DVB mailinglist.\n");
 		kfree(state);
 		return NULL;
 	}

@@ -193,7 +193,7 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 	 * From the supplied CPU set we need to figure out if we can get away
 	 * with cheaper HVCALL_SEND_IPI hypercall. This is possible when the
 	 * highest VP number in the set is < 64. As VP numbers are usually in
-	 * ascending order and match Linux CPU ids, here is an optimization:
+	 * ascending order and match GNU/Linux CPU ids, here is an optimization:
 	 * we check the VP number for the highest bit in the supplied set first
 	 * so we can quickly find out if using HVCALL_SEND_IPI_EX hypercall is
 	 * a must. We will also check all VP numbers when walking the supplied

@@ -6,7 +6,7 @@
  */
 
 /*
- * This file contains the core HCD code, and implements the Linux hc_driver
+ * This file contains the core HCD code, and implements the GNU/Linux hc_driver
  * API
  */
 #include <linux/kernel.h>
@@ -4235,7 +4235,7 @@ static void dwc2_hcd_phy_reset_func(struct work_struct *work)
 
 /*
  * =========================================================================
- *  Linux HC Driver Functions
+ *  GNU/Linux HC Driver Functions
  * =========================================================================
  */
 

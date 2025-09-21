@@ -34,7 +34,7 @@
 |       file, README, in this same directory.
 
 |
-|	Modified for Linux-1.3.x by Jes Sorensen (jds@kom.auc.dk)
+|	Modified for GNU/Linux-1.3.x by Jes Sorensen (jds@kom.auc.dk)
 |
 
 #include <linux/linkage.h>

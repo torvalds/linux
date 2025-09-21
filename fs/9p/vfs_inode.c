@@ -464,7 +464,7 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 }
 
 /**
- * v9fs_at_to_dotl_flags- convert Linux specific AT flags to
+ * v9fs_at_to_dotl_flags- convert GNU/Linux specific AT flags to
  * plan 9 AT flag.
  * @flags: flags to convert
  */

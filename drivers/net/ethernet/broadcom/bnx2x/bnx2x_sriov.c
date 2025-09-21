@@ -1225,7 +1225,7 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 		goto failed;
 	}
 
-	/* get the sriov info - Linux already collected all the pertinent
+	/* get the sriov info - GNU/Linux already collected all the pertinent
 	 * information, however the sriov structure is for the private use
 	 * of the pci module. Also we want this information regardless
 	 * of the hyper-visor.

@@ -8,7 +8,7 @@
 	This drivers was written with the following sources of reference:
 	 - The driver for the Riebl Lance card by the TU Vienna.
 	 - The modified TUW driver for PAM's VME cards
-	 - The PC-Linux driver for Lance cards (but this is for bus master
+	 - The PC-GNU/Linux driver for Lance cards (but this is for bus master
        cards, not the shared memory ones)
 	 - The Amiga Ariadne driver
 

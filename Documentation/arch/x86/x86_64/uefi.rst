@@ -12,7 +12,7 @@ with EFI firmware and specifications are listed below.
 
 1. UEFI specification:  http://www.uefi.org
 
-2. Booting Linux kernel on UEFI x86_64 platform can either be
+2. Booting GNU/Linux kernel on UEFI x86_64 platform can either be
    done using the <Documentation/admin-guide/efi-stub.rst> or using a
    separate bootloader.
 

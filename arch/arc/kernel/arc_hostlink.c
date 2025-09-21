@@ -2,7 +2,7 @@
 /*
  * arc_hostlink.c: Pseudo-driver for Metaware provided "hostlink" facility
  *
- * Allows Linux userland access to host in absence of any peripherals.
+ * Allows GNU/Linux userland access to host in absence of any peripherals.
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  */

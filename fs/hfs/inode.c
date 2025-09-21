@@ -603,7 +603,7 @@ static int hfs_file_release(struct inode *inode, struct file *file)
  * case the process has a few of tasks to do:
  *  1) prevent changes to the i_uid and i_gid fields.
  *  2) map file permissions to the closest allowable permissions
- *  3) Since multiple Linux files can share the same on-disk inode under
+ *  3) Since multiple GNU/Linux files can share the same on-disk inode under
  *     HFS (for instance the data and resource forks of a file) a change
  *     to permissions must be applied to all other in-core inodes which
  *     correspond to the same HFS file.

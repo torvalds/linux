@@ -5,13 +5,13 @@
 
 .. _it_process_howto:
 
-Come partecipare allo sviluppo del kernel Linux
+Come partecipare allo sviluppo del kernel GNU/Linux
 ===============================================
 
 Questo è il documento fulcro di quanto trattato sull'argomento.
 Esso contiene le istruzioni su come diventare uno sviluppatore
-del kernel Linux e spiega come lavorare con la comunità di
-sviluppo kernel Linux. Il documento non tratterà alcun aspetto
+del kernel GNU/Linux e spiega come lavorare con la comunità di
+sviluppo kernel GNU/Linux. Il documento non tratterà alcun aspetto
 tecnico relativo alla programmazione del kernel, ma vi aiuterà
 indirizzandovi sulla corretta strada.
 
@@ -21,8 +21,8 @@ file, indicati in fondo al presente documento.
 
 Introduzione
 ------------
-Dunque, volete imparare come diventare sviluppatori del kernel Linux?
-O vi è stato detto dal vostro capo, "Vai, scrivi un driver Linux per
+Dunque, volete imparare come diventare sviluppatori del kernel GNU/Linux?
+O vi è stato detto dal vostro capo, "Vai, scrivi un driver GNU/Linux per
 questo dispositivo". Bene, l'obbiettivo di questo documento è quello
 di insegnarvi tutto ciò che dovete sapere per raggiungere il vostro
 scopo descrivendo il procedimento da seguire e consigliandovi
@@ -65,11 +65,11 @@ o a quello della vostra azienda.
 
 Note legali
 ------------
-Il codice sorgente del kernel Linux è rilasciato sotto GPL. Siete pregati
+Il codice sorgente del kernel GNU/Linux è rilasciato sotto GPL. Siete pregati
 di visionare il file, COPYING, presente nella cartella principale dei
 sorgente, per eventuali dettagli sulla licenza. Se avete ulteriori domande
 sulla licenza, contattate un avvocato, non chiedete sulle liste di discussione
-del kernel Linux. Le persone presenti in queste liste non sono avvocati,
+del kernel GNU/Linux. Le persone presenti in queste liste non sono avvocati,
 e non dovreste basarvi sulle loro dichiarazioni in materia giuridica.
 
 Per domande più frequenti e risposte sulla licenza GPL, guardare:
@@ -78,7 +78,7 @@ Per domande più frequenti e risposte sulla licenza GPL, guardare:
 
 Documentazione
 --------------
-I sorgenti del kernel Linux hanno una vasta base di documenti che vi
+I sorgenti del kernel GNU/Linux hanno una vasta base di documenti che vi
 insegneranno come interagire con la comunità del kernel. Quando nuove
 funzionalità vengono aggiunte al kernel, si raccomanda di aggiungere anche i
 relativi file di documentatione che spiegano come usarele.
@@ -92,7 +92,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 è richiesto che voi leggiate:
 
   :ref:`Documentation/translations/it_IT/admin-guide/README.rst <it_readme>`
-    Questo file da una piccola anteprima del kernel Linux e descrive il
+    Questo file da una piccola anteprima del kernel GNU/Linux e descrive il
     minimo necessario per configurare e generare il kernel. I novizi
     del kernel dovrebbero iniziare da qui.
 
@@ -103,7 +103,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 
   :ref:`Documentation/translations/it_IT/process/coding-style.rst <it_codingstyle>`
 
-    Questo file descrive lo stile della codifica per il kernel Linux,
+    Questo file descrive lo stile della codifica per il kernel GNU/Linux,
     e parte delle motivazioni che ne sono alla base. Tutto il nuovo codice deve
     seguire le linee guida in questo documento. Molti amministratori
     accetteranno patch solo se queste osserveranno tali regole, e molte
@@ -127,7 +127,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 	"The Perfect Patch"
 		https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
-	"Linux kernel patch submission format"
+	"GNU/Linux kernel patch submission format"
 		https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
   :ref:`Documentation/translations/it_IT/process/stable-api-nonsense.rst <it_stable_api_nonsense>`
@@ -141,16 +141,16 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
         (o prevenirli)
 
     Questo documento è vitale per la comprensione della filosifia alla base
-    dello sviluppo di Linux ed è molto importante per le persone che arrivano
+    dello sviluppo di GNU/Linux ed è molto importante per le persone che arrivano
     da esperienze con altri Sistemi Operativi.
 
   :ref:`Documentation/translations/it_IT/process/security-bugs.rst <it_securitybugs>`
-    Se ritenete di aver trovato un problema di sicurezza nel kernel Linux,
+    Se ritenete di aver trovato un problema di sicurezza nel kernel GNU/Linux,
     seguite i passaggi scritti in questo documento per notificarlo agli
     sviluppatori del kernel, ed aiutare la risoluzione del problema.
 
   :ref:`Documentation/translations/it_IT/process/management-style.rst <it_managementstyle>`
-    Questo documento descrive come i manutentori del kernel Linux operano
+    Questo documento descrive come i manutentori del kernel GNU/Linux operano
     e la filosofia comune alla base del loro metodo.  Questa è un'importante
     lettura per tutti coloro che sono nuovi allo sviluppo del kernel (o per
     chi è semplicemente curioso), poiché risolve molti dei più comuni
@@ -194,8 +194,8 @@ Questi posso essere generati anche in formato LaTex e ePub con::
 
 Diventare uno sviluppatore del kernel
 -------------------------------------
-Se non sapete nulla sullo sviluppo del kernel Linux, dovreste dare uno
-sguardo al progetto *Linux KernelNewbies*:
+Se non sapete nulla sullo sviluppo del kernel GNU/Linux, dovreste dare uno
+sguardo al progetto *GNU/Linux KernelNewbies*:
 
 	https://kernelnewbies.org
 
@@ -204,32 +204,32 @@ tipo di quesito relativo ai concetti fondamentali sullo sviluppo del kernel
 (assicuratevi di cercare negli archivi, prima di chiedere qualcosa alla
 quale è già stata fornita risposta in passato). Esistono inoltre, un canale IRC
 che potete usare per formulare domande in tempo reale, e molti documenti utili
-che vi faciliteranno nell'apprendimento dello sviluppo del kernel Linux.
+che vi faciliteranno nell'apprendimento dello sviluppo del kernel GNU/Linux.
 
 Il sito internet contiene informazioni di base circa l'organizzazione del
-codice, sottosistemi e progetti attuali (sia interni che esterni a Linux).
+codice, sottosistemi e progetti attuali (sia interni che esterni a GNU/Linux).
 Esso descrive, inoltre, informazioni logistiche di base, riguardanti ad esempio
 la compilazione del kernel e l'applicazione di una modifica.
 
 Se non sapete dove cominciare, ma volete cercare delle attività dalle quali
-partire per partecipare alla comunità di sviluppo, andate al progetto Linux
+partire per partecipare alla comunità di sviluppo, andate al progetto GNU/Linux
 Kernel Janitor's.
 
 	https://kernelnewbies.org/KernelJanitors
 
 È un buon posto da cui iniziare. Esso presenta una lista di problematiche
 relativamente semplici da sistemare e pulire all'interno della sorgente del
-kernel Linux. Lavorando con gli sviluppatori incaricati di questo progetto,
+kernel GNU/Linux. Lavorando con gli sviluppatori incaricati di questo progetto,
 imparerete le basi per l'inserimento delle vostre modifiche all'interno dei
-sorgenti del kernel Linux, e possibilmente, sarete indirizzati al lavoro
+sorgenti del kernel GNU/Linux, e possibilmente, sarete indirizzati al lavoro
 successivo da svolgere, se non ne avrete ancora idea.
 
-Prima di apportare una qualsiasi modifica al codice del kernel Linux,
+Prima di apportare una qualsiasi modifica al codice del kernel GNU/Linux,
 è imperativo comprendere come tale codice funziona. A questo scopo, non c'è
 nulla di meglio che leggerlo direttamente (la maggior parte dei bit più
 complessi sono ben commentati), eventualmente anche con l'aiuto di strumenti
 specializzati. Uno degli strumenti che è particolarmente raccomandato è
-il progetto Linux Cross-Reference, che è in grado di presentare codice
+il progetto GNU/Linux Cross-Reference, che è in grado di presentare codice
 sorgente in un formato autoreferenziale ed indicizzato. Un eccellente ed
 aggiornata fonte di consultazione del codice del kernel la potete trovare qui:
 
@@ -238,7 +238,7 @@ aggiornata fonte di consultazione del codice del kernel la potete trovare qui:
 
 Il processo di sviluppo
 -----------------------
-Il processo di sviluppo del kernel Linux si compone di pochi "rami" principali
+Il processo di sviluppo del kernel GNU/Linux si compone di pochi "rami" principali
 e di molti altri rami per specifici sottosistemi. Questi rami sono:
 
   - I sorgenti kernel 4.x
@@ -385,7 +385,7 @@ Liste di discussione
 --------------------
 
 Come descritto in molti dei documenti qui sopra, la maggior parte degli
-sviluppatori del kernel partecipano alla lista di discussione Linux Kernel.
+sviluppatori del kernel partecipano alla lista di discussione GNU/Linux Kernel.
 I dettagli su come iscriversi e disiscriversi dalla lista possono essere
 trovati al sito:
 
@@ -518,12 +518,12 @@ Un'altra cosa nella quale la comunità del kernel si differenzia dai più
 classici ambienti di ingegneria del software è la natura "senza volto" delle
 interazioni umane. Uno dei benefici dell'uso delle email e di irc come forma
 primordiale di comunicazione è l'assenza di discriminazione basata su genere e
-razza. L'ambienti di lavoro Linux accetta donne e minoranze perchè tutto quello
+razza. L'ambienti di lavoro GNU/Linux accetta donne e minoranze perchè tutto quello
 che sei è un indirizzo email.  Aiuta anche l'aspetto internazionale nel
 livellare il terreno di gioco perchè non è possibile indovinare il genere
 basandosi sul nome di una persona. Un uomo può chiamarsi Andrea ed una donna
 potrebbe chiamarsi Pat. Gran parte delle donne che hanno lavorato al kernel
-Linux e che hanno espresso una personale opinione hanno avuto esperienze
+GNU/Linux e che hanno espresso una personale opinione hanno avuto esperienze
 positive.
 
 La lingua potrebbe essere un ostacolo per quelle persone che non si trovano
@@ -536,7 +536,7 @@ email prima di inviarle in modo da essere certi che abbiano senso in inglese.
 Spezzare le vostre modifiche
 ----------------------------
 
-La comunità del kernel Linux non accetta con piacere grossi pezzi di codice
+La comunità del kernel GNU/Linux non accetta con piacere grossi pezzi di codice
 buttati lì tutti in una volta. Le modifiche necessitano di essere
 adeguatamente presentate, discusse, e suddivise in parti più piccole ed
 indipendenti.  Questo è praticamente l'esatto opposto di quello che le
@@ -595,7 +595,7 @@ Giustificare le vostre modifiche
 --------------------------------
 
 Insieme alla frammentazione delle vostre modifiche, è altrettanto importante
-permettere alla comunità Linux di capire perché dovrebbero accettarle.
+permettere alla comunità GNU/Linux di capire perché dovrebbero accettarle.
 Nuove funzionalità devono essere motivate come necessarie ed utili.
 
 

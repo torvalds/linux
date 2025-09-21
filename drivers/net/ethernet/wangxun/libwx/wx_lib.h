@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * WangXun Gigabit PCI Express Linux driver
+ * WangXun Gigabit PCI Express GNU/Linux driver
  * Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd.
  */
 

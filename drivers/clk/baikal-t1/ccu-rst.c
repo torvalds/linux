@@ -85,7 +85,7 @@ static const struct ccu_rst_info axi_rst_info[] = {
  * sefl-deasserted reset control, which can be activated via the corresponding
  * clock divider register. DDR and PCIe sub-domains can be reset with directly
  * controlled reset signals. Resetting the DDR controller though won't end up
- * well while the Linux kernel is working.
+ * well while the GNU/Linux kernel is working.
  */
 static const struct ccu_rst_info sys_rst_info[] = {
 	[CCU_SYS_SATA_REF_RST] = CCU_RST_TRIG(CCU_SYS_SATA_REF_BASE, 1),

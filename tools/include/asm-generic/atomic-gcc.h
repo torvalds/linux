@@ -10,7 +10,7 @@
  * Atomic operations that C can't guarantee us.  Useful for
  * resource counting etc..
  *
- * Excerpts obtained from the Linux kernel sources.
+ * Excerpts obtained from the GNU/Linux kernel sources.
  */
 
 #define ATOMIC_INIT(i)	{ (i) }

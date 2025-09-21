@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * This is a module to test the HMM (Heterogeneous Memory Management) API
  * of the kernel. It allows a userspace program to expose its entire address

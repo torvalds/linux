@@ -187,7 +187,7 @@ COMPAT_SYSCALL_DEFINE4(s390_fstatat64, unsigned int, dfd, const char __user *, f
 }
 
 /*
- * Linux/i386 didn't use to be able to handle more than
+ * GNU/Linux/i386 didn't use to be able to handle more than
  * 4 system call parameters, so these system calls used a memory
  * block for parameter passing..
  */

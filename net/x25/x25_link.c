@@ -37,7 +37,7 @@ static void x25_transmit_restart_confirmation(struct x25_neigh *nb);
 static void x25_transmit_restart_request(struct x25_neigh *nb);
 
 /*
- *	Linux set/reset timer routines
+ *	GNU/Linux set/reset timer routines
  */
 static inline void x25_start_t20timer(struct x25_neigh *nb)
 {

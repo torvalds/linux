@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Makefile for the Linux AppleTalk layer.
+# Makefile for the GNU/Linux AppleTalk layer.
 #
 
 obj-$(CONFIG_ATALK) += appletalk.o

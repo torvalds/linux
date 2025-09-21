@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Based on dispcc-qcm2290.c
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2021, Linaro Ltd.
  */
 

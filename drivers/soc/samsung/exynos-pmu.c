@@ -44,7 +44,7 @@ static struct platform_driver exynos_pmu_driver;
 
 /*
  * Tensor SoCs are configured so that PMU_ALIVE registers can only be written
- * from EL3, but are still read accessible. As Linux needs to write some of
+ * from EL3, but are still read accessible. As GNU/Linux needs to write some of
  * these registers, the following functions are provided and exposed via
  * regmap.
  *
@@ -87,7 +87,7 @@ static int tensor_sec_reg_rmw(void *context, unsigned int reg,
 }
 
 /*
- * Read a protected PMU register. All PMU registers can be read by Linux.
+ * Read a protected PMU register. All PMU registers can be read by GNU/Linux.
  * Note: The SMC read register is not used, as only registers that can be
  * written are readable via SMC.
  */

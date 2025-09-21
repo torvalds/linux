@@ -9,7 +9,7 @@
  * Sreekanth Reddy  <sreekanth.reddy@broadcom.com>
  * Suganath Prabu <suganath-prabu.subramani@broadcom.com>
  *
- * Send feedback to : MPT-FusionLinux.pdl@broadcom.com)
+ * Send feedback to : MPT-FusionGNU/Linux.pdl@broadcom.com)
  *
  **/
 

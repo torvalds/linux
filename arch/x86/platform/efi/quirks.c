@@ -447,9 +447,9 @@ void __init efi_free_boot_services(void)
 		 * try to manually allocate the trampoline if needed.
 		 *
 		 * I've seen this on a Dell XPS 13 9350 with firmware
-		 * 1.4.4 with SGX enabled booting Linux via Fedora 24's
+		 * 1.4.4 with SGX enabled booting GNU/Linux via Fedora 24's
 		 * grub2-efi on a hard disk.  (And no, I don't know why
-		 * this happened, but Linux should still try to boot rather
+		 * this happened, but GNU/Linux should still try to boot rather
 		 * panicking early.)
 		 */
 		rm_size = real_mode_size_needed();

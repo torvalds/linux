@@ -7,9 +7,9 @@
 Differences between V4L and V4L2
 ********************************
 
-The Video For Linux API was first introduced in Linux 2.1 to unify and
+The Video For GNU/Linux API was first introduced in GNU/Linux 2.1 to unify and
 replace various TV and radio device related interfaces, developed
-independently by driver writers in prior years. Starting with Linux 2.5
+independently by driver writers in prior years. Starting with GNU/Linux 2.5
 the much improved V4L2 API replaces the V4L API. The support for the old
 V4L calls were removed from Kernel, but the library :ref:`libv4l`
 supports the conversion of a V4L API system call into a V4L2 one.
@@ -599,7 +599,7 @@ with the following parameters:
     * - flags
       - 0
 
-Undocumented in the V4L specification, in Linux 2.3 the
+Undocumented in the V4L specification, in GNU/Linux 2.3 the
 ``VIDIOCGVBIFMT`` and ``VIDIOCSVBIFMT`` ioctls using struct
 ``vbi_format`` were added to determine the VBI image
 parameters. These ioctls are only partially compatible with the V4L2 VBI

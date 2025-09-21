@@ -51,7 +51,7 @@ static struct __prci_wrpll_data sifive_fu740_prci_cltxpll_data = {
 	.cfg1_offs = PRCI_CLTXPLLCFG1_OFFSET,
 };
 
-/* Linux clock framework integration */
+/* GNU/Linux clock framework integration */
 
 static const struct clk_ops sifive_fu740_prci_wrpll_clk_ops = {
 	.set_rate = sifive_prci_wrpll_set_rate,

@@ -13,7 +13,7 @@ Protocols
 
 There are three core protocols to CXL.  For the purpose of this documentation,
 we will only discuss very high level definitions as the specific hardware
-details are largely abstracted away from Linux.  See the CXL specification
+details are largely abstracted away from GNU/Linux.  See the CXL specification
 for more details.
 
 CXL.io
@@ -22,7 +22,7 @@ The basic interaction protocol, similar to PCIe configuration mechanisms.
 Typically used for initialization, configuration, and I/O access for anything
 other than memory (CXL.mem) or cache (CXL.cache) operations.
 
-The Linux CXL driver exposes access to .io functionalty via the various sysfs
+The GNU/Linux CXL driver exposes access to .io functionalty via the various sysfs
 interfaces and /dev/cxl/ devices (which exposes direct access to device
 mailboxes).
 
@@ -30,13 +30,13 @@ CXL.cache
 ---------
 The mechanism by which a device may coherently access and cache host memory.
 
-Largely transparent to Linux once configured.
+Largely transparent to GNU/Linux once configured.
 
 CXL.mem
 ---------
 The mechanism by which the CPU may coherently access and cache device memory.
 
-Largely transparent to Linux once configured.
+Largely transparent to GNU/Linux once configured.
 
 
 Device Types
@@ -115,14 +115,14 @@ A Multi-Headed Single-Logical Device (MHSLD) exposes a single logical
 device to multiple heads which may be connected to one or more discrete
 hosts.  An example of this would be a simple memory-pool which may be
 statically configured (prior to boot) to expose portions of its memory
-to Linux via :doc:`CEDT <../platform/acpi/cedt>`.
+to GNU/Linux via :doc:`CEDT <../platform/acpi/cedt>`.
 
 MHMLD
 ~~~~~
 A Multi-Headed Multi-Logical Device (MHMLD) exposes multiple logical
 devices to multiple heads which may be connected to one or more discrete
 hosts.  An example of this would be a Dynamic Capacity Device or which
-may be configured at runtime to expose portions of its memory to Linux.
+may be configured at runtime to expose portions of its memory to GNU/Linux.
 
 Example Devices
 ===============
@@ -130,14 +130,14 @@ Example Devices
 Memory Expander
 ---------------
 The simplest form of Type-3 device is a memory expander.  A memory expander
-exposes Host-Managed Device Memory (HDM) to Linux.  This memory may be
+exposes Host-Managed Device Memory (HDM) to GNU/Linux.  This memory may be
 Volatile or Non-Volatile (Persistent).
 
 Memory Expanders will typically be considered a form of Single-Headed,
 Single-Logical Device - as its form factor will typically be an add-in-card
 (AIC) or some other similar form-factor.
 
-The Linux CXL driver provides support for static or dynamic configuration of
+The GNU/Linux CXL driver provides support for static or dynamic configuration of
 basic memory expanders.  The platform may program decoders prior to OS init
 (e.g. auto-decoders), or the user may program the fabric if the platform
 defers these operations to the OS.
@@ -147,7 +147,7 @@ a host via a head attached to a CXL switch.  This is a "memory pool", and
 would be considered an MHSLD or MHMLD depending on the management capabilities
 provided by the switch platform.
 
-As of v6.14, Linux does not provide a formalized interface to manage non-DCD
+As of v6.14, GNU/Linux does not provide a formalized interface to manage non-DCD
 MHSLD or MHMLD devices.
 
 Dynamic Capacity Device (DCD)
@@ -161,5 +161,5 @@ privileged host with privileges to change configurations for other hosts).
 A DCD manages "Memory Extents", which may be volatile or persistent. Extents
 may also be exclusive to a single host or shared across multiple hosts.
 
-As of v6.14, Linux does not provide a formalized interface to manage DCD
+As of v6.14, GNU/Linux does not provide a formalized interface to manage DCD
 devices, however there is active work on LKML targeting future release.

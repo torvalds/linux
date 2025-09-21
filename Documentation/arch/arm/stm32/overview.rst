@@ -1,5 +1,5 @@
 ========================
-STM32 ARM Linux Overview
+STM32 ARM GNU/Linux Overview
 ========================
 
 Introduction
@@ -7,7 +7,7 @@ Introduction
 
 The STMicroelectronics STM32 family of Cortex-A microprocessors (MPUs) and
 Cortex-M microcontrollers (MCUs) are supported by the 'STM32' platform of
-ARM Linux.
+ARM GNU/Linux.
 
 Configuration
 -------------

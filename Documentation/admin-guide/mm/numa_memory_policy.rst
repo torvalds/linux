@@ -5,10 +5,10 @@ NUMA Memory Policy
 What is NUMA Memory Policy?
 ============================
 
-In the Linux kernel, "memory policy" determines from which node the kernel will
-allocate memory in a NUMA system or in an emulated NUMA system.  Linux has
+In the GNU/Linux kernel, "memory policy" determines from which node the kernel will
+allocate memory in a NUMA system or in an emulated NUMA system.  GNU/Linux has
 supported platforms with Non-Uniform Memory Access architectures since 2.4.?.
-The current memory policy support was added to Linux 2.6 around May 2004.  This
+The current memory policy support was added to GNU/Linux 2.6 around May 2004.  This
 document attempts to describe the concepts and APIs of the 2.6 memory policy
 support.
 
@@ -27,7 +27,7 @@ Memory Policy Concepts
 Scope of Memory Policies
 ------------------------
 
-The Linux kernel supports _scopes_ of memory policy, described here from
+The GNU/Linux kernel supports _scopes_ of memory policy, described here from
 most general to most specific:
 
 System Default Policy
@@ -59,7 +59,7 @@ Task/Process Policy
 	that a task may use to set/change its task/process policy.
 
 	In a multi-threaded task, task policies apply only to the thread
-	[Linux kernel task] that installs the policy and any threads
+	[GNU/Linux kernel task] that installs the policy and any threads
 	subsequently created by that thread.  Any sibling threads existing
 	at the time a new task policy is installed retain their current
 	policy.
@@ -107,7 +107,7 @@ VMA Policy
 	  applications may use VMA policies.
 
 	* A task may install a new VMA policy on a sub-range of a
-	  previously mmap()ed region.  When this happens, Linux splits
+	  previously mmap()ed region.  When this happens, GNU/Linux splits
 	  the existing virtual memory area into 2 or 3 VMAs, each with
 	  its own policy.
 
@@ -115,7 +115,7 @@ VMA Policy
 	  the policy is installed.  Any pages already faulted into the
 	  VMA range remain where they were allocated based on the
 	  policy at the time they were allocated.  However, since
-	  2.6.16, Linux supports page migration via the mbind() system
+	  2.6.16, GNU/Linux supports page migration via the mbind() system
 	  call, so that page contents can be moved to match a newly
 	  installed policy.
 
@@ -133,7 +133,7 @@ Shared Policy
 
 	As of 2.6.22, only shared memory segments, created by shmget() or
 	mmap(MAP_ANONYMOUS|MAP_SHARED), support shared policy.  When shared
-	policy support was added to Linux, the associated data structures were
+	policy support was added to GNU/Linux, the associated data structures were
 	added to hugetlbfs shmem segments.  At the time, hugetlbfs did not
 	support allocation at fault time--a.k.a lazy allocation--so hugetlbfs
 	shmem segments were never "hooked up" to the shared policy support.
@@ -149,7 +149,7 @@ Shared Policy
 	task policy, if any, else System Default Policy.
 
 	The shared policy infrastructure supports different policies on subset
-	ranges of the shared object.  However, Linux still splits the VMA of
+	ranges of the shared object.  However, GNU/Linux still splits the VMA of
 	the task that installs the policy for each range of distinct policy.
 	Thus, different tasks that attach to a shared memory segment can have
 	different VMA configurations mapping that one shared object.  This
@@ -415,14 +415,14 @@ follows:
 Memory Policy APIs
 ==================
 
-Linux supports 4 system calls for controlling memory policy.  These APIS
+GNU/Linux supports 4 system calls for controlling memory policy.  These APIS
 always affect only the calling task, the calling task's address space, or
 some shared object mapped into the calling task's address space.
 
 .. note::
    the headers that define these APIs and the parameter data types for
    user space applications reside in a package that is not part of the
-   Linux kernel.  The kernel system call interfaces, with the 'sys\_'
+   GNU/Linux kernel.  The kernel system call interfaces, with the 'sys\_'
    prefix, are defined in <linux/syscalls.h>; the mode and flag
    definitions are defined in <linux/mempolicy.h>.
 
@@ -484,7 +484,7 @@ executing CPU.
 Memory Policy Command Line Interface
 ====================================
 
-Although not strictly part of the Linux implementation of memory policy,
+Although not strictly part of the GNU/Linux implementation of memory policy,
 a command line tool, numactl(8), exists that allows one to:
 
 + set the task policy for a specified program via set_mempolicy(2), fork(2) and

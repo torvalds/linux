@@ -7,17 +7,17 @@ use in embedded systems. Development of the RapidIO standard is directed by the
 RapidIO Trade Association (RTA). The current version of the RapidIO specification
 is publicly available for download from the RTA web-site [1].
 
-This document describes the basics of the Linux RapidIO subsystem and provides
+This document describes the basics of the GNU/Linux RapidIO subsystem and provides
 information on its major components.
 
 1 Overview
 ==========
 
-Because the RapidIO subsystem follows the Linux device model it is integrated
+Because the RapidIO subsystem follows the GNU/Linux device model it is integrated
 into the kernel similarly to other buses by defining RapidIO-specific device and
 bus types and registering them within the device model.
 
-The Linux RapidIO subsystem is architecture independent and therefore defines
+The GNU/Linux RapidIO subsystem is architecture independent and therefore defines
 architecture-specific interfaces that provide support for common RapidIO
 subsystem operations.
 
@@ -33,7 +33,7 @@ in include/linux/rio.h file.
 ---------------
 
 A master port (or mport) is a RapidIO interface controller that is local to the
-processor executing the Linux code. A master port generates and receives RapidIO
+processor executing the GNU/Linux code. A master port generates and receives RapidIO
 packets (transactions). In the RapidIO subsystem each master port is represented
 by a rio_mport data structure. This structure contains master port specific
 resources such as mailboxes and doorbells. The rio_mport also includes a unique
@@ -80,7 +80,7 @@ master port that is used to communicate with devices within the network.
 2.5 Device Drivers
 ------------------
 
-RapidIO device-specific drivers follow Linux Kernel Driver Model and are
+RapidIO device-specific drivers follow GNU/Linux Kernel Driver Model and are
 intended to support specific RapidIO devices attached to the RapidIO network.
 
 2.6 Subsystem Interfaces
@@ -296,7 +296,7 @@ The discovery process is performed by agents and is similar to the enumeration
 process that is described above. However, the discovery process is performed
 without changes to the existing routing because agents only gather information
 about RapidIO network structure and are building an internal map of discovered
-devices. This way each Linux-based component of the RapidIO subsystem has
+devices. This way each GNU/Linux-based component of the RapidIO subsystem has
 a complete view of the network. The discovery process can be performed
 simultaneously by several agents. After initializing its RapidIO master port
 each agent waits for enumeration completion by the host for the configured wait
@@ -355,8 +355,8 @@ NOTE:
 [2] Rapidio TA. Technology Comparisons.
     http://www.rapidio.org/education/technology_comparisons/
 
-[3] RapidIO support for Linux.
+[3] RapidIO support for GNU/Linux.
     https://lwn.net/Articles/139118/
 
-[4] Matt Porter. RapidIO for Linux. Ottawa Linux Symposium, 2005
+[4] Matt Porter. RapidIO for GNU/Linux. Ottawa GNU/Linux Symposium, 2005
     https://www.kernel.org/doc/ols/2005/ols2005v2-pages-43-56.pdf

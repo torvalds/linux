@@ -130,7 +130,7 @@
 				reg = <0 0x800000>;
 			};
 			partition@800000 {
-				label = "Linux";
+				label = "GNU/Linux";
 				reg = <0x800000 0x800000>;
 			};
 			partition@1000000 {

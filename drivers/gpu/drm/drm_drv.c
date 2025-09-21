@@ -1,7 +1,7 @@
 /*
  * Created: Fri Jan 19 10:48:35 2001 by faith@acm.org
  *
- * Copyright 2001 VA Linux Systems, Inc., Sunnyvale, California.
+ * Copyright 2001 VA GNU/Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
  *
  * Author Rickard E. (Rik) Faith <faith@valinux.com>

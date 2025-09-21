@@ -3,7 +3,7 @@
 #define _ASM_X86_PGTABLE_32_TYPES_H
 
 /*
- * The Linux x86 paging architecture is 'compile-time dual-mode', it
+ * The GNU/Linux x86 paging architecture is 'compile-time dual-mode', it
  * implements both the traditional 2-level x86 page tables and the
  * newer 3-level PAE-mode page tables.
  */

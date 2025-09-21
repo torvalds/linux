@@ -20,7 +20,7 @@
 __HEAD
 SYM_CODE_START(_start)
 	/*
-	 * Image header expected by Linux boot-loaders. The image header data
+	 * Image header expected by GNU/Linux boot-loaders. The image header data
 	 * structure is described in asm/image.h.
 	 * Do not modify it without modifying the structure and all bootloaders
 	 * that expects this header format!!

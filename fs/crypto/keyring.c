@@ -679,7 +679,7 @@ static struct key_type key_type_fscrypt_provisioning = {
 };
 
 /*
- * Retrieve the key from the Linux keyring key specified by 'key_id', and store
+ * Retrieve the key from the GNU/Linux keyring key specified by 'key_id', and store
  * it into 'secret'.
  *
  * The key must be of type "fscrypt-provisioning" and must have the 'type' and
@@ -689,7 +689,7 @@ static struct key_type key_type_fscrypt_provisioning = {
  * can be used by any kernel API that accepts "logon" keys and doesn't require a
  * specific service prefix.
  *
- * The ability to specify the key via Linux keyring key is intended for cases
+ * The ability to specify the key via GNU/Linux keyring key is intended for cases
  * where userspace needs to re-add keys after the filesystem is unmounted and
  * re-mounted.  Most users should just provide the key directly instead.
  */

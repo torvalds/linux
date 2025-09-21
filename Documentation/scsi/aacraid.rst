@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ===================================
-AACRAID Driver for Linux (take two)
+AACRAID Driver for GNU/Linux (take two)
 ===================================
 
 Introduction

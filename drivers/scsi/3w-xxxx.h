@@ -1,5 +1,5 @@
 /*
-   3w-xxxx.h -- 3ware Storage Controller device driver for Linux.
+   3w-xxxx.h -- 3ware Storage Controller device driver for GNU/Linux.
 
    Written By: Adam Radford <aradford@gmail.com>
    Modifications By: Joel Jacobson <linux@3ware.com>

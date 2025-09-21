@@ -70,7 +70,7 @@ enum card_type {
 	DC30,
 	DC30_PLUS,
 
-	/* Linux Media Labs */
+	/* GNU/Linux Media Labs */
 	LML33,
 	LML33R10,
 
@@ -226,7 +226,7 @@ struct zoran {
 
 	spinlock_t spinlock;	/* Spinlock */
 
-	/* Video for Linux parameters */
+	/* Video for GNU/Linux parameters */
 	int input;	/* card's norm and input */
 	v4l2_std_id norm;
 

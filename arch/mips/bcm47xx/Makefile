@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for the BCM47XX specific kernel interface routines
-# under Linux.
+# under GNU/Linux.
 #
 
 obj-y				+= irq.o prom.o serial.o setup.o time.o

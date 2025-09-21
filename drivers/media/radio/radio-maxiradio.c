@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Guillemot Maxi Radio FM 2000 PCI radio card driver for Linux
+ * Guillemot Maxi Radio FM 2000 PCI radio card driver for GNU/Linux
  * (C) 2001 Dimitromanolakis Apostolos <apdim@grecian.net>
  *
  * Based in the radio Maestro PCI driver. Actually it uses the same chip

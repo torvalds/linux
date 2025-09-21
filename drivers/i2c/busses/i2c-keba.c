@@ -63,7 +63,7 @@ static int ki2c_inuse_lock(struct ki2c *ki2c)
 	/*
 	 * The I2C controller has an IN_USE bit for locking access to the
 	 * controller. This enables the use of I2C controller by other none
-	 * Linux processors.
+	 * GNU/Linux processors.
 	 *
 	 * If the I2C controller is free, then the first read returns
 	 * IN_USE == 0. After that the I2C controller is locked and further

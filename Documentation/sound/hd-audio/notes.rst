@@ -9,14 +9,14 @@ General
 =======
 
 HD-audio is the new standard on-board audio component on modern PCs
-after AC97.  Although Linux has been supporting HD-audio since long
+after AC97.  Although GNU/Linux has been supporting HD-audio since long
 time ago, there are often problems with new machines.  A part of the
 problem is broken BIOS, and the rest is the driver implementation.
 This document explains the brief trouble-shooting and debugging
 methods for the	HD-audio hardware.
 
 The HD-audio component consists of two parts: the controller chip and
-the codec chips on the HD-audio bus.  Linux provides a single driver
+the codec chips on the HD-audio bus.  GNU/Linux provides a single driver
 for all controllers, snd-hda-intel.  Although the driver name contains
 a word of a well-known hardware vendor, it's not specific to it but for
 all controller chips by other companies.  Since the HD-audio

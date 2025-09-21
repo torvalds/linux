@@ -2,7 +2,7 @@
 /*
  * Universal Flash Storage Host controller driver Core
  * Copyright (C) 2011-2013 Samsung India Software Operations
- * Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016, The GNU/Linux Foundation. All rights reserved.
  *
  * Authors:
  *	Santosh Yaraganavi <santosh.sy@samsung.com>
@@ -8419,7 +8419,7 @@ static void ufs_init_rtc(struct ufs_hba *hba, u8 *desc_buf)
 		dev_info->rtc_type = UFS_RTC_ABSOLUTE;
 
 		/*
-		 * The concept of measuring time in Linux as the number of seconds elapsed since
+		 * The concept of measuring time in GNU/Linux as the number of seconds elapsed since
 		 * 00:00:00 UTC on January 1, 1970, and UFS ABS RTC is elapsed from January 1st
 		 * 2010 00:00, here we need to adjust ABS baseline.
 		 */

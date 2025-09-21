@@ -8,7 +8,7 @@
  * Copyright (C) 2007 Herbert Valerio Riedel <hvr@gnu.org>
  *
  * Thanks go to Michael Burian and Ray Lehtiniemi for their key
- * role in the ep93xx Linux community.
+ * role in the ep93xx GNU/Linux community.
  */
 
 #include <linux/bits.h>

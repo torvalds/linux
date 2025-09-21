@@ -12,7 +12,7 @@ maintainers:
 description:
   The Global Command Engine (GCE) is an instruction based, multi-threaded,
   single-core command dispatcher for MediaTek hardware. The Command Queue
-  (CMDQ) mailbox driver is a driver for GCE, implemented using the Linux
+  (CMDQ) mailbox driver is a driver for GCE, implemented using the GNU/Linux
   mailbox framework. It is used to receive messages from mailbox consumers
   and configure GCE to execute the specified instruction set in the message.
   We use mediatek,gce-mailbox.yaml to define the properties for CMDQ mailbox

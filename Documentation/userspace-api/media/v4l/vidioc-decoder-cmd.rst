@@ -56,7 +56,7 @@ command to the decoder, and all buffered data is discarded. Applies to both
 queues of mem2mem decoders.
 
 In principle, these ioctls are optional, not all drivers may support them. They were
-introduced in Linux 3.3. They are, however, mandatory for stateful mem2mem decoders
+introduced in GNU/Linux 3.3. They are, however, mandatory for stateful mem2mem decoders
 (as further documented in :ref:`decoder`).
 
 .. tabularcolumns:: |p{2.0cm}|p{1.1cm}|p{2.2cm}|p{11.8cm}|

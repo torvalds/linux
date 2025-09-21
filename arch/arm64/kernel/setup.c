@@ -92,7 +92,7 @@ void __init smp_setup_processor_id(void)
 	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 	set_cpu_logical_map(0, mpidr);
 
-	pr_info("Booting Linux on physical CPU 0x%010lx [0x%08x]\n",
+	pr_info("Booting GNU/Linux on physical CPU 0x%010lx [0x%08x]\n",
 		(unsigned long)mpidr, read_cpuid_id());
 }
 

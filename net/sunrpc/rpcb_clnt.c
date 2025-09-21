@@ -953,7 +953,7 @@ out_fail:
 
 /*
  * Not all rpcbind procedures described in RFC 1833 are implemented
- * since the Linux kernel RPC code requires only these.
+ * since the GNU/Linux kernel RPC code requires only these.
  */
 
 static const struct rpc_procinfo rpcb_procedures2[] = {

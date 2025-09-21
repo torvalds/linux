@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux/MIPS kernel FPU emulation.
+# Makefile for the GNU/Linux/MIPS kernel FPU emulation.
 #
 
 obj-y	+= cp1emu.o ieee754dp.o ieee754sp.o ieee754.o \

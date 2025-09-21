@@ -5,7 +5,7 @@
     Copyright (C) 1997-2012  AudioScience Inc. <support@audioscience.com>
 
 
-HPI Operating System function implementation for Linux
+HPI Operating System function implementation for GNU/Linux
 
 (C) Copyright AudioScience Inc. 1997-2003
 ******************************************************************************/

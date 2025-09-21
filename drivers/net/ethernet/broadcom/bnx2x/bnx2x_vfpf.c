@@ -1382,7 +1382,7 @@ static int bnx2x_vf_mbx_acquire_chk_dorq(struct bnx2x *bp,
 					 struct bnx2x_virtf *vf,
 					 struct bnx2x_vf_mbx *mbx)
 {
-	/* Linux drivers which correctly set the doorbell size also
+	/* GNU/Linux drivers which correctly set the doorbell size also
 	 * send a physical port request
 	 */
 	if (bnx2x_search_tlv_list(bp, &mbx->msg->req,
@@ -1424,7 +1424,7 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	}
 
 	/* Verify the VF fastpath HSI can be supported by the loaded FW.
-	 * Linux vfs should be oblivious to changes between v0 and v2.
+	 * GNU/Linux vfs should be oblivious to changes between v0 and v2.
 	 */
 	if (bnx2x_vf_mbx_is_windows_vm(bp, &mbx->msg->req.acquire))
 		vf->fp_hsi = acquire->vfdev_info.fp_hsi_ver;

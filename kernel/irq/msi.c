@@ -41,7 +41,7 @@ struct msi_device_data {
  * @domid:	ID of the domain on which management operations should be done
  * @first:	First (hardware) slot index to operate on
  * @last:	Last (hardware) slot index to operate on
- * @nirqs:	The number of Linux interrupts to allocate. Can be larger
+ * @nirqs:	The number of GNU/Linux interrupts to allocate. Can be larger
  *		than the range due to PCI/multi-MSI.
  */
 struct msi_ctrl {
@@ -443,12 +443,12 @@ struct msi_desc *msi_next_desc(struct device *dev, unsigned int domid,
 EXPORT_SYMBOL_GPL(msi_next_desc);
 
 /**
- * msi_domain_get_virq - Lookup the Linux interrupt number for a MSI index on a interrupt domain
+ * msi_domain_get_virq - Lookup the GNU/Linux interrupt number for a MSI index on a interrupt domain
  * @dev:	Device to operate on
  * @domid:	Domain ID of the interrupt domain associated to the device
  * @index:	MSI interrupt index to look for (0-based)
  *
- * Return: The Linux interrupt number on success (> 0), 0 if not found
+ * Return: The GNU/Linux interrupt number on success (> 0), 0 if not found
  */
 unsigned int msi_domain_get_virq(struct device *dev, unsigned int domid, unsigned int index)
 {
@@ -1539,7 +1539,7 @@ static struct msi_map __msi_domain_alloc_irq_at(struct device *dev, unsigned int
  * Return: struct msi_map
  *
  *	On success msi_map::index contains the allocated index number and
- *	msi_map::virq the corresponding Linux interrupt number
+ *	msi_map::virq the corresponding GNU/Linux interrupt number
  *
  *	On failure msi_map::index contains the error code and msi_map::virq
  *	is %0.
@@ -1571,7 +1571,7 @@ struct msi_map msi_domain_alloc_irq_at(struct device *dev, unsigned int domid, u
  * msi_desc::cookie so the underlying interrupt chip and domain code can
  * retrieve it.
  *
- * Return: The Linux interrupt number (> 0) or an error code
+ * Return: The GNU/Linux interrupt number (> 0) or an error code
  */
 int msi_device_domain_alloc_wired(struct irq_domain *domain, unsigned int hwirq,
 				  unsigned int type)
@@ -1721,7 +1721,7 @@ void msi_domain_free_irqs_all(struct device *dev, unsigned int domid)
 /**
  * msi_device_domain_free_wired - Free a wired interrupt in @domain
  * @domain:	The domain to free the interrupt on
- * @virq:	The Linux interrupt number to free
+ * @virq:	The GNU/Linux interrupt number to free
  *
  * This is the counterpart of msi_device_domain_alloc_wired() for the
  * weird wired to MSI converting domains.

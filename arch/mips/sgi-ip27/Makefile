@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the IP27 specific kernel interface routines under Linux.
+# Makefile for the IP27 specific kernel interface routines under GNU/Linux.
 #
 
 obj-y	:= ip27-berr.o ip27-irq.o ip27-init.o ip27-klconfig.o \

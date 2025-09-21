@@ -1,35 +1,35 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_SELINUX
-	bool "SELinux Support"
+	bool "SEGNU/Linux Support"
 	depends on SECURITY_NETWORK && AUDIT && NET && INET
 	select NETWORK_SECMARK
 	default n
 	help
-	  This selects Security-Enhanced Linux (SELinux).
+	  This selects Security-Enhanced GNU/Linux (SEGNU/Linux).
 	  You will also need a policy configuration and a labeled filesystem.
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_SELINUX_BOOTPARAM
-	bool "SELinux boot parameter"
+	bool "SEGNU/Linux boot parameter"
 	depends on SECURITY_SELINUX
 	default n
 	help
-	  This option adds a kernel parameter 'selinux', which allows SELinux
-	  to be disabled at boot.  If this option is selected, SELinux
+	  This option adds a kernel parameter 'selinux', which allows SEGNU/Linux
+	  to be disabled at boot.  If this option is selected, SEGNU/Linux
 	  functionality can be disabled with selinux=0 on the kernel
 	  command line.  The purpose of this option is to allow a single
-	  kernel image to be distributed with SELinux built in, but not
+	  kernel image to be distributed with SEGNU/Linux built in, but not
 	  necessarily enabled.
 
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_SELINUX_DEVELOP
-	bool "SELinux Development Support"
+	bool "SEGNU/Linux Development Support"
 	depends on SECURITY_SELINUX
 	default y
 	help
-	  This enables the development support option of SELinux,
-	  which is useful for experimenting with SELinux and developing
+	  This enables the development support option of SEGNU/Linux,
+	  which is useful for experimenting with SEGNU/Linux and developing
 	  policies.  If unsure, say Y.  With this option enabled, the
 	  kernel will start in permissive mode (log everything, deny nothing)
 	  unless you specify enforcing=1 on the kernel command line.  You
@@ -38,7 +38,7 @@ config SECURITY_SELINUX_DEVELOP
 	  /sys/fs/selinux/enforce.
 
 config SECURITY_SELINUX_AVC_STATS
-	bool "SELinux AVC Statistics"
+	bool "SEGNU/Linux AVC Statistics"
 	depends on SECURITY_SELINUX
 	default y
 	help
@@ -47,7 +47,7 @@ config SECURITY_SELINUX_AVC_STATS
 	  tools such as avcstat.
 
 config SECURITY_SELINUX_SIDTAB_HASH_BITS
-	int "SELinux sidtab hashtable size"
+	int "SEGNU/Linux sidtab hashtable size"
 	depends on SECURITY_SELINUX
 	range 8 13
 	default 9
@@ -59,7 +59,7 @@ config SECURITY_SELINUX_SIDTAB_HASH_BITS
 	  will ensure that lookups times are short and stable.
 
 config SECURITY_SELINUX_SID2STR_CACHE_SIZE
-	int "SELinux SID to context string translation cache size"
+	int "SEGNU/Linux SID to context string translation cache size"
 	depends on SECURITY_SELINUX
 	default 256
 	help
@@ -70,11 +70,11 @@ config SECURITY_SELINUX_SID2STR_CACHE_SIZE
 	  If unsure, keep the default value.
 
 config SECURITY_SELINUX_DEBUG
-	bool "SELinux kernel debugging support"
+	bool "SEGNU/Linux kernel debugging support"
 	depends on SECURITY_SELINUX
 	default n
 	help
-	  This enables debugging code designed to help SELinux kernel
+	  This enables debugging code designed to help SEGNU/Linux kernel
 	  developers, unless you know what this does in the kernel code you
 	  should leave this disabled.
 

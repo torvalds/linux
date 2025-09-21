@@ -11,7 +11,7 @@
 ============
 
 KSM 是一种节省内存的数据去重功能，由CONFIG_KSM=y启用，并在2.6.32版本时被添加
-到Linux内核。详见 ``mm/ksm.c`` 的实现，以及http://lwn.net/Articles/306704和
+到GNU/Linux内核。详见 ``mm/ksm.c`` 的实现，以及http://lwn.net/Articles/306704和
 https://lwn.net/Articles/330589
 
 KSM的用户空间的接口在Documentation/translations/zh_CN/admin-guide/mm/ksm.rst

@@ -195,7 +195,7 @@ struct task_struct {
 	pid_t pid;
 	struct mm_struct *mm;
 
-	/* Used for emulating ABI behavior of previous Linux versions: */
+	/* Used for emulating ABI behavior of previous GNU/Linux versions: */
 	unsigned int			personality;
 };
 

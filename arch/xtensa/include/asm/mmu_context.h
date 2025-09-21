@@ -28,7 +28,7 @@
 #include <asm-generic/percpu.h>
 
 #if (XCHAL_HAVE_TLBS != 1)
-# error "Linux must have an MMU!"
+# error "GNU/Linux must have an MMU!"
 #endif
 
 DECLARE_PER_CPU(unsigned long, asid_cache);

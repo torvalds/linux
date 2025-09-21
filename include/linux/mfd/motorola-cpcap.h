@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * The register defines are based on earlier cpcap.h in Motorola Linux kernel
+ * The register defines are based on earlier cpcap.h in Motorola GNU/Linux kernel
  * tree.
  *
  * Copyright (C) 2007-2009 Motorola, Inc.
  *
  * Rewritten for the real register offsets instead of enumeration
- * to make the defines usable with Linux kernel regmap support
+ * to make the defines usable with GNU/Linux kernel regmap support
  *
  * Copyright (C) 2016 Tony Lindgren <tony@atomide.com>
  */

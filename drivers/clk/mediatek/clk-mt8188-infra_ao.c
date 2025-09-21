@@ -110,7 +110,7 @@ static const struct mtk_gate infra_ao_clks[] = {
 	GATE_INFRA_AO1(CLK_INFRA_AO_MSDC1, "infra_ao_msdc1", "top_axi", 4),
 	GATE_INFRA_AO1(CLK_INFRA_AO_MSDC2, "infra_ao_msdc2", "top_axi", 5),
 	GATE_INFRA_AO1(CLK_INFRA_AO_MSDC0_SRC, "infra_ao_msdc0_clk", "top_msdc50_0", 6),
-	/* infra_ao_dvfsrc is for internal DVFS usage, should not be handled by Linux. */
+	/* infra_ao_dvfsrc is for internal DVFS usage, should not be handled by GNU/Linux. */
 	GATE_INFRA_AO1_FLAGS(CLK_INFRA_AO_DVFSRC, "infra_ao_dvfsrc",
 			     "clk26m", 7, CLK_IS_CRITICAL),
 	GATE_INFRA_AO1(CLK_INFRA_AO_TRNG, "infra_ao_trng", "top_axi", 9),

@@ -92,7 +92,7 @@ Attributes in each directory:
 	This attribute is used to get the power domain id of this instance.
 
 ``die_id``
-	This attribute is used to get the Linux die id of this instance.
+	This attribute is used to get the GNU/Linux die id of this instance.
 	This attribute is only present for domains with core agents and
 	when the CPUID leaf 0x1f presents die ID.
 

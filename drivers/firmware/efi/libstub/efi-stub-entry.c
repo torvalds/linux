@@ -62,7 +62,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	if (status != EFI_SUCCESS)
 		return status;
 
-	efi_info("Booting Linux Kernel...\n");
+	efi_info("Booting GNU/Linux Kernel...\n");
 
 	status = handle_kernel_image(&image_addr, &image_size,
 				     &reserve_addr,

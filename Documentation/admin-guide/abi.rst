@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================
-Linux ABI description
+GNU/Linux ABI description
 =====================
 
 .. kernel-abi:: README

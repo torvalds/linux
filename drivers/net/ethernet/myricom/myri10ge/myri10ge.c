@@ -2427,8 +2427,8 @@ static int myri10ge_open(struct net_device *dev)
 	}
 
 	/*
-	 * Set Linux style TSO mode; this is needed only on newer
-	 *  firmware versions.  Older versions default to Linux
+	 * Set GNU/Linux style TSO mode; this is needed only on newer
+	 *  firmware versions.  Older versions default to GNU/Linux
 	 *  style TSO
 	 */
 	cmd.data0 = 0;

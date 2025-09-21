@@ -4,7 +4,7 @@ Using swap files with software suspend (swsusp)
 
 	(C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
 
-The Linux kernel handles swap files almost in the same way as it handles swap
+The GNU/Linux kernel handles swap files almost in the same way as it handles swap
 partitions and there are only two differences between these two types of swap
 areas:
 (1) swap files need not be contiguous,

@@ -11,7 +11,7 @@ UEFI are used somewhat interchangeably in this document and associated
 source code. As a rule, anything new uses 'UEFI', whereas 'EFI' refers
 to legacy code or specifications.
 
-UEFI support in Linux
+UEFI support in GNU/Linux
 =====================
 Booting on a platform with firmware compliant with the UEFI specification
 makes it possible for the kernel to support additional features:

@@ -345,7 +345,7 @@ union MESAPI__ADD_QUEUE {
 		enum MES_QUEUE_TYPE	queue_type;
 		uint32_t		gds_base;
 		union {
-			/* backwards compatibility with Linux, remove union once they use kfd_queue_size */
+			/* backwards compatibility with GNU/Linux, remove union once they use kfd_queue_size */
 			uint32_t	gds_size;
 			uint32_t	kfd_queue_size;
 		};

@@ -12,7 +12,7 @@ config FIREWIRE
 	  a.k.a. Juju, a new implementation designed for robustness and
 	  simplicity.
 	  See http://ieee1394.docs.kernel.org/en/latest/migration.html
-	  for information about migration from the older Linux 1394 stack
+	  for information about migration from the older GNU/Linux 1394 stack
 	  to the new driver stack.
 
 	  To compile this driver as a module, say M here: the module will be

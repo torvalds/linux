@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 ==========================================================
-Linux Base Driver for Intel(R) Ethernet Network Connection
+GNU/Linux Base Driver for Intel(R) Ethernet Network Connection
 ==========================================================
 
-Intel Gigabit Linux driver.
+Intel Gigabit GNU/Linux driver.
 Copyright(c) 1999 - 2013 Intel Corporation.
 
 Contents
@@ -24,7 +24,7 @@ Driver ID Guide at:
 
     http://support.intel.com/support/go/network/adapter/idguide.htm
 
-For the latest Intel network drivers for Linux, refer to the following
+For the latest Intel network drivers for GNU/Linux, refer to the following
 website.  In the search field, enter your adapter name or type, or use the
 networking link on the left to search for your adapter:
 

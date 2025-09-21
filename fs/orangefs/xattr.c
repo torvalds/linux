@@ -7,7 +7,7 @@
  */
 
 /*
- *  Linux VFS extended attribute operations.
+ *  GNU/Linux VFS extended attribute operations.
  */
 
 #include "protocol.h"

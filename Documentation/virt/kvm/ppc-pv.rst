@@ -22,7 +22,7 @@ Querying for existence
 ======================
 
 To find out if we're running on KVM or not, we leverage the device tree. When
-Linux is running on KVM, a node /hypervisor exists. That node contains a
+GNU/Linux is running on KVM, a node /hypervisor exists. That node contains a
 compatible property with the value "linux,kvm".
 
 Once you determined you're running under a PV capable KVM, you can now use
@@ -142,7 +142,7 @@ The "ld" and "std" instructions are transformed to "lwz" and "stw" instructions
 respectively on 32-bit systems with an added offset of 4 to accommodate for big
 endianness.
 
-The following is a list of mapping the Linux kernel performs when running as
+The following is a list of mapping the GNU/Linux kernel performs when running as
 guest. Implementing any of those mappings is optional, as the instruction traps
 also act on the shared page. So calling privileged instructions still works as
 before.
@@ -216,7 +216,7 @@ available on book3s_64.
 
 3) OSI hypercalls
 
-Mac-on-Linux is another user of KVM on PowerPC, which has its own hypercall (long
+Mac-on-GNU/Linux is another user of KVM on PowerPC, which has its own hypercall (long
 before KVM). This is supported to maintain compatibility. All these hypercalls get
 forwarded to user space. This is only useful on book3s_32, but can be used with
 book3s_64 as well.

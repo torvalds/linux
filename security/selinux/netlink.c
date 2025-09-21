@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Netlink event notifications for SELinux.
+ * Netlink event notifications for SEGNU/Linux.
  *
  * Author: James Morris <jmorris@redhat.com>
  *
@@ -91,7 +91,7 @@ out:
 out_kfree_skb:
 	kfree_skb(skb);
 oom:
-	pr_err("SELinux:  OOM in %s\n", __func__);
+	pr_err("SEGNU/Linux:  OOM in %s\n", __func__);
 	goto out;
 }
 
@@ -114,7 +114,7 @@ static int __init selnl_init(void)
 
 	selnl = netlink_kernel_create(&init_net, NETLINK_SELINUX, &cfg);
 	if (selnl == NULL)
-		panic("SELinux:  Cannot create netlink socket.");
+		panic("SEGNU/Linux:  Cannot create netlink socket.");
 	return 0;
 }
 

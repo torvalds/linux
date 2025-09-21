@@ -13,10 +13,10 @@ Cirrus Logic LAN CS8900/CS8920 Ethernet Adapters
 
 Cirrus make a copy of this driver available at their website, as
 described below.  In general, you should use the driver version which
-comes with your Linux distribution.
+comes with your GNU/Linux distribution.
 
 
-Linux Network Interface Driver ver. 2.00 <kernel 2.3.48>
+GNU/Linux Network Interface Driver ver. 2.00 <kernel 2.3.48>
 
 
 .. TABLE OF CONTENTS
@@ -80,7 +80,7 @@ configuring both types of adapters.
 1.2. Driver Description
 =======================
 
-The CS8900/CS8920 Ethernet Adapter driver for Linux supports the Linux
+The CS8900/CS8920 Ethernet Adapter driver for GNU/Linux supports the GNU/Linux
 v2.3.48 or greater kernel.  It can be compiled directly into the kernel
 or loaded at run-time as a device driver module.
 
@@ -194,7 +194,7 @@ CS8920-based adapters are shipped from Cirrus Logic configured as Plug
 and Play (PnP) enabled.  However, since the cs89x0 driver does NOT
 support PnP, you must install the CS8920 adapter in a DOS-based PC and
 run the CS8900/20 Setup Utility to disable PnP and configure the
-adapter before installation in the target Linux system.  Failure to do
+adapter before installation in the target GNU/Linux system.  Failure to do
 this will leave the adapter inactive and the driver will be unable to
 communicate with the adapter.
 
@@ -288,7 +288,7 @@ f) The following additional parameters are CS89XX defaults (values
 
 g) You can use ifconfig to set the adapter's Ethernet address.
 
-h) Many Linux distributions use the 'modprobe' command to load
+h) Many GNU/Linux distributions use the 'modprobe' command to load
    modules.  This program uses the '/etc/conf.modules' file to
    determine configuration information which is passed to a driver
    module when it is loaded.  All the configuration options which are
@@ -315,7 +315,7 @@ j) The cs89x0 supports DMA for receiving only.  DMA mode is
    with large ping packets consumes 82% of its CPU capacity in non-DMA
    mode.  With DMA this is reduced to 45%.
 
-k) If your Linux kernel was compiled with inbuilt plug-and-play
+k) If your GNU/Linux kernel was compiled with inbuilt plug-and-play
    support you will be able to find information about the cs89x0 card
    with the command::
 

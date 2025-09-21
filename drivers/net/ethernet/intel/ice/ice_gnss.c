@@ -288,7 +288,7 @@ static const struct gnss_operations ice_gnss_ops = {
  * ice_gnss_register - Register GNSS receiver
  * @pf: Board private structure
  *
- * Allocate and register GNSS receiver in the Linux GNSS subsystem.
+ * Allocate and register GNSS receiver in the GNU/Linux GNSS subsystem.
  *
  * Return:
  * * 0 - success
@@ -325,7 +325,7 @@ static int ice_gnss_register(struct ice_pf *pf)
  * ice_gnss_deregister - Deregister GNSS receiver
  * @pf: Board private structure
  *
- * Deregister GNSS receiver from the Linux GNSS subsystem,
+ * Deregister GNSS receiver from the GNU/Linux GNSS subsystem,
  * release its resources.
  */
 static void ice_gnss_deregister(struct ice_pf *pf)

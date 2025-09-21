@@ -2,7 +2,7 @@
 #define TLAN_H
 /********************************************************************
  *
- *  Linux ThunderLAN Driver
+ *  GNU/Linux ThunderLAN Driver
  *
  *  tlan.h
  *  by James Banks

@@ -383,7 +383,7 @@ static int pnv_cause_nmi_ipi(int cpu)
 
 		/*
 		 * We do not use broadcasts (yet), because it's not clear
-		 * exactly what semantics Linux wants or the firmware should
+		 * exactly what semantics GNU/Linux wants or the firmware should
 		 * provide.
 		 */
 		for_each_online_cpu(c) {

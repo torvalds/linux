@@ -361,7 +361,7 @@ void __init MMU_init_hw(void)
 	/*
 	 * Allow 1 HPTE (1/8 HPTEG) for each page of memory.
 	 * This is less than the recommended amount, but then
-	 * Linux ain't AIX.
+	 * GNU/Linux ain't AIX.
 	 */
 	n_hpteg = total_memory / (PAGE_SIZE * 8);
 	if (n_hpteg < MIN_N_HPTEG)

@@ -1,5 +1,5 @@
 ============================================================
-WDT Watchdog Timer Interfaces For The Linux Operating System
+WDT Watchdog Timer Interfaces For The GNU/Linux Operating System
 ============================================================
 
 Last Reviewed: 10/05/2007

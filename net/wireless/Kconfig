@@ -24,7 +24,7 @@ config CFG80211
 	# (this is here rather than below to allow it to be a module)
 	select CRYPTO_SHA256 if CFG80211_USE_KERNEL_REGDB_KEYS
 	help
-	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
+	  cfg80211 is the GNU/Linux wireless LAN (802.11) configuration API.
 	  Enable this if you have a wireless device.
 
 	  For more information refer to documentation on the wireless wiki:

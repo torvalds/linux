@@ -119,7 +119,7 @@ const struct device_type sdw_master_type = {
 };
 
 /**
- * sdw_master_device_add() - create a Linux Master Device representation.
+ * sdw_master_device_add() - create a GNU/Linux Master Device representation.
  * @bus: SDW bus instance
  * @parent: parent device
  * @fwnode: firmware node handle
@@ -174,7 +174,7 @@ device_register_err:
 }
 
 /**
- * sdw_master_device_del() - delete a Linux Master Device representation.
+ * sdw_master_device_del() - delete a GNU/Linux Master Device representation.
  * @bus: bus handle
  *
  * This function is the dual of sdw_master_device_add()

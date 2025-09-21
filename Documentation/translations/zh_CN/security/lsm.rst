@@ -8,7 +8,7 @@
  赵岳辉 Yuehui Zhao <zhaoyuehui@cqsoftware.com.cn>
 
 ================================
-Linux安全模块：Linux通用安全钩子
+GNU/Linux安全模块：GNU/Linux通用安全钩子
 ================================
 
 :作者: Stephen Smalley
@@ -22,23 +22,23 @@ Linux安全模块：Linux通用安全钩子
 介绍
 ====
 
-在2001年3月，美国国家安全局（NSA）在2.5 Linux内核峰会上做了一个关于安全
-增强Linux（SELinux）的报告。SELinux是Linux内核中一种实现灵活且细粒度的非
+在2001年3月，美国国家安全局（NSA）在2.5 GNU/Linux内核峰会上做了一个关于安全
+增强GNU/Linux（SEGNU/Linux）的报告。SEGNU/Linux是GNU/Linux内核中一种实现灵活且细粒度的非
 自主访问控制，最初作为自己特定的内核补丁实现。其他一些安全项目（例如RSBAC、
-Medusa）也为Linux内核开发了灵活的访问控制架构，并且多个项目为Linux开发了
+Medusa）也为GNU/Linux内核开发了灵活的访问控制架构，并且多个项目为GNU/Linux开发了
 特定的访问控制模型（例如LIDS、DTE、SubDomain）。每个项目都开发并维护了自
 己的内核补丁，以支持其安全需求。
 
 针对美国国家安全局的报告，Linus Torvalds发表了一系列言论，描述了一个他愿
-意考虑纳入主流Linux内核的安全框架。他描述了一个通用的框架，该框架将提供
+意考虑纳入主流GNU/Linux内核的安全框架。他描述了一个通用的框架，该框架将提供
 一组安全钩子来控制对内核对象的操作，同时在内核数据结构中提供一组不透明的
 安全域来维护安全属性。这个框架可以被可加载的内核模块用来实现任何所需的安
-全模型。Linus还提出了将Linux权能代码迁移到这样一个模块中的可能性。
+全模型。Linus还提出了将GNU/Linux权能代码迁移到这样一个模块中的可能性。
 
-Linux安全模块（LSM）项目是由WireX发起开发的这样一个框架。LSM是几个安全
-项目共同开发的成果，包括immununix、SELinux、SGI和Janus，以及包括
+GNU/Linux安全模块（LSM）项目是由WireX发起开发的这样一个框架。LSM是几个安全
+项目共同开发的成果，包括immununix、SEGNU/Linux、SGI和Janus，以及包括
 Greg Kroah-Hartman和James Morris在内的几个人，来开发一个实现这一框架的
-Linux内核补丁。这项工作在2003年12月被纳入主流内核。此技术报告概述了该框
+GNU/Linux内核补丁。这项工作在2003年12月被纳入主流内核。此技术报告概述了该框
 架和权能安全模块的内容。
 
 LSM框架
@@ -78,7 +78,7 @@ LSM钩子被维护在链表中。每个钩子函数都维护一个链表，这�
 
 LSM框架提供了一种近似通用的安全模块堆栈。它定义了security_add_hooks()，每个安
 全模块向它传递一个 :c:type: `struct security_hooks_list <security_hooks_list>`
-，该结构会被添加到链表中。LSM框架没有提供移除已注册钩子的机制。SELinux安全
+，该结构会被添加到链表中。LSM框架没有提供移除已注册钩子的机制。SEGNU/Linux安全
 模块已经实现了一种移除自身的方法，然而该特性已被弃用。
 
 这些钩子可以分为两大类：用于管理安全域的钩子和用于执行访问控制的钩子。

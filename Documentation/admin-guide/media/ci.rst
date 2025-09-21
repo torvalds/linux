@@ -9,7 +9,7 @@ Digital TV Conditional Access Interface
    This documentation is outdated.
 
 This document describes the usage of the high level CI API as
-in accordance to the Linux DVB API. This is a not a documentation for the,
+in accordance to the GNU/Linux DVB API. This is a not a documentation for the,
 existing low level CI API.
 
 .. note::

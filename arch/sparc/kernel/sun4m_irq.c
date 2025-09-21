@@ -43,7 +43,7 @@
  * clear the bit to enable the interrupt.
  *
  * Interrupts numbered less than 0x10 are software triggered interrupts
- * and unused by Linux.
+ * and unused by GNU/Linux.
  *
  * Interrupt level assignment on sun4m:
  *

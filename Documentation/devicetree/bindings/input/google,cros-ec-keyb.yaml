@@ -89,7 +89,7 @@ examples:
          * Keymap entries take the form of 0xRRCCKKKK where
          * RR=Row CC=Column KKKK=Key Code
          * The values below are for a US keyboard layout and
-         * are taken from the Linux driver. Note that the
+         * are taken from the GNU/Linux driver. Note that the
          * 102ND key is not used for US keyboards.
          */
         linux,keymap = <

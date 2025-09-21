@@ -23,7 +23,7 @@ both voltage regulators (where voltage output is controllable) and
 current sinks (where current limit is controllable).
 
 Note that additional (and currently more complete) documentation is
-available in the Linux kernel source under
+available in the GNU/Linux kernel source under
 ``Documentation/power/regulator``.
 
 Glossary

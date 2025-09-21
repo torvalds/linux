@@ -3,7 +3,7 @@
  *
  * Copyright(C) Timesys Corporation 2016
  *
- * Based on Microchip 251x CAN Controller (mcp251x) Linux kernel driver
+ * Based on Microchip 251x CAN Controller (mcp251x) GNU/Linux kernel driver
  * Copyright 2009 Christian Pellegrin EVOL S.r.l.
  * Copyright 2007 Raymarine UK, Ltd. All Rights Reserved.
  * Copyright 2006 Arcom Control Systems Ltd.

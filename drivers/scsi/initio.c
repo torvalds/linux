@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /**************************************************************************
- * Initio 9100 device driver for Linux.
+ * Initio 9100 device driver for GNU/Linux.
  *
  * Copyright (c) 1994-1998 Initio Corporation
  * Copyright (c) 1998 Bas Vermeulen <bvermeul@blackstar.xs4all.nl>
@@ -11,7 +11,7 @@
  *
  * DESCRIPTION:
  *
- * This is the Linux low-level SCSI driver for Initio INI-9X00U/UW SCSI host
+ * This is the GNU/Linux low-level SCSI driver for Initio INI-9X00U/UW SCSI host
  * adapters
  *
  * 08/06/97 hc	- v1.01h

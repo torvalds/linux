@@ -7,14 +7,14 @@
 
 .. _cn_submitchecklist:
 
-Linux内核补丁提交检查单
+GNU/Linux内核补丁提交检查单
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 如果开发人员希望看到他们的内核补丁提交更快地被接受，那么他们应该做一些基本
 的事情。
 
 这些都是在 Documentation/translations/zh_CN/process/submitting-patches.rst
-和其他有关提交Linux内核补丁的文档中提供的。
+和其他有关提交GNU/Linux内核补丁的文档中提供的。
 
 1) 如果使用工具，则包括定义/声明该工具的文件。不要依赖其他头文件来引入您使用
    的头文件。

@@ -4,7 +4,7 @@
 Lockdep-RCU Splat
 =================
 
-Lockdep-RCU was added to the Linux kernel in early 2010
+Lockdep-RCU was added to the GNU/Linux kernel in early 2010
 (http://lwn.net/Articles/371986/).  This facility checks for some common
 misuses of the RCU API, most notably using one of the rcu_dereference()
 family to access an RCU-protected pointer without the proper protection.

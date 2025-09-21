@@ -96,7 +96,7 @@ usbipd --device &
 # ======================
 # usbipd: info: request 0x8005(6): complete
 #  - 127.0.0.1
-# usbip-vudc.0: Linux Foundation : unknown product (1d6b:0104)
+# usbip-vudc.0: GNU/Linux Foundation : unknown product (1d6b:0104)
 #            : /sys/devices/platform/usbip-vudc.0
 #            : (Defined at Interface level) (00/00/00)
 #

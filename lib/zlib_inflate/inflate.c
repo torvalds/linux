@@ -2,7 +2,7 @@
  * Copyright (C) 1995-2005 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
- * Based on zlib 1.2.3 but modified for the Linux Kernel by
+ * Based on zlib 1.2.3 but modified for the GNU/Linux Kernel by
  * Richard Purdie <richard@openedhand.com>
  *
  * Changes mainly for static instead of dynamic memory allocation

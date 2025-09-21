@@ -1666,7 +1666,7 @@ static int vbg_ioctl_check_balloon(struct vbg_dev *gdev,
 
 	balloon_info->u.out.balloon_chunks = gdev->mem_balloon.chunks;
 	/*
-	 * Under Linux we handle VMMDEV_EVENT_BALLOON_CHANGE_REQUEST
+	 * Under GNU/Linux we handle VMMDEV_EVENT_BALLOON_CHANGE_REQUEST
 	 * events entirely in the kernel, see vbg_core_isr().
 	 */
 	balloon_info->u.out.handle_in_r3 = false;

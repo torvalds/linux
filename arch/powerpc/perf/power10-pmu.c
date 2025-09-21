@@ -17,9 +17,9 @@
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
  *   | | [ ]   [ src_match ] [  src_mask ]   | [ ] [ l2l3_sel ]  [  thresh_ctl   ]
  *   | |  |                                  |  |                         |
- *   | |  *- IFM (Linux)                     |  |        thresh start/stop -*
- *   | *- BHRB (Linux)                       |  src_sel
- *   *- EBB (Linux)                          *invert_bit
+ *   | |  *- IFM (GNU/Linux)                     |  |        thresh start/stop -*
+ *   | *- BHRB (GNU/Linux)                       |  src_sel
+ *   *- EBB (GNU/Linux)                          *invert_bit
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |

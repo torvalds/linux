@@ -338,7 +338,7 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
  *
  * This function basically kick starts the DRAM oboard the card and gets it
  * ready to be used.  Before this is done the device reads VERY erratic, so
- * much that it can crash the Linux 2.2.x series kernels when a user cat's
+ * much that it can crash the GNU/Linux 2.2.x series kernels when a user cat's
  * /proc/pci .. though that is mainly a kernel bug in handling the PCI DEVSEL
  * register.  FIXME: stop spinning on registers .. must implement a timeout
  * mechanism

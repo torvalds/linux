@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /*
- * Linux device driver for ADMtek ADM8211 (IEEE 802.11b MAC/BBP)
+ * GNU/Linux device driver for ADMtek ADM8211 (IEEE 802.11b MAC/BBP)
  *
  * Copyright (c) 2003, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2004-2007, Michael Wu <flamingice@sourmilk.net>

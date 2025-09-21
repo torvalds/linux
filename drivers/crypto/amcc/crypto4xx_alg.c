@@ -5,7 +5,7 @@
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
  *
- * This file implements the Linux crypto algorithms.
+ * This file implements the GNU/Linux crypto algorithms.
  */
 
 #include <linux/kernel.h>

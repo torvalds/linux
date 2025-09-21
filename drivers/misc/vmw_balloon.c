@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2000-2018, VMware, Inc. All Rights Reserved.
  *
- * This is VMware physical memory management driver for Linux. The driver
+ * This is VMware physical memory management driver for GNU/Linux. The driver
  * acts like a "balloon" that can be inflated to reclaim physical pages by
  * reserving them in the guest and invalidating them in the monitor,
  * freeing up the underlying machine pages so they can be allocated to
@@ -59,7 +59,7 @@ MODULE_PARM_DESC(vmwballoon_shrinker_enable,
  */
 #define VMW_BALLOON_HV_PORT		0x5670
 #define VMW_BALLOON_HV_MAGIC		0x456c6d6f
-#define VMW_BALLOON_GUEST_ID		1	/* Linux */
+#define VMW_BALLOON_GUEST_ID		1	/* GNU/Linux */
 
 enum vmwballoon_capabilities {
 	/*

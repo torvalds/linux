@@ -246,7 +246,7 @@ ENTRY(EV_Trap)
 	; fall through to ret_from_exception
 END(EV_Trap)
 
-;############# Return from Intr/Excp/Trap (Linux Specifics) ##############
+;############# Return from Intr/Excp/Trap (GNU/Linux Specifics) ##############
 ;
 ; If ret to user mode do we need to handle signals, schedule() et al.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Roccat Ryos driver for Linux
+ * Roccat Ryos driver for GNU/Linux
  *
  * Copyright (c) 2013 Stefan Achatz <erazor_de@users.sourceforge.net>
  */

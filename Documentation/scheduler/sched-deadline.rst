@@ -412,7 +412,7 @@ Deadline Task Scheduling
  mathematical details and explain how to compute h(t) and L.
  In any case, this kind of analysis is too complex as well as too
  time-consuming to be performed on-line. Hence, as explained in Section
- 4 Linux uses an admission test based on the tasks' utilizations.
+ 4 GNU/Linux uses an admission test based on the tasks' utilizations.
 
 3.3 Schedulability Analysis for Multiprocessor Systems
 ------------------------------------------------------
@@ -536,16 +536,16 @@ Deadline Task Scheduling
        constant-bandwidth servers, 12th IEEE Euromicro Conference on Real-Time
        Systems, 2000.
   16 - L. Abeni, J. Lelli, C. Scordino, L. Palopoli, Greedy CPU reclaiming for
-       SCHED DEADLINE. In Proceedings of the Real-Time Linux Workshop (RTLWS),
+       SCHED DEADLINE. In Proceedings of the Real-Time GNU/Linux Workshop (RTLWS),
        Dusseldorf, Germany, 2014.
   17 - L. Abeni, G. Lipari, A. Parri, Y. Sun, Multicore CPU reclaiming: parallel
        or sequential?. In Proceedings of the 31st Annual ACM Symposium on Applied
        Computing, 2016.
   18 - J. Lelli, C. Scordino, L. Abeni, D. Faggioli, Deadline scheduling in the
-       Linux kernel, Software: Practice and Experience, 46(6): 821-839, June
+       GNU/Linux kernel, Software: Practice and Experience, 46(6): 821-839, June
        2016.
   19 - C. Scordino, L. Abeni, J. Lelli, Energy-Aware Real-Time Scheduling in
-       the Linux Kernel, 33rd ACM/SIGAPP Symposium On Applied Computing (SAC
+       the GNU/Linux Kernel, 33rd ACM/SIGAPP Symposium On Applied Computing (SAC
        2018), Pau, France, April 2018.
 
 
@@ -734,7 +734,7 @@ Appendix A. Test suite
 ======================
 
  The SCHED_DEADLINE policy can be easily tested using two applications that
- are part of a wider Linux Scheduler validation suite. The suite is
+ are part of a wider GNU/Linux Scheduler validation suite. The suite is
  available as a GitHub repository: https://github.com/scheduler-tools.
 
  The first testing application is called rt-app and can be used to

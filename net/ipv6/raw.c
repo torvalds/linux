@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	RAW sockets for IPv6
- *	Linux INET6 implementation
+ *	GNU/Linux INET6 implementation
  *
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
@@ -1003,7 +1003,7 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 			 * allowed on ICMPv6 sockets.
 			 * If you want to set it, use IPPROTO_RAW
 			 * level IPV6_CHECKSUM socket option
-			 * (Linux extension).
+			 * (GNU/Linux extension).
 			 */
 			return -EINVAL;
 		}

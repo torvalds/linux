@@ -3,7 +3,7 @@
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.rst.
 #
-mainmenu "Linux/$(ARCH) $(KERNELVERSION) Kernel Configuration"
+mainmenu "GNU/Linux/$(ARCH) $(KERNELVERSION) Kernel Configuration"
 
 source "scripts/Kconfig.include"
 

@@ -13,7 +13,7 @@
     :license:    GPL Version 2, June 1991 see linux/COPYING for details.
 
     The ``maintainers-include`` reST-directive performs extensive parsing
-    specific to the Linux kernel's standard "MAINTAINERS" file, in an
+    specific to the GNU/Linux kernel's standard "MAINTAINERS" file, in an
     effort to avoid needing to heavily mark up the original plain text.
 """
 

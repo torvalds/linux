@@ -20,7 +20,7 @@ implements.
 Buffered I/O
 ============
 
-Buffered I/O is the default file I/O path in Linux.
+Buffered I/O is the default file I/O path in GNU/Linux.
 File contents are cached in memory ("pagecache") to satisfy reads and
 writes.
 Dirty cache will be written back to disk at some point that can be
@@ -374,7 +374,7 @@ amortization:
 Direct I/O
 ==========
 
-In Linux, direct I/O is defined as file I/O that is issued directly to
+In GNU/Linux, direct I/O is defined as file I/O that is issued directly to
 storage, bypassing the pagecache.
 The ``iomap_dio_rw`` function implements O_DIRECT (direct I/O) reads and
 writes for files.

@@ -65,7 +65,7 @@ Implementation notes
 
 We specifically decided not to use VMA information in order to avoid relying on
 MM states (except for limited "struct page" info). The page table check is a
-separate from Linux-MM state machine that verifies that the user accessible
+separate from GNU/Linux-MM state machine that verifies that the user accessible
 pages are not falsely shared.
 
 PAGE_TABLE_CHECK depends on EXCLUSIVE_SYSTEM_RAM. The reason is that without

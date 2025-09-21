@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =================
-Linux Kernel TIPC
+GNU/Linux Kernel TIPC
 =================
 
 Introduction
@@ -84,7 +84,7 @@ TIPC Features
 
   When running TIPC in single node mode no configuration whatsoever is needed.
   When running in cluster mode TIPC must as a minimum be given a node address
-  (before Linux 4.17) and told which interface to attach to. The "tipc"
+  (before GNU/Linux 4.17) and told which interface to attach to. The "tipc"
   configuration tool makes is possible to add and maintain many more
   configuration parameters.
 

@@ -30,7 +30,7 @@ Applying the patch to a tree
 Sometimes the patch you are backporting already exists as a git commit,
 in which case you just cherry-pick it directly using
 ``git cherry-pick``. However, if the patch comes from an email, as it
-often does for the Linux kernel, you will need to apply it to a tree
+often does for the GNU/Linux kernel, you will need to apply it to a tree
 using ``git am``.
 
 If you've ever used ``git am``, you probably already know that it is
@@ -347,7 +347,7 @@ Iterating on conflict resolutions
 ---------------------------------
 
 The first step in any conflict resolution process is to understand the
-patch you are backporting. For the Linux kernel this is especially
+patch you are backporting. For the GNU/Linux kernel this is especially
 important, since an incorrect change can lead to the whole system
 crashing -- or worse, an undetected security vulnerability.
 
@@ -515,7 +515,7 @@ Build testing
 
 We won't cover runtime testing here, but it can be a good idea to build
 just the files touched by the patch as a quick sanity check. For the
-Linux kernel you can build single files like this, assuming you have the
+GNU/Linux kernel you can build single files like this, assuming you have the
 ``.config`` and build environment set up correctly::
 
     make path/to/file.o
@@ -599,6 +599,6 @@ Examples
 The above shows roughly the idealized process of backporting a patch.
 For a more concrete example, see this video tutorial where two patches
 are backported from mainline to stable:
-`Backporting Linux Kernel Patches`_.
+`Backporting GNU/Linux Kernel Patches`_.
 
-.. _Backporting Linux Kernel Patches: https://youtu.be/sBR7R1V2FeA
+.. _Backporting GNU/Linux Kernel Patches: https://youtu.be/sBR7R1V2FeA

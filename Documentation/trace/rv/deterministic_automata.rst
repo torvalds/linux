@@ -48,9 +48,9 @@ The previous 'wip' automaton can also be represented as::
 Deterministic Automaton in C
 ----------------------------
 
-In the paper "Efficient formal verification for the Linux kernel",
+In the paper "Efficient formal verification for the GNU/Linux kernel",
 the authors present a simple way to represent an automaton in C that can
-be used as regular code in the Linux kernel.
+be used as regular code in the GNU/Linux kernel.
 
 For example, the 'wip' automata can be presented as (augmented with comments)::
 
@@ -179,6 +179,6 @@ Event Systems (DES), see::
 For the C representation in kernel, see::
 
   De Oliveira, Daniel Bristot; Cucinotta, Tommaso; De Oliveira, Romulo
-  Silva. Efficient formal verification for the Linux kernel. In:
+  Silva. Efficient formal verification for the GNU/Linux kernel. In:
   International Conference on Software Engineering and Formal Methods.
   Springer, Cham, 2019. p. 315-332.

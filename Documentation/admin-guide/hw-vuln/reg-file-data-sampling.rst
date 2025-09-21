@@ -70,7 +70,7 @@ Mitigation default is selected by CONFIG_MITIGATION_RFDS.
 
 Mitigation status information
 -----------------------------
-The Linux kernel provides a sysfs interface to enumerate the current
+The GNU/Linux kernel provides a sysfs interface to enumerate the current
 vulnerability status of the system: whether the system is vulnerable, and
 which mitigations are active. The relevant sysfs file is:
 

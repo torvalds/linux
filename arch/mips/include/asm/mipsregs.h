@@ -238,7 +238,7 @@
 /*
  * R4640/R4650 cp0 register names.  These registers are listed
  * here only for completeness; without MMU these CPUs are not usable
- * by Linux.  A future ELKS port might take make Linux run on them
+ * by GNU/Linux.  A future ELKS port might take make GNU/Linux run on them
  * though ...
  */
 #define CP0_IBASE $0

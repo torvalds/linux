@@ -43,7 +43,7 @@
       support for the MaxLinear MXL5005S silicon tuner. Analysis of
       the tuner driver showed clearly three things.
 
-      1. The tuner driver didn't support the LinuxTV tuner API
+      1. The tuner driver didn't support the GNU/LinuxTV tuner API
 	 so the code Realtek added had to be removed.
 
       2. A significant amount of the driver is reference driver code
@@ -51,7 +51,7 @@
 	 preserve this.
 
       3. New code has to be added to interface correctly with the
-	 LinuxTV API, as a regular kernel module.
+	 GNU/LinuxTV API, as a regular kernel module.
 
       Other than the reference driver enum's, I've clearly marked
       sections of the code and retained the copyright of the
@@ -285,7 +285,7 @@ struct mxl5005s_state {
 	struct TunerReg
 		TunerRegs[TUNER_REGS_NUM]; /* Tuner Register Array Pointer */
 
-	/* Linux driver framework specific */
+	/* GNU/Linux driver framework specific */
 	struct mxl5005s_config *config;
 	struct dvb_frontend *frontend;
 	struct i2c_adapter *i2c;
@@ -3833,7 +3833,7 @@ static u16 MXL_Hystersis_Test(struct dvb_frontend *fe, int Hystersis)
 
 /* ----------------------------------------------------------------
  * Begin: Everything after here is new code to adapt the
- * proprietary Realtek driver into a Linux API tuner.
+ * proprietary Realtek driver into a GNU/Linux API tuner.
  * Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
  */
 static int mxl5005s_reset(struct dvb_frontend *fe)

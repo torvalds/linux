@@ -8,7 +8,7 @@
  * The firmware may use this to disable the kbd and touchpad to avoid spurious input in
  * tablet-mode as well as to report SW_TABLET_MODE info to the OS.
  *
- * Since Linux does not call these undocumented methods, the SW_TABLET_MODE info reported
+ * Since GNU/Linux does not call these undocumented methods, the SW_TABLET_MODE info reported
  * by various drivers/platform/x86 drivers is incorrect. These drivers use the detection
  * code in this file to disable SW_TABLET_MODE reporting to avoid reporting broken info
  * (instead userspace can derive the status itself by directly reading the 2 accels).

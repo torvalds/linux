@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * SELinux support for the Audit LSM hooks
+ * SEGNU/Linux support for the Audit LSM hooks
  *
  * Author: James Morris <jmorris@redhat.com>
  *

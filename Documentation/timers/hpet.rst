@@ -1,5 +1,5 @@
 ===========================================
-High Precision Event Timer Driver for Linux
+High Precision Event Timer Driver for GNU/Linux
 ===========================================
 
 The High Precision Event Timer (HPET) hardware follows a specification

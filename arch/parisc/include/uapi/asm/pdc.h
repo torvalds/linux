@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 #ifndef _UAPI_PARISC_PDC_H
 #define _UAPI_PARISC_PDC_H
 
@@ -340,7 +340,7 @@
 #define OS_ID_OSF		3	/* OSF OS		*/
 #define OS_ID_HPRT		4	/* HP-RT OS		*/
 #define OS_ID_NOVEL		5	/* NOVELL OS		*/
-#define OS_ID_LINUX		6	/* Linux		*/
+#define OS_ID_LINUX		6	/* GNU/Linux		*/
 
 
 /* constants for PDC_CHASSIS */

@@ -4,7 +4,7 @@
  *
  * Converted to the radio-isa framework by Hans Verkuil <hverkuil@xs4all.nl>
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
- * Adapted to support the Video for Linux API by
+ * Adapted to support the Video for GNU/Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:
  *
  * Quay Ly

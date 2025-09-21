@@ -2,7 +2,7 @@
 /*
  * Event entry/exit for Hexagon
  *
- * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2013, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <asm/asm-offsets.h>  /*  assembly-safer versions of C defines */
@@ -11,7 +11,7 @@
 #include <asm/thread_info.h>
 
 /*
- * Entry into guest-mode Linux under Hexagon Virtual Machine.
+ * Entry into guest-mode GNU/Linux under Hexagon Virtual Machine.
  * Stack pointer points to event record - build pt_regs on top of it,
  * set up a plausible C stack frame, and dispatch to the C handler.
  * On return, do vmrte virtual instruction with SP where we started.

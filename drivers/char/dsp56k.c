@@ -9,7 +9,7 @@
  *
  * History:
  *  97-01-29   Tomas Berndtsson,
- *               Integrated with Linux 2.1.21 kernel sources.
+ *               Integrated with GNU/Linux 2.1.21 kernel sources.
  *  97-02-15   Tomas Berndtsson,
  *               Fixed for kernel 2.1.26
  *

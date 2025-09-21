@@ -302,7 +302,7 @@ Version 3.2
 - The super block is now searched in the block that
   was calculated and in the one following. This
   should remedy the round-off error introduced by
-  the 1-k blocks that Linux uses.
+  the 1-k blocks that GNU/Linux uses.
 - Minor changes to adhere to the new VFS interface.
 - The number of used blocks is now also calculated
   if the filesystem is mounted read-only.
@@ -325,7 +325,7 @@ Version 3.0
 -----------
 
 - Almost complete rewrite for the new VFS
-  interface in Linux 1.3.
+  interface in GNU/Linux 1.3.
 - Write support.
 - Support for hard and symbolic links.
 - Lots of things I remember even less ...

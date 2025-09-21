@@ -1,4 +1,4 @@
-/* hamachi.c: A Packet Engines GNIC-II Gigabit Ethernet driver for Linux. */
+/* hamachi.c: A Packet Engines GNIC-II Gigabit Ethernet driver for GNU/Linux. */
 /*
 	Written 1998-2000 by Donald Becker.
 	Updates 2000 by Keith Underwood.

@@ -97,7 +97,7 @@ There are currently two types of virtual commands.
 Virtual commands have to be handled in device specific driver code. Chip driver
 code returns non-negative values if a virtual command is supported, or a
 negative error code if not. The chip driver may return -ENODATA or any other
-Linux error code in this case, though an error code other than -ENODATA is
+GNU/Linux error code in this case, though an error code other than -ENODATA is
 handled more efficiently and thus preferred. Either case, the calling PMBus
 core code will abort if the chip driver returns an error code when reading
 or writing virtual registers (in other words, the PMBus core code will never

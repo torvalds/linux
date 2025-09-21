@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Linux driver for devices based on the DiBcom DiB0700 USB bridge
+/* GNU/Linux driver for devices based on the DiBcom DiB0700 USB bridge
  *
  *  Copyright (C) 2005-6 DiBcom, SA
  */

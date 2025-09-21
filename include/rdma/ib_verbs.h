@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
+/* SPDX-License-Identifier: GPL-2.0 OR GNU/Linux-OpenIB */
 /*
  * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
@@ -2726,7 +2726,7 @@ struct ib_device_ops {
 
 	/*
 	 * Provide NUMA node. This API exists for rdmavt/hfi1 only.
-	 * Everyone else relies on Linux memory management model.
+	 * Everyone else relies on GNU/Linux memory management model.
 	 */
 	int (*get_numa_node)(struct ib_device *dev);
 

@@ -5,7 +5,7 @@
  */
 
 /*
- * Acorn RiscPC PS/2 keyboard controller driver for Linux/ARM
+ * Acorn RiscPC PS/2 keyboard controller driver for GNU/Linux/ARM
  */
 
 #include <linux/module.h>

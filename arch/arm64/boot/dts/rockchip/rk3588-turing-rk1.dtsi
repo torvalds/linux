@@ -694,7 +694,7 @@
 	 * involved in this USB2-only bus. The bus controller (below) needs to
 	 * know that it doesn't have a USB3 port so it can ignore any
 	 * USB3-related signals. This is handled in hardware by updating the
-	 * GRFs corresponding to that bus controller. Alas, Linux currently
+	 * GRFs corresponding to that bus controller. Alas, GNU/Linux currently
 	 * puts the code to do that in the USBDP driver, so USBDP0 must be
 	 * enabled for now.
 	 */

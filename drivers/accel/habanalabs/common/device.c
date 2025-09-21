@@ -712,7 +712,7 @@ static void device_release_func(struct device *dev)
  * @cdev: pointer to the char device object that will be initialized
  * @dev: pointer to the device object that will be initialized
  *
- * Initialize a cdev and a Linux device for habanalabs's device.
+ * Initialize a cdev and a GNU/Linux device for habanalabs's device.
  */
 static int device_init_cdev(struct hl_device *hdev, const struct class *class,
 				int minor, const struct file_operations *fops,
@@ -2136,7 +2136,7 @@ void hl_notifier_event_send_all(struct hl_device *hdev, u64 event_mask)
  *
  * Allocate an id for the device, do early initialization and then call the
  * ASIC specific initialization functions. Finally, create the cdev and the
- * Linux device to expose it to the user
+ * GNU/Linux device to expose it to the user
  */
 int hl_device_init(struct hl_device *hdev)
 {

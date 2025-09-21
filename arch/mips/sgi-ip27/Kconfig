@@ -26,7 +26,7 @@ config MAPPED_KERNEL
 	bool "Mapped kernel support"
 	depends on SGI_IP27
 	help
-	  Change the way a Linux kernel is loaded into memory on a MIPS64
+	  Change the way a GNU/Linux kernel is loaded into memory on a MIPS64
 	  machine.  This is required in order to support text replication on
 	  NUMA.  If you need to understand it, read the source code.
 

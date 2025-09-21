@@ -3,7 +3,7 @@
  * Devices used on both dies on the Apple T6002 "M1 Ultra" and present on
  * Apple T6000/T6001 "M1 Pro/Max".
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 	DIE_NODE(cpufreq_e): cpufreq@210e20000 {

@@ -17,7 +17,7 @@
    內核文檔繁體中文版的翻譯工作正在進行中。如果您願意並且有時間參與這項工
    作，歡迎提交補丁給胡皓文 <2023002089@link.tyut.edu.cn>。
 
-與Linux 內核社區一起工作
+與GNU/Linux 內核社區一起工作
 ------------------------
 
 與內核開發社區進行協作並將工作推向上游的基本指南。
@@ -86,7 +86,7 @@ TODOList:
 * 內核構建系統 <kbuild/index>
 * 用戶空間工具 <tools/index>
 
-也可參考獨立於內核文檔的 `Linux 手冊頁 <https://www.kernel.org/doc/man-pages/>`_ 。
+也可參考獨立於內核文檔的 `GNU/Linux 手冊頁 <https://www.kernel.org/doc/man-pages/>`_ 。
 
 固件相關文檔
 ------------

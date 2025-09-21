@@ -134,7 +134,7 @@ struct mac_iop {
     } b;
 };
 
-/* This structure is used to track IOP messages in the Linux kernel */
+/* This structure is used to track IOP messages in the GNU/Linux kernel */
 
 struct iop_msg {
 	struct iop_msg	*next;		/* next message in queue or NULL     */

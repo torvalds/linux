@@ -1,7 +1,7 @@
-/* Lzma decompressor for Linux kernel. Shamelessly snarfed
+/* Lzma decompressor for GNU/Linux kernel. Shamelessly snarfed
  *from busybox 1.1.1
  *
- *Linux kernel adaptation
+ *GNU/Linux kernel adaptation
  *Copyright (C) 2006  Alain < alain@knaff.lu >
  *
  *Based on small lzma deflate implementation/Small range coder

@@ -3,7 +3,7 @@
 .. _virtio:
 
 ===============
-Virtio on Linux
+Virtio on GNU/Linux
 ===============
 
 Introduction
@@ -16,7 +16,7 @@ for paravirtualized devices implemented by a hypervisor, it can be used
 to interface any compliant device (real or emulated) with a driver.
 
 For illustrative purposes, this document will focus on the common case
-of a Linux kernel running in a virtual machine and using paravirtualized
+of a GNU/Linux kernel running in a virtual machine and using paravirtualized
 devices provided by the hypervisor, which exposes them as virtio devices
 via standard mechanisms such as PCI.
 

@@ -291,7 +291,7 @@ In this example, test case 4 (Basic read with data verification) was executed, a
 Contributing
 ============
 
-Contributions to the `mmc_test` framework are welcome. Please follow the standard Linux kernel contribution guidelines and submit patches to the appropriate maintainers.
+Contributions to the `mmc_test` framework are welcome. Please follow the standard GNU/Linux kernel contribution guidelines and submit patches to the appropriate maintainers.
 
 Contact
 =======

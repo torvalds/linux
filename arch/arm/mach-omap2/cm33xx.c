@@ -172,7 +172,7 @@ static void am33xx_cm_clkdm_enable_hwsup(u16 inst, u16 cdoffs)
  *
  * Put a clockdomain referred to by (@inst, @cdoffs) into
  * software-supervised idle mode, i.e., controlled manually by the
- * Linux OMAP clockdomain code.  No return value.
+ * GNU/Linux OMAP clockdomain code.  No return value.
  */
 static void am33xx_cm_clkdm_disable_hwsup(u16 inst, u16 cdoffs)
 {

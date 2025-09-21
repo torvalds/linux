@@ -130,7 +130,7 @@ static int linux_partition(struct parsed_partitions *state,
 	struct linux_part *linuxp;
 	unsigned long size = nr_sects > 2 ? 2 : nr_sects;
 
-	strlcat(state->pp_buf, " [Linux]", PAGE_SIZE);
+	strlcat(state->pp_buf, " [GNU/Linux]", PAGE_SIZE);
 
 	put_partition(state, slot++, first_sect, size);
 
@@ -305,7 +305,7 @@ struct ics_part {
 	__le32 size;
 };
 
-static int adfspart_check_ICSLinux(struct parsed_partitions *state,
+static int adfspart_check_ICSGNU/Linux(struct parsed_partitions *state,
 				   unsigned long block)
 {
 	Sector sect;
@@ -313,7 +313,7 @@ static int adfspart_check_ICSLinux(struct parsed_partitions *state,
 	int result = 0;
 
 	if (data) {
-		if (memcmp(data, "LinuxPart", 9) == 0)
+		if (memcmp(data, "GNU/LinuxPart", 9) == 0)
 			result = 1;
 		put_dev_sector(sect);
 	}
@@ -389,7 +389,7 @@ int adfspart_check_ICS(struct parsed_partitions *state)
 			 * partition is.  We must not make this visible
 			 * to the filesystem.
 			 */
-			if (size > 1 && adfspart_check_ICSLinux(state, start)) {
+			if (size > 1 && adfspart_check_ICSGNU/Linux(state, start)) {
 				start += 1;
 				size -= 1;
 			}

@@ -127,7 +127,7 @@ config USB_SERIAL_DIGI_ACCELEPORT
 	help
 	  Say Y here if you want to use Digi AccelePort USB 2 or 4 devices,
 	  2 port (plus parallel port) and 4 port USB serial converters.  The
-	  parallel port on the USB 2 appears as a third serial port on Linux.
+	  parallel port on the USB 2 appears as a third serial port on GNU/Linux.
 	  The Digi Acceleport USB 8 is not yet supported by this driver.
 
 	  To compile this driver as a module, choose M here: the

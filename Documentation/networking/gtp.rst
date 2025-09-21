@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================
-The Linux kernel GTP tunneling module
+The GNU/Linux kernel GTP tunneling module
 =====================================
 
 Documentation by
@@ -47,7 +47,7 @@ publicly via the 3GPP website at http://www.3gpp.org/DynaReport/29060.htm
 A direct PDF link to v13.6.0 is provided for convenience below:
 http://www.etsi.org/deliver/etsi_ts/129000_129099/129060/13.06.00_60/ts_129060v130600p.pdf
 
-The Linux GTP tunnelling module
+The GNU/Linux GTP tunnelling module
 ===============================
 
 The module implements the function of a tunnel endpoint, i.e. it is
@@ -77,12 +77,12 @@ Userspace :)
 The official homepage of the module is at
 https://osmocom.org/projects/linux-kernel-gtp-u/wiki
 
-Userspace Programs with Linux Kernel GTP-U support
+Userspace Programs with GNU/Linux Kernel GTP-U support
 ==================================================
 
 At the time of this writing, there are at least two Free Software
 implementations that implement GTP-C and can use the netlink interface
-to make use of the Linux kernel GTP-U support:
+to make use of the GNU/Linux kernel GTP-U support:
 
 * OpenGGSN (classic 2G/3G GGSN in C):
   https://osmocom.org/projects/openggsn/wiki/OpenGGSN
@@ -202,7 +202,7 @@ TEIDs, not based on the source IP!
 APN vs. Network Device
 ======================
 
-The GTP-U driver creates a Linux network device for each Gi/SGi
+The GTP-U driver creates a GNU/Linux network device for each Gi/SGi
 interface.
 
 [3GPP TS 29.281] calls the Gi/SGi reference point an interface. This

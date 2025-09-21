@@ -529,7 +529,7 @@ static int __init phantom_init(void)
 		goto err_unchr;
 	}
 
-	printk(KERN_INFO "Phantom Linux Driver, version " PHANTOM_VERSION ", "
+	printk(KERN_INFO "Phantom GNU/Linux Driver, version " PHANTOM_VERSION ", "
 			"init OK\n");
 
 	return 0;

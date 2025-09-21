@@ -2,7 +2,7 @@
 /*
  * Qualcomm PCIe root complex driver
  *
- * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015, The GNU/Linux Foundation. All rights reserved.
  * Copyright 2015 Linaro Limited.
  *
  * Author: Stanimir Varbanov <svarbanov@mm-sol.com>

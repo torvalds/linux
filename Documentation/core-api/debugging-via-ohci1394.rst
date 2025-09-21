@@ -29,7 +29,7 @@ hardware such as x86, x86-64 and PowerPC.
 
 At least LSI FW643e and FW643e2 controllers are known to support access to
 physical addresses above 4 GB, but this feature is currently not enabled by
-Linux.
+GNU/Linux.
 
 Together with a early initialization of the OHCI-1394 controller for debugging,
 this facility proved most useful for examining long debugs logs in the printk
@@ -105,7 +105,7 @@ Step-by-step instructions for using firescope with early OHCI initialization:
 
    The mentioned kernel log message contains the string "physUB" if the
    controller implements a writable Physical Upper Bound register.  This is
-   required for physical DMA above 4 GB (but not utilized by Linux yet).
+   required for physical DMA above 4 GB (but not utilized by GNU/Linux yet).
 
 2) Establish a working FireWire cable connection:
 

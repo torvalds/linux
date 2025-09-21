@@ -3,7 +3,7 @@
  * arch/powerpc/platforms/embedded6xx/gamecube.c
  *
  * Nintendo GameCube board-specific support
- * Copyright (C) 2004-2009 The GameCube Linux Team
+ * Copyright (C) 2004-2009 The GameCube GNU/Linux Team
  * Copyright (C) 2007,2008,2009 Albert Herranz
  */
 

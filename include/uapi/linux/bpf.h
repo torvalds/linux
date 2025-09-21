@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
  *
  * This program is free software; you can redistribute it and/or
@@ -2197,10 +2197,10 @@ union bpf_attr {
  * 		The net_cls cgroup provides an interface to tag network packets
  * 		based on a user-provided identifier for all traffic coming from
  * 		the tasks belonging to the related cgroup. See also the related
- * 		kernel documentation, available from the Linux sources in file
+ * 		kernel documentation, available from the GNU/Linux sources in file
  * 		*Documentation/admin-guide/cgroup-v1/net_cls.rst*.
  *
- * 		The Linux kernel has two versions for cgroups: there are
+ * 		The GNU/Linux kernel has two versions for cgroups: there are
  * 		cgroups v1 and cgroups v2. Both are available to users, who can
  * 		use a mixture of them, but note that the net_cls cgroup is for
  * 		cgroup v1 only. This makes it incompatible with BPF programs
@@ -2345,7 +2345,7 @@ union bpf_attr {
  * 		**BPF_F_CURRENT_CPU** to indicate that the value for the
  * 		current CPU should be retrieved.
  *
- * 		Note that before Linux 4.13, only hardware perf event can be
+ * 		Note that before GNU/Linux 4.13, only hardware perf event can be
  * 		retrieved.
  *
  * 		Also, be aware that the newer helper
@@ -2433,7 +2433,7 @@ union bpf_attr {
  * 		one or for all CPUs) and to store the file descriptor into the
  * 		*map*. This must be done before the eBPF program can send data
  * 		into it. An example is available in file
- * 		*samples/bpf/trace_output_user.c* in the Linux kernel source
+ * 		*samples/bpf/trace_output_user.c* in the GNU/Linux kernel source
  * 		tree (the eBPF program counterpart is in
  *		*samples/bpf/trace_output.bpf.c*).
  *
@@ -2460,7 +2460,7 @@ union bpf_attr {
  * 		the packet associated to *skb*, into the buffer pointed by
  * 		*to*.
  *
- * 		Since Linux 4.7, usage of this helper has mostly been replaced
+ * 		Since GNU/Linux 4.7, usage of this helper has mostly been replaced
  * 		by "direct packet access", enabling packet data to be
  * 		manipulated with *skb*\ **->data** and *skb*\ **->data_end**
  * 		pointing respectively to the first byte of packet data and to
@@ -5125,7 +5125,7 @@ union bpf_attr {
  *		this value is L3 as this correlate to MTU and IP-header tot_len
  *		values which are L3 (similar behavior as bpf_fib_lookup).
  *
- *		The Linux kernel route table can configure MTUs on a more
+ *		The GNU/Linux kernel route table can configure MTUs on a more
  *		specific per route level, which is not provided by this helper.
  *		For route level MTU checks use the **bpf_fib_lookup**\ ()
  *		helper.

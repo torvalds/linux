@@ -9,7 +9,7 @@ The VRF Device
 
 The VRF device combined with ip rules provides the ability to create virtual
 routing and forwarding domains (aka VRFs, VRF-lite to be specific) in the
-Linux network stack. One use case is the multi-tenancy problem where each
+GNU/Linux network stack. One use case is the multi-tenancy problem where each
 tenant has their own unique routing tables and in the very least need
 different default gateways.
 

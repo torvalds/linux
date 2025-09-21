@@ -223,7 +223,7 @@ void setup_initial_init_mm(void *start_code, void *end_code,
 			   void *end_data, void *brk);
 
 /*
- * Linux kernel virtual memory manager primitives.
+ * GNU/Linux kernel virtual memory manager primitives.
  * The idea being to have a "virtual" mm in the same way
  * we have a virtual fs - giving a cleaner interface to the
  * mm details, and allowing different kinds of memory mappings
@@ -1270,7 +1270,7 @@ vm_fault_t finish_fault(struct vm_fault *vmf);
  * subsequently been given references to it.
  *
  * The other pages (we may call them "pagecache pages") are completely
- * managed by the Linux memory manager: I/O, buffers, swapping etc.
+ * managed by the GNU/Linux memory manager: I/O, buffers, swapping etc.
  * The following discussion applies only to them.
  *
  * A pagecache page contains an opaque `private' member, which belongs to the

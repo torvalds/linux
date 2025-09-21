@@ -4,7 +4,7 @@
 The BusLogic FlashPoint SCSI Driver
 ===================================
 
-The BusLogic FlashPoint SCSI Host Adapters are now fully supported on Linux.
+The BusLogic FlashPoint SCSI Host Adapters are now fully supported on GNU/Linux.
 The upgrade program described below has been officially terminated effective
 31 March 1997 since it is no longer needed.
 
@@ -14,23 +14,23 @@ The upgrade program described below has been officially terminated effective
   	      BUSLOGIC FLASHPOINT LINE OF SCSI HOST ADAPTERS
 
 
-  FREMONT, CA, -- October 8, 1996 -- Mylex Corporation has expanded Linux
+  FREMONT, CA, -- October 8, 1996 -- Mylex Corporation has expanded GNU/Linux
   operating system support to its BusLogic brand of FlashPoint Ultra SCSI
   host adapters.  All of BusLogic's other SCSI host adapters, including the
-  MultiMaster line, currently support the Linux operating system.  Linux
+  MultiMaster line, currently support the GNU/Linux operating system.  GNU/Linux
   drivers and information will be available on October 15th at
   http://sourceforge.net/projects/dandelion/.
 
-  "Mylex is committed to supporting the Linux community," says Peter Shambora,
-  vice president of marketing for Mylex.  "We have supported Linux driver
+  "Mylex is committed to supporting the GNU/Linux community," says Peter Shambora,
+  vice president of marketing for Mylex.  "We have supported GNU/Linux driver
   development and provided technical support for our host adapters for several
   years, and are pleased to now make our FlashPoint products available to this
   user base."
 
-The Linux Operating System
+The GNU/Linux Operating System
 ==========================
 
-Linux is a freely-distributed implementation of UNIX for Intel x86, Sun
+GNU/Linux is a freely-distributed implementation of UNIX for Intel x86, Sun
 SPARC, SGI MIPS, Motorola 68k, Digital Alpha AXP and Motorola PowerPC
 machines.  It supports a wide range of software, including the X Window
 System, Emacs, and TCP/IP networking.  Further information is available at
@@ -83,33 +83,33 @@ Contact:
 			       14 June 1996
 
   Ever since its introduction last October, the BusLogic FlashPoint LT has
-  been problematic for members of the Linux community, in that no Linux
+  been problematic for members of the GNU/Linux community, in that no GNU/Linux
   drivers have been available for this new Ultra SCSI product.  Despite its
   officially being positioned as a desktop workstation product, and not being
   particularly well suited for a high performance multitasking operating
-  system like Linux, the FlashPoint LT has been touted by computer system
+  system like GNU/Linux, the FlashPoint LT has been touted by computer system
   vendors as the latest thing, and has been sold even on many of their high
   end systems, to the exclusion of the older MultiMaster products.  This has
   caused grief for many people who inadvertently purchased a system expecting
-  that all BusLogic SCSI Host Adapters were supported by Linux, only to
+  that all BusLogic SCSI Host Adapters were supported by GNU/Linux, only to
   discover that the FlashPoint was not supported and would not be for quite
   some time, if ever.
 
   After this problem was identified, BusLogic contacted its major OEM
   customers to make sure the BT-946C/956C MultiMaster cards would still be
-  made available, and that Linux users who mistakenly ordered systems with
+  made available, and that GNU/Linux users who mistakenly ordered systems with
   the FlashPoint would be able to upgrade to the BT-946C.  While this helped
   many purchasers of new systems, it was only a partial solution to the
-  overall problem of FlashPoint support for Linux users.  It did nothing to
+  overall problem of FlashPoint support for GNU/Linux users.  It did nothing to
   assist the people who initially purchased a FlashPoint for a supported
-  operating system and then later decided to run Linux, or those who had
+  operating system and then later decided to run GNU/Linux, or those who had
   ended up with a FlashPoint LT, believing it was supported, and were unable
   to return it.
 
   In the middle of December, I asked to meet with BusLogic's senior
-  management to discuss the issues related to Linux and free software support
+  management to discuss the issues related to GNU/Linux and free software support
   for the FlashPoint.  Rumors of varying accuracy had been circulating
-  publicly about BusLogic's attitude toward the Linux community, and I felt
+  publicly about BusLogic's attitude toward the GNU/Linux community, and I felt
   it was best that these issues be addressed directly.  I sent an email
   message after 11pm one evening, and the meeting took place the next
   afternoon.  Unfortunately, corporate wheels sometimes grind slowly,
@@ -129,14 +129,14 @@ Contact:
   not convinced that the effort required would be worthwhile.
 
   However, BusLogic does remain committed to providing a high performance
-  SCSI solution for the Linux community, and does not want to see anyone left
-  unable to run Linux because they have a Flashpoint LT.  Therefore, BusLogic
-  has put in place a direct upgrade program to allow any Linux user worldwide
+  SCSI solution for the GNU/Linux community, and does not want to see anyone left
+  unable to run GNU/Linux because they have a Flashpoint LT.  Therefore, BusLogic
+  has put in place a direct upgrade program to allow any GNU/Linux user worldwide
   to trade in their FlashPoint LT for the new BT-948 MultiMaster PCI Ultra
   SCSI Host Adapter.  The BT-948 is the Ultra SCSI successor to the BT-946C
   and has all the best features of both the BT-946C and FlashPoint LT,
   including smart termination and a flash PROM for easy firmware updates, and
-  is of course compatible with the present Linux driver.  The price for this
+  is of course compatible with the present GNU/Linux driver.  The price for this
   upgrade has been set at US $45 plus shipping and handling, and the upgrade
   program will be administered through BusLogic Technical Support, which can
   be reached by electronic mail at techsup@buslogic.com, by Voice at +1 408
@@ -144,7 +144,7 @@ Contact:
 
   As of 14 June 1996, the original BusLogic FlashPoint LT to BT-948 upgrade
   program has now been extended to encompass the FlashPoint LW Wide Ultra
-  SCSI Host Adapter.  Any Linux user worldwide may trade in their FlashPoint
+  SCSI Host Adapter.  Any GNU/Linux user worldwide may trade in their FlashPoint
   LW (BT-950) for a BT-958 MultiMaster PCI Ultra SCSI Host Adapter.  The
   price for this upgrade has been set at US $65 plus shipping and handling.
 
@@ -152,7 +152,7 @@ Contact:
   my BusLogic driver already included latent support for the BT-948/958.
   Additional cosmetic support for the Ultra SCSI MultiMaster cards was added
   subsequent releases.  As a result of this cooperative testing process,
-  several firmware bugs were found and corrected.  My heavily loaded Linux
+  several firmware bugs were found and corrected.  My heavily loaded GNU/Linux
   test system provided an ideal environment for testing error recovery
   processes that are much more rarely exercised in production systems, but
   are crucial to overall system stability.  It was especially convenient
@@ -164,8 +164,8 @@ Contact:
 
   BusLogic asked me to send this announcement since a large percentage of the
   questions regarding support for the FlashPoint have either been sent to me
-  directly via email, or have appeared in the Linux newsgroups in which I
-  participate.  To summarize, BusLogic is offering Linux users an upgrade
+  directly via email, or have appeared in the GNU/Linux newsgroups in which I
+  participate.  To summarize, BusLogic is offering GNU/Linux users an upgrade
   from the unsupported FlashPoint LT (BT-930) to the supported BT-948 for US
   $45 plus shipping and handling, or from the unsupported FlashPoint LW
   (BT-950) to the supported BT-958 for $65 plus shipping and handling.

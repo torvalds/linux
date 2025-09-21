@@ -3,7 +3,7 @@
  * arch/powerpc/boot/wii-head.S
  *
  * Nintendo Wii bootwrapper entry.
- * Copyright (C) 2008-2009 The GameCube Linux Team
+ * Copyright (C) 2008-2009 The GameCube GNU/Linux Team
  * Copyright (C) 2008,2009 Albert Herranz
  */
 

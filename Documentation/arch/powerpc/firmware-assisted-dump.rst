@@ -165,7 +165,7 @@ a crash does occur.
 
 Since this reserved memory area is used only after the system crash,
 there is no point in blocking this significant chunk of memory from
-production kernel. Hence, the implementation uses the Linux kernel's
+production kernel. Hence, the implementation uses the GNU/Linux kernel's
 Contiguous Memory Allocator (CMA) for memory reservation if CMA is
 configured for kernel. With CMA reservation this memory will be
 available for applications to use it, while kernel is prevented from

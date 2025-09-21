@@ -5,14 +5,14 @@
 Translator: Bailu Lin <bailu.lin@vivo.com>
 
 ==================================
-AArch64 Linux 中扩展的活动监控单元
+AArch64 GNU/Linux 中扩展的活动监控单元
 ==================================
 
 作者: Ionela Voinescu <ionela.voinescu@arm.com>
 
 日期: 2019-09-10
 
-本文档简要描述了 AArch64 Linux 支持的活动监控单元的规范。
+本文档简要描述了 AArch64 GNU/Linux 支持的活动监控单元的规范。
 
 
 架构总述

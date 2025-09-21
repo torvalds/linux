@@ -289,7 +289,7 @@ enum myri10ge_mcp_cmd_type {
 
 	MXGEFW_CMD_SET_TSO_MODE = 45,
 	/* data0 = TSO mode.
-	 * 0: Linux/FreeBSD style (NIC default)
+	 * 0: GNU/Linux/FreeBSD style (NIC default)
 	 * 1: NDIS/NetBSD style
 	 */
 #define MXGEFW_TSO_MODE_LINUX  0

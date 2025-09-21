@@ -236,7 +236,7 @@ cameras. Each camera has its own set of buffers.
 
 size and fps only specify defaults when you open() the device; this is to
 accommodate some tools that don't set the size. You can change these
-settings after open() with the Video4Linux ioctl() calls. The default of
+settings after open() with the Video4GNU/Linux ioctl() calls. The default of
 defaults is QCIF size at 10 fps.
 
 The compression parameter is semiglobal; it sets the initial compression

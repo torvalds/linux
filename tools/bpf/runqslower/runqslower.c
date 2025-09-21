@@ -22,7 +22,7 @@ const char *argp_program_version = "runqslower 0.1";
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
 const char argp_program_doc[] =
 "runqslower    Trace long process scheduling delays.\n"
-"              For Linux, uses eBPF, BPF CO-RE, libbpf, BTF.\n"
+"              For GNU/Linux, uses eBPF, BPF CO-RE, libbpf, BTF.\n"
 "\n"
 "This script traces high scheduling delays between tasks being\n"
 "ready to run and them running on CPU after that.\n"

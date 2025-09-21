@@ -314,7 +314,7 @@ The ``i_flags`` field is a combination of these values:
 
 The ``osd1`` field has multiple meanings depending on the creator:
 
-Linux:
+GNU/Linux:
 
 .. list-table::
    :widths: 8 8 24 40
@@ -365,7 +365,7 @@ Masix:
 
 The ``osd2`` field has multiple meanings depending on the filesystem creator:
 
-Linux:
+GNU/Linux:
 
 .. list-table::
    :widths: 8 8 24 40

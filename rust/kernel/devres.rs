@@ -148,7 +148,7 @@ impl<T: Send> Devres<T> {
             })),
             // TODO: Replace with "initializer code blocks" [1] once available.
             //
-            // [1] https://github.com/Rust-for-Linux/pin-init/pull/69
+            // [1] https://github.com/Rust-for-GNU/Linux/pin-init/pull/69
             _add_action: {
                 // SAFETY: `this` is a valid pointer to uninitialized memory.
                 let inner = unsafe { &raw mut (*this.as_ptr()).inner };

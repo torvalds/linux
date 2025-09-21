@@ -435,7 +435,7 @@ UNUSUAL_DEV(  0x04cb, 0x0100, 0x0000, 0x2210,
 /*
  * Reported by Ondrej Zary <linux@zary.sk>
  * The device reports one sector more and breaks when that sector is accessed
- * Firmwares older than 2.6c (the latest one and the only that claims Linux
+ * Firmwares older than 2.6c (the latest one and the only that claims GNU/Linux
  * support) have also broken tag handling
  */
 UNUSUAL_DEV(  0x04ce, 0x0002, 0x0000, 0x026b,
@@ -611,7 +611,7 @@ UNUSUAL_DEV(  0x0525, 0xa140, 0x0100, 0x0100,
 
 /* Added by Alan Stern <stern@rowland.harvard.edu> */
 COMPLIANT_DEV(0x0525, 0xa4a5, 0x0000, 0x9999,
-		"Linux",
+		"GNU/Linux",
 		"File-backed Storage Gadget",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_CAPACITY_OK ),

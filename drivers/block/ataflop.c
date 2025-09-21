@@ -1424,7 +1424,7 @@ static void finish_fdc_done( int dummy )
  * as long as no write protected disks are used. TOS solves this
  * problem by introducing tri-state logic ("maybe changed") and
  * looking at the serial number in block 0. This isn't possible for
- * Linux, since the floppy driver can't make assumptions about the
+ * GNU/Linux, since the floppy driver can't make assumptions about the
  * filesystem used on the disk and thus the contents of block 0. I've
  * chosen the method to always say "The disk was changed" if it is
  * unsure whether it was. This implies that every open or mount

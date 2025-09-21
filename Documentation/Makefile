@@ -191,7 +191,7 @@ cleandocs:
 	$(Q)$(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/userspace-api/media clean
 
 dochelp:
-	@echo  ' Linux kernel internal documentation in different formats from ReST:'
+	@echo  ' GNU/Linux kernel internal documentation in different formats from ReST:'
 	@echo  '  htmldocs        - HTML'
 	@echo  '  texinfodocs     - Texinfo'
 	@echo  '  infodocs        - Info'

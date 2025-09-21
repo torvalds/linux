@@ -99,7 +99,7 @@ config L2TP_ETH
 	  across an IP network [RFC3931].
 
 	  This driver provides an ethernet virtual interface for each
-	  L2TP ethernet pseudowire instance. Standard Linux tools may
+	  L2TP ethernet pseudowire instance. Standard GNU/Linux tools may
 	  be used to assign an IP address to the local virtual
 	  interface, or add the interface to a bridge.
 

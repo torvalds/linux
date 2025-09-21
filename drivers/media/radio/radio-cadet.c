@@ -15,7 +15,7 @@
  *
  * History:
  * 2000-04-29	Russell Kroll <rkroll@exploits.org>
- *		Added ISAPnP detection for Linux 2.3/2.4
+ *		Added ISAPnP detection for GNU/Linux 2.3/2.4
  *
  * 2001-01-10	Russell Kroll <rkroll@exploits.org>
  *		Removed dead CONFIG_RADIO_CADET_PORT code

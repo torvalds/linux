@@ -121,7 +121,7 @@ static int pseries_status_to_err(int rc)
 		err = -EINVAL;
 	}
 
-	pr_debug("Converted hypervisor code %d to Linux %d\n", rc, err);
+	pr_debug("Converted hypervisor code %d to GNU/Linux %d\n", rc, err);
 
 	return err;
 }

@@ -3,7 +3,7 @@
  * icp_multi.c
  * Comedi driver for Inova ICP_MULTI board
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2002 David A. Schleef <ds@schleef.org>
  */
 

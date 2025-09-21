@@ -32,7 +32,7 @@
 /*	Network Emulation Queuing algorithm.
 	====================================
 
-	Sources: [1] Mark Carson, Darrin Santay, "NIST Net - A Linux-based
+	Sources: [1] Mark Carson, Darrin Santay, "NIST Net - A GNU/Linux-based
 		 Network Emulation Tool
 		 [2] Luigi Rizzo, DummyNet for FreeBSD
 
@@ -60,7 +60,7 @@
 	[1] NetemCLG Home http://netgroup.uniroma2.it/NetemCLG
 	[2] S. Salsano, F. Ludovici, A. Ordine, "Definition of a general
 	and intuitive loss model for packet networks and its implementation
-	in the Netem module in the Linux kernel", available in [1]
+	in the Netem module in the GNU/Linux kernel", available in [1]
 
 	Authors: Stefano Salsano <stefano.salsano at uniroma2.it
 		 Fabio Ludovici <fabio.ludovici at yahoo.it>

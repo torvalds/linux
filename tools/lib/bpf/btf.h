@@ -538,7 +538,7 @@ static inline struct btf_enum64 *btf_enum64(const struct btf_type *t)
 
 static inline __u64 btf_enum64_value(const struct btf_enum64 *e)
 {
-	/* struct btf_enum64 is introduced in Linux 6.0, which is very
+	/* struct btf_enum64 is introduced in GNU/Linux 6.0, which is very
 	 * bleeding-edge. Here we are avoiding relying on struct btf_enum64
 	 * definition coming from kernel UAPI headers to support wider range
 	 * of system-wide kernel headers.

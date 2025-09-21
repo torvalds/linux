@@ -14,7 +14,7 @@ use kernel::sync::Mutex;
 module! {
     type: RustConfigfs,
     name: "rust_configfs",
-    authors: ["Rust for Linux Contributors"],
+    authors: ["Rust for GNU/Linux Contributors"],
     description: "Rust configfs sample",
     license: "GPL",
 }

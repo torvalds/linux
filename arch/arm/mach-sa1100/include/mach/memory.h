@@ -12,7 +12,7 @@
 
 /*
  * Because of the wide memory address space between physical RAM banks on the
- * SA1100, it's much convenient to use Linux's SparseMEM support to implement
+ * SA1100, it's much convenient to use GNU/Linux's SparseMEM support to implement
  * our memory map representation.  Assuming all memory nodes have equal access
  * characteristics, we then have generic discontiguous memory support.
  *

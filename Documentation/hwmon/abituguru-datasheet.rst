@@ -19,7 +19,7 @@ reverse engineering. This version has been almost fully rewritten for clarity
 and extended with write support and info on more databanks, the write support
 is once again reverse engineered by Olle the additional databanks have been
 reverse engineered by me. I would like to express my thanks to Olle, this
-document and the Linux driver could not have been written without his efforts.
+document and the GNU/Linux driver could not have been written without his efforts.
 
 Note: because of the lack of specs only the sensors part of the uGuru is
 described here and not the CPU / RAM / etc voltage & frequency control.
@@ -40,7 +40,7 @@ present. We have to check for two different values at data-port, because
 after a reboot uGuru will hold 0x00 here, but if the driver is removed and
 later on attached again data-port will hold 0x08, more about this later.
 
-After wider testing of the Linux kernel driver some variants of the uGuru have
+After wider testing of the GNU/Linux kernel driver some variants of the uGuru have
 turned up which will hold 0x00 instead of 0xAC at the CMD port, thus we also
 have to test CMD for two different values. On these uGuru's DATA will initially
 hold 0x09 and will only hold 0x08 after reading CMD first, so CMD must be read
@@ -151,7 +151,7 @@ algorithm described above will still work.
 Gotchas
 -------
 
-After wider testing of the Linux kernel driver some variants of the uGuru have
+After wider testing of the GNU/Linux kernel driver some variants of the uGuru have
 turned up which do not hold 0x08 at DATA within 250 reads after writing the
 bank address. With these versions this happens quite frequent, using larger
 timeouts doesn't help, they just go offline for a second or 2, doing some
@@ -249,7 +249,7 @@ Bit 7:
 
 .. [2] This bit is only honored/used by the uGuru if a volt sensor is connected
        Note with some trickery this can be used to find out what kinda sensor
-       is detected see the Linux kernel driver for an example with many
+       is detected see the GNU/Linux kernel driver for an example with many
        comments on how todo this.
 
 Byte 1:

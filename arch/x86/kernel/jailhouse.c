@@ -182,7 +182,7 @@ static void __init jailhouse_serial_workaround(void)
 	 * There are flags inside setup_data that indicate availability of
 	 * platform UARTs since setup data version 2.
 	 *
-	 * In case of version 1, we don't know which UARTs belong Linux. In
+	 * In case of version 1, we don't know which UARTs belong GNU/Linux. In
 	 * this case, unconditionally register 1:1 mapping for legacy UART IRQs
 	 * 3 and 4.
 	 */

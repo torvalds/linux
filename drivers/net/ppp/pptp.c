@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Point-to-Point Tunneling Protocol for Linux
+ *  Point-to-Point Tunneling Protocol for GNU/Linux
  *
  *	Authors: Dmitry Kozlov <xeb@mail.ru>
  */

@@ -2,7 +2,7 @@
 /*
  * OpenRISC head.S
  *
- * Linux architectural port borrowing liberally from similar works of
+ * GNU/Linux architectural port borrowing liberally from similar works of
  * others.  All original copyrights apply as per the original source
  * declaration.
  *
@@ -1487,10 +1487,10 @@ ENTRY(_emergency_print_nr)
 
 /*
  * This should be used for debugging only.
- * It messes up the Linux early serial output
+ * It messes up the GNU/Linux early serial output
  * somehow, so use it sparingly and essentially
  * only if you need to debug something that goes wrong
- * before Linux gets the early serial going.
+ * before GNU/Linux gets the early serial going.
  *
  * Furthermore, you'll have to make sure you set the
  * UART_DEVISOR correctly according to the system

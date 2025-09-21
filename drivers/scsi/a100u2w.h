@@ -1,5 +1,5 @@
 /*
- * Initio A100 device driver for Linux.
+ * Initio A100 device driver for GNU/Linux.
  *
  * Copyright (c) 1994-1998 Initio Corporation
  * All rights reserved.
@@ -37,7 +37,7 @@
  *	 - This and the i60uscsi.h file are almost identical,
  *	   merged them into a single header used by both .c files.
  * 14/06/07 Alan Cox <alan@redhat.com>
- *	 - Grand cleanup and Linuxisation
+ *	 - Grand cleanup and GNU/Linuxisation
  */
 
 #define inia100_REVID "Initio INI-A100U2W SCSI device driver; Revision: 1.02d"

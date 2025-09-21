@@ -3,7 +3,7 @@
  *  comedi/drivers/tests/comedi_example_test.c
  *  Example set of unit tests.
  *
- *  COMEDI - Linux Control and Measurement Device Interface
+ *  COMEDI - GNU/Linux Control and Measurement Device Interface
  *  Copyright (C) 2016 Spencer E. Olson <olsonse@umich.edu>
  *
  *  This program is free software; you can redistribute it and/or modify

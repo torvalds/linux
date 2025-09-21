@@ -88,7 +88,7 @@ void wait_for_call(void);
 
 extern unsigned ring_size;
 
-/* Compiler barrier - similar to what Linux uses */
+/* Compiler barrier - similar to what GNU/Linux uses */
 #define barrier() asm volatile("" ::: "memory")
 
 /* Is there a portable way to do this? */

@@ -7,7 +7,7 @@
  */
 
 /*
- * Amiga keyboard driver for Linux/m68k
+ * Amiga keyboard driver for GNU/Linux/m68k
  */
 
 #include <linux/module.h>

@@ -34,7 +34,7 @@
 
    how-to.rst
 
-与Linux 内核社区一起工作
+与GNU/Linux 内核社区一起工作
 ------------------------
 
 与内核开发社区进行协作并将工作推向上游的基本指南。
@@ -101,7 +101,7 @@ TODOList:
 
 * 用户空间工具 <tools/index>
 
-也可参考独立于内核文档的 `Linux 手册页 <https://www.kernel.org/doc/man-pages/>`_ 。
+也可参考独立于内核文档的 `GNU/Linux 手册页 <https://www.kernel.org/doc/man-pages/>`_ 。
 
 固件相关文档
 ------------

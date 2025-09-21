@@ -7,11 +7,11 @@
 
 .. _cn_kernel_licensing:
 
-Linux内核许可规则
+GNU/Linux内核许可规则
 =================
 
-Linux内核根据LICENSES/preferred/GPL-2.0中提供的GNU通用公共许可证版本2
-（GPL-2.0）的条款提供，并在LICENSES/exceptions/Linux-syscall-note中显式
+GNU/Linux内核根据LICENSES/preferred/GPL-2.0中提供的GNU通用公共许可证版本2
+（GPL-2.0）的条款提供，并在LICENSES/exceptions/GNU/Linux-syscall-note中显式
 描述了例外的系统调用，如COPYING文件中所述。
 
 此文档文件提供了如何对每个源文件进行注释以使其许可证清晰明确的说明。
@@ -32,7 +32,7 @@ MIT等许可。
 
 用户空间API（UAPI）头文件描述了用户空间程序与内核的接口，这是一种特殊情况。
 根据内核COPYING文件中的注释，syscall接口是一个明确的边界，它不会将GPL要求
-扩展到任何使用它与内核通信的软件。由于UAPI头文件必须包含在创建在Linux内核
+扩展到任何使用它与内核通信的软件。由于UAPI头文件必须包含在创建在GNU/Linux内核
 上运行的可执行文件的任何源文件中，因此此例外必须记录在特别的许可证表述中。
 
 表达源文件许可证的常用方法是将匹配的样板文本添加到文件的顶部注释中。由于
@@ -41,11 +41,11 @@ MIT等许可。
 
 样板文本的替代方法是在每个源文件中使用软件包数据交换（SPDX）许可证标识符。
 SPDX许可证标识符是机器可解析的，并且是用于提供文件内容的许可证的精确缩写。
-SPDX许可证标识符由Linux 基金会的SPDX 工作组管理，并得到了整个行业，工具
+SPDX许可证标识符由GNU/Linux 基金会的SPDX 工作组管理，并得到了整个行业，工具
 供应商和法律团队的合作伙伴的一致同意。有关详细信息，请参阅
 https://spdx.org/
 
-Linux内核需要所有源文件中的精确SPDX标识符。内核中使用的有效标识符在
+GNU/Linux内核需要所有源文件中的精确SPDX标识符。内核中使用的有效标识符在
 `许可标识符`_ 一节中进行了解释，并且已可以在
 https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带许可证
 文本。
@@ -93,8 +93,8 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 
    当需要修正的许可证时，应使用WITH。 例如，linux内核UAPI文件使用表达式::
 
-      // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
-      // SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note
+      // SPDX-License-Identifier: GPL-2.0+ WITH GNU/Linux-syscall-note
 
    其它在内核中使用WITH例外的事例如下::
 
@@ -115,14 +115,14 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
       // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
       // SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
       // SPDX-License-Identifier: GPL-2.0 OR MPL-1.1
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH GNU/Linux-syscall-note) OR MIT
       // SPDX-License-Identifier: GPL-1.0+ OR BSD-3-Clause OR OpenSSL
 
    如果文件具有多个许可证，其条款全部适用于使用该文件，则应使用AND。例如，
    如果代码是从另一个项目继承的，并且已经授予了将其放入内核的权限，但原始
    许可条款需要保持有效::
 
-      // SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) AND MIT
+      // SPDX-License-Identifier: (GPL-2.0 WITH GNU/Linux-syscall-note) AND MIT
 
    另一个需要遵守两套许可条款的例子是::
 
@@ -257,9 +257,9 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 
    例如::
 
-      LICENSES/exceptions/Linux-syscall-note
+      LICENSES/exceptions/GNU/Linux-syscall-note
 
-   包含Linux内核的COPYING文件中记录的Linux系统调用例外，该文件用于UAPI
+   包含GNU/Linux内核的COPYING文件中记录的GNU/Linux系统调用例外，该文件用于UAPI
    头文件。例如::
 
       LICENSES/exceptions/GCC-exception-2.0
@@ -294,8 +294,8 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 
    文件格式示例::
 
-      SPDX-Exception-Identifier: Linux-syscall-note
-      SPDX-URL: https://spdx.org/licenses/Linux-syscall-note.html
+      SPDX-Exception-Identifier: GNU/Linux-syscall-note
+      SPDX-URL: https://spdx.org/licenses/GNU/Linux-syscall-note.html
       SPDX-Licenses: GPL-2.0, GPL-2.0+, GPL-1.0+, LGPL-2.0, LGPL-2.0+, LGPL-2.1, LGPL-2.1+
       Usage-Guidance:
         This exception is used together with one of the above SPDX-Licenses
@@ -303,7 +303,7 @@ https://spdx.org/licenses/ 上的官方SPDX许可证列表中检索，并附带�
 	into non GPL compliant user-space application code.
         To use this exception add it with the keyword WITH to one of the
 	identifiers in the SPDX-Licenses tag:
-	  SPDX-License-Identifier: <SPDX-License> WITH Linux-syscall-note
+	  SPDX-License-Identifier: <SPDX-License> WITH GNU/Linux-syscall-note
       Exception-Text:
         Full exception text
 

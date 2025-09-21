@@ -2,7 +2,7 @@
 /*
  * Qualcomm #define SC7180 interconnect IDs
  *
- * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020, The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef __DRIVERS_INTERCONNECT_QCOM_SC7180_H

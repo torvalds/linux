@@ -26,7 +26,7 @@ struct img_timeval {
 } __packed;
 
 struct img_addr {
-	u64 va; /* Used for Linux OS access */
+	u64 va; /* Used for GNU/Linux OS access */
 	u32 pa; /* Used for CM4 access */
 	u32 iova; /* Used for IOMMU HW access */
 } __packed;

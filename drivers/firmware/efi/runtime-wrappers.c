@@ -15,7 +15,7 @@
  *
  * Split off from arch/x86/platform/efi/efi.c
  *
- * Copyright (C) 1999 VA Linux Systems
+ * Copyright (C) 1999 VA GNU/Linux Systems
  * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  * Copyright (C) 1999-2002 Hewlett-Packard Co.
  * Copyright (C) 2005-2008 Intel Co.

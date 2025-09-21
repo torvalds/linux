@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * LZO decompressor for the Linux kernel. Code borrowed from the lzo
+ * LZO decompressor for the GNU/Linux kernel. Code borrowed from the lzo
  * implementation by Markus Franz Xaver Johannes Oberhumer.
  *
- * Linux kernel adaptation:
+ * GNU/Linux kernel adaptation:
  * Copyright (C) 2009
  * Albin Tonnerre, Free Electrons <albin.tonnerre@free-electrons.com>
  *

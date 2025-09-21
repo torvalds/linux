@@ -456,7 +456,7 @@ static int __init early_led_init(void)
 	int ret;
 
 	scnprintf(lcd_text, sizeof(lcd_text),
-		"Linux %s", init_utsname()->release);
+		"GNU/Linux %s", init_utsname()->release);
 	lcd_new_text = 1;
 
 	/* Work around the buggy PDC of KittyHawk-machines */

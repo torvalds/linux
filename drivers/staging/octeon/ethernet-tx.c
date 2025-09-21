@@ -285,7 +285,7 @@ netdev_tx_t cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * See if we can put this skb in the FPA pool. Any strange
-	 * behavior from the Linux networking stack will most likely
+	 * behavior from the GNU/Linux networking stack will most likely
 	 * be caused by a bug in the following code. If some field is
 	 * in use by the network stack and gets carried over when a
 	 * buffer is reused, bad things may happen.  If in doubt and
@@ -597,7 +597,7 @@ netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 					  (ip_hdr(skb)->frag_off ==
 					      cpu_to_be16(1 << 14)));
 #if 0
-		/* Assume Linux is sending a good packet */
+		/* Assume GNU/Linux is sending a good packet */
 		work->word2.s.IP_exc = 0;
 #endif
 		work->word2.s.is_bcast = (skb->pkt_type == PACKET_BROADCAST);

@@ -7,7 +7,7 @@
 #
 # This program was written in the development of this paper:
 #  de Oliveira, D. B. and Cucinotta, T. and de Oliveira, R. S.
-#  "Efficient Formal Verification for the Linux Kernel." International
+#  "Efficient Formal Verification for the GNU/Linux Kernel." International
 #  Conference on Software Engineering and Formal Methods. Springer, Cham, 2019.
 #
 # For further information, see:

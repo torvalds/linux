@@ -5,7 +5,7 @@ Checking environment variables for a tempdir...none found
 Checking if /dev/shm is on tmpfs...OK
 Checking PROT_EXEC mmap in /dev/shm...OK
 Adding 24743936 bytes to physical memory to account for exec-shield gap
-Linux version 4.12.0-rc3-00010-g7319eb35f493-dirty (brendanhiggins@mactruck.svl.corp.google.com) (gcc version 7.3.0 (Debian 7.3.0-5) ) #29 Thu Mar 15 14:57:19 PDT 2018
+GNU/Linux version 4.12.0-rc3-00010-g7319eb35f493-dirty (brendanhiggins@mactruck.svl.corp.google.com) (gcc version 7.3.0 (Debian 7.3.0-5) ) #29 Thu Mar 15 14:57:19 PDT 2018
 Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 14038
 Kernel command line: root=98:0
 PID hash table entries: 256 (order: -1, 2048 bytes)

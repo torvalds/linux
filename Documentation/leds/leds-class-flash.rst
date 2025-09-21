@@ -1,5 +1,5 @@
 ==============================
-Flash LED handling under Linux
+Flash LED handling under GNU/Linux
 ==============================
 
 Some LED devices provide two modes - torch and flash. In the LED subsystem
@@ -26,7 +26,7 @@ Following sysfs attributes are exposed for controlling flash LED devices:
 V4L2 flash wrapper for flash LEDs
 =================================
 
-A LED subsystem driver can be controlled also from the level of VideoForLinux2
+A LED subsystem driver can be controlled also from the level of VideoForGNU/Linux2
 subsystem. In order to enable this CONFIG_V4L2_FLASH_LED_CLASS symbol has to
 be defined in the kernel config.
 

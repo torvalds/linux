@@ -328,7 +328,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	 * NOTE: there still seems to be weirdness here, as if we need
 	 * to do some more things to make sure WinCE targets accept this.
 	 * They default to jumbograms of 8KB or 16KB, which is absurd
-	 * for such low data rates and which is also more than Linux
+	 * for such low data rates and which is also more than GNU/Linux
 	 * can usually expect to allocate for SKB data...
 	 */
 	net->hard_header_len += sizeof (struct rndis_data_hdr);
@@ -582,7 +582,7 @@ rndis_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	skb = skb2;
 
 	/* fill out the RNDIS header.  we won't bother trying to batch
-	 * packets; Linux minimizes wasted bandwidth through tx queues.
+	 * packets; GNU/Linux minimizes wasted bandwidth through tx queues.
 	 */
 fill:
 	hdr = __skb_push(skb, sizeof *hdr);

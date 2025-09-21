@@ -5,7 +5,7 @@
 Exchanging pixel buffers
 ========================
 
-As originally designed, the Linux graphics subsystem had extremely limited
+As originally designed, the GNU/Linux graphics subsystem had extremely limited
 support for sharing pixel-buffer allocations between processes, devices, and
 subsystems. Modern systems require extensive integration between all three
 classes; this document details how applications and kernel subsystems should

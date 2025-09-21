@@ -57,7 +57,7 @@ Device discovery
 OpenCAPI relies on a PCI-like configuration space, implemented on the
 device. So the host can discover AFUs by querying the config space.
 
-OpenCAPI devices in Linux are treated like PCI devices (with a few
+OpenCAPI devices in GNU/Linux are treated like PCI devices (with a few
 caveats). The firmware is expected to abstract the hardware as if it
 was a PCI link. A lot of the existing PCI infrastructure is reused:
 devices are scanned and BARs are assigned during the standard PCI

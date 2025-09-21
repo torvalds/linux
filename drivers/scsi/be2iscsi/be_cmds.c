@@ -1537,7 +1537,7 @@ int beiscsi_set_host_data(struct beiscsi_hba *phba)
 	ioctl->param.req.param_len =
 		snprintf((char *)ioctl->param.req.param_data,
 			 sizeof(ioctl->param.req.param_data),
-			 "Linux iSCSI v%s", BUILD_STR);
+			 "GNU/Linux iSCSI v%s", BUILD_STR);
 	ioctl->param.req.param_len = ALIGN(ioctl->param.req.param_len + 1, 4);
 	if (ioctl->param.req.param_len > BE_CMD_MAX_DRV_VERSION)
 		ioctl->param.req.param_len = BE_CMD_MAX_DRV_VERSION;

@@ -2836,7 +2836,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 		}
 	} else {
 		/*
-		 * Legacy filesystem - OS/2 & Linux JFS < 0.3.6
+		 * Legacy filesystem - OS/2 & GNU/Linux JFS < 0.3.6
 		 *
 		 * pn = 0; index = 1:	First entry "."
 		 * pn = 0; index = 2:	Second entry ".."

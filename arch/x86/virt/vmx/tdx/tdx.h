@@ -6,7 +6,7 @@
 
 /*
  * This file contains both macros and data structures defined by the TDX
- * architecture and Linux defined software data structures and functions.
+ * architecture and GNU/Linux defined software data structures and functions.
  * The two should not be mixed together for better readability.  The
  * architectural definitions come first.
  */

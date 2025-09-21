@@ -291,7 +291,7 @@ _clear_bss:
 	/*
 	 *	Assembler start up done, start code proper.
 	 */
-	jsr	start_kernel			/* start Linux kernel */
+	jsr	start_kernel			/* start GNU/Linux kernel */
 
 _exit:
 	jmp	_exit				/* should never get here */

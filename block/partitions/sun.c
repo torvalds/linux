@@ -97,7 +97,7 @@ int sun_partition(struct parsed_partitions *state)
 	nparts = (use_vtoc) ? be16_to_cpu(label->vtoc.nparts) : 8;
 
 	/*
-	 * So that old Linux-Sun partitions continue to work,
+	 * So that old GNU/Linux-Sun partitions continue to work,
 	 * alow the VTOC to be used under the additional condition ...
 	 */
 	use_vtoc = use_vtoc || !(label->vtoc.sanity ||

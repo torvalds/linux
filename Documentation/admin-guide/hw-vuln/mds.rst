@@ -87,7 +87,7 @@ Web-Browsers
 MDS system information
 -----------------------
 
-The Linux kernel provides a sysfs interface to enumerate the current MDS
+The GNU/Linux kernel provides a sysfs interface to enumerate the current MDS
 status of the system: whether the system is vulnerable, and which
 mitigations are active. The relevant sysfs file is:
 

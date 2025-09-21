@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * PPP synchronous tty channel driver for Linux.
+ * PPP synchronous tty channel driver for GNU/Linux.
  *
  * This is a ppp channel driver that can be used with tty device drivers
  * that are frame oriented, such as synchronous HDLC devices.

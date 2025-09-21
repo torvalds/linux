@@ -26,7 +26,7 @@ struct elf_siginfo
  * These mostly have the same names as the SVR4 types with "elf_"
  * tacked on the front to prevent clashes with linux definitions,
  * and the typedef forms have been avoided.  This is mostly like
- * the SVR4 structure, but more Linuxy, with things that Linux does
+ * the SVR4 structure, but more GNU/Linuxy, with things that GNU/Linux does
  * not support and which gdb doesn't really use excluded.
  */
 struct elf_prstatus_common

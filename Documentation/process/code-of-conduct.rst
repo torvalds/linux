@@ -82,5 +82,5 @@ available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.ht
 Interpretation
 ==============
 
-See the :ref:`code_of_conduct_interpretation` document for how the Linux
+See the :ref:`code_of_conduct_interpretation` document for how the GNU/Linux
 kernel community will be interpreting this document.

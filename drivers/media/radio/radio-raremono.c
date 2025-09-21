@@ -174,7 +174,7 @@ static void usb_raremono_disconnect(struct usb_interface *intf)
 }
 
 /*
- * Linux Video interface
+ * GNU/Linux Video interface
  */
 static int vidioc_querycap(struct file *file, void *priv,
 					struct v4l2_capability *v)

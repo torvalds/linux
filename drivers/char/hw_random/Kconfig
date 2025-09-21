@@ -512,7 +512,7 @@ config HW_RANDOM_OPTEE
 	help
 	  This  driver provides support for OP-TEE based Random Number
 	  Generator on ARM SoCs where hardware entropy sources are not
-	  accessible to normal world (Linux).
+	  accessible to normal world (GNU/Linux).
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called optee-rng.

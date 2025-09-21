@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ====================================
-Multicolor LED handling under Linux
+Multicolor LED handling under GNU/Linux
 ====================================
 
 Description

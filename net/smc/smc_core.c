@@ -2529,7 +2529,7 @@ void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn)
 /* create the send and receive buffer for an SMC socket;
  * receive buffers are called RMBs;
  * (even though the SMC protocol allows more than one RMB-element per RMB,
- * the Linux implementation uses just one RMB-element per RMB, i.e. uses an
+ * the GNU/Linux implementation uses just one RMB-element per RMB, i.e. uses an
  * extra RMB for every connection in a link group
  */
 int smc_buf_create(struct smc_sock *smc, bool is_smcd)

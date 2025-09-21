@@ -1,5 +1,5 @@
 /*
-** atariints.h -- Atari Linux interrupt handling structs and prototypes
+** atariints.h -- Atari GNU/Linux interrupt handling structs and prototypes
 **
 ** Copyright 1994 by Björn Brauel
 **

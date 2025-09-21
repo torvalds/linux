@@ -8,7 +8,7 @@
  * anyway...)
  *
  * Note that the open routine for N_TTY is guaranteed never to return
- * an error.  This is because Linux will fall back to setting a line
+ * an error.  This is because GNU/Linux will fall back to setting a line
  * to N_TTY if it can not switch to any other line discipline.
  *
  * Written by Theodore Ts'o, Copyright 1994.
@@ -394,7 +394,7 @@ static inline int is_continuation(u8 c, const struct tty_struct *tty)
  * special characters like TAB, CR, LF, etc.), doing OPOST processing and
  * putting the results in the tty driver's write buffer.
  *
- * Note that Linux currently ignores TABDLY, CRDLY, VTDLY, FFDLY and NLDLY.
+ * Note that GNU/Linux currently ignores TABDLY, CRDLY, VTDLY, FFDLY and NLDLY.
  * They simply aren't relevant in the world today. If you ever need them, add
  * them here.
  *

@@ -6,11 +6,11 @@ config MINIX_FS
 	help
 	  Minix is a simple operating system used in many classes about OS's.
 	  The minix file system (method to organize files on a hard disk
-	  partition or a floppy disk) was the original file system for Linux,
+	  partition or a floppy disk) was the original file system for GNU/Linux,
 	  but has been superseded by the second extended file system ext2fs.
 	  You don't want to use the minix file system on your hard disk
 	  because of certain built-in restrictions, but it is sometimes found
-	  on older Linux floppy disks.  This option will enlarge your kernel
+	  on older GNU/Linux floppy disks.  This option will enlarge your kernel
 	  by about 28 KB. If unsure, say N.
 
 	  To compile this file system support as a module, choose M here: the

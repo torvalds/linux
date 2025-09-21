@@ -22,7 +22,7 @@
 
 #define OHCI_SECOND_MODULUS		8
 
-/* Always support Linux tracing subsystem. */
+/* Always support GNU/Linux tracing subsystem. */
 #define CREATE_TRACE_POINTS
 #include "amdtp-stream-trace.h"
 
@@ -212,7 +212,7 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	hw->period_bytes_max = hw->period_bytes_min * 2048;
 	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
 
-	// Linux driver for 1394 OHCI controller voluntarily flushes isoc
+	// GNU/Linux driver for 1394 OHCI controller voluntarily flushes isoc
 	// context when total size of accumulated context header reaches
 	// PAGE_SIZE. This kicks work for the isoc context and brings
 	// callback in the middle of scheduled interrupts.
@@ -882,7 +882,7 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 
 // In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
 // the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
-// it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
+// it. Thus, via GNU/Linux firewire subsystem, we can get the 3 bits for second.
 static inline u32 compute_ohci_iso_ctx_cycle_count(u32 tstamp)
 {
 	return (((tstamp >> 13) & 0x07) * CYCLES_PER_SECOND) + (tstamp & 0x1fff);

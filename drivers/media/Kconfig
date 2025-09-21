@@ -158,7 +158,7 @@ menu "Media core support"
 	visible if !MEDIA_SUPPORT_FILTER
 
 config VIDEO_DEV
-	tristate "Video4Linux core"
+	tristate "Video4GNU/Linux core"
 	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT || MEDIA_TEST_SUPPORT
 	depends on (I2C || I2C=n)
 	select RATIONAL
@@ -196,7 +196,7 @@ endmenu # Media core support
 #
 # Extra per-media API core functionality
 
-menu "Video4Linux options"
+menu "Video4GNU/Linux options"
 	visible if VIDEO_DEV
 
 source "drivers/media/v4l2-core/Kconfig"

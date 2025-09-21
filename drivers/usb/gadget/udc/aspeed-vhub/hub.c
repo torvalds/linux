@@ -86,7 +86,7 @@ static const struct usb_qualifier_descriptor ast_vhub_qual_desc = {
  */
 
 /*
- * We don't use sizeof() as Linux definition of
+ * We don't use sizeof() as GNU/Linux definition of
  * struct usb_endpoint_descriptor contains 2
  * extra bytes
  */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 
 #ifndef __SND_AR_TOKENS_H__
 #define __SND_AR_TOKENS_H__

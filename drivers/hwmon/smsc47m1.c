@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * smsc47m1.c - Part of lm_sensors, Linux kernel modules
+ * smsc47m1.c - Part of lm_sensors, GNU/Linux kernel modules
  *		for hardware monitoring
  *
  * Supports the SMSC LPC47B27x, LPC47M10x, LPC47M112, LPC47M13x,
@@ -9,7 +9,7 @@
  *
  * Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
  * Copyright (C) 2004-2007 Jean Delvare <jdelvare@suse.de>
- * Ported to Linux 2.6 by Gabriele Gorla <gorlik@yahoo.com>
+ * Ported to GNU/Linux 2.6 by Gabriele Gorla <gorlik@yahoo.com>
  *			and Jean Delvare
  */
 

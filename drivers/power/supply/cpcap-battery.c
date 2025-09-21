@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Tony Lindgren <tony@atomide.com>
  *
- * Some parts of the code based on earlier Motorola mapphone Linux kernel
+ * Some parts of the code based on earlier Motorola mapphone GNU/Linux kernel
  * drivers:
  *
  * Copyright (C) 2009-2010 Motorola, Inc.
@@ -238,7 +238,7 @@ static int cpcap_battery_get_current(struct cpcap_battery_ddata *ddata)
  * @offset: coulomb counter offset value
  * @divider: conversion divider
  *
- * Note that cc_lsb and cc_dur values are from Motorola Linux kernel
+ * Note that cc_lsb and cc_dur values are from Motorola GNU/Linux kernel
  * function data_get_avg_curr_ua() and seem to be based on measured test
  * results. It also has the following comment:
  *
@@ -248,7 +248,7 @@ static int cpcap_battery_get_current(struct cpcap_battery_ddata *ddata)
  * A coulomb counter for similar hardware seems to be documented in
  * "TWL6030 Gas Gauging Basics (Rev. A)" swca095a.pdf in chapter
  * "10 Calculating Accumulated Current". We however follow what the
- * Motorola mapphone Linux kernel is doing as there may be either a
+ * Motorola mapphone GNU/Linux kernel is doing as there may be either a
  * TI or ST coulomb counter in the PMIC.
  */
 static int cpcap_battery_cc_raw_div(struct cpcap_battery_ddata *ddata,
@@ -301,7 +301,7 @@ static int cpcap_battery_cc_to_ua(struct cpcap_battery_ddata *ddata,
  *
  * Note that swca095a.pdf instructs to stop the coulomb counter
  * before reading to avoid values changing. Motorola mapphone
- * Linux kernel does not do it, so let's assume they've verified
+ * GNU/Linux kernel does not do it, so let's assume they've verified
  * the data produced is correct.
  */
 static int
@@ -353,8 +353,8 @@ cpcap_battery_read_accumulated(struct cpcap_battery_ddata *ddata,
 
 
 /*
- * Based on the values from Motorola mapphone Linux kernel for the
- * stock Droid 4 battery eb41. In the Motorola mapphone Linux
+ * Based on the values from Motorola mapphone GNU/Linux kernel for the
+ * stock Droid 4 battery eb41. In the Motorola mapphone GNU/Linux
  * kernel tree the value for pm_cd_factor is passed to the kernel
  * via device tree. If it turns out to be something device specific
  * we can consider that too later. These values are also fine for

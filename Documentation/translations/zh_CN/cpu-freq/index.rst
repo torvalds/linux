@@ -11,7 +11,7 @@
 .. _cn_index.rst:
 
 =======================================================
-Linux CPUFreq - Linux(TM)内核中的CPU频率和电压升降代码
+GNU/Linux CPUFreq - GNU/Linux(TM)内核中的CPU频率和电压升降代码
 =======================================================
 
 Author: Dominik Brodowski  <linux@brodo.de>

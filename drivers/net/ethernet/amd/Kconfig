@@ -136,8 +136,8 @@ config SUN3LANCE
 	help
 	  Most Sun3 and Sun3x motherboards (including the 3/50, 3/60 and 3/80)
 	  featured an AMD LANCE 10Mbit Ethernet controller on board; say Y
-	  here to compile in the Linux driver for this and enable Ethernet.
-	  General Linux information on the Sun 3 and 3x series (now
+	  here to compile in the GNU/Linux driver for this and enable Ethernet.
+	  General GNU/Linux information on the Sun 3 and 3x series (now
 	  discontinued) is at
 	  <http://www.angelfire.com/ca2/tech68k/sun3.html>.
 

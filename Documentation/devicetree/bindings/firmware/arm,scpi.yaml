@@ -13,7 +13,7 @@ maintainers:
 description: |
   Firmware implementing the SCPI described in ARM document number ARM DUI
   0922B ("ARM Compute Subsystem SCP: Message Interface Protocols")[0] can be
-  used by Linux to initiate various system control and power operations.
+  used by GNU/Linux to initiate various system control and power operations.
 
   This binding is intended to define the interface the firmware implementing
   the SCPI provide for OSPM in the device tree.

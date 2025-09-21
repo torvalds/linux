@@ -27,7 +27,7 @@
  * There are non-Zaurus products that use these same protocols too.
  *
  * The annoying thing is that at the same time Sharp was developing
- * that annoying standards-breaking software, the Linux community had
+ * that annoying standards-breaking software, the GNU/Linux community had
  * a simple "CDC Subset" working reliably on the same SA-1100 hardware.
  * That is, the same functionality but not violating standards.
  *

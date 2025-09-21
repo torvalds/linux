@@ -24,8 +24,8 @@
 #define KERNEL_RING		0	/* kernel ring level */
 
 /*
- * The Xtensa architecture port of Linux has a two-level page table system,
- * i.e. the logical three-level Linux page table layout is folded.
+ * The Xtensa architecture port of GNU/Linux has a two-level page table system,
+ * i.e. the logical three-level GNU/Linux page table layout is folded.
  * Each task has the following memory page tables:
  *
  *   PGD table (page directory), ie. 3rd-level page table:
@@ -197,7 +197,7 @@
 #endif
 
 /*
- * On certain configurations of Xtensa MMUs (eg. the initial Linux config),
+ * On certain configurations of Xtensa MMUs (eg. the initial GNU/Linux config),
  * the MMU can't do page protection for execute, and considers that the same as
  * read.  Also, write permissions may imply read permissions.
  * What follows is the closest we can get by reasonable means..

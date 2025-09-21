@@ -16,7 +16,7 @@ userspace ("scancode mode"). Other boards return just the pulse/space
 sequences ("raw mode").
 
 The support for remote controller in scancode mode is provided by the
-standard Linux input layer. The support for raw mode is provided via LIRC.
+standard GNU/Linux input layer. The support for raw mode is provided via LIRC.
 
 In order to check the support and test it, it is suggested to download
 the `v4l-utils <https://git.linuxtv.org/v4l-utils.git/>`_. It provides

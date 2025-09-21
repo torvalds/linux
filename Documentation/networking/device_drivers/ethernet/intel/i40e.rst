@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
 =================================================================
-Linux Base Driver for the Intel(R) Ethernet Controller 700 Series
+GNU/Linux Base Driver for the Intel(R) Ethernet Controller 700 Series
 =================================================================
 
-Intel 40 Gigabit Linux driver.
+Intel 40 Gigabit GNU/Linux driver.
 Copyright(c) 1999-2018 Intel Corporation.
 
 Contents
@@ -24,7 +24,7 @@ Configurations later in this document.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel adapter. All hardware requirements listed apply to use
-with Linux.
+with GNU/Linux.
 
 
 Identifying Your Adapter
@@ -130,13 +130,13 @@ The Intel Ethernet Flow Director performs the following tasks:
 - Supports multiple parameters for flexible flow classification and load
   balancing (in SFP mode only).
 
-NOTE: The Linux i40e driver supports the following flow types: IPv4, TCPv4, and
+NOTE: The GNU/Linux i40e driver supports the following flow types: IPv4, TCPv4, and
 UDPv4. For a given flow type, it supports valid combinations of IP addresses
 (source or destination) and UDP/TCP ports (source and destination). For
 example, you can supply only a source IP address, a source IP address and a
 destination port, or any combination of one or more of these four parameters.
 
-NOTE: The Linux i40e driver allows you to filter traffic based on a
+NOTE: The GNU/Linux i40e driver allows you to filter traffic based on a
 user-defined flexible two-byte pattern and offset by using the ethtool user-def
 and mask fields. Only L3 and L4 flow types are supported for user-defined
 flexible filters. For a given flow type, you must clear all Intel Ethernet Flow

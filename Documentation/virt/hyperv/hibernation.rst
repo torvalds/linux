@@ -5,7 +5,7 @@ Hibernating Guest VMs
 
 Background
 ----------
-Linux supports the ability to hibernate itself in order to save power.
+GNU/Linux supports the ability to hibernate itself in order to save power.
 Hibernation is sometimes called suspend-to-disk, as it writes a memory
 image to disk and puts the hardware into the lowest possible power
 state. Upon resume from hibernation, the hardware is restarted and the
@@ -16,11 +16,11 @@ Documentation/admin-guide/pm/sleep-states.rst.
 Hibernation is usually done on devices with a single user, such as a
 personal laptop. For example, the laptop goes into hibernation when
 the cover is closed, and resumes when the cover is opened again.
-Hibernation and resume happen on the same hardware, and Linux kernel
+Hibernation and resume happen on the same hardware, and GNU/Linux kernel
 code orchestrating the hibernation steps assumes that the hardware
 configuration is not changed while in the hibernated state.
 
-Hibernation can be initiated within Linux by writing "disk" to
+Hibernation can be initiated within GNU/Linux by writing "disk" to
 /sys/power/state or by invoking the reboot system call with the
 appropriate arguments. This functionality may be wrapped by user space
 commands such "systemctl hibernate" that are run directly from a
@@ -28,7 +28,7 @@ command line or in response to events such as the laptop lid closing.
 
 Considerations for Guest VM Hibernation
 ---------------------------------------
-Linux guests on Hyper-V can also be hibernated, in which case the
+GNU/Linux guests on Hyper-V can also be hibernated, in which case the
 hardware is the virtual hardware provided by Hyper-V to the guest VM.
 Only the targeted guest VM is hibernated, while other guest VMs and
 the underlying Hyper-V host continue to run normally. While the
@@ -56,12 +56,12 @@ Different VM" section below.
 Hyper-V also provides ways to move a VM from one Hyper-V host to
 another. Hyper-V tries to ensure processor model and Hyper-V version
 compatibility using VM Configuration Versions, and prevents moves to
-a host that isn't compatible. Linux adapts to host and processor
+a host that isn't compatible. GNU/Linux adapts to host and processor
 differences by detecting them at boot time, but such detection is not
 done when resuming execution in the hibernation image. If a VM is
 hibernated on one host, then resumed on a host with a different processor
 model or Hyper-V version, settings recorded in the hibernation image
-may not match the new host. Because Linux does not detect such
+may not match the new host. Because GNU/Linux does not detect such
 mismatches when resuming the hibernation image, undefined behavior
 and failures could result.
 
@@ -81,23 +81,23 @@ Hyper-V provides to the guest VM. Such enablement is accomplished by
 modifying a WMI property of the VM, the steps for which are outside
 the scope of this documentation but are available on the web.
 Enablement is treated as the indicator that the administrator
-prioritizes Linux hibernation in the VM over hot-add, so the Hyper-V
-balloon driver in Linux disables hot-add. Enablement is indicated if
+prioritizes GNU/Linux hibernation in the VM over hot-add, so the Hyper-V
+balloon driver in GNU/Linux disables hot-add. Enablement is indicated if
 the contents of /sys/power/disk contains "platform" as an option. The
 enablement is also visible in /sys/bus/vmbus/hibernation. See function
 hv_is_hibernation_supported().
 
-Linux supports ACPI sleep states on x86, but not on arm64. So Linux
+GNU/Linux supports ACPI sleep states on x86, but not on arm64. So GNU/Linux
 guest VM hibernation is not available on Hyper-V for arm64.
 
 Initiating Guest VM Hibernation
 -------------------------------
-Guest VMs can self-initiate hibernation using the standard Linux
+Guest VMs can self-initiate hibernation using the standard GNU/Linux
 methods of writing "disk" to /sys/power/state or the reboot system
-call. As an additional layer, Linux guests on Hyper-V support the
+call. As an additional layer, GNU/Linux guests on Hyper-V support the
 "Shutdown" integration service, via which a Hyper-V administrator can
-tell a Linux VM to hibernate using a command outside the VM. The
-command generates a request to the Hyper-V shutdown driver in Linux,
+tell a GNU/Linux VM to hibernate using a command outside the VM. The
+command generates a request to the Hyper-V shutdown driver in GNU/Linux,
 which sends the uevent "EVENT=hibernate". See kernel functions
 shutdown_onchannelcallback() and send_hibernate_uevent(). A udev rule
 must be provided in the VM that handles this event and initiates
@@ -107,9 +107,9 @@ Handling VMBus Devices During Hibernation & Resume
 --------------------------------------------------
 The VMBus bus driver, and the individual VMBus device drivers,
 implement suspend and resume functions that are called as part of the
-Linux orchestration of hibernation and of resuming from hibernation.
+GNU/Linux orchestration of hibernation and of resuming from hibernation.
 The overall approach is to leave in place the data structures for the
-primary VMBus channels and their associated Linux devices, such as
+primary VMBus channels and their associated GNU/Linux devices, such as
 SCSI controllers and others, so that they are captured in the
 hibernation image. This approach allows any state associated with the
 device to be persisted across the hibernation/resume. When the VM
@@ -141,7 +141,7 @@ relids in case they have changed.
 VMBus sub-channels are not persisted in the hibernation image. Each
 VMBus device driver's suspend function must close any sub-channels
 prior to hibernation. Closing a sub-channel causes Hyper-V to send a
-RESCIND_CHANNELOFFER message, which Linux processes by freeing the
+RESCIND_CHANNELOFFER message, which GNU/Linux processes by freeing the
 channel data structures so that all vestiges of the sub-channel are
 removed. By contrast, primary channels are marked closed and their
 ring buffers are freed, but Hyper-V does not send a rescind message,
@@ -150,7 +150,7 @@ device driver's resume function re-allocates the ring buffer and
 re-opens the existing channel. It then communicates with Hyper-V to
 re-open sub-channels from scratch.
 
-The Linux ends of Hyper-V sockets are forced closed at the time of
+The GNU/Linux ends of Hyper-V sockets are forced closed at the time of
 hibernation. The guest can't force closing the host end of the socket,
 but any host-side actions on the host end will produce an error.
 
@@ -162,60 +162,60 @@ phases.
 
 Detailed Hibernation Sequence
 -----------------------------
-1. The Linux power management (PM) subsystem prepares for
+1. The GNU/Linux power management (PM) subsystem prepares for
    hibernation by freezing user space processes and allocating
    memory to hold the hibernation image.
-2. As part of the "freeze" phase, Linux PM calls the "suspend"
+2. As part of the "freeze" phase, GNU/Linux PM calls the "suspend"
    function for each VMBus device in turn. As described above, this
    function removes sub-channels, and leaves the primary channel in
    a closed state.
-3. Linux PM calls the "suspend" function for the VMBus bus, which
+3. GNU/Linux PM calls the "suspend" function for the VMBus bus, which
    closes any Hyper-V socket channels and unloads the top-level
    VMBus connection with the Hyper-V host.
-4. Linux PM disables non-boot CPUs, creates the hibernation image in
+4. GNU/Linux PM disables non-boot CPUs, creates the hibernation image in
    the previously allocated memory, then re-enables non-boot CPUs.
    The hibernation image contains the memory data structures for the
    closed primary channels, but no sub-channels.
-5. As part of the "thaw" phase, Linux PM calls the "resume" function
+5. As part of the "thaw" phase, GNU/Linux PM calls the "resume" function
    for the VMBus bus, which re-establishes the top-level VMBus
    connection and requests that Hyper-V re-offer the VMBus devices.
    As offers are received for the primary channels, the relids are
    updated as previously described.
-6. Linux PM calls the "resume" function for each VMBus device. Each
+6. GNU/Linux PM calls the "resume" function for each VMBus device. Each
    device re-opens its primary channel, and communicates with Hyper-V
    to re-establish sub-channels if appropriate. The sub-channels
    are re-created as new channels since they were previously removed
    entirely in Step 2.
-7. With VMBus devices now working again, Linux PM writes the
+7. With VMBus devices now working again, GNU/Linux PM writes the
    hibernation image from memory to disk.
-8. Linux PM repeats Steps 2 and 3 above as part of the "poweroff"
+8. GNU/Linux PM repeats Steps 2 and 3 above as part of the "poweroff"
    phase. VMBus channels are closed and the top-level VMBus
    connection is unloaded.
-9. Linux PM disables non-boot CPUs, and then enters ACPI sleep state
+9. GNU/Linux PM disables non-boot CPUs, and then enters ACPI sleep state
    S4. Hibernation is now complete.
 
 Detailed Resume Sequence
 ------------------------
-1. The guest VM boots into a fresh Linux OS instance. During boot,
+1. The guest VM boots into a fresh GNU/Linux OS instance. During boot,
    the top-level VMBus connection is established, and synthetic
    devices are enabled. This happens via the normal paths that don't
    involve hibernation.
-2. Linux PM hibernation code reads swap space is to find and read
+2. GNU/Linux PM hibernation code reads swap space is to find and read
    the hibernation image into memory. If there is no hibernation
    image, then this boot becomes a normal boot.
 3. If this is a resume from hibernation, the "freeze" phase is used
    to shutdown VMBus devices and unload the top-level VMBus
    connection in the running fresh OS instance, just like Steps 2
    and 3 in the hibernation sequence.
-4. Linux PM disables non-boot CPUs, and transfers control to the
+4. GNU/Linux PM disables non-boot CPUs, and transfers control to the
    read-in hibernation image. In the now-running hibernation image,
    non-boot CPUs are restarted.
-5. As part of the "resume" phase, Linux PM repeats Steps 5 and 6
+5. As part of the "resume" phase, GNU/Linux PM repeats Steps 5 and 6
    from the hibernation sequence. The top-level VMBus connection is
    re-established, and offers are received and matched to primary
    channels in the image. Relids are updated. VMBus device resume
    functions re-open primary channels and re-create sub-channels.
-6. Linux PM exits the hibernation resume sequence and the VM is now
+6. GNU/Linux PM exits the hibernation resume sequence and the VM is now
    running normally from the hibernation image.
 
 Key-Value Pair (KVP) Pseudo-Device Anomalies
@@ -244,8 +244,8 @@ Hyper-V DDA devices are offered to guest VMs after the top-level VMBus
 connection is established, just like VMBus synthetic devices. They are
 statically assigned to the VM, and their instance GUIDs don't change
 unless the Hyper-V administrator makes changes to the configuration.
-DDA devices are represented in Linux as virtual PCI devices that have
-a VMBus identity as well as a PCI identity. Consequently, Linux guest
+DDA devices are represented in GNU/Linux as virtual PCI devices that have
+a VMBus identity as well as a PCI identity. Consequently, GNU/Linux guest
 hibernation first handles DDA devices as VMBus devices in order to
 manage the VMBus channel. But then they are also handled as PCI
 devices using the hibernation functions implemented by their native
@@ -271,7 +271,7 @@ driver (uio_hv_generic.c) so that a user space driver can control and
 operate the device. However, the VMBus UIO driver does not support the
 suspend and resume operations needed for hibernation. If a VMBus
 device is configured to use the UIO driver, hibernating the VM fails
-and Linux continues to run normally. The most common use of the Hyper-V
+and GNU/Linux continues to run normally. The most common use of the Hyper-V
 UIO driver is for DPDK networking, but there are other uses as well.
 
 Resuming on a Different VM
@@ -281,7 +281,7 @@ customer VM only exists as saved configuration and disks -- the VM no
 longer exists on any Hyper-V host. When the customer VM is resumed, a
 new Hyper-V VM with identical configuration is created, likely on a
 different Hyper-V host. That new Hyper-V VM becomes the resumed
-customer VM, and the steps the Linux kernel takes to resume from the
+customer VM, and the steps the GNU/Linux kernel takes to resume from the
 hibernation image must work in that new VM.
 
 While the disks and their contents are preserved from the original VM,
@@ -324,7 +324,7 @@ done to solve this problem:
   remove any VFs before initiating hibernation, Azure VM
   hibernation must be initiated externally from the Azure Portal or
   Azure CLI, which in turn uses the Shutdown integration service to
-  tell Linux to do the hibernation. If hibernation is self-initiated
+  tell GNU/Linux to do the hibernation. If hibernation is self-initiated
   within the Azure VM, VFs remain in the hibernation image, and are
   not resumed properly.
 

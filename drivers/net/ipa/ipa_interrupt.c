@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2018, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
@@ -35,7 +35,7 @@
 /**
  * struct ipa_interrupt - IPA interrupt information
  * @ipa:		IPA pointer
- * @irq:		Linux IRQ number used for IPA interrupts
+ * @irq:		GNU/Linux IRQ number used for IPA interrupts
  * @enabled:		Mask indicating which interrupts are enabled
  * @suspend_enabled:	Bitmap of endpoints with the SUSPEND interrupt enabled
  */

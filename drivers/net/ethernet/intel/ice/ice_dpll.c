@@ -2453,7 +2453,7 @@ static const struct dpll_device_ops ice_dpll_pom_ops = {
  * @pf: board private structure
  *
  * Generates unique (per board) clock_id for allocation and search of dpll
- * devices in Linux dpll subsystem.
+ * devices in GNU/Linux dpll subsystem.
  *
  * Return: generated clock id for the board
  */
@@ -3146,7 +3146,7 @@ static void ice_dpll_deinit_pins(struct ice_pf *pf, bool cgu)
  * @pf: board private structure
  * @cgu: if cgu is present and controlled by this NIC
  *
- * Initialize directly connected pf's pins within pf's dplls in a Linux dpll
+ * Initialize directly connected pf's pins within pf's dplls in a GNU/Linux dpll
  * subsystem.
  *
  * Return:
@@ -3782,7 +3782,7 @@ void ice_dpll_deinit(struct ice_pf *pf)
  * ice_dpll_init - initialize support for dpll subsystem
  * @pf: board private structure
  *
- * Set up the device dplls, register them and pins connected within Linux dpll
+ * Set up the device dplls, register them and pins connected within GNU/Linux dpll
  * subsystem. Allow userspace to obtain state of DPLL and handling of DPLL
  * configuration requests.
  *

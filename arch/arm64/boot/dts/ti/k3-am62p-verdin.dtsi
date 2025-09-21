@@ -611,7 +611,7 @@
 		>;
 	};
 
-	/* Verdin UART_3, used as the Linux console */
+	/* Verdin UART_3, used as the GNU/Linux console */
 	pinctrl_uart0: main-uart0-default-pins {
 		pinctrl-single,pins = <
 			AM62PX_IOPAD(0x1c8, PIN_INPUT,  0) /* (A22) UART0_RXD */ /* SODIMM 147 */
@@ -1087,7 +1087,7 @@
 	status = "disabled";
 };
 
-/* Verdin UART_3, used as the Linux console */
+/* Verdin UART_3, used as the GNU/Linux console */
 &main_uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart0>;

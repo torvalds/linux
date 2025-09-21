@@ -4,7 +4,7 @@
 Message logging with printk
 ===========================
 
-printk() is one of the most widely known functions in the Linux kernel. It's the
+printk() is one of the most widely known functions in the GNU/Linux kernel. It's the
 standard tool we have for printing messages and usually the most basic way of
 tracing and debugging. If you're familiar with printf(3) you can tell printk()
 is based on it, although it has some functional differences:

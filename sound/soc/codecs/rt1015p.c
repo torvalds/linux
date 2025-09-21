@@ -2,7 +2,7 @@
 //
 // rt1015p.c  --  RT1015P ALSA SoC audio amplifier driver
 //
-// Copyright 2020 The Linux Foundation. All rights reserved.
+// Copyright 2020 The GNU/Linux Foundation. All rights reserved.
 
 #include <linux/acpi.h>
 #include <linux/delay.h>

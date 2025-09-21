@@ -1,7 +1,7 @@
 .. include:: <isonum.txt>
 
 ==========================
-Linux generic IRQ handling
+GNU/Linux generic IRQ handling
 ==========================
 
 :Copyright: |copy| 2005-2010: Thomas Gleixner
@@ -25,13 +25,13 @@ generic IRQ handling layer.
 Rationale
 =========
 
-The original implementation of interrupt handling in Linux uses the
+The original implementation of interrupt handling in GNU/Linux uses the
 __do_IRQ() super-handler, which is able to deal with every type of
 interrupt logic.
 
 Originally, Russell King identified different types of handlers to build
 a quite universal set for the ARM interrupt handler implementation in
-Linux 2.5/2.6. He distinguished between:
+GNU/Linux 2.5/2.6. He distinguished between:
 
 -  Level type
 

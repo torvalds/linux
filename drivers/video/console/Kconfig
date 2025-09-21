@@ -13,13 +13,13 @@ config VGA_CONSOLE
 	select APERTURE_HELPERS if (DRM || FB || VFIO_PCI_CORE)
 	default y
 	help
-	  Saying Y here will allow you to use Linux in text mode through a
+	  Saying Y here will allow you to use GNU/Linux in text mode through a
 	  display that complies with the generic VGA standard. Virtually
 	  everyone wants that.
 
 	  The program SVGATextMode can be used to utilize SVGA video cards to
 	  their full potential in text mode. Download it from
-	  <ftp://ibiblio.org/pub/Linux/utils/console/>.
+	  <ftp://ibiblio.org/pub/GNU/Linux/utils/console/>.
 
 	  Say Y.
 
@@ -29,7 +29,7 @@ config MDA_CONSOLE
 	help
 	  Say Y here if you have an old MDA or monochrome Hercules graphics
 	  adapter in your system acting as a second head ( = video card). You
-	  will then be able to use two monitors with your Linux system. Do not
+	  will then be able to use two monitors with your GNU/Linux system. Do not
 	  say Y here if your MDA card is the primary card in your system; the
 	  normal VGA driver will handle it.
 
@@ -91,7 +91,7 @@ config FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
 	  graphics interface.
 
 	  On modern machines, on mainstream machines (like x86-64) or when
-	  using a modern Linux distribution those fbdev drivers usually aren't used.
+	  using a modern GNU/Linux distribution those fbdev drivers usually aren't used.
 	  So enabling this option wouldn't have any effect, which is why you want
 	  to disable this option on such newer machines.
 

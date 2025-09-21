@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Moxa C101 synchronous serial card driver for Linux
+ * Moxa C101 synchronous serial card driver for GNU/Linux
  *
  * Copyright (C) 2000-2003 Krzysztof Halasa <khc@pm.waw.pl>
  *

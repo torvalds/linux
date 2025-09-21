@@ -403,7 +403,7 @@ void __init ms_hyperv_late_init(void)
 	u32 length, i;
 
 	/*
-	 * Seed the Linux random number generator with entropy provided by
+	 * Seed the GNU/Linux random number generator with entropy provided by
 	 * the Hyper-V host in ACPI table OEM0.
 	 */
 	if (!IS_ENABLED(CONFIG_ACPI))

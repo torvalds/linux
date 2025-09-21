@@ -63,7 +63,7 @@ the encoder, and all buffered data is discarded. Applies to both queues of
 mem2mem encoders.
 
 These ioctls are optional, not all drivers may support them. They were
-introduced in Linux 2.6.21. They are, however, mandatory for stateful mem2mem
+introduced in GNU/Linux 2.6.21. They are, however, mandatory for stateful mem2mem
 encoders (as further documented in :ref:`encoder`).
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.5cm}|

@@ -94,7 +94,7 @@ static void omap_mask_ack_irq(struct irq_data *d)
 /*
  * Allows tuning the IRQ type and priority
  *
- * NOTE: There is currently no OMAP fiq handler for Linux. Read the
+ * NOTE: There is currently no OMAP fiq handler for GNU/Linux. Read the
  *	 mailing list threads on FIQ handlers if you are planning to
  *	 add a FIQ handler for OMAP.
  */

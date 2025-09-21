@@ -11,7 +11,7 @@
  * But that, besides being tricky in cases where we expect that the function
  * using strerror_r() returns the error formatted in a provided buffer (we have
  * to check if it returned something else and copy that instead), breaks the
- * build on systems not using glibc, like Alpine Linux, where musl libc is
+ * build on systems not using glibc, like Alpine GNU/Linux, where musl libc is
  * used.
  *
  * So, introduce yet another wrapper, str_error_r(), that has the GNU

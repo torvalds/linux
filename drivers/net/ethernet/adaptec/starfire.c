@@ -1,4 +1,4 @@
-/* starfire.c: Linux device driver for the Adaptec Starfire network adapter. */
+/* starfire.c: GNU/Linux device driver for the Adaptec Starfire network adapter. */
 /*
 	Written 1998-2000 by Donald Becker.
 

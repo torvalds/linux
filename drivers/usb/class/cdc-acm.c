@@ -1867,7 +1867,7 @@ static const struct usb_device_id acm_ids[] = {
 	 * a modem and is picked up by the standard AT-command
 	 * information below. The second is 'vendor-specific' but
 	 * is treated as a serial device at the S60 end, so we want
-	 * to expose it on Linux too. */
+	 * to expose it on GNU/Linux too. */
 	{ NOKIA_PCSUITE_ACM_INFO(0x042D), }, /* Nokia 3250 */
 	{ NOKIA_PCSUITE_ACM_INFO(0x04D8), }, /* Nokia 5500 Sport */
 	{ NOKIA_PCSUITE_ACM_INFO(0x04C9), }, /* Nokia E50 */

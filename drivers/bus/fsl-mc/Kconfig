@@ -12,7 +12,7 @@ config FSL_MC_BUS
 	help
 	  Driver to enable the bus infrastructure for the QorIQ DPAA2
 	  architecture.  The fsl-mc bus driver handles discovery of
-	  DPAA2 objects (which are represented as Linux devices) and
+	  DPAA2 objects (which are represented as GNU/Linux devices) and
 	  binding objects to drivers.
 
 config FSL_MC_UAPI_SUPPORT

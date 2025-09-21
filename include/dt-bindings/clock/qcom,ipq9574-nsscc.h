@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2023, 2025 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, 2025 The GNU/Linux Foundation. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLOCK_IPQ_NSSCC_9574_H

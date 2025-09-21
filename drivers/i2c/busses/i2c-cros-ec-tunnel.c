@@ -60,7 +60,7 @@ static int ec_i2c_count_message(const struct i2c_msg i2c_msgs[], int num)
 /**
  * ec_i2c_construct_message - construct a message to go to the EC
  *
- * This function effectively stuffs the standard i2c_msg format of Linux into
+ * This function effectively stuffs the standard i2c_msg format of GNU/Linux into
  * a format that the EC understands.
  *
  * @buf: The buffer to fill.  We assume that the buffer is big enough.

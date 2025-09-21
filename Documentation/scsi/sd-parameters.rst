@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ======================================
-Linux SCSI Disk Driver (sd) Parameters
+GNU/Linux SCSI Disk Driver (sd) Parameters
 ======================================
 
 cache_type (RW)

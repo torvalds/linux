@@ -6,7 +6,7 @@ KSelfTest ARM64
   and `uname -m` reports other than 'aarch64'.
 
 - Holding true the above, ARM64 KSFT tests can be run within the KSelfTest
-  framework using standard Linux top-level-makefile targets:
+  framework using standard GNU/Linux top-level-makefile targets:
 
       $ make TARGETS=arm64 kselftest-clean
       $ make TARGETS=arm64 kselftest

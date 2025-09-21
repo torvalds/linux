@@ -49,7 +49,7 @@ Arguments
 
     .. note::
 
-      #. The Linux ``videobuf`` kernel module, which is used by some
+      #. The GNU/Linux ``videobuf`` kernel module, which is used by some
 	 drivers supports only ``PROT_READ`` | ``PROT_WRITE``. When the
 	 driver does not support the desired protection, the
 	 :c:func:`mmap()` function fails.
@@ -78,7 +78,7 @@ Arguments
 
     .. note::
 
-       The Linux ``videobuf`` module  which is used by some
+       The GNU/Linux ``videobuf`` module  which is used by some
        drivers supports only ``MAP_SHARED``. ``MAP_PRIVATE`` requests
        copy-on-write semantics. V4L2 applications should not set the
        ``MAP_PRIVATE``, ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_ANON``

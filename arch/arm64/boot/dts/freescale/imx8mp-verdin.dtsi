@@ -854,7 +854,7 @@
 	uart-has-rtscts;
 };
 
-/* Verdin UART_3, used as the Linux Console */
+/* Verdin UART_3, used as the GNU/Linux Console */
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;

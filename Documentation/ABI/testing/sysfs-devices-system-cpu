@@ -1,6 +1,6 @@
 What:		/sys/devices/system/cpu/
 Date:		pre-git history
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
 		A collection of both global and individual CPU attributes
 
@@ -15,7 +15,7 @@ What:		/sys/devices/system/cpu/kernel_max
 		/sys/devices/system/cpu/possible
 		/sys/devices/system/cpu/present
 Date:		December 2008
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	CPU topology files that describe kernel limits related to
 		hotplug. Briefly:
 
@@ -40,7 +40,7 @@ Description:	CPU topology files that describe kernel limits related to
 What:		/sys/devices/system/cpu/probe
 		/sys/devices/system/cpu/release
 Date:		November 2009
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Dynamic addition and removal of CPU's.  This is not hotplug
 		removal, this is meant complete removal/addition of the CPU
 		from the system.
@@ -55,7 +55,7 @@ Description:	Dynamic addition and removal of CPU's.  This is not hotplug
 
 What:		/sys/devices/system/cpu/cpuX/node
 Date:		October 2009
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Discover NUMA node a CPU belongs to
 
 		When CONFIG_NUMA is enabled, a symbolic link that points
@@ -74,7 +74,7 @@ What:		/sys/devices/system/cpu/cpuX/topology/core_siblings
 		/sys/devices/system/cpu/cpuX/topology/thread_siblings_list
 		/sys/devices/system/cpu/cpuX/topology/ppin
 Date:		December 2008
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	CPU topology files that describe a logical CPU's relationship
 		to other cores and threads in the same physical package.
 
@@ -113,7 +113,7 @@ What:		/sys/devices/system/cpu/cpuidle/available_governors
 		/sys/devices/system/cpu/cpuidle/current_governer_ro
 		/sys/devices/system/cpu/cpuidle/intel_c1_demotion
 Date:		September 2007
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Discover cpuidle policy and mechanism
 
 		Various CPUs today support multiple idle levels that are
@@ -150,7 +150,7 @@ What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/name
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/below
 Date:		September 2007
 KernelVersion:	v2.6.24
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		The directory /sys/devices/system/cpu/cpuX/cpuidle contains per
 		logical CPU specific cpuidle information for each online cpu X.
@@ -183,7 +183,7 @@ Description:
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/desc
 Date:		February 2008
 KernelVersion:	v2.6.25
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		(RO) A small description about the idle state (string).
 
@@ -191,7 +191,7 @@ Description:
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/disable
 Date:		March 2012
 KernelVersion:	v3.10
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		(RW) Option to disable this idle state (bool). The behavior and
 		the effect of the disable variable depends on the implementation
@@ -204,14 +204,14 @@ Description:
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/default_status
 Date:		December 2019
 KernelVersion:	v5.6
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		(RO) The default status of this state, "enabled" or "disabled".
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/residency
 Date:		March 2014
 KernelVersion:	v3.15
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		(RO) Display the target residency i.e. the minimum amount of
 		time (in microseconds) this cpu should spend in this idle state
@@ -220,7 +220,7 @@ Description:
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/s2idle/
 Date:		March 2018
 KernelVersion:	v4.17
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		Idle state usage statistics related to suspend-to-idle.
 
@@ -230,7 +230,7 @@ Description:
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/s2idle/time
 Date:		March 2018
 KernelVersion:	v4.17
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		Total time spent by the CPU in suspend-to-idle (with scheduler
 		tick suspended) after requesting this state.
@@ -238,7 +238,7 @@ Description:
 What:		/sys/devices/system/cpu/cpuX/cpuidle/state<N>/s2idle/usage
 Date:		March 2018
 KernelVersion:	v4.17
-Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Contact:	GNU/Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		Total number of times this state has been requested by the CPU
 		while entering suspend-to-idle.
@@ -331,7 +331,7 @@ Description:	Energy performance preference
 What:		/sys/devices/system/cpu/cpu*/cache/index3/cache_disable_{0,1}
 Date:		August 2008
 KernelVersion:	2.6.27
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Disable L3 cache indices
 
 		These files exist in every CPU's cache/index3 directory. Each
@@ -350,7 +350,7 @@ Description:	Disable L3 cache indices
 
 What:		/sys/devices/system/cpu/cpufreq/boost
 Date:		August 2012
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Processor frequency boosting control
 
 		This switch controls the boost setting for the whole system.
@@ -400,7 +400,7 @@ Description:	Parameters for the Intel P-state driver
 What:		/sys/devices/system/cpu/cpu*/cache/index*/<set_of_attributes_mentioned_below>
 Date:		July 2014(documented, existed before August 2008)
 Contact:	Sudeep Holla <sudeep.holla@arm.com>
-		Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Parameters for the CPU cache attributes
 
 		allocation_policy:
@@ -458,7 +458,7 @@ Description:	Parameters for the CPU cache attributes
 
 What:		/sys/devices/system/cpu/cpu*/cache/index*/id
 Date:		September 2016
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Cache id
 
 		The id provides a unique number for a specific instance of
@@ -481,8 +481,8 @@ What:		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats
 		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/overcurrent
 		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/occ_reset
 Date:		March 2016
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-		Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		GNU/Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
 		attributes
 
@@ -531,8 +531,8 @@ What:		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats
 		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/overcurrent
 		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/occ_reset
 Date:		March 2016
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-		Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		GNU/Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
 		attributes
 
@@ -547,7 +547,7 @@ What:		/sys/devices/system/cpu/cpuX/regs/
 		/sys/devices/system/cpu/cpuX/regs/identification/aidr_el1
 		/sys/devices/system/cpu/cpuX/regs/identification/smidr_el1
 Date:		June 2016
-Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
+Contact:	GNU/Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
 Description:	AArch64 CPU registers
 
 		'identification' directory exposes the CPU ID registers for
@@ -555,7 +555,7 @@ Description:	AArch64 CPU registers
 
 What:		/sys/devices/system/cpu/aarch32_el0
 Date:		May 2021
-Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
+Contact:	GNU/Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
 Description:	Identifies the subset of CPUs in the system that can execute
 		AArch32 (32-bit ARM) applications. If present, the same format as
 		/sys/devices/system/cpu/{offline,online,possible,present} is used.
@@ -564,7 +564,7 @@ Description:	Identifies the subset of CPUs in the system that can execute
 
 What:		/sys/devices/system/cpu/cpuX/cpu_capacity
 Date:		December 2016
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	information about CPUs heterogeneity.
 
 		cpu_capacity: capacity of cpuX.
@@ -588,7 +588,7 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/tsx_async_abort
 		/sys/devices/system/cpu/vulnerabilities/vmscape
 Date:		January 2018
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Information about CPU vulnerabilities
 
 		The files are named after the code names of CPU
@@ -607,7 +607,7 @@ What:		/sys/devices/system/cpu/smt
 		/sys/devices/system/cpu/smt/active
 		/sys/devices/system/cpu/smt/control
 Date:		June 2018
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Control Symmetric Multi Threading (SMT)
 
 		active:  Tells whether SMT is active (enabled and siblings online)
@@ -651,7 +651,7 @@ What:		/sys/devices/system/cpu/umwait_control
 		/sys/devices/system/cpu/umwait_control/enable_c02
 		/sys/devices/system/cpu/umwait_control/max_time
 Date:		May 2019
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Umwait control
 
 		enable_c02: Read/write interface to control umwait C0.2 state
@@ -673,7 +673,7 @@ Description:	Umwait control
 What:		/sys/devices/system/cpu/sev
 		/sys/devices/system/cpu/sev/vmpl
 Date:		May 2024
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Secure Encrypted Virtualization (SEV) information
 
 		This directory is only present when running as an SEV-SNP guest.
@@ -684,8 +684,8 @@ Description:	Secure Encrypted Virtualization (SEV) information
 
 What:		/sys/devices/system/cpu/svm
 Date:		August 2019
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-		Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
+		GNU/Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	Secure Virtual Machine
 
 		If 1, it means the system is using the Protected Execution
@@ -694,7 +694,7 @@ Description:	Secure Virtual Machine
 
 What:		/sys/devices/system/cpu/cpuX/purr
 Date:		Apr 2005
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
+Contact:	GNU/Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	PURR ticks for this CPU since the system boot.
 
 		The Processor Utilization Resources Register (PURR) is
@@ -705,7 +705,7 @@ Description:	PURR ticks for this CPU since the system boot.
 
 What: 		/sys/devices/system/cpu/cpuX/spurr
 Date:		Dec 2006
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
+Contact:	GNU/Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	SPURR ticks for this CPU since the system boot.
 
 		The Scaled Processor Utilization Resources Register
@@ -717,7 +717,7 @@ Description:	SPURR ticks for this CPU since the system boot.
 
 What: 		/sys/devices/system/cpu/cpuX/idle_purr
 Date:		Apr 2020
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
+Contact:	GNU/Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	PURR ticks for cpuX when it was idle.
 
 		This sysfs interface exposes the number of PURR ticks
@@ -725,7 +725,7 @@ Description:	PURR ticks for cpuX when it was idle.
 
 What: 		/sys/devices/system/cpu/cpuX/idle_spurr
 Date:		Apr 2020
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
+Contact:	GNU/Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	SPURR ticks for cpuX when it was idle.
 
 		This sysfs interface exposes the number of SPURR ticks
@@ -733,7 +733,7 @@ Description:	SPURR ticks for cpuX when it was idle.
 
 What: 		/sys/devices/system/cpu/cpuX/mte_tcf_preferred
 Date:		July 2021
-Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
+Contact:	GNU/Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
 Description:	Preferred MTE tag checking mode
 
 		When a user program specifies more than one MTE tag checking
@@ -751,14 +751,14 @@ Description:	Preferred MTE tag checking mode
 
 What:		/sys/devices/system/cpu/nohz_full
 Date:		Apr 2015
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
 		(RO) the list of CPUs that are in nohz_full mode.
 		These CPUs are set by boot parameter "nohz_full=".
 
 What:		/sys/devices/system/cpu/isolated
 Date:		Apr 2015
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
 		(RO) the list of CPUs that are isolated and don't
 		participate in load balancing. These CPUs are set by
@@ -766,7 +766,7 @@ Description:
 
 What:		/sys/devices/system/cpu/crash_hotplug
 Date:		Aug 2023
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
 		(RO) indicates whether or not the kernel updates relevant kexec
 		segments on memory hot un/plug and/or on/offline events, avoiding the
@@ -774,6 +774,6 @@ Description:
 
 What:		/sys/devices/system/cpu/enabled
 Date:		Nov 2022
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
 		(RO) the list of CPUs that can be brought online.

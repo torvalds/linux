@@ -6,7 +6,7 @@ menuconfig REGULATOR
 	  Generic Voltage and Current Regulator support.
 
 	  This framework is designed to provide a generic interface to voltage
-	  and current regulators within the Linux kernel. It's intended to
+	  and current regulators within the GNU/Linux kernel. It's intended to
 	  provide voltage and current control to client or consumer drivers and
 	  also provide status information to user space applications through a
 	  sysfs interface.

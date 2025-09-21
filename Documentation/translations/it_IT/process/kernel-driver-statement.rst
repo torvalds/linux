@@ -8,22 +8,22 @@
 Dichiarazioni sui driver per il kernel
 ======================================
 
-Presa di posizione sui moduli per il kernel Linux
+Presa di posizione sui moduli per il kernel GNU/Linux
 -------------------------------------------------
 
 Noi, i sottoscritti sviluppatori del kernel, consideriamo pericoloso
-o indesiderato qualsiasi modulo o driver per il kernel Linux di tipo
+o indesiderato qualsiasi modulo o driver per il kernel GNU/Linux di tipo
 *a sorgenti chiusi* (*closed-source*). Ripetutamente, li abbiamo
-trovati deleteri per gli utenti Linux, le aziende, ed in generale
-l'ecosistema Linux. Questi moduli impediscono l'apertura, la stabilità,
-la flessibilità, e la manutenibilità del modello di sviluppo di Linux
+trovati deleteri per gli utenti GNU/Linux, le aziende, ed in generale
+l'ecosistema GNU/Linux. Questi moduli impediscono l'apertura, la stabilità,
+la flessibilità, e la manutenibilità del modello di sviluppo di GNU/Linux
 e impediscono ai loro utenti di beneficiare dell'esperienza dalla
-comunità Linux. I fornitori che distribuiscono codice a sorgenti chiusi
-obbligano i propri utenti a rinunciare ai principali vantaggi di Linux
+comunità GNU/Linux. I fornitori che distribuiscono codice a sorgenti chiusi
+obbligano i propri utenti a rinunciare ai principali vantaggi di GNU/Linux
 o a cercarsi nuovi fornitori.
 Perciò, al fine di sfruttare i vantaggi che codice aperto ha da offrire,
 come l'abbattimento dei costi e un supporto condiviso, spingiamo i
-fornitori ad adottare una politica di supporto ai loro clienti Linux
+fornitori ad adottare una politica di supporto ai loro clienti GNU/Linux
 che preveda il rilascio dei sorgenti per il kernel.
 
 Parliamo solo per noi stessi, e non per una qualsiasi azienda per la

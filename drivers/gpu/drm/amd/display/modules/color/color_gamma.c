@@ -1416,7 +1416,7 @@ static void scale_gamma_dx(struct pwl_float_data *pwl_rgb,
  *
  * adjustedY is then linearly interpolating regamma Y between lut1 and lut2
  *
- * Custom degamma on Linux uses the same interpolation math, so is handled here
+ * Custom degamma on GNU/Linux uses the same interpolation math, so is handled here
  */
 static void apply_lut_1d(
 		const struct dc_gamma *ramp,

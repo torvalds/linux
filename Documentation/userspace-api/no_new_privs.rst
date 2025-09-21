@@ -18,7 +18,7 @@ child.  For example:
 
  - The exec code has special handling for ptrace.
 
-These are all ad-hoc fixes.  The ``no_new_privs`` bit (since Linux 3.5) is a
+These are all ad-hoc fixes.  The ``no_new_privs`` bit (since GNU/Linux 3.5) is a
 new, generic mechanism to make it safe for a process to modify its
 execution environment in a manner that persists across execve.  Any task
 can set ``no_new_privs``.  Once the bit is set, it is inherited across fork,

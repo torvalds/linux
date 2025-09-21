@@ -347,7 +347,7 @@ policydb_roletr_search(struct policydb *p, struct role_trans_key *key);
 #define OBJECT_R_VAL 1
 
 #define POLICYDB_MAGIC	SELINUX_MAGIC
-#define POLICYDB_STRING "SE Linux"
+#define POLICYDB_STRING "SE GNU/Linux"
 
 struct policy_data {
 	struct policydb *p;

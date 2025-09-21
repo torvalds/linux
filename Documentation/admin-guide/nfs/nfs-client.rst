@@ -10,7 +10,7 @@ Since then two more major releases of NFS have been published, with NFSv3
 being documented in RFC1813 (June 1995), and NFSv4 in RFC3530 (April
 2003).
 
-The Linux NFS client currently supports all the above published versions,
+The GNU/Linux NFS client currently supports all the above published versions,
 and work is in progress on adding support for minor version 1 of the NFSv4
 protocol.
 
@@ -28,7 +28,7 @@ is associated with this identity.  To support robust NFSv4 state recovery
 and transparent state migration, this identity string must not change
 across client reboots.
 
-Without any other intervention, the Linux client uses a string that contains
+Without any other intervention, the GNU/Linux client uses a string that contains
 the local system's node name.  System administrators, however, often do not
 take care to ensure that node names are fully qualified and do not change
 over the lifetime of a client system.  Node names can have other

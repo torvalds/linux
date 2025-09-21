@@ -371,13 +371,13 @@ In RGMII the clock frequency changes with link speed (125 MHz at 1000 Mbps, 25
 MHz at 100 Mbps and 2.5 MHz at 10 Mbps), and link speed might change during the
 AN process.
 In the situation where the switch port is connected through an RGMII fixed-link
-to a link partner whose link state life cycle is outside the control of Linux
+to a link partner whose link state life cycle is outside the control of GNU/Linux
 (such as a different SoC), then the delay lines would remain unlocked (and
 inactive) until there is manual intervention (ifdown/ifup on the switch port).
 The take-away is that in RGMII mode, the switch's internal delays are only
 reliable if the link partner never changes link speeds, or if it does, it does
 so in a way that is coordinated with the switch port (practically, both ends of
-the fixed-link are under control of the same Linux system).
+the fixed-link are under control of the same GNU/Linux system).
 As to why would a fixed-link interface ever change link speeds: there are
 Ethernet controllers out there which come out of reset in 100 Mbps mode, and
 their driver inevitably needs to change the speed and clock frequency if it's
@@ -389,18 +389,18 @@ MDIO bus and PHY management
 The SJA1105 does not have an MDIO bus and does not perform in-band AN either.
 Therefore there is no link state notification coming from the switch device.
 A board would need to hook up the PHYs connected to the switch to any other
-MDIO bus available to Linux within the system (e.g. to the DSA conduit's MDIO
+MDIO bus available to GNU/Linux within the system (e.g. to the DSA conduit's MDIO
 bus). Link state management then works by the driver manually keeping in sync
 (over SPI commands) the MAC link speed with the settings negotiated by the PHY.
 
 By comparison, the SJA1110 supports an MDIO slave access point over which its
 internal 100base-T1 PHYs can be accessed from the host. This is, however, not
 used by the driver, instead the internal 100base-T1 and 100base-TX PHYs are
-accessed through SPI commands, modeled in Linux as virtual MDIO buses.
+accessed through SPI commands, modeled in GNU/Linux as virtual MDIO buses.
 
 The microcontroller attached to the SJA1110 port 0 also has an MDIO controller
 operating in master mode, however the driver does not support this either,
-since the microcontroller gets disabled when the Linux driver operates.
+since the microcontroller gets disabled when the GNU/Linux driver operates.
 Discrete PHYs connected to the switch ports should have their MDIO interface
 attached to an MDIO controller from the host system and not to the switch,
 similar to SJA1105.

@@ -2,7 +2,7 @@
 # pylint: disable=C0103,C0209
 
 """
-The Linux Kernel documentation build configuration file.
+The GNU/Linux Kernel documentation build configuration file.
 """
 
 import os
@@ -216,7 +216,7 @@ source_suffix = '.rst'
 master_doc = "index"
 
 # General information about the project.
-project = "The Linux Kernel"
+project = "The GNU/Linux Kernel"
 copyright = "The kernel development community"         # pylint: disable=W0622
 author = "The kernel development community"
 
@@ -403,7 +403,7 @@ if html_theme == "alabaster":
 html_logo = "images/logo.svg"
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "TheLinuxKerneldoc"
+htmlhelp_basename = "TheGNU/LinuxKerneldoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -466,7 +466,7 @@ for fn in os.listdir("."):
                 (
                     doc,
                     fn + ".tex",
-                    "Linux %s Documentation" % fn.capitalize(),
+                    "GNU/Linux %s Documentation" % fn.capitalize(),
                     "The kernel development community",
                     "manual",
                 )
@@ -503,7 +503,7 @@ latex_additional_files = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, "thelinuxkernel", "The Linux Kernel Documentation", [author], 1)
+    (master_doc, "thelinuxkernel", "The GNU/Linux Kernel Documentation", [author], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -517,10 +517,10 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [(
         master_doc,
-        "TheLinuxKernel",
-        "The Linux Kernel Documentation",
+        "TheGNU/LinuxKernel",
+        "The GNU/Linux Kernel Documentation",
         author,
-        "TheLinuxKernel",
+        "TheGNU/LinuxKernel",
         "One line description of project.",
         "Miscellaneous",
     ),]

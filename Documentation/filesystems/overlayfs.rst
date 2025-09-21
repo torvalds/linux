@@ -7,7 +7,7 @@ Overlay Filesystem
 ==================
 
 This document describes a prototype for a new approach to providing
-overlay-filesystem functionality in Linux (sometimes referred to as
+overlay-filesystem functionality in GNU/Linux (sometimes referred to as
 union-filesystems).  An overlay-filesystem tries to present a
 filesystem which is the result of overlaying one filesystem on top
 of the other.
@@ -95,8 +95,8 @@ directory trees to be in the same filesystem and there is no
 requirement that the root of a filesystem be given for either upper or
 lower.
 
-A wide range of filesystems supported by Linux can be the lower filesystem,
-but not all filesystems that are mountable by Linux have the features
+A wide range of filesystems supported by GNU/Linux can be the lower filesystem,
+but not all filesystems that are mountable by GNU/Linux have the features
 needed for OverlayFS to work.  The lower filesystem does not need to be
 writable.  The lower filesystem can even be another overlayfs.  The upper
 filesystem will normally be writable and if it is it must support the

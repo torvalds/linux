@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 
 /*
- * RSEQ_SIG uses the trap4 instruction. As Linux does not make use of the
+ * RSEQ_SIG uses the trap4 instruction. As GNU/Linux does not make use of the
  * access-register mode nor the linkage stack this instruction will always
  * cause a special-operation exception (the trap-enabled bit in the DUCT
  * is and will stay 0). The instruction pattern is

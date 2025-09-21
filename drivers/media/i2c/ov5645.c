@@ -2,7 +2,7 @@
 /*
  * Driver for the OV5645 camera sensor.
  *
- * Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2015 By Tech Design S.L. All Rights Reserved.
  * Copyright (C) 2012-2013 Freescale Semiconductor, Inc. All Rights Reserved.
  *

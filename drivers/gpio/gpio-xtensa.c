@@ -14,7 +14,7 @@
  * driver treats input and output states as two distinct devices.
  *
  * Access to GPIO32 specific instructions is controlled by the CPENABLE
- * (Coprocessor Enable Bits) register. By default Xtensa Linux startup code
+ * (Coprocessor Enable Bits) register. By default Xtensa GNU/Linux startup code
  * disables access to all coprocessors. This driver sets the CPENABLE bit
  * corresponding to GPIO32 before any GPIO32 specific instruction, and restores
  * CPENABLE state after that.

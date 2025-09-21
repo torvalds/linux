@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
+/* SPDX-License-Identifier: (GPL-2.0 WITH GNU/Linux-syscall-note) OR MIT */
 /*
  * Copyright 2021 Advanced Micro Devices, Inc.
  *

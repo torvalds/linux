@@ -591,7 +591,7 @@ DEFINE_SRCU(tomoyo_ss);
 int tomoyo_enabled __ro_after_init = 1;
 
 /**
- * tomoyo_init - Register TOMOYO Linux as a LSM module.
+ * tomoyo_init - Register TOMOYO GNU/Linux as a LSM module.
  *
  * Returns 0.
  */
@@ -602,7 +602,7 @@ static int __init tomoyo_init(void)
 	/* register ourselves with the security framework */
 	security_add_hooks(tomoyo_hooks, ARRAY_SIZE(tomoyo_hooks),
 			   &tomoyo_lsmid);
-	pr_info("TOMOYO Linux initialized\n");
+	pr_info("TOMOYO GNU/Linux initialized\n");
 	s->domain_info = &tomoyo_kernel_domain;
 	atomic_inc(&tomoyo_kernel_domain.users);
 	s->old_domain_info = NULL;

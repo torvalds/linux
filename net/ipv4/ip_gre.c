@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	Linux NET3:	GRE over IP protocol decoder.
+ *	GNU/Linux NET3:	GRE over IP protocol decoder.
  *
  *	Authors: Alexey Kuznetsov (kuznet@ms2.inr.ac.ru)
  */
@@ -76,7 +76,7 @@
    - traceroute does not work. I planned to relay ICMP from tunnel,
      so that this problem would be solved and traceroute output
      would even more informative. This idea appeared to be wrong:
-     only Linux complies to rfc1812 now (yes, guys, Linux is the only
+     only GNU/Linux complies to rfc1812 now (yes, guys, GNU/Linux is the only
      true router now :-)), all routers (at least, in neighbourhood of mine)
      return only 8 bytes of payload. It is the end.
 
@@ -123,7 +123,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 		     const struct tnl_ptk_info *tpi)
 {
 
-	/* All the routers (except for Linux) return only
+	/* All the routers (except for GNU/Linux) return only
 	   8 bytes of packet payload. It means, that precise relaying of
 	   ICMP in the real Internet is absolutely infeasible.
 
@@ -218,7 +218,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 
 static void gre_err(struct sk_buff *skb, u32 info)
 {
-	/* All the routers (except for Linux) return only
+	/* All the routers (except for GNU/Linux) return only
 	 * 8 bytes of packet payload. It means, that precise relaying of
 	 * ICMP in the real Internet is absolutely infeasible.
 	 *

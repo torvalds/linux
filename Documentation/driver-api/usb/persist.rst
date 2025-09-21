@@ -23,7 +23,7 @@ has no way to know what has actually happened.  Perhaps the same
 device is still attached or perhaps it was removed and a different
 device plugged into the port.  The system must assume the worst.
 
-By default, Linux behaves according to the spec.  If a USB host
+By default, GNU/Linux behaves according to the spec.  If a USB host
 controller loses power during a system suspend, then when the system
 wakes up all the devices attached to that controller are treated as
 though they had disconnected.  This is always safe and it is the

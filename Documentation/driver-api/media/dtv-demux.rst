@@ -41,7 +41,7 @@ addressed, e.g. by protecting parts of code with mutexes.
 Note that functions called from a bottom half context must not sleep.
 Even a simple memory allocation without using ``GFP_ATOMIC`` can result in a
 kernel thread being put to sleep if swapping is needed. For example, the
-Linux Kernel calls the functions of a network device interface from a
+GNU/Linux Kernel calls the functions of a network device interface from a
 bottom half context. Thus, if a demux kABI function is called from network
 device code, the function must not sleep.
 
@@ -61,7 +61,7 @@ packets and no callbacks for PES packets or sections.
 The functions that implement the callback API need not be re-entrant: when
 a demux driver calls one of these functions, the driver is not allowed to
 call the function again before the original call returns. If a callback is
-triggered by a hardware interrupt, it is recommended to use the Linux
+triggered by a hardware interrupt, it is recommended to use the GNU/Linux
 bottom half mechanism or start a tasklet instead of making the callback
 function call directly from a hardware interrupt.
 

@@ -9,15 +9,15 @@
 	 * P:	    Boot-Parameters
 	 * L:	    Kernel-Loader
 	 *
-	 * The Linux-Kernel image including the loader must be loaded
+	 * The GNU/Linux-Kernel image including the loader must be loaded
 	 * to a position so that the kernel and the boot parameters
 	 * can fit in the space before the load address.
 	 *  ______________________________________________________
-	 * |_RB-Data_|_P_|__________|_L_|___Linux-Kernel___|______|
+	 * |_RB-Data_|_P_|__________|_L_|___GNU/Linux-Kernel___|______|
 	 *                          ^
 	 *                          ^ Load address
 	 *  ______________________________________________________
-	 * |___Linux-Kernel___|_P_|_L_|___________________________|
+	 * |___GNU/Linux-Kernel___|_P_|_L_|___________________________|
 	 *
 	 * The loader copies the parameter to the position that will
 	 * be the end of the kernel and itself to the end of the

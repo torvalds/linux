@@ -5,14 +5,14 @@
 
 .. _it_stable_kernel_rules:
 
-Tutto quello che volevate sapere sui rilasci -stable di Linux
+Tutto quello che volevate sapere sui rilasci -stable di GNU/Linux
 ==============================================================
 
 Regole sul tipo di patch che vengono o non vengono accettate nei sorgenti
 "-stable":
 
 - Questa patch o una equivalente deve esistere già nei sorgenti principali di
-  Linux (upstream)
+  GNU/Linux (upstream)
 - Ovviamente dev'essere corretta e verificata.
 - Non dev'essere più grande di 100 righe, incluso il contesto.
 - Deve rispettare le regole scritte in
@@ -150,7 +150,7 @@ allo strumento di *backporting* di ignorare un cambiamento::
 Opzione 2
 *********
 
-Se la patch è già stata inclusa nei sorgenti Linux, inviate una mail a
+Se la patch è già stata inclusa nei sorgenti GNU/Linux, inviate una mail a
 stable@vger.kernel.org includendo: il titolo della patch, l'identificativo
 del commit, il perché pensate che debba essere applicata, e in quali versioni
 del kernel la vorreste vedere.

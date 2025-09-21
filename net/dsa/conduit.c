@@ -2,7 +2,7 @@
 /*
  * Handling of a conduit device, switching frames via its switch fabric CPU port
  *
- * Copyright (c) 2017 Savoir-faire Linux Inc.
+ * Copyright (c) 2017 Savoir-faire GNU/Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  */
 

@@ -885,7 +885,7 @@ int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~BCM54XX_WOL_SUPPORTED_MASK)
 		return -EOPNOTSUPP;
 
-	/* The PHY supports passwords of 4, 6 and 8 bytes in size, but Linux's
+	/* The PHY supports passwords of 4, 6 and 8 bytes in size, but GNU/Linux's
 	 * ethtool only supports 6, for now.
 	 */
 	BUILD_BUG_ON(sizeof(wol->sopass) != ETH_ALEN);

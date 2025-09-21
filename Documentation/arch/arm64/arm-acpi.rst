@@ -22,15 +22,15 @@ specifications, then ACPI may not be a good fit for the hardware.
 While the documents mentioned above set out the requirements for building
 industry-standard Arm systems, they also apply to more than one operating
 system.  The purpose of this document is to describe the interaction between
-ACPI and Linux only, on an Arm system -- that is, what Linux expects of
-ACPI and what ACPI can expect of Linux.
+ACPI and GNU/Linux only, on an Arm system -- that is, what GNU/Linux expects of
+ACPI and what ACPI can expect of GNU/Linux.
 
 
 Why ACPI on Arm?
 ----------------
-Before examining the details of the interface between ACPI and Linux, it is
+Before examining the details of the interface between ACPI and GNU/Linux, it is
 useful to understand why ACPI is being used.  Several technologies already
-exist in Linux for describing non-enumerable hardware, after all.  In this
+exist in GNU/Linux for describing non-enumerable hardware, after all.  In this
 section we summarize a blog post [3] from Grant Likely that outlines the
 reasoning behind ACPI on Arm systems.  Actually, we snitch a good portion
 of the summary text almost directly, to be honest.
@@ -58,13 +58,13 @@ The short form of the rationale for ACPI on Arm is:
    agreeing on a single interface instead of being fragmented into per OS
    interfaces makes for better interoperability overall.
 
--  The new ACPI governance process works well and Linux is now at the same
+-  The new ACPI governance process works well and GNU/Linux is now at the same
    table as hardware vendors and other OS vendors.  In fact, there is no
    longer any reason to feel that ACPI only belongs to Windows or that
-   Linux is in any way secondary to Microsoft in this arena.  The move of
+   GNU/Linux is in any way secondary to Microsoft in this arena.  The move of
    ACPI governance into the UEFI forum has significantly opened up the
    specification development process, and currently, a large portion of the
-   changes being made to ACPI are being driven by Linux.
+   changes being made to ACPI are being driven by GNU/Linux.
 
 Key to the use of ACPI is the support model.  For servers in general, the
 responsibility for hardware behaviour cannot solely be the domain of the
@@ -78,26 +78,26 @@ depending on an OS release cycle which is not under their control.
 ACPI is also important because hardware and OS vendors have already worked
 out the mechanisms for supporting a general purpose computing ecosystem.  The
 infrastructure is in place, the bindings are in place, and the processes are
-in place.  DT does exactly what Linux needs it to when working with vertically
+in place.  DT does exactly what GNU/Linux needs it to when working with vertically
 integrated devices, but there are no good processes for supporting what the
-server vendors need.  Linux could potentially get there with DT, but doing so
+server vendors need.  GNU/Linux could potentially get there with DT, but doing so
 really just duplicates something that already works.  ACPI already does what
 the hardware vendors need, Microsoft won’t collaborate on DT, and hardware
 vendors would still end up providing two completely separate firmware
-interfaces -- one for Linux and one for Windows.
+interfaces -- one for GNU/Linux and one for Windows.
 
 
 Kernel Compatibility
 --------------------
 One of the primary motivations for ACPI is standardization, and using that
-to provide backward compatibility for Linux kernels.  In the server market,
+to provide backward compatibility for GNU/Linux kernels.  In the server market,
 software and hardware are often used for long periods.  ACPI allows the
 kernel and firmware to agree on a consistent abstraction that can be
 maintained over time, even as hardware or software change.  As long as the
 abstraction is supported, systems can be updated without necessarily having
 to replace the kernel.
 
-When a Linux driver or subsystem is first implemented using ACPI, it by
+When a GNU/Linux driver or subsystem is first implemented using ACPI, it by
 definition ends up requiring a specific version of the ACPI specification
 -- its baseline.  ACPI firmware must continue to work, even though it may
 not be optimal, with the earliest kernel version that first provides support
@@ -310,11 +310,11 @@ wide registry that maintains a list of names, minimizing re-use; (3)
 there is also no registry for the definition of property values ("value0"),
 again making re-use difficult; and (4) how does one maintain backward
 compatibility as new hardware comes out?  The _DSD method was created
-to solve precisely these sorts of problems; Linux drivers should ALWAYS
+to solve precisely these sorts of problems; GNU/Linux drivers should ALWAYS
 use the _DSD method for device properties and nothing else.
 
 The _DSM object (ACPI Section 9.14.1) could also be used for conveying
-device properties to a driver.  Linux drivers should only expect it to
+device properties to a driver.  GNU/Linux drivers should only expect it to
 be used if _DSD cannot represent the data required, and there is no way
 to create a new UUID for the _DSD object.  Note that there is even less
 regulation of the use of _DSM than there is of _DSD.  Drivers that depend
@@ -325,7 +325,7 @@ of quite a few firmware problems and is not recommended.
 Drivers should look for device properties in the _DSD object ONLY; the _DSD
 object is described in the ACPI specification section 6.2.5, but this only
 describes how to define the structure of an object returned via _DSD, and
-how specific data structures are defined by specific UUIDs.  Linux should
+how specific data structures are defined by specific UUIDs.  GNU/Linux should
 only use the _DSD Device Properties UUID [4]:
 
    - UUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301
@@ -336,7 +336,7 @@ Device properties that have not been registered with the UEFI Forum can be used
 but not as "uefi-" common properties.
 
 Before creating new device properties, check to be sure that they have not
-been defined before and either registered in the Linux kernel documentation
+been defined before and either registered in the GNU/Linux kernel documentation
 as DT bindings, or the UEFI Forum as device properties.  While we do not want
 to simply move all DT bindings into ACPI device properties, we can learn from
 what has been previously defined.
@@ -345,10 +345,10 @@ If it is necessary to define a new device property, or if it makes sense to
 synthesize the definition of a binding so it can be used in any firmware,
 both DT bindings and ACPI device properties for device drivers have review
 processes.  Use them both.  When the driver itself is submitted for review
-to the Linux mailing lists, the device property definitions needed must be
+to the GNU/Linux mailing lists, the device property definitions needed must be
 submitted at the same time.  A driver that supports ACPI and uses device
 properties will not be considered complete without their definitions.  Once
-the device property has been accepted by the Linux community, it must be
+the device property has been accepted by the GNU/Linux community, it must be
 registered with the UEFI Forum [4], which will review it again for consistency
 within the registry.  This may require iteration.  The UEFI Forum, though,
 will always be the canonical site for device property definitions.
@@ -429,11 +429,11 @@ process to be abstracted out into some ACPI method that can be invoked
 (please see the ACPI specification for further recommendations on standard
 methods to be expected).  The only exceptions to this are CPU clocks where
 CPPC provides a much richer interface than ACPI methods.  If the clocks
-are not set, there is no direct way for Linux to control them.
+are not set, there is no direct way for GNU/Linux to control them.
 
 If an SoC vendor wants to provide fine-grained control of the system clocks,
-they could do so by providing ACPI methods that could be invoked by Linux
-drivers.  However, this is NOT recommended and Linux drivers should NOT use
+they could do so by providing ACPI methods that could be invoked by GNU/Linux
+drivers.  However, this is NOT recommended and GNU/Linux drivers should NOT use
 such methods, even if they are provided.  Such methods are not currently
 standardized in the ACPI specification, and using them could tie a kernel
 to a very specific SoC, or tie an SoC to a very specific version of the
@@ -519,19 +519,19 @@ If this is because of errors, quirks and fix-ups may be necessary, but will
 be avoided if possible.  If there are features missing from ACPI that preclude
 it from being used on a platform, ECRs (Engineering Change Requests) should be
 submitted to ASWG and go through the normal approval process; for those that
-are not UEFI members, many other members of the Linux community are and would
+are not UEFI members, many other members of the GNU/Linux community are and would
 likely be willing to assist in submitting ECRs.
 
 
-Linux Code
+GNU/Linux Code
 ----------
-Individual items specific to Linux on Arm, contained in the Linux
+Individual items specific to GNU/Linux on Arm, contained in the GNU/Linux
 source code, are in the list that follows:
 
 ACPI_OS_NAME
                        This macro defines the string to be returned when
                        an ACPI method invokes the _OS method.  On Arm
-                       systems, this macro will be "Linux" by default.
+                       systems, this macro will be "GNU/Linux" by default.
                        The command line parameter acpi_os=<string>
                        can be used to set it to some other value.  The
                        default value for other architectures is "Microsoft

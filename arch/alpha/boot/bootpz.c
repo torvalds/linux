@@ -5,7 +5,7 @@
  * Copyright (C) 1997 Jay Estabrook
  *
  * This file is used for creating a compressed BOOTP file for the
- * Linux/AXP kernel
+ * GNU/Linux/AXP kernel
  *
  * based significantly on the arch/alpha/boot/main.c of Linus Torvalds
  * and the decompression code from MILO.
@@ -291,7 +291,7 @@ start_kernel(void)
 
 	SP_on_entry = asm_sp;
 
-	srm_printk("Linux/Alpha BOOTPZ Loader for Linux " UTS_RELEASE "\n");
+	srm_printk("GNU/Linux/Alpha BOOTPZ Loader for GNU/Linux " UTS_RELEASE "\n");
 
 	/* Validity check the HWRPB. */
 	if (INIT_HWRPB->pagesize != 8192) {

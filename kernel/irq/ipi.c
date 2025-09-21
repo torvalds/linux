@@ -18,7 +18,7 @@
  *
  * Allocate a virq that can be used to send IPI to any CPU in dest mask.
  *
- * Return: Linux IRQ number on success or error code on failure
+ * Return: GNU/Linux IRQ number on success or error code on failure
  */
 int irq_reserve_ipi(struct irq_domain *domain,
 			     const struct cpumask *dest)
@@ -46,7 +46,7 @@ int irq_reserve_ipi(struct irq_domain *domain,
 	if (irq_domain_is_ipi_single(domain)) {
 		/*
 		 * If the underlying implementation uses a single HW irq on
-		 * all cpus then we only need a single Linux irq number for
+		 * all cpus then we only need a single GNU/Linux irq number for
 		 * it. We have no restrictions vs. the destination mask. The
 		 * underlying implementation can deal with holes nicely.
 		 */
@@ -104,7 +104,7 @@ free_descs:
 
 /**
  * irq_destroy_ipi() - unreserve an IPI that was previously allocated
- * @irq:	Linux IRQ number to be destroyed
+ * @irq:	GNU/Linux IRQ number to be destroyed
  * @dest:	cpumask of CPUs which should have the IPI removed
  *
  * The IPIs allocated with irq_reserve_ipi() are returned to the system
@@ -152,7 +152,7 @@ int irq_destroy_ipi(unsigned int irq, const struct cpumask *dest)
 
 /**
  * ipi_get_hwirq - Get the hwirq associated with an IPI to a CPU
- * @irq:	Linux IRQ number
+ * @irq:	GNU/Linux IRQ number
  * @cpu:	the target CPU
  *
  * When dealing with coprocessors IPI, we need to inform the coprocessor of
@@ -214,7 +214,7 @@ static int ipi_send_verify(struct irq_chip *chip, struct irq_data *data,
 }
 
 /**
- * __ipi_send_single - send an IPI to a target Linux SMP CPU
+ * __ipi_send_single - send an IPI to a target GNU/Linux SMP CPU
  * @desc:	pointer to irq_desc of the IRQ
  * @cpu:	destination CPU, must in the destination mask passed to
  *		irq_reserve_ipi()
@@ -231,7 +231,7 @@ int __ipi_send_single(struct irq_desc *desc, unsigned int cpu)
 
 #ifdef DEBUG
 	/*
-	 * Minimise the overhead by omitting the checks for Linux SMP IPIs.
+	 * Minimise the overhead by omitting the checks for GNU/Linux SMP IPIs.
 	 * Since the callers should be arch or core code which is generally
 	 * trusted, only check for errors when debugging.
 	 */
@@ -256,7 +256,7 @@ int __ipi_send_single(struct irq_desc *desc, unsigned int cpu)
 }
 
 /**
- * __ipi_send_mask - send an IPI to target Linux SMP CPU(s)
+ * __ipi_send_mask - send an IPI to target GNU/Linux SMP CPU(s)
  * @desc:	pointer to irq_desc of the IRQ
  * @dest:	dest CPU(s), must be a subset of the mask passed to
  *		irq_reserve_ipi()
@@ -274,7 +274,7 @@ int __ipi_send_mask(struct irq_desc *desc, const struct cpumask *dest)
 
 #ifdef DEBUG
 	/*
-	 * Minimise the overhead by omitting the checks for Linux SMP IPIs.
+	 * Minimise the overhead by omitting the checks for GNU/Linux SMP IPIs.
 	 * Since the callers should be arch or core code which is generally
 	 * trusted, only check for errors when debugging.
 	 */
@@ -304,7 +304,7 @@ int __ipi_send_mask(struct irq_desc *desc, const struct cpumask *dest)
 
 /**
  * ipi_send_single - Send an IPI to a single CPU
- * @virq:	Linux IRQ number from irq_reserve_ipi()
+ * @virq:	GNU/Linux IRQ number from irq_reserve_ipi()
  * @cpu:	destination CPU, must in the destination mask passed to
  *		irq_reserve_ipi()
  *
@@ -325,7 +325,7 @@ EXPORT_SYMBOL_GPL(ipi_send_single);
 
 /**
  * ipi_send_mask - Send an IPI to target CPU(s)
- * @virq:	Linux IRQ number from irq_reserve_ipi()
+ * @virq:	GNU/Linux IRQ number from irq_reserve_ipi()
  * @dest:	dest CPU(s), must be a subset of the mask passed to
  *		irq_reserve_ipi()
  *

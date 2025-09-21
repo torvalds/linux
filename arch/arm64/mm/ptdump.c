@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, The GNU/Linux Foundation. All rights reserved.
  * Debug helper to dump the current kernel pagetables of the system
  * so that we can see what the various memory ranges are set to.
  *

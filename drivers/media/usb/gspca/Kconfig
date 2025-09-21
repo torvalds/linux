@@ -10,8 +10,8 @@ menuconfig USB_GSPCA
 
 	  See <file:Documentation/admin-guide/media/gspca-cardlist.rst> for more info.
 
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
+	  This driver uses the Video For GNU/Linux API. You must say Y or M to
+	  "Video For GNU/Linux" to use this driver.
 
 	  To compile this driver as modules, choose M here: the
 	  module will be called gspca_main.

@@ -18,7 +18,7 @@
  *                       ^      ^^^^^^
  *
  * # Select mode 2 , enable fan PWM and regulator and keep them enabled.
- * # For details, see Linux Documentation/hwmon/pwm-fan.rst
+ * # For details, see GNU/Linux Documentation/hwmon/pwm-fan.rst
  * r8a779g3-sparrow-hawk$ echo 2 > /sys/class/hwmon/hwmon4/pwm1_enable
  *
  * # Configure PWM fan speed in range 0..255 , 0 is stopped , 255 is full speed .

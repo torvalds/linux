@@ -33,7 +33,7 @@ config MTD_NAND_ECC_SW_HAMMING_SMC
 	default n
 	help
 	  Software ECC according to the Smart Media Specification.
-	  The original Linux implementation had byte 0 and 1 swapped.
+	  The original GNU/Linux implementation had byte 0 and 1 swapped.
 
 config MTD_NAND_ECC_SW_BCH
 	bool "Software BCH ECC engine"

@@ -297,7 +297,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	 * implementation. However, BIOSes typically have a knob to tweak
 	 * the architectural MISC_ENABLE.FAST_STRING enable bit.
 	 *
-	 * Adhere to the preference and program the Linux-defined fast
+	 * Adhere to the preference and program the GNU/Linux-defined fast
 	 * string flag and enhanced fast string capabilities accordingly.
 	 */
 	if (c->x86_vfm >= INTEL_PENTIUM_M_DOTHAN) {

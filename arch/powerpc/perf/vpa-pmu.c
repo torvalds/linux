@@ -170,11 +170,11 @@ static struct pmu vpa_pmu = {
 static int __init pseries_vpa_pmu_init(void)
 {
 	/*
-	 * List of current Linux on Power platforms and
+	 * List of current GNU/Linux on Power platforms and
 	 * this driver is supported only in PowerVM LPAR
 	 * (L1) platform.
 	 *
-	 *	Enabled    Linux on Power Platforms
+	 *	Enabled    GNU/Linux on Power Platforms
 	 *      ----------------------------------------
 	 *        [X]      PowerVM LPAR (L1)
 	 *        [ ]      KVM Guest On PowerVM KoP(L2)

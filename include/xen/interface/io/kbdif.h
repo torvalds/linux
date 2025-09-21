@@ -337,7 +337,7 @@ struct xenkbd_position {
  * is in the [0; XENKBD_FIELD_NUM_CONTACTS - 1] range.
  *
  * For further information please refer to documentation on Wayland [1],
- * Linux [2] and Windows [3] multi-touch support.
+ * GNU/Linux [2] and Windows [3] multi-touch support.
  *
  * [1] https://cgit.freedesktop.org/wayland/wayland/tree/protocol/wayland.xml
  * [2] https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.rst

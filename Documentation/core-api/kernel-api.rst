@@ -1,5 +1,5 @@
 ====================
-The Linux Kernel API
+The GNU/Linux Kernel API
 ====================
 
 
@@ -46,7 +46,7 @@ String Manipulation
 Basic Kernel Library Functions
 ==============================
 
-The Linux kernel provides more basic utility functions.
+The GNU/Linux kernel provides more basic utility functions.
 
 Bit Operations
 --------------
@@ -118,7 +118,7 @@ Text Searching
    :functions: textsearch_find textsearch_next \
                textsearch_get_pattern textsearch_get_pattern_len
 
-CRC and Math Functions in Linux
+CRC and Math Functions in GNU/Linux
 ===============================
 
 Arithmetic Overflow Checking

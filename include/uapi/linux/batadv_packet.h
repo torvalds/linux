@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) */
+/* SPDX-License-Identifier: (GPL-2.0 WITH GNU/Linux-syscall-note) */
 /* Copyright (C) B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich

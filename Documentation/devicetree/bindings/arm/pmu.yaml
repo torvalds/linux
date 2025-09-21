@@ -115,7 +115,7 @@ properties:
       which means the PMU may fail to operate unless external
       code (bootloader or security monitor) has performed the
       appropriate initialisation. Note that this property is
-      not valid for non-ARMv7 CPUs or ARMv7 CPUs booting Linux
+      not valid for non-ARMv7 CPUs or ARMv7 CPUs booting GNU/Linux
       in Non-secure state.
 
 required:

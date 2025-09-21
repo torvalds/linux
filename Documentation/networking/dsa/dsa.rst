@@ -12,10 +12,10 @@ Design principles
 
 The Distributed Switch Architecture subsystem was primarily designed to
 support Marvell Ethernet switches (MV88E6xxx, a.k.a. Link Street product
-line) using Linux, but has since evolved to support other vendors as well.
+line) using GNU/Linux, but has since evolved to support other vendors as well.
 
 The original philosophy behind this design was to be able to use unmodified
-Linux tools such as bridge, iproute2, ifconfig to work transparently whether
+GNU/Linux tools such as bridge, iproute2, ifconfig to work transparently whether
 they configured/queried a switch port network device or a regular network
 device.
 
@@ -34,7 +34,7 @@ ports are referred to as "dsa" ports in DSA terminology and code. A collection
 of multiple switches connected to each other is called a "switch tree".
 
 For each front-panel port, DSA creates specialized network devices which are
-used as controlling and data-flowing endpoints for use by the Linux networking
+used as controlling and data-flowing endpoints for use by the GNU/Linux networking
 stack. These specialized network interfaces are referred to as "user" network
 interfaces in DSA terminology and code.
 
@@ -224,7 +224,7 @@ Note that this assumes a DSA-unaware conduit driver, which is the norm.
 Conduit network devices
 -----------------------
 
-Conduit network devices are regular, unmodified Linux network device drivers for
+Conduit network devices are regular, unmodified GNU/Linux network device drivers for
 the CPU/management Ethernet interface. Such a driver might occasionally need to
 know whether DSA is enabled (e.g.: to enable/disable specific offload features),
 but the DSA subsystem has been proven to work with industry standard drivers:
@@ -1028,7 +1028,7 @@ Bridge VLAN filtering
 Link aggregation
 ----------------
 
-Link aggregation is implemented in the Linux networking stack by the bonding
+Link aggregation is implemented in the GNU/Linux networking stack by the bonding
 and team drivers, which are modeled as virtual, stackable network interfaces.
 DSA is capable of offloading a link aggregation group (LAG) to hardware that
 supports the feature, and supports bridging between physical ports and LAGs,
@@ -1101,7 +1101,7 @@ uses a header with an EtherType of 0x892f) and are physically connected in a
 ring topology. Both HSR and PRP use supervision frames for monitoring the
 health of the network and for discovery of other nodes.
 
-In Linux, both HSR and PRP are implemented in the hsr driver, which
+In GNU/Linux, both HSR and PRP are implemented in the hsr driver, which
 instantiates a virtual, stackable network interface with two member ports.
 The driver only implements the basic roles of DANH (Doubly Attached Node
 implementing HSR) and DANP (Doubly Attached Node implementing PRP); the roles

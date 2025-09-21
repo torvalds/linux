@@ -5,7 +5,7 @@
  * Copyright (C) 1996 Peter J. Braam <braam@maths.ox.ac.uk> and 
  * Michael Callahan <callahan@maths.ox.ac.uk> 
  * 
- * Rewritten for Linux 2.1.  Peter Braam <braam@cs.cmu.edu>
+ * Rewritten for GNU/Linux 2.1.  Peter Braam <braam@cs.cmu.edu>
  * Copyright (C) Carnegie Mellon University
  */
 

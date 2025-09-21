@@ -675,7 +675,7 @@ static void __exit exit_affs_fs(void)
 	destroy_inodecache();
 }
 
-MODULE_DESCRIPTION("Amiga filesystem support for Linux");
+MODULE_DESCRIPTION("Amiga filesystem support for GNU/Linux");
 MODULE_LICENSE("GPL");
 
 module_init(init_affs_fs)

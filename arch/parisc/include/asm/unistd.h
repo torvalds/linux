@@ -4,7 +4,7 @@
 
 #include <uapi/asm/unistd.h>
 
-#define __NR_Linux_syscalls	__NR_syscalls
+#define __NR_GNU/Linux_syscalls	__NR_syscalls
 
 #ifndef __ASSEMBLER__
 

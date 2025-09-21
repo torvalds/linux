@@ -40,7 +40,7 @@ int seq_default_timer_subdevice = 0;
 int seq_default_timer_resolution = 0;	/* Hz */
 
 MODULE_AUTHOR("Frank van de Pol <fvdpol@coil.demon.nl>, Jaroslav Kysela <perex@perex.cz>");
-MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer.");
+MODULE_DESCRIPTION("Advanced GNU/Linux Sound Architecture sequencer.");
 MODULE_LICENSE("GPL");
 
 module_param_array(seq_client_load, int, NULL, 0444);

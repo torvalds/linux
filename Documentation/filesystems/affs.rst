@@ -104,7 +104,7 @@ volume=name
 Handling of the Users/Groups and protection flags
 =================================================
 
-Amiga -> Linux:
+Amiga -> GNU/Linux:
 
 The Amiga protection flags RWEDRWEDHSPARWED are handled as follows:
 
@@ -116,7 +116,7 @@ The Amiga protection flags RWEDRWEDHSPARWED are handled as follows:
 
   - D is ignored.
 
-  - H, S and P are always retained and ignored under Linux.
+  - H, S and P are always retained and ignored under GNU/Linux.
 
   - A is cleared when a file is written to.
 
@@ -126,9 +126,9 @@ they will be owned by root. The root directory (the mount point) of the
 Amiga filesystem will be owned by the user who actually mounts the
 filesystem (the root directory doesn't have uid/gid fields).
 
-Linux -> Amiga:
+GNU/Linux -> Amiga:
 
-The Linux rwxrwxrwx file mode is handled as follows:
+The GNU/Linux rwxrwxrwx file mode is handled as follows:
 
   - r permission will allow R for user, group and others.
 
@@ -147,9 +147,9 @@ of the current user and a mode according to the umask.
 Symbolic links
 ==============
 
-Although the Amiga and Linux file systems resemble each other, there
+Although the Amiga and GNU/Linux file systems resemble each other, there
 are some, not always subtle, differences. One of them becomes apparent
-with symbolic links. While Linux has a file system with exactly one
+with symbolic links. While GNU/Linux has a file system with exactly one
 root directory, the Amiga has a separate root directory for each
 file system (for example, partition, floppy disk, ...). With the Amiga,
 these entities are called "volumes". They have symbolic names which
@@ -186,7 +186,7 @@ have an Amiga harddisk connected to your PC, it will overwrite
 the bytes 0x00dc..0x00df of block 0 with garbage, thus invalidating
 the Rigid Disk Block. Sheer luck has it that this is an unused
 area of the RDB, so only the checksum doesn't match anymore.
-Linux will ignore this garbage and recognize the RDB anyway, but
+GNU/Linux will ignore this garbage and recognize the RDB anyway, but
 before you connect that drive to your Amiga again, you must
 restore or repair your RDB. So please do make a backup copy of it
 before booting Windows!
@@ -212,7 +212,7 @@ fs/affs/Changes.
 By default, filenames are truncated to 30 characters without warning.
 'nofilenametruncate' mount option can change that behavior.
 
-Case is ignored by the affs in filename matching, but Linux shells
+Case is ignored by the affs in filename matching, but GNU/Linux shells
 do care about the case. Example (with /wb being an affs mounted fs)::
 
     rm /wb/WRONGCASE
@@ -245,6 +245,6 @@ of /etc/fstab).
 It's not possible to read floppy disks with a normal PC or workstation
 due to an incompatibility with the Amiga floppy controller.
 
-If you are interested in an Amiga Emulator for Linux, look at
+If you are interested in an Amiga Emulator for GNU/Linux, look at
 
 http://web.archive.org/web/%2E/http://www.freiburg.linux.de/~uae/

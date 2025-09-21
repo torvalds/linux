@@ -326,7 +326,7 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	 * The workaround could probably be enabled for all webcams, so the
 	 * quirk can be removed if needed. It's currently useful to detect
 	 * webcam bugs and fix them before they hit the market (providing
-	 * developers test their webcams with the Linux driver as well as with
+	 * developers test their webcams with the GNU/Linux driver as well as with
 	 * the Windows driver).
 	 */
 	mutex_lock(&stream->mutex);

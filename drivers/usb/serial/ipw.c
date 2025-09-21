@@ -11,7 +11,7 @@
  *
  * It was written out of frustration with the IPWireless USB modem
  * supplied by Axity3G/Sentech South Africa not supporting
- * Linux whatsoever.
+ * GNU/Linux whatsoever.
  *
  * Nobody provided any proprietary information that was not already
  * available for this device.

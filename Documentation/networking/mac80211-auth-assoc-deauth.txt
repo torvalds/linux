@@ -1,5 +1,5 @@
 #
-# This outlines the Linux authentication/association and
+# This outlines the GNU/Linux authentication/association and
 # deauthentication/disassociation flows.
 #
 # This can be converted into a diagram using the service

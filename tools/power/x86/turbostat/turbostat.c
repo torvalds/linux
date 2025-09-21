@@ -8362,7 +8362,7 @@ end:
 }
 
 /*
- * Linux-perf manages the HW instructions-retired counter
+ * GNU/Linux-perf manages the HW instructions-retired counter
  * by enabling when requested, and hiding rollover
  */
 void linux_perf_init(void)

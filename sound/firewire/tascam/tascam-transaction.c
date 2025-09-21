@@ -215,7 +215,7 @@ static void midi_port_work(struct work_struct *work)
 	port->idling = false;
 
 	/*
-	 * In Linux FireWire core, when generation is updated with memory
+	 * In GNU/Linux FireWire core, when generation is updated with memory
 	 * barrier, node id has already been updated. In this module, After
 	 * this smp_rmb(), load/store instructions to memory are completed.
 	 * Thus, both of generation and node id are available with recent

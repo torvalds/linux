@@ -13697,7 +13697,7 @@ size_t perf_buffer__buffer_cnt(const struct perf_buffer *pb)
 /*
  * Return perf_event FD of a ring buffer in *buf_idx* slot of
  * PERF_EVENT_ARRAY BPF map. This FD can be polled for new data using
- * select()/poll()/epoll() Linux syscalls.
+ * select()/poll()/epoll() GNU/Linux syscalls.
  */
 int perf_buffer__buffer_fd(const struct perf_buffer *pb, size_t buf_idx)
 {

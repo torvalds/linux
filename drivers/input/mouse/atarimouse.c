@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Atari mouse driver for Linux/m68k
+ *  Atari mouse driver for GNU/Linux/m68k
  *
  *  Copyright (c) 2005 Michael Schmitz
  *
  *  Based on:
- *  Amiga mouse driver for Linux/m68k
+ *  Amiga mouse driver for GNU/Linux/m68k
  *
  *  Copyright (c) 2000-2002 Vojtech Pavlik
  */
@@ -17,7 +17,7 @@
  *
  * Largely based on the old:
  *
- * Atari Mouse Driver for Linux
+ * Atari Mouse Driver for GNU/Linux
  * by Robert de Vries (robert@and.nl) 19Jul93
  *
  * 16 Nov 1994 Andreas Schwab

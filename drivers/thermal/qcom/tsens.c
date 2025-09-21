@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, The GNU/Linux Foundation. All rights reserved.
  * Copyright (c) 2019, 2020, Linaro Ltd.
  */
 
@@ -612,7 +612,7 @@ static irqreturn_t tsens_critical_irq_thread(int irq, void *data)
 		tsens_read_irq_state(priv, hw_id, s, &d);
 		if (d.crit_viol &&
 		    !masked_irq(hw_id, d.crit_irq_mask, tsens_version(priv))) {
-			/* Mask critical interrupts, unused on Linux */
+			/* Mask critical interrupts, unused on GNU/Linux */
 			tsens_set_interrupt(priv, hw_id, CRITICAL, false);
 		}
 	}

@@ -47,7 +47,7 @@
 #define EVENT_IS_MARKED		(EVENT_MARKED_MASK << EVENT_MARKED_SHIFT)
 #define EVENT_PSEL_MASK		0xff	/* PMCxSEL value */
 
-/* Bits defined by Linux */
+/* Bits defined by GNU/Linux */
 #define EVENT_LINUX_MASK	\
 	((EVENT_EBB_MASK  << EVENT_EBB_SHIFT)			|	\
 	 (EVENT_BHRB_MASK << EVENT_BHRB_SHIFT)			|	\

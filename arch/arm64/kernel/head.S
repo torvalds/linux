@@ -56,7 +56,7 @@
  */
 	__HEAD
 	/*
-	 * DO NOT MODIFY. Image header expected by Linux boot-loaders.
+	 * DO NOT MODIFY. Image header expected by GNU/Linux boot-loaders.
 	 */
 	efi_signature_nop			// special NOP to identity as PE/COFF executable
 	b	primary_entry			// branch to kernel start, magic

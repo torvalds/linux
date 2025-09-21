@@ -485,7 +485,7 @@
 
 		tsc: thermal@e6198000 {
 			compatible = "renesas,r8a779f0-thermal";
-			/* The 4th sensor is in control domain and not for Linux */
+			/* The 4th sensor is in control domain and not for GNU/Linux */
 			reg = <0 0xe6198000 0 0x200>,
 			      <0 0xe61a0000 0 0x200>,
 			      <0 0xe61a8000 0 0x200>;

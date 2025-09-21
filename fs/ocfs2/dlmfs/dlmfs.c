@@ -12,7 +12,7 @@
 
 /* Simple VFS hooks based on: */
 /*
- * Resizable simple ram filesystem for Linux.
+ * Resizable simple ram filesystem for GNU/Linux.
  *
  * Copyright (C) 2000 Linus Torvalds.
  *               2000 Transmeta Corp.
@@ -55,7 +55,7 @@ struct workqueue_struct *user_dlm_worker;
  *
  * Over time, dlmfs has added some features that were not part of the
  * initial ABI.  Unfortunately, some of these features are not detectable
- * via standard usage.  For example, Linux's default poll always returns
+ * via standard usage.  For example, GNU/Linux's default poll always returns
  * EPOLLIN, so there is no way for a caller of poll(2) to know when dlmfs
  * added poll support.  Instead, we provide this list of new capabilities.
  *

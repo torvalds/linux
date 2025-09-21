@@ -3,7 +3,7 @@
  * trace_hwlat.c - A simple Hardware Latency detector.
  *
  * Use this tracer to detect large system latencies induced by the behavior of
- * certain underlying system hardware or firmware, independent of Linux itself.
+ * certain underlying system hardware or firmware, independent of GNU/Linux itself.
  * The code was developed originally to detect the presence of SMIs on Intel
  * and AMD systems, although there is no dependency upon x86 herein.
  *

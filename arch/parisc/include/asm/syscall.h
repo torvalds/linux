@@ -9,7 +9,7 @@
 #include <linux/err.h>
 #include <asm/ptrace.h>
 
-#define NR_syscalls (__NR_Linux_syscalls)
+#define NR_syscalls (__NR_GNU/Linux_syscalls)
 
 static inline long syscall_get_nr(struct task_struct *tsk,
 				  struct pt_regs *regs)

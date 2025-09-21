@@ -14,7 +14,7 @@
 
 	configurations {
 		conf-xilfpga {
-			description = "MIPSfpga Linux kernel";
+			description = "MIPSfpga GNU/Linux kernel";
 			kernel = "kernel";
 			fdt = "fdt-xilfpga";
 		};

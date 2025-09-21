@@ -9,7 +9,7 @@ menuconfig VIRTUALIZATION
 	bool "Virtualization"
 	default y
 	help
-	  Say Y here to get to see options for using your Linux host to run other
+	  Say Y here to get to see options for using your GNU/Linux host to run other
 	  operating systems inside virtual machines (guests).
 	  This option alone does not add any kernel code.
 

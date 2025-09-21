@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Amiga mouse driver for Linux/m68k
+ *  Amiga mouse driver for GNU/Linux/m68k
  *
  *  Copyright (c) 2000-2002 Vojtech Pavlik
  *

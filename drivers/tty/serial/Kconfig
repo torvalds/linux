@@ -893,7 +893,7 @@ config SERIAL_JSM
 	help
 	  This is a driver for Digi International's Neo and Classic series
 	  of cards which provide multiple serial ports. You would need
-	  something like this to connect more than two modems to your Linux
+	  something like this to connect more than two modems to your GNU/Linux
 	  box, for instance in order to become a dial-in server. This driver
 	  supports PCI boards only.
 

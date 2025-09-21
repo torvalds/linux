@@ -1,5 +1,5 @@
 ===========================
-Linux USB HID gadget driver
+GNU/Linux USB HID gadget driver
 ===========================
 
 Introduction

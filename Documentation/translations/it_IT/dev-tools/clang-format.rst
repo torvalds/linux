@@ -36,7 +36,7 @@ potete sovrascriverle scrivendole in un altro file ``.clang-format`` in
 una sottocartella.
 
 Questo strumento è già stato incluso da molto tempo nelle distribuzioni
-Linux più popolari. Cercate ``clang-format`` nel vostro repositorio.
+GNU/Linux più popolari. Cercate ``clang-format`` nel vostro repositorio.
 Altrimenti, potete scaricare una versione pre-generata dei binari di LLVM/clang
 oppure generarlo dai codici sorgenti:
 

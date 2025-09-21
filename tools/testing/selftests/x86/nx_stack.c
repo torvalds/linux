@@ -112,7 +112,7 @@ static volatile unsigned long stack_min_addr;
 static void sigsegv(int _, siginfo_t *__, void *uc_)
 {
 	/*
-	 * Some Linux versions didn't clear DF before entering signal
+	 * Some GNU/Linux versions didn't clear DF before entering signal
 	 * handler. make_stack1() doesn't have a chance to clear DF
 	 * either so we clear it by hand here.
 	 */

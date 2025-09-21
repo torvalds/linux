@@ -345,7 +345,7 @@ int sidtab_context_to_sid(struct sidtab *s, struct context *context, u32 *sid)
 	}
 
 	if (context->len)
-		pr_info("SELinux:  Context %s is not valid (left unmapped).\n",
+		pr_info("SEGNU/Linux:  Context %s is not valid (left unmapped).\n",
 			context->str);
 
 	*sid = index_to_sid(count);
@@ -458,7 +458,7 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 	/* we can safely convert the tree outside the lock */
 	spin_unlock_irqrestore(&s->lock, flags);
 
-	pr_info("SELinux:  Converting %u SID table entries...\n", count);
+	pr_info("SEGNU/Linux:  Converting %u SID table entries...\n", count);
 
 	/* convert all entries not covered by live convert */
 	pos = 0;

@@ -4,7 +4,7 @@
 Console Drivers
 ===============
 
-The Linux kernel has 2 general types of console drivers.  The first type is
+The GNU/Linux kernel has 2 general types of console drivers.  The first type is
 assigned by the kernel to all the virtual consoles during the boot process.
 This type will be called 'system driver', and only one system driver is allowed
 to exist. The system driver is persistent and it can never be unloaded, though

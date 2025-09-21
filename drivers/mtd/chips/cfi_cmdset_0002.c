@@ -545,7 +545,7 @@ static int is_m29ew(struct cfi_private *cfi)
 }
 
 /*
- * From TN-13-07: Patching the Linux Kernel and U-Boot for M29 Flash, page 20:
+ * From TN-13-07: Patching the GNU/Linux Kernel and U-Boot for M29 Flash, page 20:
  * Some revisions of the M29EW suffer from erase suspend hang ups. In
  * particular, it can occur when the sequence
  * Erase Confirm -> Suspend -> Program -> Resume
@@ -564,7 +564,7 @@ static void cfi_fixup_m29ew_erase_suspend(struct map_info *map,
 }
 
 /*
- * From TN-13-07: Patching the Linux Kernel and U-Boot for M29 Flash, page 22:
+ * From TN-13-07: Patching the GNU/Linux Kernel and U-Boot for M29 Flash, page 22:
  *
  * Some revisions of the M29EW (for example, A1 and A2 step revisions)
  * are affected by a problem that could cause a hang up when an ERASE SUSPEND
@@ -580,7 +580,7 @@ static void cfi_fixup_m29ew_erase_suspend(struct map_info *map,
  * calls to the garbage routine to free Flash space (also by erasing physical
  * Flash blocks) and as a result, many consecutive SUSPEND and RESUME
  * commands can occur.  The problem disappears when a delay is inserted after
- * the RESUME command by using the udelay() function available in Linux.
+ * the RESUME command by using the udelay() function available in GNU/Linux.
  * The DELAY value must be tuned based on the customer's platform.
  * The maximum value that fixes the problem in all cases is 500us.
  * But, in our experience, a delay of 30 µs to 50 µs is sufficient

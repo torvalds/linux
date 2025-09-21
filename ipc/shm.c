@@ -1149,7 +1149,7 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 		err = 0;
 	} else {
 		/*
-		 * SHM_STAT and SHM_STAT_ANY (both Linux specific)
+		 * SHM_STAT and SHM_STAT_ANY (both GNU/Linux specific)
 		 * Return the full id, including the sequence number
 		 */
 		err = shp->shm_perm.id;

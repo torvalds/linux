@@ -11,17 +11,17 @@ that can then be used in the analysis of the trace of the system. The
 the events from the *system* to the events of the *specification*.
 
 
-In Linux terms, the runtime verification monitors are encapsulated inside
+In GNU/Linux terms, the runtime verification monitors are encapsulated inside
 the *RV monitor* abstraction. The RV monitor includes a set of instances
 of the monitor (per-cpu monitor, per-task monitor, and so on), the helper
 functions that glue the monitor to the system reference model, and the
 trace output as a reaction to event parsing and exceptions, as depicted
 below::
 
- Linux  +----- RV Monitor ----------------------------------+ Formal
+ GNU/Linux  +----- RV Monitor ----------------------------------+ Formal
   Realm |                                                   |  Realm
   +-------------------+     +----------------+     +-----------------+
-  |   Linux kernel    |     |     Monitor    |     |     Reference   |
+  |   GNU/Linux kernel    |     |     Monitor    |     |     Reference   |
   |     Tracing       |  -> |   Instance(s)  | <-  |       Model     |
   | (instrumentation) |     | (verification) |     | (specification) |
   +-------------------+     +----------------+     +-----------------+
@@ -39,7 +39,7 @@ below::
 RV monitor synthesis
 --------------------
 
-The synthesis of a specification into the Linux *RV monitor* abstraction is
+The synthesis of a specification into the GNU/Linux *RV monitor* abstraction is
 automated by the rvgen tool and the header file containing common code for
 creating monitors. The header files are:
 

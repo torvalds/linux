@@ -24,7 +24,7 @@ menuconfig USB_GADGET
 	   The USB hardware is asymmetric, which makes it easier to set up:
 	   you can't connect a "to-the-host" connector to a peripheral.
 
-	   Linux can run in the host, or in the peripheral.  In both cases
+	   GNU/Linux can run in the host, or in the peripheral.  In both cases
 	   you need a low level bus controller driver, and some software
 	   talking to it.  Peripheral controllers are often discrete silicon,
 	   or are integrated with the CPU in a microcontroller.  The more
@@ -32,14 +32,14 @@ menuconfig USB_GADGET
 	   or "UHCI", and are usually integrated into southbridges on PC
 	   motherboards.
 
-	   Enable this configuration option if you want to run Linux inside
+	   Enable this configuration option if you want to run GNU/Linux inside
 	   a USB peripheral device.  Configure one hardware driver for your
 	   peripheral/device side bus controller, and a "gadget driver" for
 	   your peripheral protocol.  (If you use modular gadget drivers,
 	   you may configure more than one.)
 
 	   If in doubt, say "N" and don't enable these drivers; most people
-	   don't have this kind of hardware (except maybe inside Linux PDAs).
+	   don't have this kind of hardware (except maybe inside GNU/Linux PDAs).
 
 	   For more information, see <http://www.linux-usb.org/gadget> and
 	   the kernel documentation for this API.
@@ -229,7 +229,7 @@ config USB_CONFIGFS
 	tristate "USB Gadget functions configurable through configfs"
 	select USB_LIBCOMPOSITE
 	help
-	  A Linux USB "gadget" can be set up through configfs.
+	  A GNU/Linux USB "gadget" can be set up through configfs.
 	  If this is the case, the USB functions (which from the host's
 	  perspective are seen as interfaces) and configurations are
 	  specified simply by creating appropriate directories in configfs.
@@ -244,7 +244,7 @@ config USB_CONFIGFS_SERIAL
 	select USB_U_SERIAL
 	select USB_F_SERIAL
 	help
-	  The function talks to the Linux-USB generic serial driver.
+	  The function talks to the GNU/Linux-USB generic serial driver.
 
 config USB_CONFIGFS_ACM
 	bool "Abstract Control Model (CDC ACM)"
@@ -254,7 +254,7 @@ config USB_CONFIGFS_ACM
 	select USB_F_ACM
 	help
 	  ACM serial link.  This function can be used to interoperate with
-	  MS-Windows hosts or with the Linux-USB "cdc-acm" driver.
+	  MS-Windows hosts or with the GNU/Linux-USB "cdc-acm" driver.
 
 config USB_CONFIGFS_OBEX
 	bool "Object Exchange Model (CDC OBEX)"
@@ -329,7 +329,7 @@ config USB_CONFIGFS_EEM
 	  EEM are designed for different applications.  The ECM model extends
 	  the network interface to the target (e.g. a USB cable modem), and the
 	  EEM model is for mobile devices to communicate with hosts using
-	  ethernet over USB.  For Linux gadgets, however, the interface with
+	  ethernet over USB.  For GNU/Linux gadgets, however, the interface with
 	  the host is the same (a usbX device), so the differences are minimal.
 
 config USB_CONFIGFS_PHONET

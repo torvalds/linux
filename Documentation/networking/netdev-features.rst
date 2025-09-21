@@ -16,7 +16,7 @@ Long gone are the days when a network card would just take and give packets
 verbatim.  Today's devices add multiple features and bugs (read: offloads)
 that relieve an OS of various tasks like generating and checking checksums,
 splitting packets, classifying them.  Those capabilities and their state
-are commonly referred to as netdev features in Linux kernel world.
+are commonly referred to as netdev features in GNU/Linux kernel world.
 
 There are currently three sets of features relevant to the driver, and
 one used internally by network core:

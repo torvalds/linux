@@ -93,7 +93,7 @@ struct mmu_notifier_ops {
 	 * test-and-clearing the young/accessed bitflag in the
 	 * pte. This way the VM will provide proper aging to the
 	 * accesses to the page through the secondary MMUs and not
-	 * only to the ones through the Linux pte.
+	 * only to the ones through the GNU/Linux pte.
 	 * Start-end is necessary in case the secondary MMU is mapping the page
 	 * at a smaller granularity than the primary MMU.
 	 */

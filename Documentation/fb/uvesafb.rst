@@ -109,7 +109,7 @@ vtotal:n    If the video BIOS of your card incorrectly determines the total
 vbemode:x   Force the use of VBE mode x.  The mode will only be set if it's
             found in the VBE-provided list of supported modes.
             NOTE: The mode number 'x' should be specified in VESA mode number
-            notation, not the Linux kernel one (eg. 257 instead of 769).
+            notation, not the GNU/Linux kernel one (eg. 257 instead of 769).
             HINT: If you use this option because normal <mode> parameter does
             not work for you and you use a X server, you'll probably want to
             set the 'nocrtc' option to ensure that the video mode is properly

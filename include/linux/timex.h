@@ -103,7 +103,7 @@ unsigned long random_get_entropy_fallback(void);
  *
  * In the above mailing list discussion, it seems the value of 4
  * was appropriate for other Unix systems with HZ=100, and that
- * SHIFT_PLL should be decreased as HZ increases. However, Linux's
+ * SHIFT_PLL should be decreased as HZ increases. However, GNU/Linux's
  * clock steering implementation is HZ independent.
  *
  * Through experimentation, a SHIFT_PLL value of 2 was found to allow

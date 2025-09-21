@@ -122,7 +122,7 @@ main (int argc, char *argv[])
 
 	size = (st.st_size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE - 1);
 	memset(bb, 0, sizeof(bb));
-	strcpy((char *) bb, "Linux SRM bootblock");
+	strcpy((char *) bb, "GNU/Linux SRM bootblock");
 	bb[60] = size / BLOCK_SIZE;	/* count */
 	bb[61] = 1;			/* starting sector # */
 	bb[62] = 0;			/* flags---must be 0 */

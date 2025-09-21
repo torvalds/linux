@@ -6,7 +6,7 @@
  * Copyright (c) 2012 Red Hat, Inc
  *
  * This code was forked out of the core code, which was partly based on
- * "USB HID support for Linux":
+ * "USB HID support for GNU/Linux":
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>

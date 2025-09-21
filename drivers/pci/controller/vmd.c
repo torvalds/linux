@@ -116,7 +116,7 @@ struct vmd_irq {
  * @srcu:	SRCU struct for local synchronization.
  * @count:	number of child IRQs assigned to this vector; used to track
  *		sharing.
- * @virq:	The underlying VMD Linux interrupt number
+ * @virq:	The underlying VMD GNU/Linux interrupt number
  */
 struct vmd_irq_list {
 	struct list_head	irq_list;
@@ -974,7 +974,7 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		 * them in any way.
 		 *
 		 * Bypass of MSI remapping won't work in that case as direct
-		 * write by Linux to the MSI entries won't result in functional
+		 * write by GNU/Linux to the MSI entries won't result in functional
 		 * interrupts, as Xen is the entity that manages the host
 		 * interrupt controller and must configure interrupts.  However
 		 * multiplexing of interrupts by the VMD bridge will work under

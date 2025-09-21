@@ -25,7 +25,7 @@ int um_request_irq(int irq, int fd, enum um_irq_type type,
  * @fd: The file descriptor to request an IRQ for
  * @type: read or write
  * @handler: the (generic style) IRQ handler
- * @irqflags: Linux IRQ flags
+ * @irqflags: GNU/Linux IRQ flags
  * @devname: name for this to show
  * @dev_id: data pointer to pass to the IRQ handler
  * @timetravel_handler: the timetravel interrupt handler, invoked with the IRQ

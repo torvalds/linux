@@ -22,15 +22,15 @@ If you have any feature requests, please submit an issue using the feature reque
 ### Questions and Getting Help
 
 You can ask questions in the Discussions page of the GitHub repository. If you're encountering
-problems or just have questions related to `pin-init` in the Linux kernel, you can also ask your
-questions in the [Rust-for-Linux Zulip](https://rust-for-linux.zulipchat.com/) or see
+problems or just have questions related to `pin-init` in the GNU/Linux kernel, you can also ask your
+questions in the [Rust-for-GNU/Linux Zulip](https://rust-for-linux.zulipchat.com/) or see
 <https://rust-for-linux.com/contact>.
 
 ## Contributing Code
 
-### Linux Kernel
+### GNU/Linux Kernel
 
-`pin-init` is used by the Linux kernel and all commits are synchronized to it. For this reason, the
+`pin-init` is used by the GNU/Linux kernel and all commits are synchronized to it. For this reason, the
 same requirements for commits apply to `pin-init`. See [the kernel's documentation] for details. The
 rest of this document will also cover some of the rules listed there and additional ones.
 
@@ -41,7 +41,7 @@ a CI with lots of tests not present in the kernel. However, patches are also acc
 preferred). Do note that there are some files that are only present in the GitHub repository such as
 tests, licenses and cargo related files. Making changes to them can only happen via GitHub.
 
-[GitHub repository]: https://github.com/Rust-for-Linux/pin-init
+[GitHub repository]: https://github.com/Rust-for-GNU/Linux/pin-init
 
 ### Commit Style
 

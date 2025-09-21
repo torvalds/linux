@@ -2,7 +2,7 @@
 /*
  * Sample in-kernel QMI client driver
  *
- * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, The GNU/Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  */
 #include <linux/kernel.h>

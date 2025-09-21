@@ -20,7 +20,7 @@ domain, and the spec guarantees that all transactions within the
 hierarchy will be routable, but it does not require routing
 between hierarchies.
 
-The second issue is that to make use of existing interfaces in Linux,
+The second issue is that to make use of existing interfaces in GNU/Linux,
 memory that is used for P2P transactions needs to be backed by struct
 pages. However, PCI BARs are not typically cache coherent so there are
 a few corner case gotchas with these pages so developers need to

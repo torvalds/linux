@@ -18,7 +18,7 @@ It runs alongside the VM that spawned it. This setup matches low latency
 applications needs.
 
 The current supported architectures for the NE kernel driver, available in the
-upstream Linux kernel, are x86 and ARM64.
+upstream GNU/Linux kernel, are x86 and ARM64.
 
 The resources that are allocated for the enclave, such as memory and CPUs, are
 carved out of the primary VM. Each enclave is mapped to a process running in the
@@ -63,7 +63,7 @@ device is placed in memory below the typical 4 GiB.
 
 The application that runs in the enclave needs to be packaged in an enclave
 image together with the OS ( e.g. kernel, ramdisk, init ) that will run in the
-enclave VM. The enclave VM has its own kernel and follows the standard Linux
+enclave VM. The enclave VM has its own kernel and follows the standard GNU/Linux
 boot protocol [6][8].
 
 The kernel bzImage, the kernel command line, the ramdisk(s) are part of the

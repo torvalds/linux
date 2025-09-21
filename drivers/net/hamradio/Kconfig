@@ -49,7 +49,7 @@ config SCC
 	tristate "Z8530 SCC driver"
 	depends on ISA && AX25
 	help
-	  These cards are used to connect your Linux box to an amateur radio
+	  These cards are used to connect your GNU/Linux box to an amateur radio
 	  in order to communicate with other computers. If you want to use
 	  this, read
 	  <file:Documentation/networking/device_drivers/hamradio/z8530drv.rst>

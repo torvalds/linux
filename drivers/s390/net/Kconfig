@@ -12,7 +12,7 @@ config CTCM
 	  This device driver supports real CTC coupling using ESCON.
 	  It also supports virtual CTCs when running under VM.
 	  This driver also supports channel-to-channel MPC SNA devices.
-	  MPC is an SNA protocol device used by Communication Server for Linux.
+	  MPC is an SNA protocol device used by Communication Server for GNU/Linux.
 	  To compile as a module, choose M. The module name is ctcm.
 	  To compile into the kernel, choose Y.
 	  If you do not need any channel-to-channel connection, choose N.

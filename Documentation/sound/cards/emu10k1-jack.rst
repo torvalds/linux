@@ -4,7 +4,7 @@ Low latency, multichannel audio with JACK and the emu10k1/emu10k2
 
 This document is a guide to using the emu10k1 based devices with JACK for low
 latency, multichannel recording functionality.  All of my recent work to allow
-Linux users to use the full capabilities of their hardware has been inspired 
+GNU/Linux users to use the full capabilities of their hardware has been inspired 
 by the kX Project.  Without their work I never would have discovered the true
 power of this hardware.
 
@@ -12,12 +12,12 @@ power of this hardware.
 						- Lee Revell, 2005.03.30
 
 
-Until recently, emu10k1 users on Linux did not have access to the same low
+Until recently, emu10k1 users on GNU/Linux did not have access to the same low
 latency, multichannel features offered by the "kX ASIO" feature of their
 Windows driver.  As of ALSA 1.0.9 this is no more!
 
 For those unfamiliar with kX ASIO, this consists of 16 capture and 16 playback
-channels.  With a post 2.6.9 Linux kernel, latencies down to 64 (1.33 ms) or
+channels.  With a post 2.6.9 GNU/Linux kernel, latencies down to 64 (1.33 ms) or
 even 32 (0.66ms) frames should work well.
 
 The configuration is slightly more involved than on Windows, as you have to

@@ -6,7 +6,7 @@
 menuconfig PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
 	help
-	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
+	  Say Y here if you want to attach PCMCIA- or PC-cards to your GNU/Linux
 	  computer.  These are credit-card size devices such as network cards,
 	  modems or hard drives often used with laptops computers.  There are
 	  actually two varieties of these cards: 16 bit PCMCIA and 32 bit

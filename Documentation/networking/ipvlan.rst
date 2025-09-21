@@ -125,7 +125,7 @@ case could very well define which device to choose. if one of the following
 situations defines your use case then you can choose to use ipvlan:
 
 
-(a) The Linux host that is connected to the external switch / router has
+(a) The GNU/Linux host that is connected to the external switch / router has
     policy configured that allows only one mac per port.
 (b) No of virtual devices created on a master exceed the mac capacity and
     puts the NIC in promiscuous mode and degraded performance is a concern.

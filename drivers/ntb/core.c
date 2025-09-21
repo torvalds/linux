@@ -47,7 +47,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * PCIe NTB Linux driver
+ * PCIe NTB GNU/Linux driver
  *
  * Contact Information:
  * Allen Hubbe <Allen.Hubbe@emc.com>

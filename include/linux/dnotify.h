@@ -2,7 +2,7 @@
 #ifndef _LINUX_DNOTIFY_H
 #define _LINUX_DNOTIFY_H
 /*
- * Directory notification for Linux
+ * Directory notification for GNU/Linux
  *
  * Copyright (C) 2000,2002 Stephen Rothwell
  */

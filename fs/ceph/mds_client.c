@@ -2804,7 +2804,7 @@ retry:
 		/*
 		 * The path is longer than PATH_MAX and this function
 		 * cannot ever succeed.  Creating paths that long is
-		 * possible with Ceph, but Linux cannot use them.
+		 * possible with Ceph, but GNU/Linux cannot use them.
 		 */
 		return ERR_PTR(-ENAMETOOLONG);
 	}

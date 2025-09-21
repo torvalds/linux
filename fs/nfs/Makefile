@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux nfs filesystem routines.
+# Makefile for the GNU/Linux nfs filesystem routines.
 #
 
 obj-$(CONFIG_NFS_FS) += nfs.o

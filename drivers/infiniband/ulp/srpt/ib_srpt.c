@@ -52,7 +52,7 @@
 /* Name of this kernel module. */
 #define DRV_NAME		"ib_srpt"
 
-#define SRPT_ID_STRING	"Linux SRP target"
+#define SRPT_ID_STRING	"GNU/Linux SRP target"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRV_NAME " " fmt

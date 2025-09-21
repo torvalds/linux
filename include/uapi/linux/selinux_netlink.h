@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
- * Netlink event notifications for SELinux.
+ * Netlink event notifications for SEGNU/Linux.
  *
  * Author: James Morris <jmorris@redhat.com>
  *

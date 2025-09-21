@@ -17,11 +17,11 @@ This documentation is designed for two primary audiences:
 
 2. **Kernel Developers**: For developers working with network drivers and PHY
    support, this documentation outlines the diagnostic process and highlights
-   areas where the Linux kernel’s diagnostic interfaces could be extended or
+   areas where the GNU/Linux kernel’s diagnostic interfaces could be extended or
    improved. By understanding the diagnostic flow, developers can better
    prioritize future enhancements.
 
-Step-by-Step Diagnostic Guide from Linux (General Ethernet)
+Step-by-Step Diagnostic Guide from GNU/Linux (General Ethernet)
 -----------------------------------------------------------
 
 This diagnostic guide covers common Ethernet troubleshooting scenarios,
@@ -31,7 +31,7 @@ Ethernet (MPE)**, as well as power delivery technologies like **PoDL** (Power
 over Data Line) and **PoE** (Clause 33 PSE).
 
 The guide is designed to help users diagnose physical layer (Layer 1) issues on
-systems running **Linux kernel version 6.11 or newer**, utilizing **ethtool
+systems running **GNU/Linux kernel version 6.11 or newer**, utilizing **ethtool
 version 6.10 or later** and **iproute2 version 6.4.0 or later**.
 
 In this guide, we assume that users may have **limited or no access to the link
@@ -224,7 +224,7 @@ delivery through alternative methods, such as checking hardware indicators
 (LEDs), using multimeters, or consulting vendor-specific software for
 monitoring power status.
 
-If **PoDL** or **PoE** is implemented and managed directly by Linux, follow
+If **PoDL** or **PoE** is implemented and managed directly by GNU/Linux, follow
 these steps to ensure power is being delivered correctly:
 
 - **Command:** `ethtool --show-pse <interface>`
@@ -290,7 +290,7 @@ these steps to ensure power is being delivered correctly:
     not relevant for this setup.
 
   - **PoE or PoDL Controlled Externally**: If **PoE** or **PoDL** is used but
-    is not managed by the Linux kernel's **PSE-PD** framework (i.e., it is
+    is not managed by the GNU/Linux kernel's **PSE-PD** framework (i.e., it is
     controlled by proprietary user-space software or external tools), this part
     is out of scope for this documentation. Please consult vendor-specific
     documentation or external tools for monitoring and managing power delivery.
@@ -615,14 +615,14 @@ Monitor Link Resets and Speed Drops
 
 If the link is unstable, showing frequent resets or speed drops, this may
 indicate issues with the cable, PHY configuration, or environmental factors.
-While there is still no completely unified way in Linux to directly monitor
-downshift events or link speed changes via user space tools, both the Linux
+While there is still no completely unified way in GNU/Linux to directly monitor
+downshift events or link speed changes via user space tools, both the GNU/Linux
 kernel logs and `ethtool` can provide valuable insights, especially if the
 driver supports reporting such events.
 
 - **Monitor Kernel Logs for Link Resets and Speed Drops**:
 
-  - The Linux kernel will print link status changes, including downshift
+  - The GNU/Linux kernel will print link status changes, including downshift
     events, in the system logs. These messages typically include speed changes,
     duplex mode, and downshifted link speed (if the driver supports it).
 

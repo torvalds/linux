@@ -38,7 +38,7 @@ EXPORT_STATIC_CALL_TRAMP(xen_hypercall);
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DEFINE_PER_CPU_ALIGNED(struct vcpu_info, xen_vcpu_info);
 
-/* Linux <-> Xen vCPU id mapping */
+/* GNU/Linux <-> Xen vCPU id mapping */
 DEFINE_PER_CPU(uint32_t, xen_vcpu_id);
 EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
 

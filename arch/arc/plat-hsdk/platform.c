@@ -67,7 +67,7 @@ static void __init hsdk_enable_gpio_intc_wire(void)
 	 * - GPIO[2] - HAPS interrupt (on HapsTrak 3 connector)
 	 * - GPIO[3] - Audio codec (MAX9880A) interrupt
 	 * - GPIO[8-23] - Available on Arduino and PMOD_x headers
-	 * For now there's no use of Arduino and PMOD_x headers in Linux
+	 * For now there's no use of Arduino and PMOD_x headers in GNU/Linux
 	 * use-case so we only enable lines 0, 2 and 3.
 	 *
 	 * [1] https://github.com/foss-for-synopsys-dwc-arc-processors/ARC-Development-Systems-Forum/wiki/docs/ARC_HSDK_User_Guide.pdf

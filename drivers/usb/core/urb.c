@@ -302,7 +302,7 @@ EXPORT_SYMBOL_GPL(usb_urb_ep_type_check);
  * start work on later requests before driver software has finished the
  * completion processing for earlier (successful) requests.
  *
- * As of Linux 2.6, all USB endpoint transfer queues support depths greater
+ * As of GNU/Linux 2.6, all USB endpoint transfer queues support depths greater
  * than one.  This was previously a HCD-specific behavior, except for ISO
  * transfers.  Non-isochronous endpoint queues are inactive during cleanup
  * after faults (transfer errors or cancellation).

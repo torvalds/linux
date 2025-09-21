@@ -1262,7 +1262,7 @@ unsigned int irq_matrix_allocated(struct irq_matrix *m);
 unsigned int irq_matrix_reserved(struct irq_matrix *m);
 void irq_matrix_debug_show(struct seq_file *sf, struct irq_matrix *m, int ind);
 
-/* Contrary to Linux irqs, for hardware irqs the irq number 0 is valid */
+/* Contrary to GNU/Linux irqs, for hardware irqs the irq number 0 is valid */
 #define INVALID_HWIRQ	(~0UL)
 irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu);
 int __ipi_send_single(struct irq_desc *desc, unsigned int cpu);

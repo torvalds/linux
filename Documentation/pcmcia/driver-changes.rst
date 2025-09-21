@@ -56,7 +56,7 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
 
 * no cs_error / CS_CHECK / CONFIG_PCMCIA_DEBUG (as of 2.6.33)
    Instead of the cs_error() callback or the CS_CHECK() macro, please use
-   Linux-style checking of return values, and -- if necessary -- debug
+   GNU/Linux-style checking of return values, and -- if necessary -- debug
    messages using "dev_dbg()" or "pr_debug()".
 
 * New CIS tuple access (as of 2.6.33)
@@ -144,7 +144,7 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
    Although the PCMCIA subsystem will allocate resources for cards,
    it no longer marks these resources busy. This means that driver
    authors are now responsible for claiming your resources as per
-   other drivers in Linux. You should use request_region() to mark
+   other drivers in GNU/Linux. You should use request_region() to mark
    your IO regions in-use, and request_mem_region() to mark your
    memory regions in-use. The name argument should be a pointer to
    your driver name. Eg, for pcnet_cs, name should point to the

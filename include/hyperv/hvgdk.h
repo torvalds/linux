@@ -13,17 +13,17 @@
  * The guest ID is a 64 bit entity and the structure of this ID is
  * specified in the Hyper-V TLFS specification.
  *
- * While the current guideline does not specify how Linux guest ID(s)
+ * While the current guideline does not specify how GNU/Linux guest ID(s)
  * need to be generated, our plan is to publish the guidelines for
- * Linux and other guest operating systems that currently are hosted
+ * GNU/Linux and other guest operating systems that currently are hosted
  * on Hyper-V. The implementation here conforms to this yet
  * unpublished guidelines.
  *
  * Bit(s)
  * 63 - Indicates if the OS is Open Source or not; 1 is Open Source
- * 62:56 - Os Type; Linux is 0x100
+ * 62:56 - Os Type; GNU/Linux is 0x100
  * 55:48 - Distro specific identification
- * 47:16 - Linux kernel version number
+ * 47:16 - GNU/Linux kernel version number
  * 15:0  - Distro specific identification
  */
 

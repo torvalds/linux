@@ -3,7 +3,7 @@
 DeviceTree Booting
 ------------------
 
-During the development of the Linux/ppc64 kernel, and more specifically, the
+During the development of the GNU/Linux/ppc64 kernel, and more specifically, the
 addition of new platform types outside of the old IBM pSeries/iSeries pair, it
 was decided to enforce some strict rules regarding the kernel entry and
 bootloader <-> kernel interfaces, in order to avoid the degeneration that had

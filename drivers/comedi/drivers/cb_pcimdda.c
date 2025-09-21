@@ -4,7 +4,7 @@
  * Computer Boards PCIM-DDA06-16 Comedi driver
  * Author: Calin Culianu <calin@ajvar.org>
  *
- * COMEDI - Linux Control and Measurement Device Interface
+ * COMEDI - GNU/Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
  */
 /*

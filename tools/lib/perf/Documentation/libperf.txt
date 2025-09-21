@@ -3,7 +3,7 @@ libperf(3)
 
 NAME
 ----
-libperf - Linux kernel perf event library
+libperf - GNU/Linux kernel perf event library
 
 
 SYNOPSIS

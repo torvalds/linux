@@ -81,7 +81,7 @@ loads_done:
 	 * syscall number is in v0 unless we called syscall(__NR_###)
 	 * where the real syscall number is in a0
 	 */
-	subu	t2, v0,  __NR_O32_Linux
+	subu	t2, v0,  __NR_O32_GNU/Linux
 	bnez	t2, 1f /* __NR_syscall at offset 0 */
 	LONG_S	a0, TI_SYSCALL($28)	# Save a0 as syscall number
 	b	2f
@@ -94,8 +94,8 @@ loads_done:
 	and	t0, t1
 	bnez	t0, syscall_trace_entry # -> yes
 syscall_common:
-	subu	v0, v0, __NR_O32_Linux	# check syscall number
-	sltiu	t0, v0, __NR_O32_Linux_syscalls
+	subu	v0, v0, __NR_O32_GNU/Linux	# check syscall number
+	sltiu	t0, v0, __NR_O32_GNU/Linux_syscalls
 	beqz	t0, illegal_syscall
 
 	sll	t0, v0, 2
@@ -181,8 +181,8 @@ illegal_syscall:
 	END(handle_sys)
 
 	LEAF(sys_syscall)
-	subu	t0, a0, __NR_O32_Linux	# check syscall number
-	sltiu	v0, t0, __NR_O32_Linux_syscalls
+	subu	t0, a0, __NR_O32_GNU/Linux	# check syscall number
+	sltiu	v0, t0, __NR_O32_GNU/Linux_syscalls
 	beqz	t0, einval		# do not recurse
 	sll	t1, t0, 2
 	beqz	v0, einval

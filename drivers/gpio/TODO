@@ -21,7 +21,7 @@ in the middle (such as if you missed a pin on a chip) without the numberspace
 breaking.
 
 Machine descriptions such as device tree or ACPI does not have a concept of the
-Linux GPIO number as those descriptions are external to the Linux kernel
+GNU/Linux GPIO number as those descriptions are external to the GNU/Linux kernel
 and treat GPIO lines as abstract entities.
 
 The runtime-assigned GPIO numberspace (what you get if you assign the GPIO

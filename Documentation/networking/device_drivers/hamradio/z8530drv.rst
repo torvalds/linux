@@ -2,7 +2,7 @@
 .. include:: <isonum.txt>
 
 =========================================================
-SCC.C - Linux driver for Z8530 based HDLC cards for AX.25
+SCC.C - GNU/Linux driver for Z8530 based HDLC cards for AX.25
 =========================================================
 
 
@@ -17,7 +17,7 @@ Internet:
 
 Please note that the information in this document may be hopelessly outdated.
 A new version of the documentation, along with links to other important
-Linux Kernel AX.25 documentation and programs, is available on
+GNU/Linux Kernel AX.25 documentation and programs, is available on
 http://yaina.de/jreuter
 
 Copyright |copy| 1993,2000 by Joerg Reuter DL1BKE <jreuter@yaina.de>
@@ -33,7 +33,7 @@ To use the driver, 3 steps must be performed:
 
      1. if compiled as module: loading the module
      2. Setup of hardware, MODEM and KISS parameters with sccinit
-     3. Attach each channel to the Linux kernel AX.25 with "ifconfig"
+     3. Attach each channel to the GNU/Linux kernel AX.25 with "ifconfig"
 
 Unlike the versions below 2.4 this driver is a real network device
 driver. If you want to run xNOS instead of our fine kernel AX.25
@@ -676,7 +676,7 @@ got it up-and-running?
 
 
 Many thanks to Linus Torvalds and Alan Cox for including the driver
-in the Linux standard distribution and their support.
+in the GNU/Linux standard distribution and their support.
 
 ::
 

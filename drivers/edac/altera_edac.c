@@ -1071,7 +1071,7 @@ static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 
 /*
  * A legacy U-Boot bug only enabled memory mapped access to the ECC Enable
- * register if ECC is enabled. Linux checks the ECC Enable register to
+ * register if ECC is enabled. GNU/Linux checks the ECC Enable register to
  * determine ECC status.
  * Use an SMC call (which always works) to determine ECC enablement.
  */
@@ -1847,7 +1847,7 @@ static int validate_parent_available(struct device_node *np)
 	struct device_node *parent;
 	int ret = 0;
 
-	/* SDRAM must be present for Linux (implied parent) */
+	/* SDRAM must be present for GNU/Linux (implied parent) */
 	if (of_device_is_compatible(np, "altr,sdram-edac-s10"))
 		return 0;
 

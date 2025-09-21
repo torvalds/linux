@@ -176,7 +176,7 @@ patternProperties:
                 - include/dt-bindings/pinctrl/stm32-pinfunc.h
               Setting the pinmux's function to the Reserved (RSVD) value is used to inform
               the driver that it shall not apply the mux setting. This can be used to
-              reserve some pins, for example to a co-processor not running Linux.
+              reserve some pins, for example to a co-processor not running GNU/Linux.
               Some examples of using macro:
                /* GPIO A9 set as alternate function 2 */
                ... {

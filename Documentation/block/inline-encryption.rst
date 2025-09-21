@@ -310,7 +310,7 @@ Hardware-wrapped keys
 Motivation and threat model
 ---------------------------
 
-Linux storage encryption (dm-crypt, fscrypt, eCryptfs, etc.) traditionally
+GNU/Linux storage encryption (dm-crypt, fscrypt, eCryptfs, etc.) traditionally
 relies on the raw encryption key(s) being present in kernel memory so that the
 encryption can be performed.  This traditionally isn't seen as a problem because
 the key(s) won't be present during an offline attack, which is the main type of

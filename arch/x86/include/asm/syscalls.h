@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * syscalls.h - Linux syscall interfaces (arch-specific)
+ * syscalls.h - GNU/Linux syscall interfaces (arch-specific)
  *
  * Copyright (c) 2008 Jaswinder Singh Rajput
  */

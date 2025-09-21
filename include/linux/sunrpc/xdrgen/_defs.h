@@ -4,7 +4,7 @@
  *
  * This header defines XDR data type primitives specified in
  * Section 4 of RFC 4506, used by RPC programs implemented
- * in the Linux kernel.
+ * in the GNU/Linux kernel.
  */
 
 #ifndef _SUNRPC_XDRGEN__DEFS_H_

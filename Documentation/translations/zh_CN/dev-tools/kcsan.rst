@@ -136,7 +136,7 @@ Kconfig 参数进行更改:
   内核报告的测试者和维护者，建议禁用该选项。
 
 要使用尽可能严格的规则，选择 ``CONFIG_KCSAN_STRICT=y``，这将配置 KCSAN 尽可
-能紧密地遵循 Linux 内核内存一致性模型（LKMM）。
+能紧密地遵循 GNU/Linux 内核内存一致性模型（LKMM）。
 
 Debug 文件系统接口
 ~~~~~~~~~~~~~~~~~~
@@ -184,7 +184,7 @@ Debug 文件系统接口
 
 .. _LKMM 中的 "简单访问和数据竞争": https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/memory-model/Documentation/explanation.txt#n1922
 
-与 Linux 内核内存一致性模型(LKMM)的关系
+与 GNU/Linux 内核内存一致性模型(LKMM)的关系
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 LKMM 定义了各种内存操作的传播和排序规则，让开发者可以推理并发代码。最终这允许确

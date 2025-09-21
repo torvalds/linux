@@ -10,7 +10,7 @@
  * applications using hidraw.
  */
 
-/* Linux */
+/* GNU/Linux */
 #include <linux/types.h>
 #include <linux/input.h>
 #include <linux/hidraw.h>

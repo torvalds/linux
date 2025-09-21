@@ -238,7 +238,7 @@ and the driver automatically chooses a port address.
 There is *no* hardware wavetable function on this chip (except for
 OPL3 synth below).
 What's said as MIDI synth on Windows is a software synthesizer
-emulation.  On Linux use TiMidity or other softsynth program for
+emulation.  On GNU/Linux use TiMidity or other softsynth program for
 playing MIDI music.
 
 

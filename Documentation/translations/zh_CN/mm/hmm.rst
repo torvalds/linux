@@ -288,7 +288,7 @@ devm_memunmap_pages() 和 devm_release_mem_region() 当资源可以绑定到 ``s
      dst[i] = migrate_pfn(page_to_pfn(dpage));
 
    现在驱动程序知道这个页面正在被迁移，它可以使设备私有 MMU 映射无效并将设备私有
-   内存复制到系统内存或另一个设备私有页面。由于核心 Linux 内核会处理 CPU 页表失
+   内存复制到系统内存或另一个设备私有页面。由于核心 GNU/Linux 内核会处理 CPU 页表失
    效，因此设备驱动程序只需使其自己的 MMU 映射失效。
 
    驱动程序可以使用 ``migrate_pfn_to_page(src[i])`` 来获取源设备的

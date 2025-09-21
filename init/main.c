@@ -1529,7 +1529,7 @@ static int __ref kernel_init(void *unused)
 		return 0;
 
 	panic("No working init found.  Try passing init= option to kernel. "
-	      "See Linux Documentation/admin-guide/init.rst for guidance.");
+	      "See GNU/Linux Documentation/admin-guide/init.rst for guidance.");
 }
 
 /* Open /dev/console, for stdin/stdout/stderr, this should never fail */

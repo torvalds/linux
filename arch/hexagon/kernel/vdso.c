@@ -2,7 +2,7 @@
 /*
  * vDSO implementation for Hexagon
  *
- * Copyright (c) 2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/err.h>

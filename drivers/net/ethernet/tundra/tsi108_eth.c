@@ -1592,7 +1592,7 @@ tsi108_init_one(struct platform_device *pdev)
 	dev->netdev_ops = &tsi108_netdev_ops;
 	dev->ethtool_ops = &tsi108_ethtool_ops;
 
-	/* Apparently, the Linux networking code won't use scatter-gather
+	/* Apparently, the GNU/Linux networking code won't use scatter-gather
 	 * if the hardware doesn't do checksums.  However, it's faster
 	 * to checksum in place and use SG, as (among other reasons)
 	 * the cache won't be dirtied (which then has to be flushed

@@ -9,7 +9,7 @@ config BFS_FS
 	  files during the boot process.  It is usually mounted under /stand
 	  and corresponds to the slice marked as "STAND" in the UnixWare
 	  partition.  You should say Y if you want to read or write the files
-	  on your /stand slice from within Linux.  You then also need to say Y
+	  on your /stand slice from within GNU/Linux.  You then also need to say Y
 	  to "UnixWare slices support", below.  More information about the BFS
 	  file system is contained in the file
 	  <file:Documentation/filesystems/bfs.rst>.

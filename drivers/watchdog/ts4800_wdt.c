@@ -2,7 +2,7 @@
 /*
  * Watchdog driver for TS-4800 based boards
  *
- * Copyright (c) 2015 - Savoir-faire Linux
+ * Copyright (c) 2015 - Savoir-faire GNU/Linux
  *
  */
 

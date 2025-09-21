@@ -6,7 +6,7 @@ menuconfig NVMEM
 	  Support for NVMEM(Non Volatile Memory) devices like EEPROM, EFUSES...
 
 	  This framework is designed to provide a generic interface to NVMEM
-	  from both the Linux Kernel and the userspace.
+	  from both the GNU/Linux Kernel and the userspace.
 
 	  If unsure, say no.
 

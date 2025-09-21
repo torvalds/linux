@@ -377,7 +377,7 @@ config MACH_DECSTATION
 	select MIPS_L1_CACHE_SHIFT_4
 	help
 	  This enables support for DEC's MIPS based workstations.  For details
-	  see the Linux/MIPS FAQ on <http://www.linux-mips.org/> and the
+	  see the GNU/Linux/MIPS FAQ on <http://www.linux-mips.org/> and the
 	  DECstation porting pages on <http://decstation.unix-ag.org/>.
 
 	  If you have one of the following DECstation Models you definitely
@@ -735,7 +735,7 @@ config SGI_IP22
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
-	  OEM variants like the Tandem CMN B006S. To compile a Linux kernel
+	  OEM variants like the Tandem CMN B006S. To compile a GNU/Linux kernel
 	  that runs on these, say Y here.
 
 config SGI_IP27
@@ -765,7 +765,7 @@ config SGI_IP27
 	select NUMA
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
-	  workstations.  To compile a Linux kernel that runs on these, say Y
+	  workstations.  To compile a GNU/Linux kernel that runs on these, say Y
 	  here.
 
 config SGI_IP28
@@ -799,7 +799,7 @@ config SGI_IP28
 	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	help
-	  This is the SGI Indigo2 with R10000 processor.  To compile a Linux
+	  This is the SGI Indigo2 with R10000 processor.  To compile a GNU/Linux
 	  kernel that runs on these, say Y here.
 
 config SGI_IP30
@@ -828,7 +828,7 @@ config SGI_IP30
 	select ARC_MEMORY
 	help
 	  These are the SGI Octane and Octane2 graphics workstations.  To
-	  compile a Linux kernel that runs on these, say Y here.
+	  compile a GNU/Linux kernel that runs on these, say Y here.
 
 config SGI_IP32
 	bool "SGI IP32 (O2)"
@@ -1209,7 +1209,7 @@ choice
 	help
 	  Some MIPS machines can be configured for either little or big endian
 	  byte order. These modes require different kernels and a different
-	  Linux distribution.  In general there is one preferred byteorder for a
+	  GNU/Linux distribution.  In general there is one preferred byteorder for a
 	  particular system but some systems are just as commonly used in the
 	  one or the other endianness.
 
@@ -1567,7 +1567,7 @@ config CPU_R3000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
-	  Please make sure to pick the right CPU type. Linux/MIPS is not
+	  Please make sure to pick the right CPU type. GNU/Linux/MIPS is not
 	  designed to be generic, i.e. Kernels compiled for R3000 CPUs will
 	  *not* work on R4000 machines and vice versa.  However, since most
 	  of the supported machines have an R4000 (or similar) CPU, R4x00
@@ -2170,7 +2170,7 @@ config SIBYTE_DMA_PAGEOPS
 	help
 	  Instead of using the CPU to zero and copy pages, use a Data Mover
 	  channel.  These DMA channels are otherwise unused by the standard
-	  SiByte Linux port.  Seems to give a small performance benefit.
+	  SiByte GNU/Linux port.  Seems to give a small performance benefit.
 
 config CPU_HAS_PREFETCH
 	bool
@@ -2295,7 +2295,7 @@ config MIPS_VPE_LOADER_TOM
 	default y
 	help
 	  The loader can use memory that is present but has been hidden from
-	  Linux using the kernel command line option "mem=xxMB". It's up to
+	  GNU/Linux using the kernel command line option "mem=xxMB". It's up to
 	  you to ensure the amount you put in the option and the space your
 	  program requires is less or equal to the amount physically present.
 
@@ -2365,7 +2365,7 @@ config CPU_HAS_SMARTMIPS
 	  SmartMIPS is a extension of the MIPS32 architecture aimed at
 	  increased security at both hardware and software level for
 	  smartcards.  Enabling this option will allow proper use of the
-	  SmartMIPS instructions by Linux applications.  However a kernel with
+	  SmartMIPS instructions by GNU/Linux applications.  However a kernel with
 	  this option will not work on a MIPS core without SmartMIPS core.  If
 	  you don't know you probably don't have SmartMIPS and should say N
 	  here.
@@ -3067,7 +3067,7 @@ config TC
 	  <ftp://ftp.hp.com/pub/alphaserver/archive/triadd/>
 	  and:
 	  <http://www.computer-refuge.org/classiccmp/ftp.digital.com/pub/DEC/TriAdd/>
-	  Linux driver support status is documented at:
+	  GNU/Linux driver support status is documented at:
 	  <http://www.linux-mips.org/wiki/DECstation>
 
 config MMU
@@ -3112,7 +3112,7 @@ config MIPS32_O32
 	select MIPS32_COMPAT
 	help
 	  Select this option if you want to run o32 binaries.  These are pure
-	  32-bit binaries as used by the 32-bit Linux/MIPS port.  Most of
+	  32-bit binaries as used by the 32-bit GNU/Linux/MIPS port.  Most of
 	  existing binaries are in this format.
 
 	  If unsure, say Y.

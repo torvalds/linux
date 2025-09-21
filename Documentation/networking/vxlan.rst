@@ -10,7 +10,7 @@ size of the identifier is expanded to 24 bits (16777216).
 
 VXLAN is described by IETF RFC 7348, and has been implemented by a
 number of vendors.  The protocol runs over UDP using a single
-destination port.  This document describes the Linux kernel tunnel
+destination port.  This document describes the GNU/Linux kernel tunnel
 device, there is also a separate implementation of VXLAN for
 Openvswitch.
 
@@ -31,9 +31,9 @@ upstream.
 This creates a new device named vxlan0.  The device uses the multicast
 group 239.1.1.1 over eth1 to handle traffic for which there is no
 entry in the forwarding table.  The destination port number is set to
-the IANA-assigned value of 4789.  The Linux implementation of VXLAN
+the IANA-assigned value of 4789.  The GNU/Linux implementation of VXLAN
 pre-dates the IANA's selection of a standard destination port number
-and uses the Linux-selected value by default to maintain backwards
+and uses the GNU/Linux-selected value by default to maintain backwards
 compatibility.
 
 2. Delete vxlan device::

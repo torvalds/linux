@@ -28,7 +28,7 @@ Readme File for skfp.o v2.06
 1. Overview
 ===========
 
-This README explains how to use the driver 'skfp' for Linux with your
+This README explains how to use the driver 'skfp' for GNU/Linux with your
 network adapter.
 
 Chapter 2: Contains a list of all network adapters that are supported by
@@ -108,7 +108,7 @@ Reason:
 	      www.syskonnect.de
 
 	  Some COMPAQ machines have a problem with PCI under
-	  Linux. This is described in the 'PCI howto' document
+	  GNU/Linux. This is described in the 'PCI howto' document
 	  (included in some distributions or available from the
 	  www, e.g. at 'www.linux.org') and no workaround is available.
 
@@ -190,7 +190,7 @@ v2.02 (991215) (Standalone version)
 v2.01 (991122) (In-Kernel version)
     New features:
 
-	- Integration in Linux kernel sources
+	- Integration in GNU/Linux kernel sources
 	- Support for memory mapped I/O.
 
 v2.00 (991112)

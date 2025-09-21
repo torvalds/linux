@@ -3,7 +3,7 @@
  * Copyright (C) 2013-2014 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
- * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014,2017 The GNU/Linux Foundation. All rights reserved.
  */
 
 #include "adreno_gpu.h"

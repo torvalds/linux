@@ -1,4 +1,4 @@
-Linux Magic System Request Key Hacks
+GNU/Linux Magic System Request Key Hacks
 ====================================
 
 Documentation for sysrq.c

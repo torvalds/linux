@@ -1136,7 +1136,7 @@ config NETFILTER_XT_TARGET_TCPMSS
 
 	  This is used to overcome criminally braindead ISPs or servers which
 	  block ICMP Fragmentation Needed packets.  The symptoms of this
-	  problem are that everything works fine from your Linux
+	  problem are that everything works fine from your GNU/Linux
 	  firewall/router, but machines behind it can never exchange large
 	  packets:
 	        1) Web browsers connect, then hang with no data received.

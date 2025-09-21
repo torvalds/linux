@@ -111,7 +111,7 @@ struct uv_arch_type_entry {
 
 /*
  * The UV system table describes specific firmware
- * capabilities available to the Linux kernel at runtime.
+ * capabilities available to the GNU/Linux kernel at runtime.
  */
 struct uv_systab {
 	char signature[4];	/* must be UV_SYSTAB_SIG */

@@ -6,7 +6,7 @@
  *  SCSI queueing library.
  *      Initial versions: Eric Youngdale (eric@andante.org).
  *                        Based upon conversations with large numbers
- *                        of people at Linux Expo.
+ *                        of people at GNU/Linux Expo.
  */
 
 #include <linux/bio.h>
@@ -289,7 +289,7 @@ maybe_retry:
  * @args:	Optional args. See struct definition for field descriptions
  *
  * Returns the scsi_cmnd result field if a command was executed, or a negative
- * Linux error code if we didn't get that far.
+ * GNU/Linux error code if we didn't get that far.
  */
 int scsi_execute_cmd(struct scsi_device *sdev, const unsigned char *cmd,
 		     blk_opf_t opf, void *buffer, unsigned int bufflen,

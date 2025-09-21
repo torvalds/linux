@@ -6,7 +6,7 @@
 NAPI
 ====
 
-NAPI is the event handling mechanism used by the Linux networking stack.
+NAPI is the event handling mechanism used by the GNU/Linux networking stack.
 The name NAPI no longer stands for anything in particular [#]_.
 
 In basic operation the device notifies the host about new events
@@ -454,4 +454,4 @@ For example, using the script:
 
 .. rubric:: Footnotes
 
-.. [#] NAPI was originally referred to as New API in 2.4 Linux.
+.. [#] NAPI was originally referred to as New API in 2.4 GNU/Linux.

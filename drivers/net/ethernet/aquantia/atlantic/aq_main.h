@@ -4,7 +4,7 @@
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
  */
 
-/* File aq_main.h: Main file for aQuantia Linux driver. */
+/* File aq_main.h: Main file for aQuantia GNU/Linux driver. */
 
 #ifndef AQ_MAIN_H
 #define AQ_MAIN_H

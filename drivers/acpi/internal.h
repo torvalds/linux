@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * acpi/internal.h
- * For use by Linux/ACPI infrastructure, not drivers
+ * For use by GNU/Linux/ACPI infrastructure, not drivers
  *
  * Copyright (c) 2009, Intel Corporation.
  */

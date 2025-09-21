@@ -53,7 +53,7 @@ trap 'rm -rf $T' 0 2
 mkdir $T
 
 # Generate filenames
-mapfile="Linux2${LKMM_HW_MAP_FILE}.map"
+mapfile="GNU/Linux2${LKMM_HW_MAP_FILE}.map"
 themefile="$T/${LKMM_HW_MAP_FILE}.theme"
 herdoptions="-model $LKMM_HW_CAT_FILE"
 hwlitmus=`echo $litmus | sed -e 's/\.litmus$/.litmus.'${LKMM_HW_MAP_FILE}'/'`
@@ -67,7 +67,7 @@ then
 fi
 
 # Generate the assembly code and run herd7 on it.
-gen_theme7 -n 10 -map $mapfile -call Linux.call > $themefile
+gen_theme7 -n 10 -map $mapfile -call GNU/Linux.call > $themefile
 jingle7 -v -theme $themefile $litmus > $LKMM_DESTDIR/$hwlitmus 2> $T/$hwlitmusfile.jingle7.out
 if grep -q "Generated 0 tests" $T/$hwlitmusfile.jingle7.out
 then

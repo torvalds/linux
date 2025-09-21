@@ -3,7 +3,7 @@
 #define _LINUX_WAIT_BIT_H
 
 /*
- * Linux wait-bit related types and methods:
+ * GNU/Linux wait-bit related types and methods:
  */
 #include <linux/wait.h>
 

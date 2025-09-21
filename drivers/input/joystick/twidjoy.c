@@ -9,7 +9,7 @@
 
 /*
  * Driver to use Handykey's Twiddler (the first edition, i.e. the one with
- * the RS232 interface) as a joystick under Linux
+ * the RS232 interface) as a joystick under GNU/Linux
  *
  * The Twiddler is a one-handed chording keyboard featuring twelve buttons on
  * the front, six buttons on the top, and a built-in tilt sensor. The buttons

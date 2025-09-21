@@ -3,8 +3,8 @@
  *
  *
  *  OSS/Free compatible Atari TT/Falcon and Amiga DMA sound driver for
- *  Linux/m68k
- *  Extended to support Power Macintosh for Linux/ppc by Paul Mackerras
+ *  GNU/Linux/m68k
+ *  Extended to support Power Macintosh for GNU/Linux/ppc by Paul Mackerras
  *
  *  (c) 1995 by Michael Schlueter & Michael Marte
  *

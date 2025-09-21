@@ -7,10 +7,10 @@ Introduction
 
 Modern SoCs typically have heterogeneous remote processor devices in asymmetric
 multiprocessing (AMP) configurations, which may be running different instances
-of operating system, whether it's Linux or any other flavor of real-time OS.
+of operating system, whether it's GNU/Linux or any other flavor of real-time OS.
 
 OMAP4, for example, has dual Cortex-A9, dual Cortex-M3 and a C64x+ DSP.
-In a typical configuration, the dual cortex-A9 is running Linux in a SMP
+In a typical configuration, the dual cortex-A9 is running GNU/Linux in a SMP
 configuration, and each of the other three cores (two M3 cores and a DSP)
 is running its own instance of RTOS in an AMP configuration.
 

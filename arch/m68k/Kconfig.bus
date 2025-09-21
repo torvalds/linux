@@ -26,7 +26,7 @@ config ZORRO
 	  AutoConfig(tm) specification, say Y, otherwise N. Note that even
 	  expansion cards that do not fit in the Zorro slots but fit in e.g.
 	  the CPU slot may fall in this category, so you have to say Y to let
-	  Linux use these.
+	  GNU/Linux use these.
 
 config AMIGA_PCMCIA
 	bool "Amiga 1200/600 PCMCIA support"

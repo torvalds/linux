@@ -202,7 +202,7 @@ c) Higher live patching compatibility rate
    stack traces need to be reliable (or an unreliable condition needs to
    be detectable).  Objtool makes that possible.
 
-   For more details, see the livepatch documentation in the Linux kernel
+   For more details, see the livepatch documentation in the GNU/Linux kernel
    source tree at Documentation/livepatch/livepatch.rst.
 
 To achieve the validation, objtool enforces the following rules:

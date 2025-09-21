@@ -22,7 +22,7 @@ config BLK_DEV_FD
 	tristate "Normal floppy disk support"
 	depends on ARCH_MAY_HAVE_PC_FDC
 	help
-	  If you want to use the floppy disk drive(s) of your PC under Linux,
+	  If you want to use the floppy disk drive(s) of your PC under GNU/Linux,
 	  say Y. Information about this driver, especially important for IBM
 	  Thinkpad users, is contained in
 	  <file:Documentation/admin-guide/blockdev/floppy.rst>.
@@ -111,7 +111,7 @@ config BLK_DEV_UBD
 	bool "Virtual block device"
 	depends on UML
 	help
-          The User-Mode Linux port includes a driver called UBD which will let
+          The User-Mode GNU/Linux port includes a driver called UBD which will let
           you access arbitrary files on the host computer as block devices.
           Unless you know that you do not need such virtual block devices say
           Y here.
@@ -122,7 +122,7 @@ config BLK_DEV_UBD_SYNC
 	help
 	  Writes to the virtual block device are not immediately written to the
 	  host's disk; this may cause problems if, for example, the User-Mode
-	  Linux 'Virtual Machine' uses a journalling filesystem and the host
+	  GNU/Linux 'Virtual Machine' uses a journalling filesystem and the host
 	  computer crashes.
 
           Synchronous operation (i.e. always writing data to the host's disk
@@ -134,7 +134,7 @@ config BLK_DEV_UBD_SYNC
           example) in your virtual machine, you will want to say Y here.  If
           you care for the safety of the data in your virtual machine, Y is a
           wise choice too.  In all other cases (for example, if you're just
-          playing around with User-Mode Linux) you can choose N.
+          playing around with User-Mode GNU/Linux) you can choose N.
 
 config BLK_DEV_COW_COMMON
 	bool
@@ -152,8 +152,8 @@ config BLK_DEV_LOOP
 
 	  This is useful if you want to check an ISO 9660 file system before
 	  burning the CD, or if you want to use floppy images without first
-	  writing them to floppy. Furthermore, some Linux distributions avoid
-	  the need for a dedicated Linux partition by keeping their complete
+	  writing them to floppy. Furthermore, some GNU/Linux distributions avoid
+	  the need for a dedicated GNU/Linux partition by keeping their complete
 	  root file system inside a DOS FAT file using this loop device
 	  driver.
 
@@ -227,7 +227,7 @@ config BLK_DEV_RAM
 	  write to it and do all the other things that you can do with normal
 	  block devices (such as hard drives). It is usually used to load and
 	  store a copy of a minimal root file system off of a floppy into RAM
-	  during the initial install of Linux.
+	  during the initial install of GNU/Linux.
 
 	  Note that the kernel command line option "ramdisk=XX" is now obsolete.
 	  For details, read <file:Documentation/admin-guide/blockdev/ramdisk.rst>.
@@ -290,7 +290,7 @@ config XEN_BLKDEV_BACKEND
 	  block devices to other guests via a high-performance shared-memory
 	  interface.
 
-	  The corresponding Linux frontend driver is enabled by the
+	  The corresponding GNU/Linux frontend driver is enabled by the
 	  CONFIG_XEN_BLKDEV_FRONTEND configuration option.
 
 	  The backend driver attaches itself to a any block device specified

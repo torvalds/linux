@@ -1,6 +1,6 @@
 What:		/sys/devices/virtual/memory_tiering/
 Date:		August 2022
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	A collection of all the memory tiers allocated.
 
 		Individual memory tier details are contained in subdirectories
@@ -12,7 +12,7 @@ Description:	A collection of all the memory tiers allocated.
 What:		/sys/devices/virtual/memory_tiering/memory_tierN/
 		/sys/devices/virtual/memory_tiering/memory_tierN/nodelist
 Date:		August 2022
-Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Contact:	GNU/Linux memory management mailing list <linux-mm@kvack.org>
 Description:	Directory with details of a specific memory tier
 
 		This is the directory containing information about a particular

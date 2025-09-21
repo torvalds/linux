@@ -4,10 +4,10 @@
 .. _v4l2spec:
 
 ############################
-Part I - Video for Linux API
+Part I - Video for GNU/Linux API
 ############################
 
-This part describes the Video for Linux API version 2 (V4L2 API) specification.
+This part describes the Video for GNU/Linux API version 2 (V4L2 API) specification.
 
 **Revision 4.5**
 
@@ -235,7 +235,7 @@ Added documentation for the Digital Video timings API.
 :revision: 2.6.32 / 2009-08-31 (*mcc*)
 
 Now, revisions will match the kernel version where the V4L2 API changes
-will be used by the Linux Kernel. Also added Remote Controller chapter.
+will be used by the GNU/Linux Kernel. Also added Remote Controller chapter.
 
 
 :revision: 0.29 / 2009-08-26 (*ev*)

@@ -50,10 +50,10 @@ colors 640x480  800x600  1024x768 1280x1024
 ====== =======  =======  ======== =========
 
 
-The video mode number of the Linux kernel is the VESA mode number plus
+The video mode number of the GNU/Linux kernel is the VESA mode number plus
 0x200:
 
- Linux_kernel_mode_number = VESA_mode_number + 0x200
+ GNU/Linux_kernel_mode_number = VESA_mode_number + 0x200
 
 So the table for the Kernel mode numbers are:
 

@@ -27,16 +27,16 @@ A monitor is the central part of the runtime verification of a system. The
 monitor stands in between the formal specification of the desired (or
 undesired) behavior, and the trace of the actual system.
 
-In Linux terms, the runtime verification monitors are encapsulated inside the
+In GNU/Linux terms, the runtime verification monitors are encapsulated inside the
 *RV monitor* abstraction. A *RV monitor* includes a reference model of the
 system, a set of instances of the monitor (per-cpu monitor, per-task monitor,
 and so on), and the helper functions that glue the monitor to the system via
 trace, as depicted below::
 
- Linux   +---- RV Monitor ----------------------------------+ Formal
+ GNU/Linux   +---- RV Monitor ----------------------------------+ Formal
   Realm  |                                                  |  Realm
   +-------------------+     +----------------+     +-----------------+
-  |   Linux kernel    |     |     Monitor    |     |     Reference   |
+  |   GNU/Linux kernel    |     |     Monitor    |     |     Reference   |
   |     Tracing       |  -> |   Instance(s)  | <-  |       Model     |
   | (instrumentation) |     | (verification) |     | (specification) |
   +-------------------+     +----------------+     +-----------------+
@@ -56,13 +56,13 @@ react to an unexpected event. The forms of reaction can vary from logging the
 event occurrence to the enforcement of the correct behavior to the extreme
 action of taking a system down to avoid the propagation of a failure.
 
-In Linux terms, a *reactor* is an reaction method available for *RV monitors*.
+In GNU/Linux terms, a *reactor* is an reaction method available for *RV monitors*.
 By default, all monitors should provide a trace output of their actions,
 which is already a reaction. In addition, other reactions will be available
 so the user can enable them as needed.
 
 For further information about the principles of runtime verification and
-RV applied to Linux:
+RV applied to GNU/Linux:
 
   Bartocci, Ezio, et al. *Introduction to runtime verification.* In: Lectures on
   Runtime Verification. Springer, Cham, 2018. p. 1-33.
@@ -72,7 +72,7 @@ RV applied to Linux:
   241-262.
 
   De Oliveira, Daniel Bristot. *Automata-based formal analysis and
-  verification of the real-time Linux kernel.* Ph.D. Thesis, 2020.
+  verification of the real-time GNU/Linux kernel.* Ph.D. Thesis, 2020.
 
 Online RV monitors
 ==================
@@ -99,7 +99,7 @@ on higher overhead than the simple handling of an event by a monitor, then a
 Indeed, the research presented in:
 
   De Oliveira, Daniel Bristot; Cucinotta, Tommaso; De Oliveira, Romulo Silva.
-  *Efficient formal verification for the Linux kernel.* In: International
+  *Efficient formal verification for the GNU/Linux kernel.* In: International
   Conference on Software Engineering and Formal Methods. Springer, Cham, 2019.
   p. 315-332.
 
@@ -108,11 +108,11 @@ events in-kernel causes lower overhead than saving the same events to the trace
 buffer, not even considering collecting the trace for user-space analysis.
 This motivated the development of an in-kernel interface for online monitors.
 
-For further information about modeling of Linux kernel behavior using automata,
+For further information about modeling of GNU/Linux kernel behavior using automata,
 see:
 
   De Oliveira, Daniel B.; De Oliveira, Romulo S.; Cucinotta, Tommaso. *A thread
-  synchronization model for the PREEMPT_RT Linux kernel.* Journal of Systems
+  synchronization model for the PREEMPT_RT GNU/Linux kernel.* Journal of Systems
   Architecture, 2020, 107: 101729.
 
 The user interface

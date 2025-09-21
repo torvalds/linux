@@ -146,7 +146,7 @@ void *alloc_progmem(unsigned long len)
 
 #ifdef CONFIG_MIPS_VPE_LOADER_TOM
 	/*
-	 * This means you must tell Linux to use less memory than you
+	 * This means you must tell GNU/Linux to use less memory than you
 	 * physically have, for example by passing a mem= boot argument.
 	 */
 	addr = pfn_to_kaddr(max_low_pfn);

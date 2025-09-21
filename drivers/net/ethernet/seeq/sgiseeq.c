@@ -841,6 +841,6 @@ static struct platform_driver sgiseeq_driver = {
 module_platform_driver(sgiseeq_driver);
 
 MODULE_DESCRIPTION("SGI Seeq 8003 driver");
-MODULE_AUTHOR("Linux/MIPS Mailing List <linux-mips@linux-mips.org>");
+MODULE_AUTHOR("GNU/Linux/MIPS Mailing List <linux-mips@linux-mips.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:sgiseeq");

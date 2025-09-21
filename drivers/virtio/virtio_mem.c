@@ -43,56 +43,56 @@ MODULE_PARM_DESC(bbm_block_size,
 /*
  * virtio-mem currently supports the following modes of operation:
  *
- * * Sub Block Mode (SBM): A Linux memory block spans 2..X subblocks (SB). The
+ * * Sub Block Mode (SBM): A GNU/Linux memory block spans 2..X subblocks (SB). The
  *   size of a Sub Block (SB) is determined based on the device block size, the
  *   pageblock size, and the maximum allocation granularity of the buddy.
- *   Subblocks within a Linux memory block might either be plugged or unplugged.
- *   Memory is added/removed to Linux MM in Linux memory block granularity.
+ *   Subblocks within a GNU/Linux memory block might either be plugged or unplugged.
+ *   Memory is added/removed to GNU/Linux MM in GNU/Linux memory block granularity.
  *
- * * Big Block Mode (BBM): A Big Block (BB) spans 1..X Linux memory blocks.
- *   Memory is added/removed to Linux MM in Big Block granularity.
+ * * Big Block Mode (BBM): A Big Block (BB) spans 1..X GNU/Linux memory blocks.
+ *   Memory is added/removed to GNU/Linux MM in Big Block granularity.
  *
- * The mode is determined automatically based on the Linux memory block size
+ * The mode is determined automatically based on the GNU/Linux memory block size
  * and the device block size.
  *
  * User space / core MM (auto onlining) is responsible for onlining added
- * Linux memory blocks - and for selecting a zone. Linux Memory Blocks are
- * always onlined separately, and all memory within a Linux memory block is
+ * GNU/Linux memory blocks - and for selecting a zone. GNU/Linux Memory Blocks are
+ * always onlined separately, and all memory within a GNU/Linux memory block is
  * onlined to the same zone - virtio-mem relies on this behavior.
  */
 
 /*
- * State of a Linux memory block in SBM.
+ * State of a GNU/Linux memory block in SBM.
  */
 enum virtio_mem_sbm_mb_state {
-	/* Unplugged, not added to Linux. Can be reused later. */
+	/* Unplugged, not added to GNU/Linux. Can be reused later. */
 	VIRTIO_MEM_SBM_MB_UNUSED = 0,
-	/* (Partially) plugged, not added to Linux. Error on add_memory(). */
+	/* (Partially) plugged, not added to GNU/Linux. Error on add_memory(). */
 	VIRTIO_MEM_SBM_MB_PLUGGED,
-	/* Fully plugged, fully added to Linux, offline. */
+	/* Fully plugged, fully added to GNU/Linux, offline. */
 	VIRTIO_MEM_SBM_MB_OFFLINE,
-	/* Partially plugged, fully added to Linux, offline. */
+	/* Partially plugged, fully added to GNU/Linux, offline. */
 	VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL,
-	/* Fully plugged, fully added to Linux, onlined to a kernel zone. */
+	/* Fully plugged, fully added to GNU/Linux, onlined to a kernel zone. */
 	VIRTIO_MEM_SBM_MB_KERNEL,
-	/* Partially plugged, fully added to Linux, online to a kernel zone */
+	/* Partially plugged, fully added to GNU/Linux, online to a kernel zone */
 	VIRTIO_MEM_SBM_MB_KERNEL_PARTIAL,
-	/* Fully plugged, fully added to Linux, onlined to ZONE_MOVABLE. */
+	/* Fully plugged, fully added to GNU/Linux, onlined to ZONE_MOVABLE. */
 	VIRTIO_MEM_SBM_MB_MOVABLE,
-	/* Partially plugged, fully added to Linux, onlined to ZONE_MOVABLE. */
+	/* Partially plugged, fully added to GNU/Linux, onlined to ZONE_MOVABLE. */
 	VIRTIO_MEM_SBM_MB_MOVABLE_PARTIAL,
 	VIRTIO_MEM_SBM_MB_COUNT
 };
 
 /*
- * State of a Big Block (BB) in BBM, covering 1..X Linux memory blocks.
+ * State of a Big Block (BB) in BBM, covering 1..X GNU/Linux memory blocks.
  */
 enum virtio_mem_bbm_bb_state {
-	/* Unplugged, not added to Linux. Can be reused later. */
+	/* Unplugged, not added to GNU/Linux. Can be reused later. */
 	VIRTIO_MEM_BBM_BB_UNUSED = 0,
-	/* Plugged, not added to Linux. Error on add_memory(). */
+	/* Plugged, not added to GNU/Linux. Error on add_memory(). */
 	VIRTIO_MEM_BBM_BB_PLUGGED,
-	/* Plugged and added to Linux. */
+	/* Plugged and added to GNU/Linux. */
 	VIRTIO_MEM_BBM_BB_ADDED,
 	/* All online parts are fake-offline, ready to remove. */
 	VIRTIO_MEM_BBM_BB_FAKE_OFFLINE,
@@ -169,11 +169,11 @@ struct virtio_mem {
 
 			/* The subblock size. */
 			uint64_t sb_size;
-			/* The number of subblocks per Linux memory block. */
+			/* The number of subblocks per GNU/Linux memory block. */
 			uint32_t sbs_per_mb;
 
 			/*
-			 * Some of the Linux memory blocks tracked as "partially
+			 * Some of the GNU/Linux memory blocks tracked as "partially
 			 * plugged" are completely unplugged and can be offlined
 			 * and removed -- which previously failed.
 			 */
@@ -626,7 +626,7 @@ static bool virtio_mem_could_add_memory(struct virtio_mem *vm, uint64_t size)
 }
 
 /*
- * Try adding memory to Linux. Will usually only fail if out of memory.
+ * Try adding memory to GNU/Linux. Will usually only fail if out of memory.
  *
  * Must not be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
@@ -640,7 +640,7 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 
 	/*
 	 * When force-unloading the driver and we still have memory added to
-	 * Linux, the resource name has to stay.
+	 * GNU/Linux, the resource name has to stay.
 	 */
 	if (!vm->resource_name) {
 		vm->resource_name = kstrdup_const("System RAM (virtio_mem)",
@@ -659,7 +659,7 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 		atomic64_sub(size, &vm->offline_size);
 		dev_warn(&vm->vdev->dev, "adding memory failed: %d\n", rc);
 		/*
-		 * TODO: Linux MM does not properly clean up yet in all cases
+		 * TODO: GNU/Linux MM does not properly clean up yet in all cases
 		 * where adding of memory failed - especially on -ENOMEM.
 		 */
 	}
@@ -667,7 +667,7 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 }
 
 /*
- * See virtio_mem_add_memory(): Try adding a single Linux memory block.
+ * See virtio_mem_add_memory(): Try adding a single GNU/Linux memory block.
  */
 static int virtio_mem_sbm_add_mb(struct virtio_mem *vm, unsigned long mb_id)
 {
@@ -689,7 +689,7 @@ static int virtio_mem_bbm_add_bb(struct virtio_mem *vm, unsigned long bb_id)
 }
 
 /*
- * Try removing memory from Linux. Will only fail if memory blocks aren't
+ * Try removing memory from GNU/Linux. Will only fail if memory blocks aren't
  * offline.
  *
  * Must not be called with the vm->hotplug_mutex held (possible deadlock with
@@ -719,7 +719,7 @@ static int virtio_mem_remove_memory(struct virtio_mem *vm, uint64_t addr,
 }
 
 /*
- * See virtio_mem_remove_memory(): Try removing a single Linux memory block.
+ * See virtio_mem_remove_memory(): Try removing a single GNU/Linux memory block.
  */
 static int virtio_mem_sbm_remove_mb(struct virtio_mem *vm, unsigned long mb_id)
 {
@@ -730,7 +730,7 @@ static int virtio_mem_sbm_remove_mb(struct virtio_mem *vm, unsigned long mb_id)
 }
 
 /*
- * Try offlining and removing memory from Linux.
+ * Try offlining and removing memory from GNU/Linux.
  *
  * Must not be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
@@ -768,7 +768,7 @@ static int virtio_mem_offline_and_remove_memory(struct virtio_mem *vm,
 
 /*
  * See virtio_mem_offline_and_remove_memory(): Try offlining and removing
- * a single Linux memory block.
+ * a single GNU/Linux memory block.
  */
 static int virtio_mem_sbm_offline_and_remove_mb(struct virtio_mem *vm,
 						unsigned long mb_id)
@@ -780,7 +780,7 @@ static int virtio_mem_sbm_offline_and_remove_mb(struct virtio_mem *vm,
 }
 
 /*
- * Try (offlining and) removing memory from Linux in case all subblocks are
+ * Try (offlining and) removing memory from GNU/Linux in case all subblocks are
  * unplugged. Can be called on online and offline memory blocks.
  *
  * May modify the state of memory blocks in virtio-mem.
@@ -809,7 +809,7 @@ static int virtio_mem_sbm_try_remove_unplugged_mb(struct virtio_mem *vm,
 
 /*
  * See virtio_mem_offline_and_remove_memory(): Try to offline and remove a
- * all Linux memory blocks covered by the big block.
+ * all GNU/Linux memory blocks covered by the big block.
  */
 static int virtio_mem_bbm_offline_and_remove_bb(struct virtio_mem *vm,
 						unsigned long bb_id)
@@ -1016,7 +1016,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		/*
 		 * In BBM, we only care about onlining/offlining happening
 		 * within a single big block, we don't care about the
-		 * actual granularity as we don't track individual Linux
+		 * actual granularity as we don't track individual GNU/Linux
 		 * memory blocks.
 		 */
 		if (WARN_ON_ONCE(id != virtio_mem_phys_to_bb_id(vm, start + size - 1)))
@@ -1661,7 +1661,7 @@ static int virtio_mem_sbm_prepare_next_mb(struct virtio_mem *vm,
 
 /*
  * Try to plug the desired number of subblocks and add the memory block
- * to Linux.
+ * to GNU/Linux.
  *
  * Will modify the state of the memory block.
  */
@@ -1683,7 +1683,7 @@ static int virtio_mem_sbm_plug_and_add_mb(struct virtio_mem *vm,
 		return rc;
 
 	/*
-	 * Mark the block properly offline before adding it to Linux,
+	 * Mark the block properly offline before adding it to GNU/Linux,
 	 * so the memory notifiers will find the block in the right state.
 	 */
 	if (count == vm->sbm.sbs_per_mb)
@@ -1710,7 +1710,7 @@ static int virtio_mem_sbm_plug_and_add_mb(struct virtio_mem *vm,
 
 /*
  * Try to plug the desired number of subblocks of a memory block that
- * is already added to Linux.
+ * is already added to GNU/Linux.
  *
  * Will modify the state of the memory block.
  *
@@ -1821,7 +1821,7 @@ out_unlock:
 }
 
 /*
- * Plug a big block and add it to Linux.
+ * Plug a big block and add it to GNU/Linux.
  *
  * Will modify the state of the big block.
  */
@@ -1952,7 +1952,7 @@ static int virtio_mem_sbm_unplug_any_sb_offline(struct virtio_mem *vm,
 
 	if (virtio_mem_sbm_test_sb_unplugged(vm, mb_id, 0, vm->sbm.sbs_per_mb)) {
 		/*
-		 * Remove the block from Linux - this should never fail.
+		 * Remove the block from GNU/Linux - this should never fail.
 		 * Hinder the block from getting onlined by marking it
 		 * unplugged. Temporarily drop the mutex, so
 		 * any pending GOING_ONLINE requests can be serviced/rejected.
@@ -2066,7 +2066,7 @@ unplugged:
 
 /*
  * Unplug the desired number of plugged subblocks of a memory block that is
- * already added to Linux. Will skip subblock of online memory blocks that are
+ * already added to GNU/Linux. Will skip subblock of online memory blocks that are
  * busy (by the OS). Will fail if any subblock that's not busy cannot get
  * unplugged.
  *
@@ -2149,7 +2149,7 @@ out_unlock:
 }
 
 /*
- * Try to offline and remove a big block from Linux and unplug it. Will fail
+ * Try to offline and remove a big block from GNU/Linux and unplug it. Will fail
  * with -EBUSY if some memory is busy and cannot get unplugged.
  *
  * Will modify the state of the memory block. Might temporarily drop the
@@ -2344,7 +2344,7 @@ static int virtio_mem_cleanup_pending_mb(struct virtio_mem *vm)
 		return 0;
 
 	/*
-	 * Let's retry (offlining and) removing completely unplugged Linux
+	 * Let's retry (offlining and) removing completely unplugged GNU/Linux
 	 * memory blocks.
 	 */
 	vm->sbm.have_unplugged_mb = false;
@@ -2457,7 +2457,7 @@ retry:
 	}
 
 	/*
-	 * Keep retrying to offline and remove completely unplugged Linux
+	 * Keep retrying to offline and remove completely unplugged GNU/Linux
 	 * memory blocks.
 	 */
 	if (!rc && vm->in_sbm && vm->sbm.have_unplugged_mb)
@@ -2562,7 +2562,7 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 	sb_size = max_t(uint64_t, vm->device_block_size, sb_size);
 
 	if (sb_size < memory_block_size_bytes() && !force_bbm) {
-		/* SBM: At least two subblocks per Linux memory block. */
+		/* SBM: At least two subblocks per GNU/Linux memory block. */
 		vm->in_sbm = true;
 		vm->sbm.sb_size = sb_size;
 		vm->sbm.sbs_per_mb = memory_block_size_bytes() /
@@ -2574,7 +2574,7 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 		vm->sbm.first_mb_id = virtio_mem_phys_to_mb_id(addr);
 		vm->sbm.next_mb_id = vm->sbm.first_mb_id;
 	} else {
-		/* BBM: At least one Linux memory block. */
+		/* BBM: At least one GNU/Linux memory block. */
 		vm->bbm.bb_size = max_t(uint64_t, vm->device_block_size,
 					memory_block_size_bytes());
 
@@ -2869,7 +2869,7 @@ static int virtio_mem_init(struct virtio_mem *vm)
 
 	/*
 	 * We don't want to (un)plug or reuse any memory when in kdump. The
-	 * memory is still accessible (but not exposed to Linux).
+	 * memory is still accessible (but not exposed to GNU/Linux).
 	 */
 	if (vm->in_kdump)
 		return virtio_mem_init_kdump(vm);

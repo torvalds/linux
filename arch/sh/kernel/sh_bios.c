@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  C interface for trapping into the standard LinuxSH BIOS.
+ *  C interface for trapping into the standard GNU/LinuxSH BIOS.
  *
  *  Copyright (C) 2000 Greg Banks, Mitch Davis
  *  Copyright (C) 1999, 2000  Niibe Yutaka
@@ -64,7 +64,7 @@ void sh_bios_shutdown(unsigned int how)
 
 /*
  * Read the old value of the VBR register to initialise the vector
- * through which debug and BIOS traps are delegated by the Linux trap
+ * through which debug and BIOS traps are delegated by the GNU/Linux trap
  * handler.
  */
 void sh_bios_vbr_init(void)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hypervisor filesystem for Linux on s390 - debugfs interface
+ * Hypervisor filesystem for GNU/Linux on s390 - debugfs interface
  *
  * Copyright IBM Corp. 2010
  * Author(s): Michael Holzheu <holzheu@linux.vnet.ibm.com>

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux PPP network device drivers.
+# Makefile for the GNU/Linux PPP network device drivers.
 #
 
 obj-$(CONFIG_PPP) += ppp_generic.o

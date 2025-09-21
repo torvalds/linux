@@ -97,7 +97,7 @@
  *
  *	sizeof(struct) + 2*sizeof(void*) == n * 16, n >= 1
  *
- * We use the dma_addr fields under Linux to keep track of the
+ * We use the dma_addr fields under GNU/Linux to keep track of the
  * DMA address of the packet data, for later pci_unmap_single. -DaveM
  */
 

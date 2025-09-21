@@ -91,7 +91,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	/*
 	 * Allocate space for the decompressed kernel as low as possible.
 	 * The region should be 16 MiB aligned, but the first 'slack' bytes
-	 * are not used by Linux, so we allow those to be occupied by the
+	 * are not used by GNU/Linux, so we allow those to be occupied by the
 	 * firmware.
 	 */
 	status = efi_low_alloc_above(alloc_size, EFI_PAGE_SIZE, &alloc_base, 0x0);

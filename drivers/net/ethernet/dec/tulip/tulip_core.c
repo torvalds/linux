@@ -1,6 +1,6 @@
-/*	tulip_core.c: A DEC 21x4x-family ethernet driver for Linux.
+/*	tulip_core.c: A DEC 21x4x-family ethernet driver for GNU/Linux.
 
-	Copyright 2000,2001  The Linux Kernel Team
+	Copyright 2000,2001  The GNU/Linux Kernel Team
 	Written/copyright 1994-2001 by Donald Becker.
 
 	This software may be used and distributed according to the terms
@@ -96,7 +96,7 @@ static int csr0;
 #define TX_TIMEOUT  (4*HZ)
 
 
-MODULE_AUTHOR("The Linux Kernel Team");
+MODULE_AUTHOR("The GNU/Linux Kernel Team");
 MODULE_DESCRIPTION("Digital 21*4* Tulip ethernet driver");
 MODULE_LICENSE("GPL");
 module_param(tulip_debug, int, 0);

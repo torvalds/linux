@@ -21,7 +21,7 @@ Hauppauge PVR-350.
       an application that can handle MPEG input such as mplayer, xine, MythTV,
       etc.
 
-The primary goal of the IVTV project is to provide a "clean room" Linux
+The primary goal of the IVTV project is to provide a "clean room" GNU/Linux
 Open Source driver implementation for video capture cards based on the
 iCompression iTVC15 or Conexant CX23415/CX23416 MPEG Codec.
 

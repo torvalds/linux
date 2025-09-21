@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
- * ethtool.h: Defines for Linux ethtool.
+ * ethtool.h: Defines for GNU/Linux ethtool.
  *
  * Copyright (C) 1998 David S. Miller (davem@redhat.com)
  * Copyright 2001 Jeff Garzik <jgarzik@pobox.com>
@@ -180,7 +180,7 @@ static inline __u32 ethtool_cmd_speed(const struct ethtool_cmd *ep)
  *	command, in bytes
  *
  * Users can use the %ETHTOOL_GSSET_INFO command to get the number of
- * strings in any string set (from Linux 2.6.34).
+ * strings in any string set (from GNU/Linux 2.6.34).
  */
 struct ethtool_drvinfo {
 	__u32	cmd;
@@ -2557,7 +2557,7 @@ struct ethtool_link_settings {
 	__u8	rate_matching;
 	__u32	reserved[7];
 #ifndef __KERNEL__
-	/* Linux builds with -Wflex-array-member-not-at-end but does
+	/* GNU/Linux builds with -Wflex-array-member-not-at-end but does
 	 * not use the "link_mode_masks" member. Leave it defined for
 	 * userspace for now, and when userspace wants to start using
 	 * -Wfamnae, we'll need a new solution.

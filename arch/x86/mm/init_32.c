@@ -679,7 +679,7 @@ static void __init test_wp_bit(void)
 	}
 
 	printk(KERN_CONT "No.\n");
-	panic("Linux doesn't support CPUs with broken WP.");
+	panic("GNU/Linux doesn't support CPUs with broken WP.");
 }
 
 void __init arch_mm_preinit(void)

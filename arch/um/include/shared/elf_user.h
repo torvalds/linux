@@ -7,7 +7,7 @@
 #ifndef __ELF_USER_H__
 #define __ELF_USER_H__
 
-/* For compilation on a host that doesn't support AT_SYSINFO (Linux 2.4)  */
+/* For compilation on a host that doesn't support AT_SYSINFO (GNU/Linux 2.4)  */
 
 #ifndef AT_SYSINFO
 #define AT_SYSINFO 32

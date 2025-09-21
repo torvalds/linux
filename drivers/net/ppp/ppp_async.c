@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * PPP async serial channel driver for Linux.
+ * PPP async serial channel driver for GNU/Linux.
  *
  * Copyright 1999 Paul Mackerras.
  *

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-  A FORE Systems 200E-series driver for ATM on Linux.
+  A FORE Systems 200E-series driver for ATM on GNU/Linux.
   Christophe Lizzi (lizzi@cnam.fr), October 1999-March 2003.
 
   Based on the PCA-200E driver from Uwe Dannowski (Uwe.Dannowski@inf.tu-dresden.de).

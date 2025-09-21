@@ -73,7 +73,7 @@ Mon March 6  23:15 2000 Gerard Roudier (groudier@club-internet.fr)
 	  * Boot setup command
 	  * And some other ...
 	- Add support for the new dynamic dma mapping kernel interface.
-	  Requires Linux-2.3.47 (tested with pre-2.3.47-6).
+	  Requires GNU/Linux-2.3.47 (tested with pre-2.3.47-6).
 	- Get data transfer direction from the scsi command structure 
 	  (Scsi_Cmnd) when this information is available.
 
@@ -90,7 +90,7 @@ Mon March 6  23:15 2000 Gerard Roudier (groudier@club-internet.fr)
           * Boot setup command
           * And some other ...
         - Add support for the new dynamic dma mapping kernel interface.
-          Requires Linux-2.3.47 (tested with pre-2.3.47-6).
+          Requires GNU/Linux-2.3.47 (tested with pre-2.3.47-6).
         - Get data transfer direction from the scsi command structure
           (Scsi_Cmnd) when this information is available.
 
@@ -191,7 +191,7 @@ Sat Mar 6  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
 
 Sun Feb  14:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	* revision 3.1g
-	- Deal correctly with 64 bit PCI address registers on Linux 2.2.
+	- Deal correctly with 64 bit PCI address registers on GNU/Linux 2.2.
 	  Pointed out by Leonard Zubkoff.
 	- Allow to tune request_irq() flags from the boot command line using 
 	  ncr53c8xx=irqm:??, as follows:
@@ -310,7 +310,7 @@ Sun Jun 28 12:00 1998 Gerard Roudier (groudier@club-internet.fr)
 Sat Jun 20 20:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* revision 3.0c
 	- Add a boot setup option that allows to set up device queue depths 
-	  at boot-up. This option is very useful since Linux does not 
+	  at boot-up. This option is very useful since GNU/Linux does not 
 	  allow to change scsi device queue depth once the system has been 
 	  booted up.
 
@@ -321,7 +321,7 @@ Sun Jun 15 23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  CmdQueue is now handled as a LUN capability as it shall be.
 	  This also fixes a bug triggered when disabling tagged command 
 	  queuing for a device that had this feature enabled.
-	- Remove the ncr_opennings() stuff that was useless under Linux 
+	- Remove the ncr_opennings() stuff that was useless under GNU/Linux 
 	  and hard to understand to me.
 	- Add "setverbose" procfs driver command. It allows to tune 
 	  verbose level after boot-up. Setting this level to zero, for 
@@ -330,7 +330,7 @@ Sun Jun 15 23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 
 Tue Jun 10 23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* revision 3.0
-	- Linux config changes for 2.0.34:
+	- GNU/Linux config changes for 2.0.34:
 	  Remove NVRAM detection config option. This option is now enabled 
 	  by default but can be disabled by editing the driver header file.
 	  Add a PROFILE config option.
@@ -338,7 +338,7 @@ Tue Jun 10 23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- Add calls to new function mdelay() for milli-seconds delay if 
 	  kernel version >= 2.1.105.
 	- Replace all printf(s) by printk(s). After all, the ncr53c8xx is 
-	  a driver for Linux.
+	  a driver for GNU/Linux.
 	- Perform auto-sense on COMMAND TERMINATED. Not sure it is useful.
 	- Some other minor changes.
 
@@ -392,7 +392,7 @@ Sat Apr 25 21:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  context on phase mismatch.
 	- The above allows now to use the on-chip RAM without requiring 
 	  to get access to the on-chip RAM from the C code. This makes 
-	  on-chip RAM usable for linux-1.2.13 and for Linux-Alpha for
+	  on-chip RAM usable for linux-1.2.13 and for GNU/Linux-Alpha for
 	  instance.
 	- Some simplifications and cleanups in the SCRIPTS and C code.
 	- Buglet fixed in parity error recovery SCRIPTS (never tested).

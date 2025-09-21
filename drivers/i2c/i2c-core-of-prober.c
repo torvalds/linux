@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux I2C core OF component prober code
+ * GNU/Linux I2C core OF component prober code
  *
  * Copyright (C) 2024 Google LLC
  */

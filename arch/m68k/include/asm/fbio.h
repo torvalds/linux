@@ -180,7 +180,7 @@ struct mdi_cfginfo {
         int     mdi_pixfreq;    /* pixel clock (from PROM) */
 };
 
-/* SparcLinux specific ioctl for the MDI, should be replaced for
+/* SparcGNU/Linux specific ioctl for the MDI, should be replaced for
  * the SET_XLUT/SET_CLUTn ioctls instead
  */
 #define MDI_CLEAR_XLUT       (MDI_IOCTL|9)

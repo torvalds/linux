@@ -4,9 +4,9 @@ config DMASOUND_ATARI
 	depends on ATARI && SOUND
 	select DMASOUND
 	help
-	  If you want to use the internal audio of your Atari in Linux, answer
+	  If you want to use the internal audio of your Atari in GNU/Linux, answer
 	  Y to this question. This will provide a Sun-like /dev/audio,
-	  compatible with the Linux/i386 sound system. Otherwise, say N.
+	  compatible with the GNU/Linux/i386 sound system. Otherwise, say N.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you
@@ -18,9 +18,9 @@ config DMASOUND_PAULA
 	depends on AMIGA && SOUND
 	select DMASOUND
 	help
-	  If you want to use the internal audio of your Amiga in Linux, answer
+	  If you want to use the internal audio of your Amiga in GNU/Linux, answer
 	  Y to this question. This will provide a Sun-like /dev/audio,
-	  compatible with the Linux/i386 sound system. Otherwise, say N.
+	  compatible with the GNU/Linux/i386 sound system. Otherwise, say N.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you
@@ -32,9 +32,9 @@ config DMASOUND_Q40
 	depends on Q40 && SOUND
 	select DMASOUND
 	help
-	  If you want to use the internal audio of your Q40 in Linux, answer
+	  If you want to use the internal audio of your Q40 in GNU/Linux, answer
 	  Y to this question. This will provide a Sun-like /dev/audio,
-	  compatible with the Linux/i386 sound system. Otherwise, say N.
+	  compatible with the GNU/Linux/i386 sound system. Otherwise, say N.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you

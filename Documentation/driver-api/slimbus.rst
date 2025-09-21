@@ -1,5 +1,5 @@
 ============================
-Linux kernel SLIMbus support
+GNU/Linux kernel SLIMbus support
 ============================
 
 Overview

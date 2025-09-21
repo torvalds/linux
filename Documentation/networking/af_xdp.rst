@@ -95,7 +95,7 @@ to be setup. These objects and their options are explained in the
 following sections.
 
 For an overview on how AF_XDP works, you can also take a look at the
-Linux Plumbers paper from 2018 on the subject:
+GNU/Linux Plumbers paper from 2018 on the subject:
 http://vger.kernel.org/lpc_net2018_talks/lpc18_paper_af_xdp_perf-v2.pdf. Do
 NOT consult the paper from 2017 on "AF_PACKET v4", the first attempt
 at AF_XDP. Nearly everything changed since then. Jonathan Corbet has
@@ -786,7 +786,7 @@ FAQ
 
 Q: I am not seeing any traffic on the socket. What am I doing wrong?
 
-A: When a netdev of a physical NIC is initialized, Linux usually
+A: When a netdev of a physical NIC is initialized, GNU/Linux usually
    allocates one RX and TX queue pair per core. So on a 8 core system,
    queue ids 0 to 7 will be allocated, one per core. In the AF_XDP
    bind call or the xsk_socket__create libbpf function call, you

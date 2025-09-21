@@ -1,7 +1,7 @@
 What:		/sys/bus/event_source/devices/<dev>/caps
 Date:		May 2022
 KernelVersion:	5.19
-Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Contact:	GNU/Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:
 		Attribute group to describe the capabilities exposed
 		for a particular pmu. Each attribute of this group can

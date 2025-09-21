@@ -8,7 +8,7 @@ Unevictable LRU Infrastructure
 Introduction
 ============
 
-This document describes the Linux memory manager's "Unevictable LRU"
+This document describes the GNU/Linux memory manager's "Unevictable LRU"
 infrastructure and the use of this to manage several types of "unevictable"
 folios.
 
@@ -27,7 +27,7 @@ The Unevictable LRU
 The Unevictable LRU facility adds an additional LRU list to track unevictable
 folios and to hide these folios from vmscan.  This mechanism is based on a patch
 by Larry Woodman of Red Hat to address several scalability problems with folio
-reclaim in Linux.  The problems have been observed at customer sites on large
+reclaim in GNU/Linux.  The problems have been observed at customer sites on large
 memory x86_64 systems.
 
 To illustrate this with an example, a non-NUMA x86_64 platform with 128GB of
@@ -78,7 +78,7 @@ on an additional LRU list for a few reasons:
      of the statistics, etc..." [Rik van Riel]
 
  (2) We want to be able to migrate unevictable folios between nodes for memory
-     defragmentation, workload management and memory hotplug.  The Linux kernel
+     defragmentation, workload management and memory hotplug.  The GNU/Linux kernel
      can only migrate folios that it can successfully isolate from the LRU
      lists (or "Movable" folios: outside of consideration here).  If we were to
      maintain folios elsewhere than on an LRU-like list, where they can be
@@ -397,7 +397,7 @@ Migrating MLOCKED Pages
 A page that is being migrated has been isolated from the LRU lists and is held
 locked across unmapping of the page, updating the page's address space entry
 and copying the contents and state, until the page table entry has been
-replaced with an entry that refers to the new page.  Linux supports migration
+replaced with an entry that refers to the new page.  GNU/Linux supports migration
 of mlocked pages and other unevictable pages.  PG_mlocked is cleared from the
 the old page when it is unmapped from the last VM_LOCKED VMA, and set when the
 new page is mapped in place of migration entry in a VM_LOCKED VMA.  If the page

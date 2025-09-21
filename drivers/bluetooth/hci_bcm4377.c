@@ -2,7 +2,7 @@
 /*
  * Bluetooth HCI driver for Broadcom 4377/4378/4387/4388 devices attached via PCIe
  *
- * Copyright (C) The Asahi Linux Contributors
+ * Copyright (C) The Asahi GNU/Linux Contributors
  */
 
 #include <linux/async.h>

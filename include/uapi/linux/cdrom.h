@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH GNU/Linux-syscall-note */
 /*
  * -- <linux/cdrom.h>
  * General header file for linux CD-ROM drivers 
@@ -16,14 +16,14 @@
 #include <asm/byteorder.h>
 
 /*******************************************************
- * As of Linux 2.1.x, all Linux CD-ROM application programs will use this 
- * (and only this) include file.  It is my hope to provide Linux with
+ * As of GNU/Linux 2.1.x, all GNU/Linux CD-ROM application programs will use this 
+ * (and only this) include file.  It is my hope to provide GNU/Linux with
  * a uniform interface between software accessing CD-ROMs and the various 
  * device drivers that actually talk to the drives.  There may still be
  * 23 different kinds of strange CD-ROM drives, but at least there will 
- * now be one, and only one, Linux CD-ROM interface.
+ * now be one, and only one, GNU/Linux CD-ROM interface.
  *
- * Additionally, as of Linux 2.1.x, all Linux application programs 
+ * Additionally, as of GNU/Linux 2.1.x, all GNU/Linux application programs 
  * should use the O_NONBLOCK option when opening a CD-ROM device 
  * for subsequent ioctl commands.  This allows for neat system errors 
  * like "No medium found" or "Wrong medium type" upon attempting to 

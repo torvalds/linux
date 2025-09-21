@@ -177,7 +177,7 @@ ENTRY(handle_interrupt_level2)
 
 1:
 	;------------------------------------------------------
-	; setup params for Linux common ISR and invoke it
+	; setup params for GNU/Linux common ISR and invoke it
 	;------------------------------------------------------
 	lr  r0, [icause2]
 	and r0, r0, 0x1f
@@ -284,7 +284,7 @@ ENTRY(EV_TLBProtV)
 
 END(EV_TLBProtV)
 
-; Wrapper for Linux page fault handler called from EV_TLBMiss*
+; Wrapper for GNU/Linux page fault handler called from EV_TLBMiss*
 ; Very similar to ProtV handler case (6a) above, but avoids the extra checks
 ; for Misaligned access
 ;

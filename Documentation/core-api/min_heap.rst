@@ -10,7 +10,7 @@ Introduction
 ============
 
 The Min Heap API provides a set of functions and macros for managing min-heaps
-in the Linux kernel. A min-heap is a binary tree structure where the value of
+in the GNU/Linux kernel. A min-heap is a binary tree structure where the value of
 each node is less than or equal to the values of its children, ensuring that
 the smallest element is always at the root.
 

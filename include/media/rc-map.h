@@ -135,7 +135,7 @@
  * struct rc_map_table - represents a scancode/keycode pair
  *
  * @scancode: scan code (u64)
- * @keycode: Linux input keycode
+ * @keycode: GNU/Linux input keycode
  */
 struct rc_map_table {
 	u64	scancode;

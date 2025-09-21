@@ -20,7 +20,7 @@
 提交補丁：如何讓你的改動進入內核
 ================================
 
-對於想要將改動提交到 Linux 內核的個人或者公司來說，如果不熟悉“規矩”，
+對於想要將改動提交到 GNU/Linux 內核的個人或者公司來說，如果不熟悉“規矩”，
 提交的流程會讓人畏懼。本文檔包含了一系列建議，可以大大提高你
 的改動被接受的機會.
 
@@ -59,7 +59,7 @@ Documentation/process/maintainer-handbooks.rst 。
 
 描述用戶可見的影響。直接崩潰和鎖定是相當有說服力的，但並不是所有的錯誤都那麼
 明目張膽。即使在代碼審閱期間發現了這個問題，也要描述一下您認爲它可能對用戶產
-生的影響。請記住，大多數Linux安裝運行的內核來自二級穩定樹或特定於供應商/產品
+生的影響。請記住，大多數GNU/Linux安裝運行的內核來自二級穩定樹或特定於供應商/產品
 的樹，只從上游精選特定的補丁，因此請包含任何可以幫助您將更改定位到下游的內容：
 觸發的場景、DMESG的摘錄、崩潰描述、性能迴歸、延遲尖峯、鎖定等。
 
@@ -71,7 +71,7 @@ Documentation/process/maintainer-handbooks.rst 。
 提出問題之後，就要詳細地描述一下您實際在做的技術細節。對於審閱者來說，用簡練的
 英語描述代碼的變化是很重要的，以驗證代碼的行爲是否符合您的意圖。
 
-如果您將補丁描述寫成“標準格式”，可以很容易地作爲“提交日誌”放入Linux的源代
+如果您將補丁描述寫成“標準格式”，可以很容易地作爲“提交日誌”放入GNU/Linux的源代
 碼管理系統 ``git`` 中，那麼維護人員將非常感謝您。
 參見 :ref:`zh_the_canonical_patch_format` 。
 
@@ -202,7 +202,7 @@ http://vger.kernel.org/vger-lists.html 上找到它們的列表。不過，也�
 
 不要一次發送超過15個補丁到vger郵件列表！！！！
 
-Linus Torvalds是決定改動能否進入 Linux 內核的最終裁決者。他的郵件地址是
+Linus Torvalds是決定改動能否進入 GNU/Linux 內核的最終裁決者。他的郵件地址是
 torvalds@linux-foundation.org 。他收到的郵件很多，所以一般來說最好 **別**
 給他發郵件。
 
@@ -628,7 +628,7 @@ Fixes: 指示補丁修復了之前提交的一個問題。它可以便於確定�
 Andrew Morton，“完美的補丁”（tpp）
   <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
-Jeff Garzik，“Linux內核補丁提交格式”
+Jeff Garzik，“GNU/Linux內核補丁提交格式”
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman，“如何惹惱內核子系統維護人員”

@@ -1,14 +1,14 @@
 ==============================
-Memory Layout on AArch64 Linux
+Memory Layout on AArch64 GNU/Linux
 ==============================
 
 Author: Catalin Marinas <catalin.marinas@arm.com>
 
 This document describes the virtual memory layout used by the AArch64
-Linux kernel. The architecture allows up to 4 levels of translation
+GNU/Linux kernel. The architecture allows up to 4 levels of translation
 tables with a 4KB page size and up to 3 levels with a 64KB page size.
 
-AArch64 Linux uses either 3 levels or 4 levels of translation tables
+AArch64 GNU/Linux uses either 3 levels or 4 levels of translation tables
 with the 4KB page configuration, allowing 39-bit (512GB) or 48-bit
 (256TB) virtual addresses, respectively, for both user and kernel. With
 64KB pages, only 2 levels of translation tables, allowing 42-bit (4TB)

@@ -3,7 +3,7 @@ WatchDog Module Parameters
 ==========================
 
 This file provides information on the module parameters of many of
-the Linux watchdog drivers.  Watchdog driver parameter specs should
+the GNU/Linux watchdog drivers.  Watchdog driver parameter specs should
 be listed here unless the driver has its own driver-specific information
 file.
 

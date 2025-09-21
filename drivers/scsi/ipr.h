@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * ipr.h -- driver for IBM Power Linux RAID adapters
+ * ipr.h -- driver for IBM Power GNU/Linux RAID adapters
  *
  * Written By: Brian King <brking@us.ibm.com>, IBM Corporation
  *

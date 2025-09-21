@@ -83,9 +83,9 @@
 			};
 
 			partition@200000 {
-				/* 10MB for Linux Kernel Image */
+				/* 10MB for GNU/Linux Kernel Image */
 				reg = <0x00200000 0x00A00000>;
-				label = "NAND Linux Kernel Image";
+				label = "NAND GNU/Linux Kernel Image";
 			};
 
 			partition@c00000 {

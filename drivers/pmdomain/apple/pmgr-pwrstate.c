@@ -2,7 +2,7 @@
 /*
  * Apple SoC PMGR device power state driver
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 #include <linux/bitops.h>

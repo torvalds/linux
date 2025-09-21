@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* Linux driver for Philips webcam
-   USB and Video4Linux interface part.
+/* GNU/Linux driver for Philips webcam
+   USB and Video4GNU/Linux interface part.
    (C) 1999-2004 Nemosoft Unv.
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
@@ -23,7 +23,7 @@
 
    In case you're wondering: 'pwc' stands for "Philips WebCam", but
    I really didn't want to type 'philips_web_cam' every time (I'm lazy as
-   any Linux kernel hacker, but I don't like uncomprehensible abbreviations
+   any GNU/Linux kernel hacker, but I don't like uncomprehensible abbreviations
    without explanation).
 
    Oh yes, convention: to disctinguish between all the various pointers to
@@ -598,7 +598,7 @@ static const char *pwc_sensor_type_to_string(unsigned int sensor_type)
 #endif
 
 /***************************************************************************/
-/* Video4Linux functions */
+/* Video4GNU/Linux functions */
 
 static void pwc_video_release(struct v4l2_device *v)
 {

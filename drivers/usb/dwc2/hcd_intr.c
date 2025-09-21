@@ -85,7 +85,7 @@ static void dwc2_hc_handle_tt_clear(struct dwc2_hsotg *hsotg,
 		return;
 
 	/*
-	 * The root hub doesn't really have a TT, but Linux thinks it
+	 * The root hub doesn't really have a TT, but GNU/Linux thinks it
 	 * does because how could you have a "high speed hub" that
 	 * directly talks directly to low speed devices without a TT?
 	 * It's all lies.  Lies, I tell you.

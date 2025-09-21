@@ -4,7 +4,7 @@
  *
  * Author: Lakshmi Ramasubramanian (nramas@linux.microsoft.com)
  *
- * Measure critical data structures maintained by SELinux
+ * Measure critical data structures maintained by SEGNU/Linux
  * using IMA subsystem.
  */
 

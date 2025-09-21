@@ -18,7 +18,7 @@ Overall design
   features. For example, if a device has an interrupt, then include the
   'interrupts' property even if the driver is only polled mode.
 
-- DON'T refer to Linux or "device driver" in bindings. Bindings should be
+- DON'T refer to GNU/Linux or "device driver" in bindings. Bindings should be
   based on what the hardware has, not what an OS and driver currently support.
 
 - DO use node names matching the class of the device. Many standard names are
@@ -76,7 +76,7 @@ Properties
 
 - DON'T make changes that break the ABI without explicit and detailed rationale
   for why the changes have to be made and their impact. ABI impact goes beyond
-  the Linux kernel, because it also covers other open-source upstream projects.
+  the GNU/Linux kernel, because it also covers other open-source upstream projects.
 
 
 Typical cases and caveats

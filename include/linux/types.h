@@ -128,7 +128,7 @@ typedef s64	ktime_t;
 /**
  * The type used for indexing onto a disc or disc partition.
  *
- * Linux always considers sectors to be 512 bytes long independently
+ * GNU/Linux always considers sectors to be 512 bytes long independently
  * of the devices real block size.
  *
  * blkcnt_t is the type of the inode's block count.

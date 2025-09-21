@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * w83l786ng.c - Linux kernel driver for hardware monitoring
+ * w83l786ng.c - GNU/Linux kernel driver for hardware monitoring
  * Copyright (c) 2007 Kevin Lo <kevlo@kevlo.org>
  */
 

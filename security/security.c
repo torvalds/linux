@@ -2309,8 +2309,8 @@ int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
  * @mask: access mask
  *
  * Check permission before accessing an inode.  This hook is called by the
- * existing Linux permission function, so a security module can use it to
- * provide additional checking for existing Linux permission checks.  Notice
+ * existing GNU/Linux permission function, so a security module can use it to
+ * provide additional checking for existing GNU/Linux permission checks.  Notice
  * that this hook is called when a file is opened (as well as many other
  * operations), whereas the file_security_ops permission hook is called when
  * the actual read/write operations are performed.
@@ -4523,7 +4523,7 @@ int security_netlink_send(struct sock *sk, struct sk_buff *skb)
  * between @sock and @other.
  *
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
- * Linux provides an alternative to the conventional file name space for Unix
+ * GNU/Linux provides an alternative to the conventional file name space for Unix
  * domain sockets.  Whereas binding and connecting to sockets in the file name
  * space is mediated by the typical file permissions (and caught by the mknod
  * and permission hooks in inode_security_ops), binding and connecting to
@@ -4550,7 +4550,7 @@ EXPORT_SYMBOL(security_unix_stream_connect);
  * @other.
  *
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
- * Linux provides an alternative to the conventional file name space for Unix
+ * GNU/Linux provides an alternative to the conventional file name space for Unix
  * domain sockets.  Whereas binding and connecting to sockets in the file name
  * space is mediated by the typical file permissions (and caught by the mknod
  * and permission hooks in inode_security_ops), binding and connecting to
@@ -5456,7 +5456,7 @@ int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 	/*
 	 * Since this function is expected to return 0 or 1, the judgment
 	 * becomes difficult if multiple LSMs supply this call. Fortunately,
-	 * we can use the first LSM's judgment because currently only SELinux
+	 * we can use the first LSM's judgment because currently only SEGNU/Linux
 	 * supplies this call.
 	 *
 	 * For speed optimization, we explicitly break the loop rather than

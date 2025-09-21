@@ -10,8 +10,8 @@
 /*
  * intel_idle is a cpuidle driver that loads on all Intel CPUs with MWAIT
  * in lieu of the legacy ACPI processor_idle driver.  The intent is to
- * make Linux more efficient on these processors, as intel_idle knows
- * more than ACPI, as well as make Linux more immune to ACPI BIOS bugs.
+ * make GNU/Linux more efficient on these processors, as intel_idle knows
+ * more than ACPI, as well as make GNU/Linux more immune to ACPI BIOS bugs.
  */
 
 /*

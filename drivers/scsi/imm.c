@@ -227,7 +227,7 @@ static int imm_negotiate(imm_struct * tmp)
 	 * sequence. I have yet to obtain a copy of the above standard
 	 * so this is a bit of a guess...
 	 *
-	 * A fair chunk of this is based on the Linux parport implementation
+	 * A fair chunk of this is based on the GNU/Linux parport implementation
 	 * of IEEE 1284.
 	 *
 	 * Return 0 if data available

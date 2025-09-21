@@ -8,7 +8,7 @@ title: Freescale INTMUX interrupt multiplexer
 
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>
-  - NXP Linux Team <linux-imx@nxp.com>
+  - NXP GNU/Linux Team <linux-imx@nxp.com>
 
 properties:
   compatible:

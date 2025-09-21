@@ -16,19 +16,19 @@
 
 :作者: Konstantin Ryabitsev <konstantin@linuxfoundation.org>
 
-本文档面向 Linux 内核开发者，特别是子系统维护人员。文档中含有Linux 基金
+本文档面向 GNU/Linux 内核开发者，特别是子系统维护人员。文档中含有GNU/Linux 基金
 会发布的更通用的 `保护代码完整性`_ 指南中讨论的内容子集。阅读该文档，以更
 深入地讨论本指南中提到的一些主题。
 
 .. _`保护代码完整性`: https://github.com/lfit/itpol/blob/master/protecting-code-integrity.md
 
-PGP 在 Linux 内核开发中的作用
+PGP 在 GNU/Linux 内核开发中的作用
 =============================
 
-PGP 有助于确保 Linux 内核开发社区产出代码的完整性，并在较小程度上，通过
+PGP 有助于确保 GNU/Linux 内核开发社区产出代码的完整性，并在较小程度上，通过
 PGP 签名的电子邮件交换，在开发者之间建立可信的交流渠道。
 
-Linux 内核源代码主要有两种（维护）方式:
+GNU/Linux 内核源代码主要有两种（维护）方式:
 
 - 分布式源仓库 (git)
 - 定期发布快照 (tarballs)
@@ -49,7 +49,7 @@ git 仓库和 tarball 都带有创建官方内核版本的内核开发者的 PGP
 
 上述指导原则正是需要本指南的原因。希望确保通过对开发者的信任，我们不会简
 单地将未来潜在安全事件的责任归咎于其他人。目的是提供一套指导开发者可以用
-来创建安全的工作环境并保护用于建立 Linux 内核本身完整性的 PGP 密钥。
+来创建安全的工作环境并保护用于建立 GNU/Linux 内核本身完整性的 PGP 密钥。
 
 PGP 工具
 ========
@@ -93,7 +93,7 @@ GnuPG agent是一个辅助工具，每当你使用该命令时，它都会自动
 保护你的 PGP 密钥
 =================
 
-本指南假定你已经拥有用于 Linux 内核开发目的的 PGP 密钥。如果你还没
+本指南假定你已经拥有用于 GNU/Linux 内核开发目的的 PGP 密钥。如果你还没
 有，请参阅前面提到的 "`保护代码完整性`_" 文档，以获取有关如何创建新
 密钥的指导。
 
@@ -355,7 +355,7 @@ USB 设备插入并安装时，操作系统能够访问私钥内容。
 .. note::
 
     如果你位列于 MAINTAINERS 中或在 kernel.org 上拥有帐户，则你有
-    资格获得Linux 基金会提供的_`qualify for a free Nitrokey Start` 。
+    资格获得GNU/Linux 基金会提供的_`qualify for a free Nitrokey Start` 。
 
 .. _`Nitrokey Start`: https://shop.nitrokey.com/shop/product/nitrokey-start-6
 .. _`Nitrokey Pro 2`: https://shop.nitrokey.com/shop/product/nkpr2-nitrokey-pro-2-3
@@ -366,7 +366,7 @@ USB 设备插入并安装时，操作系统能够访问私钥内容。
 配置你的智能卡设备
 ------------------
 
-当你将智能卡设备插入任何现代 Linux 工作站时，它就应该可以正常工作
+当你将智能卡设备插入任何现代 GNU/Linux 工作站时，它就应该可以正常工作
 (TM)。你可以通过运行来验证它::
 
     $ gpg --card-status
@@ -628,7 +628,7 @@ Git 的核心功能之一是它的分散性——一旦将仓库克隆到你的�
 如何使用签名的提交
 ------------------
 
-创建签名提交很容易，但在 Linux 内核开发中使用它们要困难得多，因为它依赖
+创建签名提交很容易，但在 GNU/Linux 内核开发中使用它们要困难得多，因为它依赖
 于发送到邮件列表的补丁，并且此工作流程不保留 PGP 提交签名。此外，当重新
 调整仓库以匹配上游时，甚至你自己的 PGP 提交签名最终也会被丢弃。因此，大
 多数内核开发人员不会费心签署他们的提交，并且会忽略他们在工作中依赖的任何

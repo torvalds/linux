@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ============================================================
-Provoking crashes with Linux Kernel Dump Test Module (LKDTM)
+Provoking crashes with GNU/Linux Kernel Dump Test Module (LKDTM)
 ============================================================
 
 The lkdtm module provides an interface to disrupt (and usually crash)

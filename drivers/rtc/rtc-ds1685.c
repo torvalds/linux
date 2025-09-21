@@ -406,7 +406,7 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/*
 	 * Check the three alarm bytes.
 	 *
-	 * The Linux RTC system doesn't support the "don't care" capability
+	 * The GNU/Linux RTC system doesn't support the "don't care" capability
 	 * of this RTC chip.  We check for it anyways in case support is
 	 * added in the future and only assign when we care.
 	 */
@@ -468,7 +468,7 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/*
 	 * Check the three alarm bytes.
 	 *
-	 * The Linux RTC system doesn't support the "don't care" capability
+	 * The GNU/Linux RTC system doesn't support the "don't care" capability
 	 * of this RTC chip because rtc_valid_tm tries to validate every
 	 * field, and we only support four fields.  We put the support
 	 * here anyways for the future.

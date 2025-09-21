@@ -817,7 +817,7 @@ int saa7134_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 * We therefore request a DMA latency of 20 usec, giving us 2 usec of
 	 * margin in case the FIFO is configured differently to the datasheet.
 	 * Unfortunately, I lack register-level documentation to check the
-	 * Linux FIFO setup and confirm the perfect value.
+	 * GNU/Linux FIFO setup and confirm the perfect value.
 	 */
 	if ((dmaq == &dev->video_q && !vb2_is_streaming(&dev->vbi_vbq)) ||
 	    (dmaq == &dev->vbi_q && !vb2_is_streaming(&dev->video_vbq)))

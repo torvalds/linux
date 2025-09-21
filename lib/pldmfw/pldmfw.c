@@ -526,7 +526,7 @@ static int pldm_verify_header_crc(struct pldmfw_priv *data)
 	size_t length;
 
 	/* Calculate the 32-bit CRC of the header header contents up to but
-	 * not including the checksum. Note that the Linux crc32_le function
+	 * not including the checksum. Note that the GNU/Linux crc32_le function
 	 * does not perform an expected final XOR.
 	 */
 	length = data->offset - sizeof(data->header_crc);

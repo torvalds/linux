@@ -5,6 +5,6 @@ Description:
 	over time, and not have things removed from it.
 
 	Note that this interface is different for every architecture
-	that Linux supports.  Please see the architecture-specific
+	that GNU/Linux supports.  Please see the architecture-specific
 	documentation for details on the syscall numbers that are to be
 	mapped to each syscall.

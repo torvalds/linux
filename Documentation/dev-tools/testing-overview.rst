@@ -5,7 +5,7 @@ Kernel Testing Guide
 ====================
 
 
-There are a number of different tools for testing the Linux kernel, so knowing
+There are a number of different tools for testing the GNU/Linux kernel, so knowing
 when to use each of them can be a challenge. This document provides a rough
 overview of their differences, and how they fit together.
 
@@ -66,7 +66,7 @@ For example, all new system calls should be accompanied by kselftest tests.
 Code Coverage Tools
 ===================
 
-The Linux Kernel supports two different code coverage measurement tools. These
+The GNU/Linux Kernel supports two different code coverage measurement tools. These
 can be used to verify that a test is executing particular functions or lines
 of code. This is useful for determining how much of the kernel is being tested,
 and for finding corner-cases which are not covered by the appropriate test.

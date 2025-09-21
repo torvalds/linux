@@ -2,7 +2,7 @@
 /*
  * <linux/usb/gadget.h>
  *
- * We call the USB code inside a Linux-based peripheral device a "gadget"
+ * We call the USB code inside a GNU/Linux-based peripheral device a "gadget"
  * driver, except for the hardware-specific bus glue.  One USB host can
  * talk to many USB gadgets, but the gadgets are only able to communicate
  * to one host.

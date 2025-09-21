@@ -1,7 +1,7 @@
 /*
  * Touchscreen driver for the TS-4800 board
  *
- * Copyright (c) 2015 - Savoir-faire Linux
+ * Copyright (c) 2015 - Savoir-faire GNU/Linux
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

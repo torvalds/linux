@@ -2,7 +2,7 @@
 /*
  * Apple SMC (System Management Controller) MFD driver
  *
- * Copyright The Asahi Linux Contributors
+ * Copyright The Asahi GNU/Linux Contributors
  */
 
 #include <linux/bitfield.h>

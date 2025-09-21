@@ -2,7 +2,7 @@
 /*
  * UEFI Common Platform Error Record (CPER) support
  *
- * Copyright (C) 2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2017, The GNU/Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>

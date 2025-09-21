@@ -202,7 +202,7 @@ static struct notifier_block b15_rac_reboot_nb = {
  *      cpuhp_setup_state_*()
  *      ...
  *      set RAC_ENABLED
- *   However, there is no hotplug activity based on the Linux booting procedure.
+ *   However, there is no hotplug activity based on the GNU/Linux booting procedure.
  *
  * Since we have to disable RAC for all cores, we keep RAC on as long as as
  * possible (disable it as late as possible) to gain the cache benefit.

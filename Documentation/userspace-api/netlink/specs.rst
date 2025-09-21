@@ -25,7 +25,7 @@ This document describes details of the schema.
 See :doc:`intro-specs` for a practical starting guide.
 
 All specs must be licensed under
-``((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)``
+``((GPL-2.0 WITH GNU/Linux-syscall-note) OR BSD-3-Clause)``
 to allow for easy adoption in user space code.
 
 Compatibility levels

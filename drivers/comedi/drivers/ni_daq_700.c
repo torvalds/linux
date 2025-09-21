@@ -4,7 +4,7 @@
  *     Driver for DAQCard-700 DIO/AI
  *     copied from 8255
  *
- *     COMEDI - Linux Control and Measurement Device Interface
+ *     COMEDI - GNU/Linux Control and Measurement Device Interface
  *     Copyright (C) 1998 David A. Schleef <ds@schleef.org>
  */
 

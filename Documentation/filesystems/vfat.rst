@@ -11,7 +11,7 @@ To use the vfat filesystem, use the filesystem type 'vfat'.  i.e.::
 
 
 No special partition formatter is required,
-'mkdosfs' will work fine if you want to format from within Linux.
+'mkdosfs' will work fine if you want to format from within GNU/Linux.
 
 VFAT MOUNT OPTIONS
 ==================
@@ -83,7 +83,7 @@ VFAT MOUNT OPTIONS
 	Translate unhandled Unicode characters to special
 	escaped sequences.  This would let you backup and
 	restore filenames that are created with any Unicode
-	characters.  Until Linux supports Unicode for real,
+	characters.  Until GNU/Linux supports Unicode for real,
 	this gives you an alternative.  Without this option,
 	a '?' is used when no translation is possible.  The
 	escape character is ':' because it is otherwise
@@ -141,7 +141,7 @@ VFAT MOUNT OPTIONS
 	Interpret timestamps as UTC rather than local time.
 	This option disables the conversion of timestamps
 	between local time (as used by Windows on FAT) and UTC
-	(which Linux uses internally).  This is particularly
+	(which GNU/Linux uses internally).  This is particularly
 	useful when mounting devices (like digital cameras)
 	that are set to UTC in order to avoid the pitfalls of
 	local time.
@@ -150,7 +150,7 @@ VFAT MOUNT OPTIONS
 	Set offset for conversion of timestamps from local time
 	used by FAT to UTC. I.e. <minutes> minutes will be subtracted
 	from each timestamp to convert it to UTC used internally by
-	Linux. This is useful when time zone set in ``sys_tz`` is
+	GNU/Linux. This is useful when time zone set in ``sys_tz`` is
 	not the time zone used by the filesystem. Note that this
 	option still does not provide correct time stamps in all
 	cases in presence of DST - time stamps in a different DST
@@ -166,7 +166,7 @@ VFAT MOUNT OPTIONS
 
 **sys_immutable**
 	If set, ATTR_SYS attribute on FAT is handled as
-	IMMUTABLE flag on Linux. Not set by default.
+	IMMUTABLE flag on GNU/Linux. Not set by default.
 
 **flush**
 	If set, the filesystem will try to flush to disk more

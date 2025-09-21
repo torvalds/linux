@@ -724,7 +724,7 @@ MODULE_DEVICE_TABLE(spi, spidev_spi_ids);
 
 /*
  * spidev should never be referenced in DT without a specific compatible string,
- * it is a Linux implementation thing rather than a description of the hardware.
+ * it is a GNU/Linux implementation thing rather than a description of the hardware.
  */
 static int spidev_of_check(struct device *dev)
 {

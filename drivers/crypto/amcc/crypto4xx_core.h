@@ -5,8 +5,8 @@
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
  *
- * This is the header file for AMCC Crypto offload Linux device driver for
- * use with Linux CryptoAPI.
+ * This is the header file for AMCC Crypto offload GNU/Linux device driver for
+ * use with GNU/Linux CryptoAPI.
 
  */
 

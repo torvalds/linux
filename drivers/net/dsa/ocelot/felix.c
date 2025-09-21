@@ -441,7 +441,7 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 /* The CPU port module is connected to the Node Processor Interface (NPI). This
  * is the mode through which frames can be injected from and extracted to an
  * external CPU, over Ethernet. In NXP SoCs, the "external CPU" is the ARM CPU
- * running Linux, and this forms a DSA setup together with the enetc or fman
+ * running GNU/Linux, and this forms a DSA setup together with the enetc or fman
  * DSA conduit.
  */
 static void felix_npi_port_init(struct ocelot *ocelot, int port)

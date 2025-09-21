@@ -17,13 +17,13 @@ interfaces to enqueue and dequeue frames to/from network interfaces
 and other accelerators.  A DPIO also provides hardware buffer
 pool management for network interfaces.
 
-This document provides an overview the Linux DPIO driver, its
+This document provides an overview the GNU/Linux DPIO driver, its
 subcomponents, and its APIs.
 
 See
 Documentation/networking/device_drivers/ethernet/freescale/dpaa2/overview.rst
 for a general overview of DPAA2 and the general DPAA2 driver architecture
-in Linux.
+in GNU/Linux.
 
 Driver Overview
 ---------------
@@ -37,10 +37,10 @@ provides services that:
      when data becomes available on a queue or channel
   C. allow drivers to manage hardware buffer pools
 
-The Linux DPIO driver consists of 3 primary components--
+The GNU/Linux DPIO driver consists of 3 primary components--
    DPIO object driver-- fsl-mc driver that manages the DPIO object
 
-   DPIO service-- provides APIs to other Linux drivers for services
+   DPIO service-- provides APIs to other GNU/Linux drivers for services
 
    QBman portal interface-- sends portal commands, gets responses::
 
@@ -61,7 +61,7 @@ The Linux DPIO driver consists of 3 primary components--
 
 
 The diagram below shows how the DPIO driver components fit with the other
-DPAA2 Linux driver components::
+DPAA2 GNU/Linux driver components::
 
                                                    +------------+
                                                    | OS Network |

@@ -74,14 +74,14 @@ If UBSan detects any problem at runtime, it outputs a “runtime error:” messa
 
 4) Cross compilation
 ====================
-As Multiarch is commonly supported in Linux distributions, we can install
+As Multiarch is commonly supported in GNU/Linux distributions, we can install
 libraries for multiple architectures on the same system and then cross-compile
-Linux perf. For example, Aarch64 libraries and toolchains can be installed on
+GNU/Linux perf. For example, Aarch64 libraries and toolchains can be installed on
 an x86_64 machine, allowing us to compile perf for an Aarch64 target.
 
 Below is the command for building the perf with dynamic linking.
 
-  $ cd /path/to/Linux
+  $ cd /path/to/GNU/Linux
   $ make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -C tools/perf
 
 For static linking, the option `LDFLAGS="-static"` is required.

@@ -99,7 +99,7 @@ __setup("mac5380=", mac_scsi_setup);
  * specify the number of bytes between the delays expected from a SCSI target.
  * This allows the operating system to "prevent bus errors when a target fails
  * to deliver the next byte within the processor bus error timeout period."
- * Linux SCSI drivers lack knowledge of the timing behaviour of SCSI targets
+ * GNU/Linux SCSI drivers lack knowledge of the timing behaviour of SCSI targets
  * so bus errors are unavoidable.
  *
  * If a MOVE.B instruction faults during a receive operation, we assume the

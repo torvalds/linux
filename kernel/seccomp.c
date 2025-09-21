@@ -11,7 +11,7 @@
  *
  * Mode 1 uses a fixed list of allowed system calls.
  * Mode 2 allows user-defined system call filters in the form
- *        of Berkeley Packet Filters/Linux Socket Filters.
+ *        of Berkeley Packet Filters/GNU/Linux Socket Filters.
  */
 #define pr_fmt(fmt) "seccomp: " fmt
 

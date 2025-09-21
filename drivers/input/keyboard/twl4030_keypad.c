@@ -389,7 +389,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	}
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-	/* Enable auto repeat feature of Linux input subsystem */
+	/* Enable auto repeat feature of GNU/Linux input subsystem */
 	if (kp->autorepeat)
 		__set_bit(EV_REP, input->evbit);
 

@@ -23,7 +23,7 @@
  *  - ITO Takayuki for providing essential xpad information on his website
  *  - Vojtech Pavlik     - iforce driver / input subsystem
  *  - Greg Kroah-Hartman - usb-skeleton driver
- *  - Xbox Linux project - extra USB IDs
+ *  - Xbox GNU/Linux project - extra USB IDs
  *  - Pekka Pöyry (quantus) - Xbox One controller reverse-engineering
  *
  * TODO:
@@ -52,7 +52,7 @@
  * 2002-07-17 - 0.0.5 : simplified d-pad handling
  *
  * 2004-10-02 - 0.0.6 : DDR pad support
- *  - borrowed from the Xbox Linux kernel
+ *  - borrowed from the Xbox GNU/Linux kernel
  *  - USB id's for commonly used dance pads are present
  *  - dance pads will map D-PAD to buttons, not axes
  *  - pass the module paramater 'dpad_to_buttons' to force

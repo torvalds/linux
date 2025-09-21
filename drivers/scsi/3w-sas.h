@@ -1,5 +1,5 @@
 /*
-   3w-sas.h -- LSI 3ware SAS/SATA-RAID Controller device driver for Linux.
+   3w-sas.h -- LSI 3ware SAS/SATA-RAID Controller device driver for GNU/Linux.
 
    Written By: Adam Radford <aradford@gmail.com>
 

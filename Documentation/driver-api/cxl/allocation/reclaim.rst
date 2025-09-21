@@ -23,11 +23,11 @@ or :code:`CDAT` performance data.
 
 cpusets.mems_allowed quirk
 --------------------------
-In Linux v6.15 and below, demotion does not respect :code:`cpusets.mems_allowed`
+In GNU/Linux v6.15 and below, demotion does not respect :code:`cpusets.mems_allowed`
 when migrating pages.  As a result, if demotion is enabled, vmscan cannot
 guarantee isolation of a container's memory from nodes not set in mems_allowed.
 
-In Linux v6.XX and up, demotion does attempt to respect
+In GNU/Linux v6.XX and up, demotion does attempt to respect
 :code:`cpusets.mems_allowed`; however, certain classes of shared memory
 originally instantiated by another cgroup (such as common libraries - e.g.
 libc) may still be demoted.  As a result, the mems_allowed interface still
@@ -35,12 +35,12 @@ cannot provide perfect isolation from the remote nodes.
 
 ZSwap and Node Preference
 =========================
-In Linux v6.15 and below, ZSwap allocates memory from the local node of the
+In GNU/Linux v6.15 and below, ZSwap allocates memory from the local node of the
 processor for the new pages being compressed.  Since pages being compressed
 are typically cold, the result is a cold page becomes promoted - only to
 be later demoted as it ages off the LRU.
 
-In Linux v6.XX, ZSwap tries to prefer the node of the page being compressed
+In GNU/Linux v6.XX, ZSwap tries to prefer the node of the page being compressed
 as the allocation target for the compression page.  This helps prevent
 thrashing.
 

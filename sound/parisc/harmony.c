@@ -7,7 +7,7 @@
  *   Copyright (C) 2004, Kyle McMartin <kyle@{debian.org,parisc-linux.org}>
  *
  *     Based on the previous Harmony incarnations by,
- *       Copyright 2000 (c) Linuxcare Canada, Alex deVries
+ *       Copyright 2000 (c) GNU/Linuxcare Canada, Alex deVries
  *       Copyright 2000-2003 (c) Helge Deller
  *       Copyright 2001 (c) Matthieu Delahaye
  *       Copyright 2001 (c) Jean-Christophe Vaugeois

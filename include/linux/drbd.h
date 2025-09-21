@@ -23,9 +23,9 @@
 #include <sys/wait.h>
 #include <limits.h>
 
-/* Although the Linux source code makes a difference between
+/* Although the GNU/Linux source code makes a difference between
    generic endianness and the bitfields' endianness, there is no
-   architecture as of Linux-2.6.24-rc4 where the bitfields' endianness
+   architecture as of GNU/Linux-2.6.24-rc4 where the bitfields' endianness
    does not match the generic endianness. */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN

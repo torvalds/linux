@@ -23,7 +23,7 @@
 #ifdef CONFIG_PROC_FS
 static int execdomains_proc_show(struct seq_file *m, void *v)
 {
-	seq_puts(m, "0-0\tLinux           \t[kernel]\n");
+	seq_puts(m, "0-0\tGNU/Linux           \t[kernel]\n");
 	return 0;
 }
 

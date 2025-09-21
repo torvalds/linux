@@ -8,7 +8,7 @@ Operational States
 1. Introduction
 ===============
 
-Linux distinguishes between administrative and operational state of an
+GNU/Linux distinguishes between administrative and operational state of an
 interface. Administrative state is the result of "ip link set dev
 <dev> up or down" and reflects whether the administrator wants to use
 the device for traffic.

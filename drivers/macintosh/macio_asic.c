@@ -449,7 +449,7 @@ static int macio_skip_device(struct device_node *np)
  * 
  * This function will do the job of extracting devices from the
  * Open Firmware device tree, build macio_dev structures and add
- * them to the Linux device tree.
+ * them to the GNU/Linux device tree.
  * 
  * For now, childs of media-bay are added now as well. This will
  * change rsn though.

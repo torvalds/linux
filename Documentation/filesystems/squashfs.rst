@@ -4,7 +4,7 @@
 Squashfs 4.0 Filesystem
 =======================
 
-Squashfs is a compressed read-only filesystem for Linux.
+Squashfs is a compressed read-only filesystem for GNU/Linux.
 
 It uses zlib, lz4, lzo, xz or zstd compression to compress files, inodes and
 directories.  Inodes in the system are very small and all blocks are packed to

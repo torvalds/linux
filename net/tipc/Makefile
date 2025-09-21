@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Linux TIPC layer
+# Makefile for the GNU/Linux TIPC layer
 #
 
 obj-$(CONFIG_TIPC) := tipc.o

@@ -173,7 +173,7 @@ Additional notes
 ----------------
 
 In 2.6+, sysfs is not mounted by default.  If your distribution of
-Linux hasn't added it already, here's the line you'll want to add to
+GNU/Linux hasn't added it already, here's the line you'll want to add to
 your ``/etc/fstab``::
 
 	none /sys sysfs defaults 0 0

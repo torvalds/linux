@@ -413,7 +413,7 @@ class LineStreamTest(unittest.TestCase):
 		self.assertEqual(stream.pop(), '2')
 		self.assertEqual(called_times, 2)
 
-class LinuxSourceTreeTest(unittest.TestCase):
+class GNU/LinuxSourceTreeTest(unittest.TestCase):
 
 	def setUp(self):
 		mock.patch.object(signal, 'signal').start()
@@ -421,17 +421,17 @@ class LinuxSourceTreeTest(unittest.TestCase):
 
 	def test_invalid_kunitconfig(self):
 		with self.assertRaisesRegex(kunit_kernel.ConfigError, 'nonexistent.* does not exist'):
-			kunit_kernel.LinuxSourceTree('', kunitconfig_paths=['/nonexistent_file'])
+			kunit_kernel.GNU/LinuxSourceTree('', kunitconfig_paths=['/nonexistent_file'])
 
 	def test_valid_kunitconfig(self):
 		with tempfile.NamedTemporaryFile('wt') as kunitconfig:
-			kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[kunitconfig.name])
+			kunit_kernel.GNU/LinuxSourceTree('', kunitconfig_paths=[kunitconfig.name])
 
 	def test_dir_kunitconfig(self):
 		with tempfile.TemporaryDirectory('') as dir:
 			with open(os.path.join(dir, '.kunitconfig'), 'w'):
 				pass
-			kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[dir])
+			kunit_kernel.GNU/LinuxSourceTree('', kunitconfig_paths=[dir])
 
 	def test_multiple_kunitconfig(self):
 		want_kconfig = kunit_config.Kconfig()
@@ -446,7 +446,7 @@ class LinuxSourceTreeTest(unittest.TestCase):
 				f.write('CONFIG_KUNIT_TEST=m')
 				pass
 
-			tree = kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[dir, other])
+			tree = kunit_kernel.GNU/LinuxSourceTree('', kunitconfig_paths=[dir, other])
 			self.assertTrue(want_kconfig.is_subset_of(tree._kconfig), msg=tree._kconfig)
 
 
@@ -459,26 +459,26 @@ class LinuxSourceTreeTest(unittest.TestCase):
 				f.write('CONFIG_KUNIT=m')
 
 			with self.assertRaisesRegex(kunit_kernel.ConfigError, '(?s)Multiple values.*CONFIG_KUNIT'):
-				kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[dir, other])
+				kunit_kernel.GNU/LinuxSourceTree('', kunitconfig_paths=[dir, other])
 
 
 	def test_kconfig_add(self):
 		want_kconfig = kunit_config.Kconfig()
 		want_kconfig.add_entry('NOT_REAL', 'y')
 
-		tree = kunit_kernel.LinuxSourceTree('', kconfig_add=['CONFIG_NOT_REAL=y'])
+		tree = kunit_kernel.GNU/LinuxSourceTree('', kconfig_add=['CONFIG_NOT_REAL=y'])
 		self.assertTrue(want_kconfig.is_subset_of(tree._kconfig), msg=tree._kconfig)
 
 	def test_invalid_arch(self):
 		with self.assertRaisesRegex(kunit_kernel.ConfigError, 'not a valid arch, options are.*x86_64'):
-			kunit_kernel.LinuxSourceTree('', arch='invalid')
+			kunit_kernel.GNU/LinuxSourceTree('', arch='invalid')
 
 	def test_run_kernel_hits_exception(self):
 		def fake_start(unused_args, unused_build_dir):
 			return subprocess.Popen(['echo "hi\nbye"'], shell=True, text=True, stdout=subprocess.PIPE)
 
 		with tempfile.TemporaryDirectory('') as build_dir:
-			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			tree = kunit_kernel.GNU/LinuxSourceTree(build_dir)
 			mock.patch.object(tree._ops, 'start', side_effect=fake_start).start()
 
 			with self.assertRaises(ValueError):
@@ -494,11 +494,11 @@ class LinuxSourceTreeTest(unittest.TestCase):
 			with open(kunit_kernel.get_kunitconfig_path(build_dir), 'w') as f:
 				f.write('CONFIG_KUNIT=y')
 
-			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			tree = kunit_kernel.GNU/LinuxSourceTree(build_dir)
 			# Stub out the source tree operations, so we don't have
 			# the defaults for any given architecture get in the
 			# way.
-			tree._ops = kunit_kernel.LinuxSourceTreeOperations('none', None)
+			tree._ops = kunit_kernel.GNU/LinuxSourceTreeOperations('none', None)
 			mock_build_config = mock.patch.object(tree, 'build_config').start()
 
 			# Should generate the .config
@@ -515,11 +515,11 @@ class LinuxSourceTreeTest(unittest.TestCase):
 			with open(kunit_kernel.get_kconfig_path(build_dir), 'w') as f:
 				f.write('CONFIG_KUNIT=y\nCONFIG_KUNIT_TEST=y')
 
-			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			tree = kunit_kernel.GNU/LinuxSourceTree(build_dir)
 			# Stub out the source tree operations, so we don't have
 			# the defaults for any given architecture get in the
 			# way.
-			tree._ops = kunit_kernel.LinuxSourceTreeOperations('none', None)
+			tree._ops = kunit_kernel.GNU/LinuxSourceTreeOperations('none', None)
 			mock_build_config = mock.patch.object(tree, 'build_config').start()
 
 			self.assertTrue(tree.build_reconfig(build_dir, make_options=[]))
@@ -535,11 +535,11 @@ class LinuxSourceTreeTest(unittest.TestCase):
 			with open(kunit_kernel.get_kconfig_path(build_dir), 'w') as f:
 				f.write('CONFIG_KUNIT=y\nCONFIG_KUNIT_TEST=y')
 
-			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			tree = kunit_kernel.GNU/LinuxSourceTree(build_dir)
 			# Stub out the source tree operations, so we don't have
 			# the defaults for any given architecture get in the
 			# way.
-			tree._ops = kunit_kernel.LinuxSourceTreeOperations('none', None)
+			tree._ops = kunit_kernel.GNU/LinuxSourceTreeOperations('none', None)
 			mock_build_config = mock.patch.object(tree, 'build_config').start()
 
 			# ... so we should trigger a call to build_config()
@@ -603,7 +603,7 @@ class KUnitMainTest(unittest.TestCase):
 		self.print_mock = mock.patch('kunit_printer.Printer.print').start()
 		self.addCleanup(mock.patch.stopall)
 
-		self.mock_linux_init = mock.patch.object(kunit_kernel, 'LinuxSourceTree').start()
+		self.mock_linux_init = mock.patch.object(kunit_kernel, 'GNU/LinuxSourceTree').start()
 		self.linux_source_mock = self.mock_linux_init.return_value
 		self.linux_source_mock.build_reconfig.return_value = True
 		self.linux_source_mock.build_kernel.return_value = True
@@ -775,7 +775,7 @@ class KUnitMainTest(unittest.TestCase):
 						extra_qemu_args=[])
 
 
-	@mock.patch.object(kunit_kernel, 'LinuxSourceTree')
+	@mock.patch.object(kunit_kernel, 'GNU/LinuxSourceTree')
 	def test_run_multiple_kunitconfig(self, mock_linux_init):
 		mock_linux_init.return_value = self.linux_source_mock
 		kunit.main(['run', '--kunitconfig=mykunitconfig', '--kunitconfig=other'])

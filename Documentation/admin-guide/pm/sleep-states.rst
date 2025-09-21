@@ -19,7 +19,7 @@ Sleep States That Can Be Supported
 ==================================
 
 Depending on its configuration and the capabilities of the platform it runs on,
-the Linux kernel can support up to four system sleep states, including
+the GNU/Linux kernel can support up to four system sleep states, including
 hibernation and up to three variants of system suspend.  The sleep states that
 can be supported by the kernel are listed below.
 

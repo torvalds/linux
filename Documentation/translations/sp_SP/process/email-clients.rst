@@ -5,7 +5,7 @@
 
 .. _sp_email_clients:
 
-Información de clientes de correo electrónico para Linux
+Información de clientes de correo electrónico para GNU/Linux
 ========================================================
 
 Git
@@ -24,7 +24,7 @@ envíe el parche a la(s) lista(s) de correo apropiada(s).
 Preferencias Generales
 ----------------------
 
-Los parches para el kernel de Linux se envían por correo electrónico,
+Los parches para el kernel de GNU/Linux se envían por correo electrónico,
 preferiblemente como texto en línea en el cuerpo del correo electrónico.
 Algunos maintainers aceptan archivos adjuntos, pero entonces los archivos
 adjuntos deben tener tipo de contenido ``text/plain``. Sin embargo, los
@@ -40,7 +40,7 @@ preferido, así como una lista de clientes de correo electrónico
 recomendados si aún no tiene una preferencia.
 
 Los clientes de correo electrónico que se utilizan para los parches del
-kernel Linux deben enviar el texto del parche intacto. Por ejemplo, no
+kernel GNU/Linux deben enviar el texto del parche intacto. Por ejemplo, no
 deben modificar ni eliminar pestañas o espacios, incluso al principio o al
 final de las líneas.
 
@@ -71,13 +71,13 @@ Esto rompe muchos scripts que leen y aplican los parches.
 
 Es una buena idea enviarse un parche a sí mismo, guardar el mensaje
 recibido, y aplicarlo con éxito con 'patch' antes de enviar el parche a las
-listas de correo de Linux.
+listas de correo de GNU/Linux.
 
 Algunas sugerencias para el cliente de correo electrónico (MUA)
 ---------------------------------------------------------------
 
 Aquí hay algunos consejos específicos de configuración de MUA para editar y
-enviar parches para el kernel de Linux. Estos no pretenden cubrir todo
+enviar parches para el kernel de GNU/Linux. Estos no pretenden cubrir todo
 detalle de configuración de los paquetes de software.
 
 Leyenda:
@@ -197,7 +197,7 @@ Vea notas sobre Lotus.
 Mutt (TUI)
 **********
 
-Muchos desarrolladores de Linux usan ``mutt``, por lo que debe funcionar
+Muchos desarrolladores de GNU/Linux usan ``mutt``, por lo que debe funcionar
 bastante bien.
 
 Mutt no viene con un editor, por lo que cualquier editor que use debe ser

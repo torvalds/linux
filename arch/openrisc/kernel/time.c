@@ -2,7 +2,7 @@
 /*
  * OpenRISC time.c
  *
- * Linux architectural port borrowing liberally from similar works of
+ * GNU/Linux architectural port borrowing liberally from similar works of
  * others.  All original copyrights apply as per the original source
  * declaration.
  *
@@ -169,7 +169,7 @@ void __init time_init(void)
 
 	upr = mfspr(SPR_UPR);
 	if (!(upr & SPR_UPR_TTP))
-		panic("Linux not supported on devices without tick timer");
+		panic("GNU/Linux not supported on devices without tick timer");
 
 	openrisc_timer_init();
 	openrisc_clockevent_init();

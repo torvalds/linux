@@ -33,7 +33,7 @@ calling::
 
 will give a fair indication of the number of events available.
 
-2.2 PCL (Performance Counters for Linux)
+2.2 PCL (Performance Counters for GNU/Linux)
 ----------------------------------------
 
 Discovery and enumeration of all counters and events, including tracepoints,

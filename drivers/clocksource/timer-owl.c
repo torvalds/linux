@@ -5,7 +5,7 @@
  * Copyright 2012 Actions Semi Inc.
  * Author: Actions Semi, Inc.
  *
- * Copyright (c) 2017 SUSE Linux GmbH
+ * Copyright (c) 2017 SUSE GNU/Linux GmbH
  * Author: Andreas Färber
  */
 

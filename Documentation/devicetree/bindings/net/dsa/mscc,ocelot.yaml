@@ -10,7 +10,7 @@ maintainers:
   - Vladimir Oltean <vladimir.oltean@nxp.com>
   - Claudiu Manoil <claudiu.manoil@nxp.com>
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
-  - UNGLinuxDriver@microchip.com
+  - UNGGNU/LinuxDriver@microchip.com
 
 description: |
   There are multiple switches which are either part of the Ocelot-1 family, or

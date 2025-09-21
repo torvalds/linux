@@ -592,7 +592,7 @@ static int batadv_mcast_mla_bridge_get(struct net_device *dev,
 	int ret;
 
 	/* we don't need to detect these devices/listeners, the IGMP/MLD
-	 * snooping code of the Linux bridge already does that for us
+	 * snooping code of the GNU/Linux bridge already does that for us
 	 */
 	ret = br_multicast_list_adjacent(dev, &bridge_mcast_list);
 	if (ret < 0)

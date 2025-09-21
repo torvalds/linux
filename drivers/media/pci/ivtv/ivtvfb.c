@@ -3,7 +3,7 @@
     On Screen Display cx23415 Framebuffer driver
 
     This module presents the cx23415 OSD (onscreen display) framebuffer memory
-    as a standard Linux /dev/fb style framebuffer device. The framebuffer has
+    as a standard GNU/Linux /dev/fb style framebuffer device. The framebuffer has
     support for 8, 16 & 32 bpp packed pixel formats with alpha channel. In 16bpp
     mode, there is a choice of a three color depths (12, 15 or 16 bits), but no
     local alpha. The colorspace is selectable between rgb & yuv.

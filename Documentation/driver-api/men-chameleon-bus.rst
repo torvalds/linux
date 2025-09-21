@@ -90,7 +90,7 @@ possible future variant. While parsing the table's entries new MCB devices
 are allocated and their resources are assigned according to the resource
 assignment in the Chameleon table. After resource assignment is finished, the
 MCB devices are registered at the MCB and thus at the driver core of the
-Linux kernel.
+GNU/Linux kernel.
 
 Resource handling
 =================
