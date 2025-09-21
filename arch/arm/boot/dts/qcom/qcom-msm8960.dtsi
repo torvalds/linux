@@ -121,11 +121,11 @@
 			};
 		};
 
-		msmgpio: pinctrl@800000 {
+		tlmm: pinctrl@800000 {
 			compatible = "qcom,msm8960-pinctrl";
 			reg = <0x800000 0x4000>;
 			gpio-controller;
-			gpio-ranges = <&msmgpio 0 0 152>;
+			gpio-ranges = <&tlmm 0 0 152>;
 			#gpio-cells = <2>;
 			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
@@ -533,7 +533,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
-				cs-gpios = <&msmgpio 8 0>;
+				cs-gpios = <&tlmm 8 0>;
 				clocks = <&gcc GSBI1_QUP_CLK>,
 					 <&gcc GSBI1_H_CLK>;
 				clock-names = "core",
