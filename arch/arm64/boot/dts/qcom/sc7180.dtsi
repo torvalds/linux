@@ -1474,6 +1474,12 @@
 			};
 		};
 
+		refgen: regulator@ff1000 {
+			compatible = "qcom,sc7180-refgen-regulator",
+				     "qcom,sdm845-refgen-regulator";
+			reg = <0x0 0x00ff1000 0x0 0x60>;
+		};
+
 		config_noc: interconnect@1500000 {
 			compatible = "qcom,sc7180-config-noc";
 			reg = <0 0x01500000 0 0x28000>;
@@ -3331,6 +3337,8 @@
 				power-domains = <&rpmhpd SC7180_CX>;
 
 				phys = <&mdss_dsi0_phy>;
+
+				refgen-supply = <&refgen>;
 
 				#address-cells = <1>;
 				#size-cells = <0>;
