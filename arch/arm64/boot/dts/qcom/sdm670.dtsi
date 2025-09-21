@@ -1124,6 +1124,12 @@
 			};
 		};
 
+		refgen: regulator@ff1000 {
+			compatible = "qcom,sdm670-refgen-regulator",
+				     "qcom,sdm845-refgen-regulator";
+			reg = <0x0 0x00ff1000 0x0 0x60>;
+		};
+
 		mem_noc: interconnect@1380000 {
 			compatible = "qcom,sdm670-mem-noc";
 			reg = <0 0x01380000 0 0x27200>;
@@ -1926,6 +1932,8 @@
 
 				phys = <&mdss_dsi0_phy>;
 
+				refgen-supply = <&refgen>;
+
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -1999,6 +2007,8 @@
 				power-domains = <&rpmhpd SDM670_CX>;
 
 				phys = <&mdss_dsi1_phy>;
+
+				refgen-supply = <&refgen>;
 
 				#address-cells = <1>;
 				#size-cells = <0>;
