@@ -3,7 +3,7 @@
 herd-representation
 -------------------
 
-Literal include of ``tools/memory-model/Documentation/herd-representation``.
+Literal include of ``tools/memory-model/Documentation/herd-representation.txt``.
 
 ------------------------------------------------------------------
 
