@@ -130,6 +130,64 @@
 			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
+			i2c3_default_state: i2c3-default-state {
+				i2c3-pins {
+					pins = "gpio16", "gpio17";
+					function = "gsbi3";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			i2c3_sleep_state: i2c3-sleep-state {
+				i2c3-pins {
+					pins = "gpio16", "gpio17";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-bus-hold;
+				};
+			};
+
+			sdcc3_default_state: sdcc3-default-state {
+				clk-pins {
+					pins = "sdc3_clk";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				cmd-pins {
+					pins = "sdc3_cmd";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+
+				data-pins {
+					pins = "sdc3_data";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+
+			sdcc3_sleep_state: sdcc3-sleep-state {
+				clk-pins {
+					pins = "sdc3_clk";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cmd-pins {
+					pins = "sdc3_cmd";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				data-pins {
+					pins = "sdc3_data";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
 		};
 
 		gcc: clock-controller@900000 {
@@ -537,4 +595,3 @@
 		regulator-always-on;
 	};
 };
-#include "qcom-msm8960-pins.dtsi"
