@@ -983,6 +983,18 @@ static __init void calc_llc_size_per_core(struct cpuinfo_x86 *c)
 	llc_size_per_core = (unsigned int)llc_size;
 }
 
+static __init bool staging_available(void)
+{
+	u64 val;
+
+	val = x86_read_arch_cap_msr();
+	if (!(val & ARCH_CAP_MCU_ENUM))
+		return false;
+
+	rdmsrq(MSR_IA32_MCU_ENUMERATION, val);
+	return !!(val & MCU_STAGING);
+}
+
 struct microcode_ops * __init init_intel_microcode(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
@@ -991,6 +1003,11 @@ struct microcode_ops * __init init_intel_microcode(void)
 	    cpu_has(c, X86_FEATURE_IA64)) {
 		pr_err("Intel CPU family 0x%x not supported\n", c->x86);
 		return NULL;
+	}
+
+	if (staging_available()) {
+		microcode_intel_ops.use_staging = true;
+		pr_info("Enabled staging feature.\n");
 	}
 
 	calc_llc_size_per_core(c);
