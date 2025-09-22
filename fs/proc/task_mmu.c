@@ -2417,6 +2417,9 @@ static void pagemap_scan_backout_range(struct pagemap_scan_private *p,
 {
 	struct page_region *cur_buf = &p->vec_buf[p->vec_buf_index];
 
+	if (!p->vec_buf)
+		return;
+
 	if (cur_buf->start != addr)
 		cur_buf->end = addr;
 	else
