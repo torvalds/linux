@@ -32,12 +32,13 @@
 #define MPTCP_INFO_FLAG_REMOTE_KEY_RECEIVED	_BITUL(1)
 
 #define MPTCP_PM_EV_FLAG_DENY_JOIN_ID0		_BITUL(0)
+#define MPTCP_PM_EV_FLAG_SERVER_SIDE		_BITUL(1)
 
-#define MPTCP_PM_ADDR_FLAG_SIGNAL                      (1 << 0)
-#define MPTCP_PM_ADDR_FLAG_SUBFLOW                     (1 << 1)
-#define MPTCP_PM_ADDR_FLAG_BACKUP                      (1 << 2)
-#define MPTCP_PM_ADDR_FLAG_FULLMESH                    (1 << 3)
-#define MPTCP_PM_ADDR_FLAG_IMPLICIT                    (1 << 4)
+#define MPTCP_PM_ADDR_FLAG_SIGNAL		_BITUL(0)
+#define MPTCP_PM_ADDR_FLAG_SUBFLOW		_BITUL(1)
+#define MPTCP_PM_ADDR_FLAG_BACKUP		_BITUL(2)
+#define MPTCP_PM_ADDR_FLAG_FULLMESH		_BITUL(3)
+#define MPTCP_PM_ADDR_FLAG_IMPLICIT		_BITUL(4)
 
 struct mptcp_info {
 	__u8	mptcpi_subflows;
