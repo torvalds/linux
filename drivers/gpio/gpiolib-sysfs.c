@@ -1091,7 +1091,7 @@ static int gpiofind_sysfs_register(struct gpio_chip *gc, const void *data)
 
 	ret = gpiochip_sysfs_register(gdev);
 	if (ret)
-		chip_err(gc, "failed to register the sysfs entry: %d\n", ret);
+		gpiochip_err(gc, "failed to register the sysfs entry: %d\n", ret);
 
 	return 0;
 }

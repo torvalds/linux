@@ -309,13 +309,13 @@ do { \
 
 /* With chip prefix */
 
-#define chip_err(gc, fmt, ...)					\
+#define gpiochip_err(gc, fmt, ...) \
 	dev_err(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
-#define chip_warn(gc, fmt, ...)					\
+#define gpiochip_warn(gc, fmt, ...) \
 	dev_warn(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
-#define chip_info(gc, fmt, ...)					\
+#define gpiochip_info(gc, fmt, ...) \
 	dev_info(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
-#define chip_dbg(gc, fmt, ...)					\
+#define gpiochip_dbg(gc, fmt, ...) \
 	dev_dbg(&gc->gpiodev->dev, "(%s): " fmt, gc->label, ##__VA_ARGS__)
 
 #endif /* GPIOLIB_H */
