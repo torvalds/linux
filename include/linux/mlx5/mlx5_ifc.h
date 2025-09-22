@@ -1895,7 +1895,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_2a0[0x7];
 	u8         mkey_pcie_tph[0x1];
-	u8         reserved_at_2a8[0x2];
+	u8         reserved_at_2a8[0x1];
+	u8         tis_tir_td_order[0x1];
 
 	u8         psp[0x1];
 	u8         shampo[0x1];
