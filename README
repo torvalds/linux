@@ -1,18 +1,199 @@
-Linux kernel
-============
+              $$\                                                                                                      $$$$$$\  
+              \__|                                                                                                    $$ ___$$\ 
+$$$$$$\$$$$\  $$\  $$$$$$\  $$\   $$\ $$\   $$\ $$\   $$\ $$\   $$\ $$\   $$\ $$\   $$\ $$\   $$\ $$\   $$\       $$\ \_/   $$ |
+$$  _$$  _$$\ $$ | \____$$\ $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |      \__|  $$$$$ / 
+$$ / $$ / $$ |$$ | $$$$$$$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |            \___$$\ 
+$$ | $$ | $$ |$$ |$$  __$$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |      $$\ $$\   $$ |
+$$ | $$ | $$ |$$ |\$$$$$$$ |\$$$$$$  |\$$$$$$  |\$$$$$$  |\$$$$$$  |\$$$$$$  |\$$$$$$  |\$$$$$$  |\$$$$$$  |      \__|\$$$$$$  |
+\__| \__| \__|\__| \_______| \______/  \______/  \______/  \______/  \______/  \______/  \______/  \______/            \______/ 
+                                                                                                                                
+_______________________________________________________________________________________________________________________________                                                                                                                                
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
-
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
-
-    https://www.kernel.org/doc/html/latest/
-
-There are various text files in the Documentation/ subdirectory,
-several of them using the reStructuredText markup notation.
-
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+mrrrrrow mrrrp miaow mrow miauuuu prrr prrrrt meow mew mrrrrow mrow miaow mrow.
+meow prrrr prrrt mew mrow mrrrp purrrrrr miaow mrow mrow meow prrrrt mrow mrrrrow.
+miaow mrow mew mrow miaow mrow prrr mew prrrt mrow mew meow mrow miaow mrrrp mrrrow.
+mew mrrrp miaow mrow miaow mrrrow prrrt mrrrrow mrow mew mrow meow.
+prrrt mrow purrrr purrrrrr mrow prrrt mrow prrrt miaow mrow purr mrow.
+miauuuu mrrrrrow prrr meow mew mrrrp purrrr prrrt meow mrow miaow mrow mrow mrrrow.
+mrrrow mew prrr prrrrt mrow mrrrp mew miaow mrow meow mrow purr mrow mrrrow mew.
+prrrt mrow mew prrrr prrrt mrow mew mrow mrrrp meow mew mrow miaow mrow mrrrow.
+mew meow mrrrrp miaow mrow mrow meow mrow mew prrr prrrrt mrow mrrrrow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
+mew mrow mrrrp mrrrrow meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew miaow mrow mrow mrrrp meow mew prrr prrrrt mrow mrow mew mrrrow.
+mew mrow mrrrrow mrrrrp meow mew mrow mew miaow mrow prrr prrrrt mrow meow.
+prrrt mrow mew mew mrow mrrrp mrow meow mew prrr prrrrt mrow mrrrrow mew.
+mrrrow mew mrow miaow mrow prrr prrrt mew mrow mrrrp meow mew mrow miaow mrrrow.
