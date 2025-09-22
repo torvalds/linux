@@ -5,6 +5,7 @@
 
 #include "xe_guc.h"
 
+#include <linux/iopoll.h>
 #include <drm/drm_managed.h>
 
 #include <generated/xe_wa_oob.h>
@@ -971,81 +972,26 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 }
 
 /*
- * Check a previously read GuC status register (GUC_STATUS) looking for
- * known terminal states (either completion or failure) of either the
- * microkernel status field or the boot ROM status field. Returns +1 for
- * successful completion, -1 for failure and 0 for any intermediate state.
- */
-static int guc_load_done(u32 status)
-{
-	u32 uk_val = REG_FIELD_GET(GS_UKERNEL_MASK, status);
-	u32 br_val = REG_FIELD_GET(GS_BOOTROM_MASK, status);
-
-	switch (uk_val) {
-	case XE_GUC_LOAD_STATUS_READY:
-		return 1;
-
-	case XE_GUC_LOAD_STATUS_ERROR_DEVID_BUILD_MISMATCH:
-	case XE_GUC_LOAD_STATUS_GUC_PREPROD_BUILD_MISMATCH:
-	case XE_GUC_LOAD_STATUS_ERROR_DEVID_INVALID_GUCTYPE:
-	case XE_GUC_LOAD_STATUS_HWCONFIG_ERROR:
-	case XE_GUC_LOAD_STATUS_BOOTROM_VERSION_MISMATCH:
-	case XE_GUC_LOAD_STATUS_DPC_ERROR:
-	case XE_GUC_LOAD_STATUS_EXCEPTION:
-	case XE_GUC_LOAD_STATUS_INIT_DATA_INVALID:
-	case XE_GUC_LOAD_STATUS_MPU_DATA_INVALID:
-	case XE_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
-	case XE_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR:
-	case XE_GUC_LOAD_STATUS_INVALID_FTR_FLAG:
-		return -1;
-	}
-
-	switch (br_val) {
-	case XE_BOOTROM_STATUS_NO_KEY_FOUND:
-	case XE_BOOTROM_STATUS_RSA_FAILED:
-	case XE_BOOTROM_STATUS_PAVPC_FAILED:
-	case XE_BOOTROM_STATUS_WOPCM_FAILED:
-	case XE_BOOTROM_STATUS_LOADLOC_FAILED:
-	case XE_BOOTROM_STATUS_JUMP_FAILED:
-	case XE_BOOTROM_STATUS_RC6CTXCONFIG_FAILED:
-	case XE_BOOTROM_STATUS_MPUMAP_INCORRECT:
-	case XE_BOOTROM_STATUS_EXCEPTION:
-	case XE_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
-		return -1;
-	}
-
-	return 0;
-}
-
-/*
  * Wait for the GuC to start up.
  *
  * Measurements indicate this should take no more than 20ms (assuming the GT
  * clock is at maximum frequency). However, thermal throttling and other issues
  * can prevent the clock hitting max and thus making the load take significantly
- * longer. Allow up to 200ms as a safety margin for real world worst case situations.
+ * longer. Allow up to 3s as a safety margin in normal builds. For
+ * CONFIG_DRM_XE_DEBUG allow up to 10s to account for slower execution, issues
+ * in PCODE, driver, fan, etc.
  *
- * However, bugs anywhere from KMD to GuC to PCODE to fan failure in a CI farm can
- * lead to even longer times. E.g. if the GT is clamped to minimum frequency then
- * the load times can be in the seconds range. So the timeout is increased for debug
- * builds to ensure that problems can be correctly analysed. For release builds, the
- * timeout is kept short so that users don't wait forever to find out that there is a
- * problem. In either case, if the load took longer than is reasonable even with some
- * 'sensible' throttling, then flag a warning because something is not right.
- *
- * Note that there is a limit on how long an individual usleep_range() can wait for,
- * hence longer waits require wrapping a shorter wait in a loop.
- *
- * Note that the only reason an end user should hit the shorter timeout is in case of
- * extreme thermal throttling. And a system that is that hot during boot is probably
- * dead anyway!
+ * Keep checking the GUC_STATUS every 10ms with a debug message every 100
+ * attempts as a "I'm slow, but alive" message. Regardless, if it takes more
+ * than 200ms, emit a warning.
  */
+
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-#define GUC_LOAD_RETRY_LIMIT	20
+#define GUC_LOAD_TIMEOUT_SEC	20
 #else
-#define GUC_LOAD_RETRY_LIMIT	3
+#define GUC_LOAD_TIMEOUT_SEC	3
 #endif
-#define GUC_LOAD_TIME_WARN_MS      200
+#define GUC_LOAD_TIME_WARN_MSEC	200
 
 static void print_load_status_err(struct xe_gt *gt, u32 status)
 {
@@ -1095,77 +1041,105 @@ static void print_load_status_err(struct xe_gt *gt, u32 status)
 	}
 }
 
+/*
+ * Check GUC_STATUS looking for known terminal states (either completion or
+ * failure) of either the microkernel status field or the boot ROM status field.
+ *
+ * Returns 1 for successful completion, -1 for failure and 0 for any
+ * intermediate state.
+ */
+static int guc_load_done(struct xe_gt *gt, u32 *status, u32 *tries)
+{
+	u32 ukernel, bootrom;
+
+	*status = xe_mmio_read32(&gt->mmio, GUC_STATUS);
+	ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, *status);
+	bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, *status);
+
+	switch (ukernel) {
+	case XE_GUC_LOAD_STATUS_READY:
+		return 1;
+	case XE_GUC_LOAD_STATUS_ERROR_DEVID_BUILD_MISMATCH:
+	case XE_GUC_LOAD_STATUS_GUC_PREPROD_BUILD_MISMATCH:
+	case XE_GUC_LOAD_STATUS_ERROR_DEVID_INVALID_GUCTYPE:
+	case XE_GUC_LOAD_STATUS_HWCONFIG_ERROR:
+	case XE_GUC_LOAD_STATUS_BOOTROM_VERSION_MISMATCH:
+	case XE_GUC_LOAD_STATUS_DPC_ERROR:
+	case XE_GUC_LOAD_STATUS_EXCEPTION:
+	case XE_GUC_LOAD_STATUS_INIT_DATA_INVALID:
+	case XE_GUC_LOAD_STATUS_MPU_DATA_INVALID:
+	case XE_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
+	case XE_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR:
+	case XE_GUC_LOAD_STATUS_INVALID_FTR_FLAG:
+		return -1;
+	}
+
+	switch (bootrom) {
+	case XE_BOOTROM_STATUS_NO_KEY_FOUND:
+	case XE_BOOTROM_STATUS_RSA_FAILED:
+	case XE_BOOTROM_STATUS_PAVPC_FAILED:
+	case XE_BOOTROM_STATUS_WOPCM_FAILED:
+	case XE_BOOTROM_STATUS_LOADLOC_FAILED:
+	case XE_BOOTROM_STATUS_JUMP_FAILED:
+	case XE_BOOTROM_STATUS_RC6CTXCONFIG_FAILED:
+	case XE_BOOTROM_STATUS_MPUMAP_INCORRECT:
+	case XE_BOOTROM_STATUS_EXCEPTION:
+	case XE_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
+		return -1;
+	}
+
+	if (++*tries >= 100) {
+		struct xe_guc_pc *guc_pc = &gt->uc.guc.pc;
+
+		*tries = 0;
+		xe_gt_dbg(gt, "GuC load still in progress, freq = %dMHz (req %dMHz), status = 0x%08X [0x%02X/%02X]\n",
+			  xe_guc_pc_get_act_freq(guc_pc),
+			  xe_guc_pc_get_cur_freq_fw(guc_pc),
+			  *status, ukernel, bootrom);
+	}
+
+	return 0;
+}
+
 static int guc_wait_ucode(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
-	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_guc_pc *guc_pc = &gt->uc.guc.pc;
-	ktime_t before, after, delta;
-	int load_done;
-	u32 status = 0;
-	int count = 0;
+	u32 before_freq, act_freq, cur_freq;
+	u32 status = 0, tries = 0;
+	ktime_t before;
 	u64 delta_ms;
-	u32 before_freq;
+	int ret;
 
 	before_freq = xe_guc_pc_get_act_freq(guc_pc);
 	before = ktime_get();
-	/*
-	 * Note, can't use any kind of timing information from the call to xe_mmio_wait.
-	 * It could return a thousand intermediate stages at random times. Instead, must
-	 * manually track the total time taken and locally implement the timeout.
-	 */
-	do {
-		u32 last_status = status & (GS_UKERNEL_MASK | GS_BOOTROM_MASK);
-		int ret;
 
-		/*
-		 * Wait for any change (intermediate or terminal) in the status register.
-		 * Note, the return value is a don't care. The only failure code is timeout
-		 * but the timeouts need to be accumulated over all the intermediate partial
-		 * timeouts rather than allowing a huge timeout each time. So basically, need
-		 * to treat a timeout no different to a value change.
-		 */
-		ret = xe_mmio_wait32_not(mmio, GUC_STATUS, GS_UKERNEL_MASK | GS_BOOTROM_MASK,
-					 last_status, 1000 * 1000, &status, false);
-		if (ret < 0)
-			count++;
-		after = ktime_get();
-		delta = ktime_sub(after, before);
-		delta_ms = ktime_to_ms(delta);
+	ret = poll_timeout_us(ret = guc_load_done(gt, &status, &tries), ret,
+			      10 * USEC_PER_MSEC,
+			      GUC_LOAD_TIMEOUT_SEC * USEC_PER_SEC, false);
 
-		load_done = guc_load_done(status);
-		if (load_done != 0)
-			break;
+	delta_ms = ktime_to_ms(ktime_sub(ktime_get(), before));
+	act_freq = xe_guc_pc_get_act_freq(guc_pc);
+	cur_freq = xe_guc_pc_get_cur_freq_fw(guc_pc);
 
-		if (delta_ms >= (GUC_LOAD_RETRY_LIMIT * 1000))
-			break;
-
-		xe_gt_dbg(gt, "load still in progress, timeouts = %d, freq = %dMHz (req %dMHz), status = 0x%08X [0x%02X/%02X]\n",
-			  count, xe_guc_pc_get_act_freq(guc_pc),
-			  xe_guc_pc_get_cur_freq_fw(guc_pc), status,
-			  REG_FIELD_GET(GS_BOOTROM_MASK, status),
-			  REG_FIELD_GET(GS_UKERNEL_MASK, status));
-	} while (1);
-
-	if (load_done != 1) {
-		xe_gt_err(gt, "load failed: status = 0x%08X, time = %lldms, freq = %dMHz (req %dMHz), done = %d\n",
+	if (ret) {
+		xe_gt_err(gt, "load failed: status = 0x%08X, time = %lldms, freq = %dMHz (req %dMHz)\n",
 			  status, delta_ms, xe_guc_pc_get_act_freq(guc_pc),
-			  xe_guc_pc_get_cur_freq_fw(guc_pc), load_done);
+			  xe_guc_pc_get_cur_freq_fw(guc_pc));
 		print_load_status_err(gt, status);
 
 		return -EPROTO;
 	}
 
-	if (delta_ms > GUC_LOAD_TIME_WARN_MS) {
-		xe_gt_warn(gt, "excessive init time: %lldms! [status = 0x%08X, timeouts = %d]\n",
-			   delta_ms, status, count);
-		xe_gt_warn(gt, "excessive init time: [freq = %dMHz (req = %dMHz), before = %dMHz, perf_limit_reasons = 0x%08X]\n",
-			   xe_guc_pc_get_act_freq(guc_pc), xe_guc_pc_get_cur_freq_fw(guc_pc),
-			   before_freq, xe_gt_throttle_get_limit_reasons(gt));
+	if (delta_ms > GUC_LOAD_TIME_WARN_MSEC) {
+		xe_gt_warn(gt, "GuC load: excessive init time: %lldms! [status = 0x%08X]\n",
+			   delta_ms, status);
+		xe_gt_warn(gt, "GuC load: excessive init time: [freq = %dMHz (req = %dMHz), before = %dMHz, perf_limit_reasons = 0x%08X]\n",
+			   act_freq, cur_freq, before_freq,
+			   xe_gt_throttle_get_limit_reasons(gt));
 	} else {
-		xe_gt_dbg(gt, "init took %lldms, freq = %dMHz (req = %dMHz), before = %dMHz, status = 0x%08X, timeouts = %d\n",
-			  delta_ms, xe_guc_pc_get_act_freq(guc_pc), xe_guc_pc_get_cur_freq_fw(guc_pc),
-			  before_freq, status, count);
+		xe_gt_dbg(gt, "GuC load: init took %lldms, freq = %dMHz (req = %dMHz), before = %dMHz, status = 0x%08X\n",
+			  delta_ms, act_freq, cur_freq, before_freq, status);
 	}
 
 	return 0;
