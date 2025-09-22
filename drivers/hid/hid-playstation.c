@@ -1372,7 +1372,7 @@ static void dualsense_output_worker(struct work_struct *work)
 				 */
 				common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_SPEAKER_VOLUME_ENABLE;
 				common->speaker_volume = 0x64;
-				/* Set SP preamp gain to ~30% */
+				/* Set SP preamp gain to +6dB */
 				common->valid_flag1 = DS_OUTPUT_VALID_FLAG1_AUDIO_CONTROL2_ENABLE;
 				common->audio_control2 =
 					FIELD_PREP(DS_OUTPUT_AUDIO_FLAGS2_SP_PREAMP_GAIN, 0x2);
