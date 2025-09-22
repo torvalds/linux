@@ -67,10 +67,11 @@ static void udpv6_destruct_sock(struct sock *sk)
 
 int udpv6_init_sock(struct sock *sk)
 {
-	udp_lib_init_sock(sk);
+	int res = udp_lib_init_sock(sk);
+
 	sk->sk_destruct = udpv6_destruct_sock;
 	set_bit(SOCK_SUPPORT_ZC, &sk->sk_socket->flags);
-	return 0;
+	return res;
 }
 
 INDIRECT_CALLABLE_SCOPE

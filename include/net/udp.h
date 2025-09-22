@@ -284,16 +284,23 @@ INDIRECT_CALLABLE_DECLARE(int udpv6_rcv(struct sk_buff *));
 struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 				  netdev_features_t features, bool is_ipv6);
 
-static inline void udp_lib_init_sock(struct sock *sk)
+static inline int udp_lib_init_sock(struct sock *sk)
 {
 	struct udp_sock *up = udp_sk(sk);
 
 	sk->sk_drop_counters = &up->drop_counters;
-	spin_lock_init(&up->busylock);
 	skb_queue_head_init(&up->reader_queue);
 	INIT_HLIST_NODE(&up->tunnel_list);
 	up->forward_threshold = sk->sk_rcvbuf >> 2;
 	set_bit(SOCK_CUSTOM_SOCKOPT, &sk->sk_socket->flags);
+
+	up->udp_prod_queue = kcalloc(nr_node_ids, sizeof(*up->udp_prod_queue),
+				     GFP_KERNEL);
+	if (!up->udp_prod_queue)
+		return -ENOMEM;
+	for (int i = 0; i < nr_node_ids; i++)
+		init_llist_head(&up->udp_prod_queue[i].ll_root);
+	return 0;
 }
 
 static inline void udp_drops_inc(struct sock *sk)
