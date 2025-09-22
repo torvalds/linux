@@ -25,6 +25,17 @@ extern struct time_namespace init_time_ns;
 extern struct user_namespace init_user_ns;
 extern struct uts_namespace init_uts_ns;
 
+extern const struct proc_ns_operations netns_operations;
+extern const struct proc_ns_operations utsns_operations;
+extern const struct proc_ns_operations ipcns_operations;
+extern const struct proc_ns_operations pidns_operations;
+extern const struct proc_ns_operations pidns_for_children_operations;
+extern const struct proc_ns_operations userns_operations;
+extern const struct proc_ns_operations mntns_operations;
+extern const struct proc_ns_operations cgroupns_operations;
+extern const struct proc_ns_operations timens_operations;
+extern const struct proc_ns_operations timens_for_children_operations;
+
 struct ns_common {
 	struct dentry *stashed;
 	const struct proc_ns_operations *ops;
@@ -84,10 +95,21 @@ void __ns_common_free(struct ns_common *ns);
 		struct user_namespace *:   &init_user_ns,   \
 		struct uts_namespace *:    &init_uts_ns)
 
-#define ns_common_init(__ns, __ops) \
-	__ns_common_init(to_ns_common(__ns), __ops, (((__ns) == ns_init_ns(__ns)) ? ns_init_inum(__ns) : 0))
+#define to_ns_operations(__ns)                                                                         \
+	_Generic((__ns),                                                                               \
+		struct cgroup_namespace *: (IS_ENABLED(CONFIG_CGROUPS) ? &cgroupns_operations : NULL), \
+		struct ipc_namespace *:    (IS_ENABLED(CONFIG_IPC_NS)  ? &ipcns_operations    : NULL), \
+		struct mnt_namespace *:    &mntns_operations,                                          \
+		struct net *:              (IS_ENABLED(CONFIG_NET_NS)  ? &netns_operations    : NULL), \
+		struct pid_namespace *:    (IS_ENABLED(CONFIG_PID_NS)  ? &pidns_operations    : NULL), \
+		struct time_namespace *:   (IS_ENABLED(CONFIG_TIME_NS) ? &timens_operations   : NULL), \
+		struct user_namespace *:   (IS_ENABLED(CONFIG_USER_NS) ? &userns_operations   : NULL), \
+		struct uts_namespace *:    (IS_ENABLED(CONFIG_UTS_NS)  ? &utsns_operations    : NULL))
 
-#define ns_common_init_inum(__ns, __ops, __inum) __ns_common_init(to_ns_common(__ns), __ops, __inum)
+#define ns_common_init(__ns) \
+	__ns_common_init(to_ns_common(__ns), to_ns_operations(__ns), (((__ns) == ns_init_ns(__ns)) ? ns_init_inum(__ns) : 0))
+
+#define ns_common_init_inum(__ns, __inum) __ns_common_init(to_ns_common(__ns), to_ns_operations(__ns), __inum)
 
 #define ns_common_free(__ns) __ns_common_free(to_ns_common((__ns)))
 

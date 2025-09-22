@@ -2,6 +2,8 @@
 #ifndef _LINUX_CGROUP_NAMESPACE_H
 #define _LINUX_CGROUP_NAMESPACE_H
 
+#include <linux/ns_common.h>
+
 struct cgroup_namespace {
 	struct ns_common	ns;
 	struct user_namespace	*user_ns;
