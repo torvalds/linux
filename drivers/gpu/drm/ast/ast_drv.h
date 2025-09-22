@@ -417,6 +417,7 @@ int ast_mm_init(struct ast_device *ast);
 
 /* ast_2000.c */
 int ast_2000_post(struct ast_device *ast);
+extern const struct ast_vbios_dclk_info ast_2000_dclk_table[];
 
 /* ast_2100.c */
 int ast_2100_post(struct ast_device *ast);
@@ -427,6 +428,7 @@ int ast_2300_post(struct ast_device *ast);
 /* ast_2500.c */
 void ast_2500_patch_ahb(void __iomem *regs);
 int ast_2500_post(struct ast_device *ast);
+extern const struct ast_vbios_dclk_info ast_2500_dclk_table[];
 
 /* ast_2600.c */
 int ast_2600_post(struct ast_device *ast);
