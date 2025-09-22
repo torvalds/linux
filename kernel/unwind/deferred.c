@@ -53,7 +53,7 @@ DEFINE_STATIC_SRCU(unwind_srcu);
 
 static inline bool unwind_pending(struct unwind_task_info *info)
 {
-	return test_bit(UNWIND_PENDING_BIT, &info->unwind_mask);
+	return atomic_long_read(&info->unwind_mask) & UNWIND_PENDING;
 }
 
 /*
@@ -141,7 +141,7 @@ int unwind_user_faultable(struct unwind_stacktrace *trace)
 	cache->nr_entries = trace->nr;
 
 	/* Clear nr_entries on way back to user space */
-	set_bit(UNWIND_USED_BIT, &info->unwind_mask);
+	atomic_long_or(UNWIND_USED, &info->unwind_mask);
 
 	return 0;
 }
@@ -159,7 +159,7 @@ static void process_unwind_deferred(struct task_struct *task)
 
 	/* Clear pending bit but make sure to have the current bits */
 	bits = atomic_long_fetch_andnot(UNWIND_PENDING,
-				  (atomic_long_t *)&info->unwind_mask);
+					&info->unwind_mask);
 	/*
 	 * From here on out, the callback must always be called, even if it's
 	 * just an empty trace.
@@ -264,7 +264,7 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 
 	*cookie = get_cookie(info);
 
-	old = READ_ONCE(info->unwind_mask);
+	old = atomic_long_read(&info->unwind_mask);
 
 	/* Is this already queued or executed */
 	if (old & bit)
@@ -277,7 +277,7 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	 * to have a callback.
 	 */
 	bits = UNWIND_PENDING | bit;
-	old = atomic_long_fetch_or(bits, (atomic_long_t *)&info->unwind_mask);
+	old = atomic_long_fetch_or(bits, &info->unwind_mask);
 	if (old & bits) {
 		/*
 		 * If the work's bit was set, whatever set it had better
@@ -291,7 +291,7 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	ret = task_work_add(current, &info->work, twa_mode);
 
 	if (WARN_ON_ONCE(ret))
-		WRITE_ONCE(info->unwind_mask, 0);
+		atomic_long_set(&info->unwind_mask, 0);
 
 	return ret;
 }
@@ -323,7 +323,8 @@ void unwind_deferred_cancel(struct unwind_work *work)
 	guard(rcu)();
 	/* Clear this bit from all threads */
 	for_each_process_thread(g, t) {
-		clear_bit(bit, &t->unwind_info.unwind_mask);
+		atomic_long_andnot(BIT(bit),
+				   &t->unwind_info.unwind_mask);
 		if (t->unwind_info.cache)
 			clear_bit(bit, &t->unwind_info.cache->unwind_completed);
 	}
@@ -353,7 +354,7 @@ void unwind_task_init(struct task_struct *task)
 
 	memset(info, 0, sizeof(*info));
 	init_task_work(&info->work, unwind_deferred_task_work);
-	info->unwind_mask = 0;
+	atomic_long_set(&info->unwind_mask, 0);
 }
 
 void unwind_task_free(struct task_struct *task)

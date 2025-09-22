@@ -46,7 +46,7 @@ void unwind_deferred_task_exit(struct task_struct *task);
 static __always_inline void unwind_reset_info(void)
 {
 	struct unwind_task_info *info = &current->unwind_info;
-	unsigned long bits = info->unwind_mask;
+	unsigned long bits = atomic_long_read(&info->unwind_mask);
 
 	/* Was there any unwinding? */
 	if (likely(!bits))
@@ -56,7 +56,7 @@ static __always_inline void unwind_reset_info(void)
 		/* Is a task_work going to run again before going back */
 		if (bits & UNWIND_PENDING)
 			return;
-	} while (!try_cmpxchg(&info->unwind_mask, &bits, 0UL));
+	} while (!atomic_long_try_cmpxchg(&info->unwind_mask, &bits, 0UL));
 	current->unwind_info.id.id = 0;
 
 	if (unlikely(info->cache)) {
