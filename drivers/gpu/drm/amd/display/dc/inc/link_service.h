@@ -42,8 +42,8 @@
  * dc_link_exports.c or other dc files implement dc.h
  *
  * DC to Link:
- * dc_link_exports.c or other dc files include link.h
- * link_factory.c implements link.h
+ * dc_link_exports.c or other dc files include link_service.h
+ * link_factory.c implements link_service.h
  *
  * Link sub-component to Link sub-component:
  * link_factory.c includes --> link_xxx.h
@@ -73,7 +73,7 @@
  * 2. Implement your function in the suitable link_xxx.c file.
  * 3. Assign the function to link_service in link_factory.c
  * 4. NEVER include link_xxx.h headers outside link component.
- * 5. NEVER include link.h on DM side.
+ * 5. NEVER include link_service.h on DM side.
  */
 #include "core_types.h"
 
@@ -218,7 +218,10 @@ struct link_service {
 	bool (*dp_overwrite_extended_receiver_cap)(struct dc_link *link);
 	enum lttpr_mode (*dp_decide_lttpr_mode)(struct dc_link *link,
 			struct dc_link_settings *link_setting);
-
+	uint8_t (*dp_get_lttpr_count)(struct dc_link *link);
+	void (*edp_get_alpm_support)(struct dc_link *link,
+		bool *auxless_support,
+		bool *auxwake_support);
 
 	/*************************** DP DPIA/PHY ******************************/
 	void (*dpia_handle_usb4_bandwidth_allocation_for_link)(

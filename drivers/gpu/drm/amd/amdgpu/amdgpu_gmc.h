@@ -154,15 +154,15 @@ struct amdgpu_gmc_funcs {
 				   unsigned pasid);
 	/* enable/disable PRT support */
 	void (*set_prt)(struct amdgpu_device *adev, bool enable);
-	/* map mtype to hardware flags */
-	uint64_t (*map_mtype)(struct amdgpu_device *adev, uint32_t flags);
 	/* get the pde for a given mc addr */
 	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
 			   u64 *dst, u64 *flags);
-	/* get the pte flags to use for a BO VA mapping */
+	/* get the pte flags to use for PTEs */
 	void (*get_vm_pte)(struct amdgpu_device *adev,
-			   struct amdgpu_bo_va_mapping *mapping,
-			   uint64_t *flags);
+			   struct amdgpu_vm *vm,
+			   struct amdgpu_bo *bo,
+			   uint32_t vm_flags,
+			   uint64_t *pte_flags);
 	/* override per-page pte flags */
 	void (*override_vm_pte_flags)(struct amdgpu_device *dev,
 				      struct amdgpu_vm *vm,
@@ -356,9 +356,10 @@ struct amdgpu_gmc {
 
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
-#define amdgpu_gmc_map_mtype(adev, flags) (adev)->gmc.gmc_funcs->map_mtype((adev),(flags))
 #define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
-#define amdgpu_gmc_get_vm_pte(adev, mapping, flags) (adev)->gmc.gmc_funcs->get_vm_pte((adev), (mapping), (flags))
+#define amdgpu_gmc_get_vm_pte(adev, vm, bo, vm_flags, pte_flags) \
+	((adev)->gmc.gmc_funcs->get_vm_pte((adev), (vm), (bo), (vm_flags), \
+					   (pte_flags)))
 #define amdgpu_gmc_override_vm_pte_flags(adev, vm, addr, pte_flags)	\
 	(adev)->gmc.gmc_funcs->override_vm_pte_flags			\
 		((adev), (vm), (addr), (pte_flags))

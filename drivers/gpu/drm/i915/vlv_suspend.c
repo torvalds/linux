@@ -8,15 +8,16 @@
 
 #include <drm/drm_print.h>
 
+#include "gt/intel_gt_regs.h"
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_trace.h"
 #include "i915_utils.h"
+#include "i915_wait_util.h"
 #include "intel_clock_gating.h"
 #include "intel_uncore_trace.h"
 #include "vlv_suspend.h"
-
-#include "gt/intel_gt_regs.h"
 
 struct vlv_s0ix_state {
 	/* GAM */

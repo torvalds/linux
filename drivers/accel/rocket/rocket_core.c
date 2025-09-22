@@ -74,7 +74,7 @@ int rocket_core_init(struct rocket_core *core)
 
 	pm_runtime_enable(dev);
 
-	err = pm_runtime_get_sync(dev);
+	err = pm_runtime_resume_and_get(dev);
 	if (err) {
 		rocket_job_fini(core);
 		return err;

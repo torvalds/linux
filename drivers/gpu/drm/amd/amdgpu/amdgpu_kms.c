@@ -939,6 +939,10 @@ out:
 		if (adev->gfx.config.ta_cntl2_truncate_coord_mode)
 			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_CONFORMANT_TRUNC_COORD;
 
+		/* Gang submit is not supported under SRIOV currently */
+		if (!amdgpu_sriov_vf(adev))
+			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_GANG_SUBMIT;
+
 		if (amdgpu_passthrough(adev))
 			dev_info->ids_flags |= (AMDGPU_IDS_FLAGS_MODE_PT <<
 						AMDGPU_IDS_FLAGS_MODE_SHIFT) &

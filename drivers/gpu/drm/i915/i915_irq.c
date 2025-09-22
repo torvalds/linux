@@ -163,11 +163,6 @@ static void ivb_parity_work(struct work_struct *work)
 	u32 misccpctl;
 	u8 slice = 0;
 
-	/* We must turn off DOP level clock gating to access the L3 registers.
-	 * In order to prevent a get/put style interface, acquire struct mutex
-	 * any time we access those registers.
-	 */
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	/* If we've screwed up tracking, just let the interrupt fire again */
 	if (drm_WARN_ON(&dev_priv->drm, !dev_priv->l3_parity.which_slice))
@@ -225,7 +220,6 @@ out:
 	gen5_gt_enable_irq(gt, GT_PARITY_ERROR(dev_priv));
 	spin_unlock_irq(gt->irq_lock);
 
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
@@ -439,7 +433,7 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	 * able to process them after we restore SDEIER (as soon as we restore
 	 * it, we'll get an interrupt if SDEIIR still has something to process
 	 * due to its back queue). */
-	if (!HAS_PCH_NOP(i915)) {
+	if (!HAS_PCH_NOP(display)) {
 		sde_ier = raw_reg_read(regs, SDEIER);
 		raw_reg_write(regs, SDEIER, 0);
 	}
@@ -459,7 +453,7 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	de_iir = raw_reg_read(regs, DEIIR);
 	if (de_iir) {
 		raw_reg_write(regs, DEIIR, de_iir);
-		if (DISPLAY_VER(i915) >= 7)
+		if (DISPLAY_VER(display) >= 7)
 			ivb_display_irq_handler(display, de_iir);
 		else
 			ilk_display_irq_handler(display, de_iir);
@@ -834,6 +828,7 @@ static void cherryview_irq_postinstall(struct drm_i915_private *dev_priv)
 
 static u32 i9xx_error_mask(struct drm_i915_private *i915)
 {
+	struct intel_display *display = i915->display;
 	/*
 	 * On gen2/3 FBC generates (seemingly spurious)
 	 * display INVALID_GTT/INVALID_GTT_PTE table errors.
@@ -846,7 +841,7 @@ static u32 i9xx_error_mask(struct drm_i915_private *i915)
 	 * Unfortunately we can't mask off individual PGTBL_ER bits,
 	 * so we just have to mask off all page table errors via EMR.
 	 */
-	if (HAS_FBC(i915))
+	if (HAS_FBC(display))
 		return I915_ERROR_MEMORY_REFRESH;
 	else
 		return I915_ERROR_PAGE_TABLE |
@@ -924,12 +919,12 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
-	if (DISPLAY_VER(dev_priv) >= 3) {
+	if (DISPLAY_VER(display) >= 3) {
 		dev_priv->irq_mask &= ~I915_ASLE_INTERRUPT;
 		enable_mask |= I915_ASLE_INTERRUPT;
 	}
 
-	if (HAS_HOTPLUG(dev_priv)) {
+	if (HAS_HOTPLUG(display)) {
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 	}
@@ -963,7 +958,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
-		if (HAS_HOTPLUG(dev_priv) &&
+		if (HAS_HOTPLUG(display) &&
 		    iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(display);
 

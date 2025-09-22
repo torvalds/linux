@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2019 Advanced Micro Devices, Inc.
  *
@@ -222,6 +223,7 @@ void hdcp_update_display(struct hdcp_workqueue *hdcp_work,
 		display_adjust.disable = MOD_HDCP_DISPLAY_NOT_DISABLE;
 
 		link_adjust.auth_delay = 2;
+		link_adjust.retry_limit = MAX_NUM_OF_ATTEMPTS;
 
 		if (content_type == DRM_MODE_HDCP_CONTENT_TYPE0) {
 			link_adjust.hdcp2.force_type = MOD_HDCP_FORCE_TYPE_0;
@@ -571,6 +573,7 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dp.usb4_enabled = config->usb4_enabled;
 	display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 	link->adjust.auth_delay = 2;
+	link->adjust.retry_limit = MAX_NUM_OF_ATTEMPTS;
 	link->adjust.hdcp1.disable = 0;
 	hdcp_w->encryption_status[display->index] = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 

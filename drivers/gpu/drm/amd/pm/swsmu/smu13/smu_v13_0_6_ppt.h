@@ -49,6 +49,7 @@ struct PPTable_t {
 	uint32_t MaxLclkDpmRange;
 	uint32_t MinLclkDpmRange;
 	uint64_t PublicSerialNumber_AID;
+	uint32_t MaxNodePowerLimit;
 	bool Init;
 };
 
@@ -64,10 +65,13 @@ enum smu_v13_0_6_caps {
 	SMU_CAP(RMA_MSG),
 	SMU_CAP(ACA_SYND),
 	SMU_CAP(SDMA_RESET),
+	SMU_CAP(VCN_RESET),
 	SMU_CAP(STATIC_METRICS),
 	SMU_CAP(HST_LIMIT_METRICS),
 	SMU_CAP(BOARD_VOLTAGE),
 	SMU_CAP(PLDM_VERSION),
+	SMU_CAP(TEMP_METRICS),
+	SMU_CAP(NPM_METRICS),
 	SMU_CAP(ALL),
 };
 
@@ -79,6 +83,7 @@ int smu_v13_0_6_get_metrics_table(struct smu_context *smu, void *metrics_table,
 
 bool smu_v13_0_12_is_dpm_running(struct smu_context *smu);
 int smu_v13_0_12_get_max_metrics_size(void);
+size_t smu_v13_0_12_get_system_metrics_size(void);
 int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu);
 int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 				      MetricsMember_t member, uint32_t *value);
@@ -86,6 +91,12 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table, void
 ssize_t smu_v13_0_12_get_xcp_metrics(struct smu_context *smu,
 				     struct amdgpu_xcp *xcp, void *table,
 				     void *smu_metrics);
+int smu_v13_0_12_tables_init(struct smu_context *smu);
+void smu_v13_0_12_tables_fini(struct smu_context *smu);
+int smu_v13_0_12_get_npm_data(struct smu_context *smu,
+			      enum amd_pp_sensors sensor,
+			      uint32_t *value);
 extern const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[];
 extern const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[];
+extern const struct smu_temp_funcs smu_v13_0_12_temp_funcs;
 #endif

@@ -256,11 +256,12 @@ static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t flags, resp;
-	bool fed_status;
+	bool fed_status, pri;
 
 	flags = __smu_cmn_get_msg_flags(smu, msg);
 	*poll = true;
 
+	pri = !!(flags & SMU_MSG_NO_PRECHECK);
 	/* When there is RAS fatal error, FW won't process non-RAS priority
 	 * messages. Don't allow any messages other than RAS priority messages.
 	 */
@@ -272,15 +273,18 @@ static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
 				smu_get_message_name(smu, msg));
 			return -EACCES;
 		}
+	}
 
+	if (pri || fed_status) {
 		/* FW will ignore non-priority messages when a RAS fatal error
-		 * is detected. Hence it is possible that a previous message
-		 * wouldn't have got response. Allow to continue without polling
-		 * for response status for priority messages.
+		 * or reset condition is detected. Hence it is possible that a
+		 * previous message wouldn't have got response. Allow to
+		 * continue without polling for response status for priority
+		 * messages.
 		 */
 		resp = RREG32(smu->resp_reg);
 		dev_dbg(adev->dev,
-			"Sending RAS priority message %s response status: %x",
+			"Sending priority message %s response status: %x",
 			smu_get_message_name(smu, msg), resp);
 		if (resp == 0)
 			*poll = false;

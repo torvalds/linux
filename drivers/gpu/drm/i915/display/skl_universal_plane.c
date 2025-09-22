@@ -10,6 +10,7 @@
 
 #include "pxp/intel_pxp.h"
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_bo.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
@@ -19,6 +20,7 @@
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+#include "intel_panic.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
@@ -1166,8 +1168,7 @@ static u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return plane_ctl;
 }
 
-static u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
-			 const struct intel_plane_state *plane_state)
+static u32 skl_plane_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1225,8 +1226,7 @@ static u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return plane_color_ctl;
 }
 
-static u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
-			       const struct intel_plane_state *plane_state)
+static u32 glk_plane_color_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1271,12 +1271,6 @@ static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 	u32 offset = plane_state->view.color_plane[color_plane].offset;
 
 	if (intel_fb_uses_dpt(fb)) {
-		/*
-		 * The DPT object contains only one vma, so the VMA's offset
-		 * within the DPT is always 0.
-		 */
-		drm_WARN_ON(display->drm, plane_state->dpt_vma &&
-			    intel_dpt_offset(plane_state->dpt_vma));
 		drm_WARN_ON(display->drm, offset & 0x1fffff);
 		return offset >> 9;
 	} else {
@@ -1285,13 +1279,20 @@ static u32 skl_surf_address(const struct intel_plane_state *plane_state,
 	}
 }
 
-static u32 skl_plane_surf(const struct intel_plane_state *plane_state,
-			  int color_plane)
+static int icl_plane_color_plane(const struct intel_plane_state *plane_state)
 {
+	if (plane_state->planar_linked_plane && !plane_state->is_y_plane)
+		return 1;
+	else
+		return 0;
+}
+
+static u32 skl_plane_surf_offset(const struct intel_plane_state *plane_state)
+{
+	int color_plane = icl_plane_color_plane(plane_state);
 	u32 plane_surf;
 
-	plane_surf = intel_plane_ggtt_offset(plane_state) +
-		skl_surf_address(plane_state, color_plane);
+	plane_surf = skl_surf_address(plane_state, color_plane);
 
 	if (plane_state->decrypt)
 		plane_surf |= PLANE_SURF_DECRYPT;
@@ -1371,14 +1372,6 @@ static void icl_plane_csc_load_black(struct intel_dsb *dsb,
 	intel_de_write_dsb(display, dsb, PLANE_CSC_POSTOFF(pipe, plane_id, 0), 0);
 	intel_de_write_dsb(display, dsb, PLANE_CSC_POSTOFF(pipe, plane_id, 1), 0);
 	intel_de_write_dsb(display, dsb, PLANE_CSC_POSTOFF(pipe, plane_id, 2), 0);
-}
-
-static int icl_plane_color_plane(const struct intel_plane_state *plane_state)
-{
-	if (plane_state->planar_linked_plane && !plane_state->is_y_plane)
-		return 1;
-	else
-		return 0;
 }
 
 static void
@@ -1476,7 +1469,7 @@ skl_plane_update_arm(struct intel_dsb *dsb,
 	intel_de_write_dsb(display, dsb, PLANE_CTL(pipe, plane_id),
 			   plane_ctl);
 	intel_de_write_dsb(display, dsb, PLANE_SURF(pipe, plane_id),
-			   skl_plane_surf(plane_state, 0));
+			   plane_state->surf);
 }
 
 static void icl_plane_update_sel_fetch_noarm(struct intel_dsb *dsb,
@@ -1632,7 +1625,6 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 	struct intel_display *display = to_intel_display(plane);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	int color_plane = icl_plane_color_plane(plane_state);
 	u32 plane_ctl;
 
 	plane_ctl = plane_state->ctl |
@@ -1658,7 +1650,7 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 	intel_de_write_dsb(display, dsb, PLANE_CTL(pipe, plane_id),
 			   plane_ctl);
 	intel_de_write_dsb(display, dsb, PLANE_SURF(pipe, plane_id),
-			   skl_plane_surf(plane_state, color_plane));
+			   plane_state->surf);
 }
 
 static void skl_plane_capture_error(struct intel_crtc *crtc,
@@ -1682,10 +1674,10 @@ skl_plane_async_flip(struct intel_dsb *dsb,
 	struct intel_display *display = to_intel_display(plane);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	u32 plane_ctl = plane_state->ctl, plane_surf;
+	u32 plane_ctl = plane_state->ctl;
+	u32 plane_surf = plane_state->surf;
 
 	plane_ctl |= skl_plane_ctl_crtc(crtc_state);
-	plane_surf = skl_plane_surf(plane_state, 0);
 
 	if (async_flip) {
 		if (DISPLAY_VER(display) >= 30)
@@ -2363,11 +2355,10 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 		plane_state->damage = DRM_RECT_INIT(0, 0, 0, 0);
 	}
 
-	plane_state->ctl = skl_plane_ctl(crtc_state, plane_state);
+	plane_state->ctl = skl_plane_ctl(plane_state);
 
 	if (DISPLAY_VER(display) >= 10)
-		plane_state->color_ctl = glk_plane_color_ctl(crtc_state,
-							     plane_state);
+		plane_state->color_ctl = glk_plane_color_ctl(plane_state);
 
 	if (intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
 	    icl_is_hdr_plane(display, plane->id))
@@ -2814,7 +2805,7 @@ static void skl_disable_tiling(struct intel_plane *plane)
 	intel_de_write_fw(display, PLANE_CTL(plane->pipe, plane->id), plane_ctl);
 
 	intel_de_write_fw(display, PLANE_SURF(plane->pipe, plane->id),
-			  skl_plane_surf(state, 0));
+			  state->surf);
 }
 
 struct intel_plane *
@@ -2864,6 +2855,8 @@ skl_universal_plane_create(struct intel_display *display,
 		plane->min_cdclk = skl_plane_min_cdclk;
 	}
 	plane->disable_tiling = skl_disable_tiling;
+
+	plane->surf_offset = skl_plane_surf_offset;
 
 	if (DISPLAY_VER(display) >= 13)
 		plane->max_stride = adl_plane_max_stride;
@@ -3036,7 +3029,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 		return;
 	}
 
-	intel_fb = intel_bo_alloc_framebuffer();
+	intel_fb = intel_framebuffer_alloc();
 	if (!intel_fb) {
 		drm_dbg_kms(display->drm, "failed to alloc fb\n");
 		return;
@@ -3191,21 +3184,18 @@ bool skl_fixup_initial_plane_config(struct intel_crtc *crtc,
 		to_intel_plane_state(plane->base.state);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = crtc->pipe;
-	u32 base;
 
 	if (!plane_state->uapi.visible)
 		return false;
-
-	base = intel_plane_ggtt_offset(plane_state);
 
 	/*
 	 * We may have moved the surface to a different
 	 * part of ggtt, make the plane aware of that.
 	 */
-	if (plane_config->base == base)
+	if (plane_config->base == plane_state->surf)
 		return false;
 
-	intel_de_write(display, PLANE_SURF(pipe, plane_id), base);
+	intel_de_write(display, PLANE_SURF(pipe, plane_id), plane_state->surf);
 
 	return true;
 }

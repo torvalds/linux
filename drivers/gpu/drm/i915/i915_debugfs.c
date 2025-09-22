@@ -26,11 +26,11 @@
  *
  */
 
+#include <linux/debugfs.h>
 #include <linux/sched/mm.h>
 #include <linux/sort.h>
 #include <linux/string_helpers.h>
 
-#include <linux/debugfs.h>
 #include <drm/drm_debugfs.h>
 
 #include "gem/i915_gem_context.h"
@@ -54,6 +54,7 @@
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "i915_scheduler.h"
+#include "i915_wait_util.h"
 #include "intel_mchbar_regs.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
@@ -720,26 +721,24 @@ static const struct i915_debugfs_files {
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 };
 
-void i915_debugfs_register(struct drm_i915_private *dev_priv)
+void i915_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = dev_priv->drm.primary;
+	struct dentry *debugfs_root = i915->drm.debugfs_root;
 	int i;
 
-	i915_debugfs_params(dev_priv);
+	i915_debugfs_params(i915);
 
-	debugfs_create_file("i915_forcewake_user", S_IRUSR, minor->debugfs_root,
-			    to_i915(minor->dev), &i915_forcewake_fops);
+	debugfs_create_file("i915_forcewake_user", S_IRUSR, debugfs_root,
+			    i915, &i915_forcewake_fops);
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
-		debugfs_create_file(i915_debugfs_files[i].name,
-				    S_IRUGO | S_IWUSR,
-				    minor->debugfs_root,
-				    to_i915(minor->dev),
+		debugfs_create_file(i915_debugfs_files[i].name, S_IRUGO | S_IWUSR,
+				    debugfs_root, i915,
 				    i915_debugfs_files[i].fops);
 	}
 
 	drm_debugfs_create_files(i915_debugfs_list,
 				 ARRAY_SIZE(i915_debugfs_list),
-				 minor->debugfs_root, minor);
+				 debugfs_root, i915->drm.primary);
 
-	i915_gpu_error_debugfs_register(dev_priv);
+	i915_gpu_error_debugfs_register(i915);
 }

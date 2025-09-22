@@ -683,7 +683,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 }
 
 /**
- * check_vcpu_requests - check and handle pending vCPU requests
+ * kvm_riscv_check_vcpu_requests - check and handle pending vCPU requests
  * @vcpu:	the VCPU pointer
  *
  * Return: 1 if we should enter the guest

@@ -611,12 +611,15 @@ adjust_limits_for_dsc_hblank_expansion_quirk(struct intel_dp *intel_dp,
 
 static bool
 mst_stream_compute_config_limits(struct intel_dp *intel_dp,
-				 struct intel_connector *connector,
+				 struct drm_connector_state *conn_state,
 				 struct intel_crtc_state *crtc_state,
 				 bool dsc,
 				 struct link_config_limits *limits)
 {
-	if (!intel_dp_compute_config_limits(intel_dp, connector,
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+
+	if (!intel_dp_compute_config_limits(intel_dp, conn_state,
 					    crtc_state, false, dsc,
 					    limits))
 		return false;
@@ -665,7 +668,7 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 	joiner_needs_dsc = intel_dp_joiner_needs_dsc(display, num_joined_pipes);
 
 	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en ||
-		!mst_stream_compute_config_limits(intel_dp, connector,
+		!mst_stream_compute_config_limits(intel_dp, conn_state,
 						  pipe_config, false, &limits);
 
 	if (!dsc_needed) {
@@ -691,7 +694,7 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 			    str_yes_no(intel_dp->force_dsc_en));
 
 
-		if (!mst_stream_compute_config_limits(intel_dp, connector,
+		if (!mst_stream_compute_config_limits(intel_dp, conn_state,
 						      pipe_config, true,
 						      &limits))
 			return -EINVAL;

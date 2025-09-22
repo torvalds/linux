@@ -65,7 +65,7 @@ SDMA (System DMA)
 
 GC (Graphics and Compute)
     This is the graphics and compute engine, i.e., the block that
-    encompasses the 3D pipeline and and shader blocks.  This is by far the
+    encompasses the 3D pipeline and shader blocks.  This is by far the
     largest block on the GPU.  The 3D pipeline has tons of sub-blocks.  In
     addition to that, it also contains the CP microcontrollers (ME, PFP, CE,
     MEC) and the RLC microcontroller.  It's exposed to userspace for user mode
@@ -210,4 +210,4 @@ IP Blocks
    :doc: IP Blocks
 
 .. kernel-doc:: drivers/gpu/drm/amd/include/amd_shared.h
-   :identifiers: amd_ip_block_type amd_ip_funcs DC_DEBUG_MASK
+   :identifiers: amd_ip_block_type amd_ip_funcs DC_FEATURE_MASK DC_DEBUG_MASK

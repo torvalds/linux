@@ -248,11 +248,11 @@ i915_debugfs_create_charp(const char *name, umode_t mode,
 /* add a subdirectory with files for each i915 param */
 struct dentry *i915_debugfs_params(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct dentry *debugfs_root = i915->drm.debugfs_root;
 	struct i915_params *params = &i915->params;
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("i915_params", minor->debugfs_root);
+	dir = debugfs_create_dir("i915_params", debugfs_root);
 	if (IS_ERR(dir))
 		return dir;
 

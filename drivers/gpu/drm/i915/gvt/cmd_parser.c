@@ -1921,7 +1921,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (!bb)
 		return -ENOMEM;
 
-	bb->ppgtt = (s->buf_addr_type == GTT_BUFFER) ? false : true;
+	bb->ppgtt = s->buf_addr_type != GTT_BUFFER;
 
 	/*
 	 * The start_offset stores the batch buffer's start gma's

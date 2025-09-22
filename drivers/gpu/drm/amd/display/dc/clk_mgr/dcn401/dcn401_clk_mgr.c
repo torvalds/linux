@@ -13,7 +13,7 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 #include "atomfirmware.h"
 
@@ -1404,11 +1404,7 @@ static void dcn401_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 			clk_mgr_base->bw_params->clk_table.entries[num_entries_per_clk->num_fclk_levels - 1].fclk_mhz)
 		clk_mgr_base->bw_params->dc_mode_limit.fclk_mhz = 0;
 
-	if (num_entries_per_clk->num_memclk_levels >= num_entries_per_clk->num_fclk_levels) {
-		num_levels = num_entries_per_clk->num_memclk_levels;
-	} else {
-		num_levels = num_entries_per_clk->num_fclk_levels;
-	}
+	num_levels = max(num_entries_per_clk->num_memclk_levels, num_entries_per_clk->num_fclk_levels);
 
 	clk_mgr_base->bw_params->clk_table.num_entries = num_levels ? num_levels : 1;
 

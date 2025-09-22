@@ -169,7 +169,7 @@ int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 
 	BUILD_BUG_ON(ARRAY_SIZE(acpi_dsm_size) != DSM_FUNC_NUM_FUNCS);
 
-	if (WARN_ON(func >= ARRAY_SIZE(acpi_dsm_size)))
+	if (WARN_ON(func >= ARRAY_SIZE(acpi_dsm_size) || !func))
 		return -EINVAL;
 
 	expected_size = acpi_dsm_size[func];
@@ -177,6 +177,29 @@ int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 	/* Currently all ACPI DSMs are either 8-bit or 32-bit */
 	if (expected_size != sizeof(u8) && expected_size != sizeof(u32))
 		return -EOPNOTSUPP;
+
+	if (!fwrt->acpi_dsm_funcs_valid) {
+		ret = iwl_acpi_get_dsm_integer(fwrt->dev, ACPI_DSM_REV,
+					       DSM_FUNC_QUERY,
+					       &iwl_guid, &tmp,
+					       acpi_dsm_size[DSM_FUNC_QUERY]);
+		if (ret) {
+			/* always indicate BIT(0) to avoid re-reading */
+			fwrt->acpi_dsm_funcs_valid = BIT(0);
+			return ret;
+		}
+
+		IWL_DEBUG_RADIO(fwrt, "ACPI DSM validity bitmap 0x%x\n",
+				(u32)tmp);
+		/* always indicate BIT(0) to avoid re-reading */
+		fwrt->acpi_dsm_funcs_valid = tmp | BIT(0);
+	}
+
+	if (!(fwrt->acpi_dsm_funcs_valid & BIT(func))) {
+		IWL_DEBUG_RADIO(fwrt, "ACPI DSM %d not indicated as valid\n",
+				func);
+		return -ENODATA;
+	}
 
 	ret = iwl_acpi_get_dsm_integer(fwrt->dev, ACPI_DSM_REV, func,
 				       &iwl_guid, &tmp, expected_size);

@@ -11,6 +11,7 @@
 #include <drm/drm_modeset_helper.h>
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
@@ -19,6 +20,7 @@
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 #include "intel_frontbuffer.h"
+#include "intel_panic.h"
 #include "intel_plane.h"
 
 #define check_array_bounds(display, a, i) drm_WARN_ON((display)->drm, (i) >= ARRAY_SIZE(a))
@@ -2342,6 +2344,26 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	return fb;
 }
 
+struct intel_framebuffer *intel_framebuffer_alloc(void)
+{
+	struct intel_framebuffer *intel_fb;
+	struct intel_panic *panic;
+
+	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	if (!intel_fb)
+		return NULL;
+
+	panic = intel_panic_alloc();
+	if (!panic) {
+		kfree(intel_fb);
+		return NULL;
+	}
+
+	intel_fb->panic = panic;
+
+	return intel_fb;
+}
+
 struct drm_framebuffer *
 intel_framebuffer_create(struct drm_gem_object *obj,
 			 const struct drm_format_info *info,
@@ -2350,7 +2372,7 @@ intel_framebuffer_create(struct drm_gem_object *obj,
 	struct intel_framebuffer *intel_fb;
 	int ret;
 
-	intel_fb = intel_bo_alloc_framebuffer();
+	intel_fb = intel_framebuffer_alloc();
 	if (!intel_fb)
 		return ERR_PTR(-ENOMEM);
 
