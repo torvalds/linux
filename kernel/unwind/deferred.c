@@ -128,17 +128,14 @@ int unwind_user_faultable(struct unwind_stacktrace *trace)
 
 	cache = info->cache;
 	trace->entries = cache->entries;
-
-	if (cache->nr_entries) {
-		/*
-		 * The user stack has already been previously unwound in this
-		 * entry context.  Skip the unwind and use the cache.
-		 */
-		trace->nr = cache->nr_entries;
+	trace->nr = cache->nr_entries;
+	/*
+	 * The user stack has already been previously unwound in this
+	 * entry context.  Skip the unwind and use the cache.
+	 */
+	if (trace->nr)
 		return 0;
-	}
 
-	trace->nr = 0;
 	unwind_user(trace, UNWIND_MAX_ENTRIES);
 
 	cache->nr_entries = trace->nr;
