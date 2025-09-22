@@ -56,6 +56,8 @@ enum pgtable_type {
 	TABLE_P4D,
 };
 
+DEFINE_STATIC_KEY_FALSE(arm64_ptdump_lock_key);
+
 u64 kimage_voffset __ro_after_init;
 EXPORT_SYMBOL(kimage_voffset);
 
@@ -1665,7 +1667,8 @@ int pmd_clear_huge(pmd_t *pmdp)
 	return 1;
 }
 
-int pmd_free_pte_page(pmd_t *pmdp, unsigned long addr)
+static int __pmd_free_pte_page(pmd_t *pmdp, unsigned long addr,
+			       bool acquire_mmap_lock)
 {
 	pte_t *table;
 	pmd_t pmd;
@@ -1677,11 +1680,23 @@ int pmd_free_pte_page(pmd_t *pmdp, unsigned long addr)
 		return 1;
 	}
 
+	/* See comment in pud_free_pmd_page for static key logic */
 	table = pte_offset_kernel(pmdp, addr);
 	pmd_clear(pmdp);
 	__flush_tlb_kernel_pgtable(addr);
+	if (static_branch_unlikely(&arm64_ptdump_lock_key) && acquire_mmap_lock) {
+		mmap_read_lock(&init_mm);
+		mmap_read_unlock(&init_mm);
+	}
+
 	pte_free_kernel(NULL, table);
 	return 1;
+}
+
+int pmd_free_pte_page(pmd_t *pmdp, unsigned long addr)
+{
+	/* If ptdump is walking the pagetables, acquire init_mm.mmap_lock */
+	return __pmd_free_pte_page(pmdp, addr, /* acquire_mmap_lock = */ true);
 }
 
 int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
@@ -1699,16 +1714,36 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
 	}
 
 	table = pmd_offset(pudp, addr);
+
+	/*
+	 * Our objective is to prevent ptdump from reading a PMD table which has
+	 * been freed. In this race, if pud_free_pmd_page observes the key on
+	 * (which got flipped by ptdump) then the mmap lock sequence here will,
+	 * as a result of the mmap write lock/unlock sequence in ptdump, give
+	 * us the correct synchronization. If not, this means that ptdump has
+	 * yet not started walking the pagetables - the sequence of barriers
+	 * issued by __flush_tlb_kernel_pgtable() guarantees that ptdump will
+	 * observe an empty PUD.
+	 */
+	pud_clear(pudp);
+	__flush_tlb_kernel_pgtable(addr);
+	if (static_branch_unlikely(&arm64_ptdump_lock_key)) {
+		mmap_read_lock(&init_mm);
+		mmap_read_unlock(&init_mm);
+	}
+
 	pmdp = table;
 	next = addr;
 	end = addr + PUD_SIZE;
 	do {
 		if (pmd_present(pmdp_get(pmdp)))
-			pmd_free_pte_page(pmdp, next);
+			/*
+			 * PMD has been isolated, so ptdump won't see it. No
+			 * need to acquire init_mm.mmap_lock.
+			 */
+			__pmd_free_pte_page(pmdp, next, /* acquire_mmap_lock = */ false);
 	} while (pmdp++, next += PMD_SIZE, next != end);
 
-	pud_clear(pudp);
-	__flush_tlb_kernel_pgtable(addr);
 	pmd_free(NULL, table);
 	return 1;
 }
