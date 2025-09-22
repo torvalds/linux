@@ -122,6 +122,8 @@ static inline bool test_bit_inv(unsigned long nr,
 	return test_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }
 
+#ifndef CONFIG_CC_HAS_BUILTIN_FFS
+
 /**
  * __flogr - find leftmost one
  * @word - The word to search
@@ -193,6 +195,12 @@ static __always_inline __flatten int ffs(int word)
 
 	return BITS_PER_LONG - __flogr(-val & val);
 }
+
+#else /* CONFIG_CC_HAS_BUILTIN_FFS */
+
+#include <asm-generic/bitops/builtin-ffs.h>
+
+#endif /* CONFIG_CC_HAS_BUILTIN_FFS */
 
 #include <asm-generic/bitops/builtin-__ffs.h>
 #include <asm-generic/bitops/ffz.h>

@@ -49,6 +49,13 @@ config KASAN_SHADOW_OFFSET
 	depends on KASAN
 	default 0x1C000000000000
 
+config CC_HAS_BUILTIN_FFS
+	def_bool !(CC_IS_GCC && GCC_VERSION < 160000)
+	help
+	  GCC versions before 16.0.0 generate library calls to ffs()
+	  for __builtin_ffs() even when __has_builtin(__builtin_ffs)
+	  is true.
+
 config CC_ASM_FLAG_OUTPUT_BROKEN
 	def_bool CC_IS_GCC && GCC_VERSION < 140200
 	help
