@@ -1185,6 +1185,138 @@ static int fbnic_fw_parse_fw_finish_upgrade_req(void *opaque,
 }
 
 /**
+ * fbnic_fw_xmit_qsfp_read_msg - Transmit a QSFP read request
+ * @fbd: FBNIC device structure
+ * @cmpl_data: Structure to store EEPROM response in
+ * @page: Refers to page number on page enabled QSFP modules
+ * @bank: Refers to a collection of pages
+ * @offset: Offset into QSFP EEPROM requested
+ * @length: Length of section of QSFP EEPROM to fetch
+ *
+ * Return: zero on success, negative value on failure
+ *
+ * Asks the firmware to provide a section of the QSFP EEPROM back in a
+ * message. The response will have an offset and size matching the values
+ * provided.
+ */
+int fbnic_fw_xmit_qsfp_read_msg(struct fbnic_dev *fbd,
+				struct fbnic_fw_completion *cmpl_data,
+				u32 page, u32 bank, u32 offset, u32 length)
+{
+	struct fbnic_tlv_msg *msg;
+	int err = 0;
+
+	if (!length || length > TLV_MAX_DATA)
+		return -EINVAL;
+
+	msg = fbnic_tlv_msg_alloc(FBNIC_TLV_MSG_ID_QSFP_READ_REQ);
+	if (!msg)
+		return -ENOMEM;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_FW_QSFP_BANK, bank);
+	if (err)
+		goto free_message;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_FW_QSFP_PAGE, page);
+	if (err)
+		goto free_message;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_FW_QSFP_OFFSET, offset);
+	if (err)
+		goto free_message;
+
+	err = fbnic_tlv_attr_put_int(msg, FBNIC_FW_QSFP_LENGTH, length);
+	if (err)
+		goto free_message;
+
+	err = fbnic_mbx_map_req_w_cmpl(fbd, msg, cmpl_data);
+	if (err)
+		goto free_message;
+
+	return 0;
+
+free_message:
+	free_page((unsigned long)msg);
+	return err;
+}
+
+static const struct fbnic_tlv_index fbnic_qsfp_read_resp_index[] = {
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_QSFP_BANK),
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_QSFP_PAGE),
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_QSFP_OFFSET),
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_QSFP_LENGTH),
+	FBNIC_TLV_ATTR_RAW_DATA(FBNIC_FW_QSFP_DATA),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_QSFP_ERROR),
+	FBNIC_TLV_ATTR_LAST
+};
+
+static int fbnic_fw_parse_qsfp_read_resp(void *opaque,
+					 struct fbnic_tlv_msg **results)
+{
+	struct fbnic_fw_completion *cmpl_data;
+	struct fbnic_dev *fbd = opaque;
+	struct fbnic_tlv_msg *data_hdr;
+	u32 length, offset, page, bank;
+	u8 *data;
+	s32 err;
+
+	/* Verify we have a completion pointer to provide with data */
+	cmpl_data = fbnic_fw_get_cmpl_by_type(fbd,
+					      FBNIC_TLV_MSG_ID_QSFP_READ_RESP);
+	if (!cmpl_data)
+		return -ENOSPC;
+
+	bank = fta_get_uint(results, FBNIC_FW_QSFP_BANK);
+	if (bank != cmpl_data->u.qsfp.bank) {
+		dev_warn(fbd->dev, "bank not equal to bank requested: %d vs %d\n",
+			 bank, cmpl_data->u.qsfp.bank);
+		err = -EINVAL;
+		goto msg_err;
+	}
+
+	page = fta_get_uint(results, FBNIC_FW_QSFP_PAGE);
+	if (page != cmpl_data->u.qsfp.page) {
+		dev_warn(fbd->dev, "page not equal to page requested: %d vs %d\n",
+			 page, cmpl_data->u.qsfp.page);
+		err = -EINVAL;
+		goto msg_err;
+	}
+
+	offset = fta_get_uint(results, FBNIC_FW_QSFP_OFFSET);
+	length = fta_get_uint(results, FBNIC_FW_QSFP_LENGTH);
+
+	if (length != cmpl_data->u.qsfp.length ||
+	    offset != cmpl_data->u.qsfp.offset) {
+		dev_warn(fbd->dev,
+			 "offset/length not equal to size requested: %d/%d vs %d/%d\n",
+			 offset, length,
+			 cmpl_data->u.qsfp.offset, cmpl_data->u.qsfp.length);
+		err = -EINVAL;
+		goto msg_err;
+	}
+
+	err = fta_get_sint(results, FBNIC_FW_QSFP_ERROR);
+	if (err)
+		goto msg_err;
+
+	data_hdr = results[FBNIC_FW_QSFP_DATA];
+	if (!data_hdr) {
+		err = -ENODATA;
+		goto msg_err;
+	}
+
+	/* Copy data */
+	data = fbnic_tlv_attr_get_value_ptr(data_hdr);
+	memcpy(cmpl_data->u.qsfp.data, data, length);
+msg_err:
+	cmpl_data->result = err;
+	complete(&cmpl_data->done);
+	fbnic_fw_put_cmpl(cmpl_data);
+
+	return err;
+}
+
+/**
  * fbnic_fw_xmit_tsene_read_msg - Create and transmit a sensor read request
  * @fbd: FBNIC device structure
  * @cmpl_data: Completion data structure to store sensor response
@@ -1445,6 +1577,9 @@ static const struct fbnic_tlv_parser fbnic_fw_tlv_parser[] = {
 	FBNIC_TLV_PARSER(FW_FINISH_UPGRADE_REQ,
 			 fbnic_fw_finish_upgrade_req_index,
 			 fbnic_fw_parse_fw_finish_upgrade_req),
+	FBNIC_TLV_PARSER(QSFP_READ_RESP,
+			 fbnic_qsfp_read_resp_index,
+			 fbnic_fw_parse_qsfp_read_resp),
 	FBNIC_TLV_PARSER(TSENE_READ_RESP,
 			 fbnic_tsene_read_resp_index,
 			 fbnic_fw_parse_tsene_read_resp),

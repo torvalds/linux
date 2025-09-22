@@ -1635,6 +1635,65 @@ static void fbnic_get_ts_stats(struct net_device *netdev,
 	}
 }
 
+static int
+fbnic_get_module_eeprom_by_page(struct net_device *netdev,
+				const struct ethtool_module_eeprom *page_data,
+				struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_fw_completion *fw_cmpl;
+	struct fbnic_dev *fbd = fbn->fbd;
+	int err;
+
+	if (page_data->i2c_address != 0x50) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Invalid i2c address. Only 0x50 is supported");
+		return -EINVAL;
+	}
+
+	fw_cmpl = __fbnic_fw_alloc_cmpl(FBNIC_TLV_MSG_ID_QSFP_READ_RESP,
+					page_data->length);
+	if (!fw_cmpl)
+		return -ENOMEM;
+
+	/* Initialize completion and queue it for FW to process */
+	fw_cmpl->u.qsfp.length = page_data->length;
+	fw_cmpl->u.qsfp.offset = page_data->offset;
+	fw_cmpl->u.qsfp.page = page_data->page;
+	fw_cmpl->u.qsfp.bank = page_data->bank;
+
+	err = fbnic_fw_xmit_qsfp_read_msg(fbd, fw_cmpl, page_data->page,
+					  page_data->bank, page_data->offset,
+					  page_data->length);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Failed to transmit EEPROM read request");
+		goto exit_free;
+	}
+
+	if (!wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
+		err = -ETIMEDOUT;
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Timed out waiting for firmware response");
+		goto exit_cleanup;
+	}
+
+	if (fw_cmpl->result) {
+		err = fw_cmpl->result;
+		NL_SET_ERR_MSG_MOD(extack, "Failed to read EEPROM");
+		goto exit_cleanup;
+	}
+
+	memcpy(page_data->data, fw_cmpl->u.qsfp.data, page_data->length);
+
+exit_cleanup:
+	fbnic_mbx_clear_cmpl(fbd, fw_cmpl);
+exit_free:
+	fbnic_fw_put_cmpl(fw_cmpl);
+
+	return err ? : page_data->length;
+}
+
 static void fbnic_set_counter(u64 *stat, struct fbnic_stat_counter *counter)
 {
 	if (counter->reported)
@@ -1841,6 +1900,7 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_link_ksettings		= fbnic_phylink_ethtool_ksettings_get,
 	.get_fec_stats			= fbnic_get_fec_stats,
 	.get_fecparam			= fbnic_phylink_get_fecparam,
+	.get_module_eeprom_by_page	= fbnic_get_module_eeprom_by_page,
 	.get_eth_phy_stats		= fbnic_get_eth_phy_stats,
 	.get_eth_mac_stats		= fbnic_get_eth_mac_stats,
 	.get_eth_ctrl_stats		= fbnic_get_eth_ctrl_stats,
