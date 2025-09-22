@@ -267,6 +267,8 @@
 
 #define LAN8814_LED_CTRL_1			0x0
 #define LAN8814_LED_CTRL_1_KSZ9031_LED_MODE_	BIT(6)
+#define LAN8814_LED_CTRL_2			0x1
+#define LAN8814_LED_CTRL_2_LED1_COM_DIS		BIT(8)
 
 /* PHY Control 1 */
 #define MII_KSZPHY_CTRL_1			0x1e
@@ -5891,6 +5893,23 @@ static int lan8842_config_init(struct phy_device *phydev)
 				     LAN8814_QSGMII_SOFT_RESET,
 				     LAN8814_QSGMII_SOFT_RESET_BIT,
 				     LAN8814_QSGMII_SOFT_RESET_BIT);
+	if (ret < 0)
+		return ret;
+
+	/* Even if the GPIOs are set to control the LEDs the behaviour of the
+	 * LEDs is wrong, they are not blinking when there is traffic.
+	 * To fix this it is required to set extended LED mode
+	 */
+	ret = lanphy_modify_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
+				     LAN8814_LED_CTRL_1,
+				     LAN8814_LED_CTRL_1_KSZ9031_LED_MODE_, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = lanphy_modify_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
+				     LAN8814_LED_CTRL_2,
+				     LAN8814_LED_CTRL_2_LED1_COM_DIS,
+				     LAN8814_LED_CTRL_2_LED1_COM_DIS);
 	if (ret < 0)
 		return ret;
 
