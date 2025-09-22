@@ -439,6 +439,13 @@ struct drm_device *ast_2000_device_create(struct pci_dev *pdev,
 int ast_2100_post(struct ast_device *ast);
 bool __ast_2100_detect_wsxga_p(struct ast_device *ast);
 bool __ast_2100_detect_wuxga(struct ast_device *ast);
+struct drm_device *ast_2100_device_create(struct pci_dev *pdev,
+					  const struct drm_driver *drv,
+					  enum ast_chip chip,
+					  enum ast_config_mode config_mode,
+					  void __iomem *regs,
+					  void __iomem *ioregs,
+					  bool need_post);
 
 /* ast_2300.c */
 int ast_2300_post(struct ast_device *ast);
