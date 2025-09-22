@@ -1,5 +1,0 @@
-perf-test-y += regs_load.o
-perf-test-y += dwarf-unwind.o
-perf-test-y += vectors-page.o
-
-perf-test-y += arch-tests.o

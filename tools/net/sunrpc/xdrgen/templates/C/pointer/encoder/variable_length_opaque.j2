@@ -1,8 +1,0 @@
-{# SPDX-License-Identifier: GPL-2.0 #}
-{% if annotate %}
-	/* member {{ name }} (variable-length opaque) */
-{% endif %}
-	if (value->{{ name }}.len > {{ maxsize }})
-		return false;
-	if (xdr_stream_encode_opaque(xdr, value->{{ name }}.data, value->{{ name }}.len) < 0)
-		return false;
