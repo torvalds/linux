@@ -27,6 +27,7 @@ ALL_TESTS="
 	test_d_sharing
 	test_q_no_sharing
 	test_q_sharing
+	test_addr_set
 "
 
 NUM_NETIFS=6
@@ -110,13 +111,10 @@ setup_prepare()
 	switch_create
 }
 
-adf_bridge_create()
+adf_bridge_configure()
 {
 	local dev
-	local mac
 
-	ip_link_add br up type bridge vlan_default_pvid 0 "$@"
-	mac=$(mac_get br)
 	ip_addr_add br 192.0.2.3/28
 	ip_addr_add br 2001:db8:1::3/64
 
@@ -130,7 +128,15 @@ adf_bridge_create()
 		bridge_vlan_add dev "$dev" vid 2
 		bridge_vlan_add dev "$dev" vid 3
 	done
+}
 
+adf_bridge_create()
+{
+	local mac
+
+	ip_link_add br up type bridge vlan_default_pvid 0 "$@"
+	mac=$(mac_get br)
+	adf_bridge_configure
 	ip_link_set_addr br "$mac"
 }
 
@@ -367,6 +373,20 @@ test_q_sharing()
 	do_test_sharing 1
 }
 
+adf_addr_set_bridge_create()
+{
+	ip_link_add br up type bridge vlan_filtering 0
+	ip_link_set_addr br "$(mac_get br)"
+	adf_bridge_configure
+}
+
+test_addr_set()
+{
+	adf_addr_set_bridge_create
+	setup_wait
+
+	do_end_to_end_test "$(mac_get br)" "NET_ADDR_SET: end to end, br MAC"
+}
 
 trap cleanup EXIT
 
