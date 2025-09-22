@@ -2758,7 +2758,8 @@ static int filename_parentat(int dfd, struct filename *name,
 }
 
 /* does lookup, returns the object with parent locked */
-static struct dentry *__kern_path_locked(int dfd, struct filename *name, struct path *path)
+static struct dentry *__start_removing_path(int dfd, struct filename *name,
+					   struct path *path)
 {
 	struct path parent_path __free(path_put) = {};
 	struct dentry *d;
@@ -2770,14 +2771,25 @@ static struct dentry *__kern_path_locked(int dfd, struct filename *name, struct 
 		return ERR_PTR(error);
 	if (unlikely(type != LAST_NORM))
 		return ERR_PTR(-EINVAL);
+	/* don't fail immediately if it's r/o, at least try to report other errors */
+	error = mnt_want_write(parent_path.mnt);
 	inode_lock_nested(parent_path.dentry->d_inode, I_MUTEX_PARENT);
 	d = lookup_one_qstr_excl(&last, parent_path.dentry, 0);
-	if (IS_ERR(d)) {
-		inode_unlock(parent_path.dentry->d_inode);
-		return d;
-	}
+	if (IS_ERR(d))
+		goto unlock;
+	if (error)
+		goto fail;
 	path->dentry = no_free_ptr(parent_path.dentry);
 	path->mnt = no_free_ptr(parent_path.mnt);
+	return d;
+
+fail:
+	dput(d);
+	d = ERR_PTR(error);
+unlock:
+	inode_unlock(parent_path.dentry->d_inode);
+	if (!error)
+		mnt_drop_write(parent_path.mnt);
 	return d;
 }
 
@@ -2816,24 +2828,26 @@ struct dentry *kern_path_parent(const char *name, struct path *path)
 	return d;
 }
 
-struct dentry *kern_path_locked(const char *name, struct path *path)
+struct dentry *start_removing_path(const char *name, struct path *path)
 {
 	struct filename *filename = getname_kernel(name);
-	struct dentry *res = __kern_path_locked(AT_FDCWD, filename, path);
+	struct dentry *res = __start_removing_path(AT_FDCWD, filename, path);
 
 	putname(filename);
 	return res;
 }
 
-struct dentry *user_path_locked_at(int dfd, const char __user *name, struct path *path)
+struct dentry *start_removing_user_path_at(int dfd,
+					   const char __user *name,
+					   struct path *path)
 {
 	struct filename *filename = getname(name);
-	struct dentry *res = __kern_path_locked(dfd, filename, path);
+	struct dentry *res = __start_removing_path(dfd, filename, path);
 
 	putname(filename);
 	return res;
 }
-EXPORT_SYMBOL(user_path_locked_at);
+EXPORT_SYMBOL(start_removing_user_path_at);
 
 int kern_path(const char *name, unsigned int flags, struct path *path)
 {
@@ -4223,8 +4237,8 @@ out:
 	return dentry;
 }
 
-struct dentry *kern_path_create(int dfd, const char *pathname,
-				struct path *path, unsigned int lookup_flags)
+struct dentry *start_creating_path(int dfd, const char *pathname,
+				   struct path *path, unsigned int lookup_flags)
 {
 	struct filename *filename = getname_kernel(pathname);
 	struct dentry *res = filename_create(dfd, filename, path, lookup_flags);
@@ -4232,9 +4246,9 @@ struct dentry *kern_path_create(int dfd, const char *pathname,
 	putname(filename);
 	return res;
 }
-EXPORT_SYMBOL(kern_path_create);
+EXPORT_SYMBOL(start_creating_path);
 
-void done_path_create(struct path *path, struct dentry *dentry)
+void end_creating_path(struct path *path, struct dentry *dentry)
 {
 	if (!IS_ERR(dentry))
 		dput(dentry);
@@ -4242,10 +4256,11 @@ void done_path_create(struct path *path, struct dentry *dentry)
 	mnt_drop_write(path->mnt);
 	path_put(path);
 }
-EXPORT_SYMBOL(done_path_create);
+EXPORT_SYMBOL(end_creating_path);
 
-inline struct dentry *user_path_create(int dfd, const char __user *pathname,
-				struct path *path, unsigned int lookup_flags)
+inline struct dentry *start_creating_user_path(
+	int dfd, const char __user *pathname,
+	struct path *path, unsigned int lookup_flags)
 {
 	struct filename *filename = getname(pathname);
 	struct dentry *res = filename_create(dfd, filename, path, lookup_flags);
@@ -4253,7 +4268,7 @@ inline struct dentry *user_path_create(int dfd, const char __user *pathname,
 	putname(filename);
 	return res;
 }
-EXPORT_SYMBOL(user_path_create);
+EXPORT_SYMBOL(start_creating_user_path);
 
 /**
  * vfs_mknod - create device node or file
@@ -4361,7 +4376,7 @@ retry:
 			break;
 	}
 out2:
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
@@ -4465,7 +4480,7 @@ retry:
 		if (IS_ERR(dentry))
 			error = PTR_ERR(dentry);
 	}
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
@@ -4819,7 +4834,7 @@ retry:
 	if (!error)
 		error = vfs_symlink(mnt_idmap(path.mnt), path.dentry->d_inode,
 				    dentry, from->name);
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
@@ -4988,7 +5003,7 @@ retry:
 	error = vfs_link(old_path.dentry, idmap, new_path.dentry->d_inode,
 			 new_dentry, &delegated_inode);
 out_dput:
-	done_path_create(&new_path, new_dentry);
+	end_creating_path(&new_path, new_dentry);
 	if (delegated_inode) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error) {

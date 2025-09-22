@@ -59,11 +59,15 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
 extern int kern_path(const char *, unsigned, struct path *);
 struct dentry *kern_path_parent(const char *name, struct path *parent);
 
-extern struct dentry *kern_path_create(int, const char *, struct path *, unsigned int);
-extern struct dentry *user_path_create(int, const char __user *, struct path *, unsigned int);
-extern void done_path_create(struct path *, struct dentry *);
-extern struct dentry *kern_path_locked(const char *, struct path *);
-extern struct dentry *user_path_locked_at(int , const char __user *, struct path *);
+extern struct dentry *start_creating_path(int, const char *, struct path *, unsigned int);
+extern struct dentry *start_creating_user_path(int, const char __user *, struct path *, unsigned int);
+extern void end_creating_path(struct path *, struct dentry *);
+extern struct dentry *start_removing_path(const char *, struct path *);
+extern struct dentry *start_removing_user_path_at(int , const char __user *, struct path *);
+static inline void end_removing_path(struct path *path , struct dentry *dentry)
+{
+	end_creating_path(path, dentry);
+}
 int vfs_path_parent_lookup(struct filename *filename, unsigned int flags,
 			   struct path *parent, struct qstr *last, int *type,
 			   const struct path *root);
