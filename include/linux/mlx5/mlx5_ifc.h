@@ -1958,7 +1958,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_rqt[0x5];
 	u8         reserved_at_390[0x3];
 	u8         log_max_rqt_size[0x5];
-	u8         reserved_at_398[0x3];
+	u8         reserved_at_398[0x1];
+	u8	   vnic_env_cnt_bar_uar_access[0x1];
+	u8	   vnic_env_cnt_odp_page_fault[0x1];
 	u8         log_max_tis_per_sq[0x5];
 
 	u8         ext_stride_num_range[0x1];
@@ -4019,7 +4021,13 @@ struct mlx5_ifc_vnic_diagnostic_statistics_bits {
 
 	u8         handled_pkt_steering_fail[0x40];
 
-	u8         reserved_at_360[0xc80];
+	u8         bar_uar_access[0x20];
+
+	u8         odp_local_triggered_page_fault[0x20];
+
+	u8         odp_remote_triggered_page_fault[0x20];
+
+	u8         reserved_at_3c0[0xc20];
 };
 
 struct mlx5_ifc_traffic_counter_bits {
