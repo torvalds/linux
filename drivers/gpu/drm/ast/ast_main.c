@@ -112,10 +112,7 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 		return ERR_CAST(ast);
 	dev = &ast->base;
 
-	ast->chip = chip;
-	ast->config_mode = config_mode;
-	ast->regs = regs;
-	ast->ioregs = ioregs;
+	ast_device_init(ast, chip, config_mode, regs, ioregs);
 
 	if (AST_GEN(ast) >= 4)
 		ast_2300_detect_tx_chip(ast);

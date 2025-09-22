@@ -416,6 +416,11 @@ struct ast_crtc_state {
 int ast_mm_init(struct ast_device *ast);
 
 /* ast_drv.c */
+void ast_device_init(struct ast_device *ast,
+		     enum ast_chip chip,
+		     enum ast_config_mode config_mode,
+		     void __iomem *regs,
+		     void __iomem *ioregs);
 void __ast_device_set_tx_chip(struct ast_device *ast, enum ast_tx_chip tx_chip);
 
 /* ast_2000.c */
