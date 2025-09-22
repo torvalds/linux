@@ -231,6 +231,7 @@ void unwind_deferred_task_exit(struct task_struct *task)
 int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 {
 	struct unwind_task_info *info = &current->unwind_info;
+	int twa_mode = TWA_RESUME;
 	unsigned long old, bits;
 	unsigned long bit;
 	int ret;
@@ -246,8 +247,11 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	 * Trigger a warning to make it obvious that an architecture
 	 * is using this in NMI when it should not be.
 	 */
-	if (WARN_ON_ONCE(!CAN_USE_IN_NMI && in_nmi()))
-		return -EINVAL;
+	if (in_nmi()) {
+		if (WARN_ON_ONCE(!CAN_USE_IN_NMI))
+			return -EINVAL;
+		twa_mode = TWA_NMI_CURRENT;
+	}
 
 	/* Do not allow cancelled works to request again */
 	bit = READ_ONCE(work->bit);
@@ -285,7 +289,7 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	}
 
 	/* The work has been claimed, now schedule it. */
-	ret = task_work_add(current, &info->work, TWA_RESUME);
+	ret = task_work_add(current, &info->work, twa_mode);
 
 	if (WARN_ON_ONCE(ret))
 		WRITE_ONCE(info->unwind_mask, 0);
