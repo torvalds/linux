@@ -502,7 +502,7 @@ void workqueue_softirq_dead(unsigned int cpu);
  * min_active which is set to min(@max_active, %WQ_DFL_MIN_ACTIVE). This means
  * that the sum of per-node max_active's may be larger than @max_active.
  *
- * For detailed information on %WQ_* flags, please refer to
+ * For detailed information on %WQ_\* flags, please refer to
  * Documentation/core-api/workqueue.rst.
  *
  * RETURNS:
