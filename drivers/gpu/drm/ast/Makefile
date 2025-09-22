@@ -16,7 +16,6 @@ ast-y := \
 	ast_dp501.o \
 	ast_dp.o \
 	ast_drv.o \
-	ast_main.o \
 	ast_mm.o \
 	ast_mode.o \
 	ast_post.o \
