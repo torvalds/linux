@@ -181,17 +181,6 @@ static __always_inline __attribute_const__ unsigned long __flogr(unsigned long w
 }
 
 /**
- * __ffs - find first bit in word.
- * @word: The word to search
- *
- * Undefined if no bit exists, so code should check against 0 first.
- */
-static __always_inline __flatten unsigned long __ffs(unsigned long word)
-{
-	return __flogr(-word & word) ^ (BITS_PER_LONG - 1);
-}
-
-/**
  * ffs - find first bit set
  * @word: the word to search
  *
@@ -205,48 +194,13 @@ static __always_inline __flatten int ffs(int word)
 	return BITS_PER_LONG - __flogr(-val & val);
 }
 
-/**
- * __fls - find last (most-significant) set bit in a long word
- * @word: the word to search
- *
- * Undefined if no set bit exists, so code should check against 0 first.
- */
-static __always_inline __flatten unsigned long __fls(unsigned long word)
-{
-	return __flogr(word) ^ (BITS_PER_LONG - 1);
-}
-
-/**
- * fls64 - find last set bit in a 64-bit word
- * @word: the word to search
- *
- * This is defined in a similar way as the libc and compiler builtin
- * ffsll, but returns the position of the most significant set bit.
- *
- * fls64(value) returns 0 if value is 0 or the position of the last
- * set bit if value is nonzero. The last (most significant) bit is
- * at position 64.
- */
-static __always_inline __flatten int fls64(unsigned long word)
-{
-	return BITS_PER_LONG - __flogr(word);
-}
-
-/**
- * fls - find last (most-significant) bit set
- * @word: the word to search
- *
- * This is defined the same way as ffs.
- * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
- */
-static __always_inline __flatten int fls(unsigned int word)
-{
-	return fls64(word);
-}
-
+#include <asm-generic/bitops/builtin-__ffs.h>
+#include <asm-generic/bitops/ffz.h>
+#include <asm-generic/bitops/builtin-__fls.h>
+#include <asm-generic/bitops/builtin-fls.h>
+#include <asm-generic/bitops/fls64.h>
 #include <asm/arch_hweight.h>
 #include <asm-generic/bitops/const_hweight.h>
-#include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
