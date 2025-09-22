@@ -406,6 +406,8 @@ struct nxp_fspi {
 	int flags;
 	/* save the previous operation clock rate */
 	unsigned long pre_op_rate;
+	/* the max clock rate fspi output to device */
+	unsigned long max_rate;
 };
 
 static inline int needs_ip_only(struct nxp_fspi *f)
@@ -687,10 +689,13 @@ static void nxp_fspi_select_rx_sample_clk_source(struct nxp_fspi *f,
 	 * change the mode back to mode 0.
 	 */
 	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
-	if (op_is_dtr)
+	if (op_is_dtr) {
 		reg |= FSPI_MCR0_RXCLKSRC(3);
-	else	/*select mode 0 */
+		f->max_rate = 166000000;
+	} else {	/*select mode 0 */
 		reg &= ~FSPI_MCR0_RXCLKSRC(3);
+		f->max_rate = 66000000;
+	}
 	fspi_writel(f, reg, f->iobase + FSPI_MCR0);
 }
 
@@ -816,6 +821,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	dev_dbg(f->dev, "Target device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
 
 	nxp_fspi_select_rx_sample_clk_source(f, op_is_dtr);
+	rate = min(f->max_rate, op->max_freq);
 
 	if (op_is_dtr) {
 		f->flags |= FSPI_DTR_MODE;
