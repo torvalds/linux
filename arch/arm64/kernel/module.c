@@ -489,8 +489,13 @@ int module_finalize(const Elf_Ehdr *hdr,
 	int ret;
 
 	s = find_section(hdr, sechdrs, ".altinstructions");
-	if (s)
-		apply_alternatives_module((void *)s->sh_addr, s->sh_size);
+	if (s) {
+		ret = apply_alternatives_module((void *)s->sh_addr, s->sh_size);
+		if (ret < 0) {
+			pr_err("module %s: error occurred when applying alternatives\n", me->name);
+			return ret;
+		}
+	}
 
 	if (scs_is_dynamic()) {
 		s = find_section(hdr, sechdrs, ".init.eh_frame");
