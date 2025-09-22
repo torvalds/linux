@@ -63,6 +63,15 @@ static const struct rtw89_ccx_regs rtw89_ccx_regs_be = {
 	.ifs_total_addr = R_IFSCNT_V1,
 	.ifs_cnt_done_mask = B_IFSCNT_DONE_MSK,
 	.ifs_total_mask = B_IFSCNT_TOTAL_CNT_MSK,
+	.nhm = R_NHM_BE,
+	.nhm_ready = B_NHM_READY_BE_MSK,
+	.nhm_config = R_NHM_CFG,
+	.nhm_period_mask = B_NHM_PERIOD_MSK,
+	.nhm_unit_mask = B_NHM_COUNTER_MSK,
+	.nhm_include_cca_mask = B_NHM_INCLUDE_CCA_MSK,
+	.nhm_en_mask = B_NHM_EN_MSK,
+	.nhm_method = R_NHM_TH9,
+	.nhm_pwr_method_msk = B_NHM_PWDB_METHOD_MSK,
 };
 
 static const struct rtw89_physts_regs rtw89_physts_regs_be = {

@@ -4,6 +4,7 @@
 
 #include "acpi.h"
 #include "debug.h"
+#include "fw.h"
 #include "phy.h"
 #include "reg.h"
 #include "sar.h"
@@ -842,6 +843,20 @@ void rtw89_tas_chanctx_cb(struct rtw89_dev *rtwdev,
 	}
 }
 EXPORT_SYMBOL(rtw89_tas_chanctx_cb);
+
+void rtw89_tas_fw_timer_enable(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+
+	if (!tas->enable)
+		return;
+
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		return;
+
+	rtw89_fw_h2c_rf_tas_trigger(rtwdev, enable);
+}
 
 void rtw89_sar_init(struct rtw89_dev *rtwdev)
 {
