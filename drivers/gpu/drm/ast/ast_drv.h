@@ -467,6 +467,15 @@ struct drm_device *ast_2300_device_create(struct pci_dev *pdev,
 					  void __iomem *ioregs,
 					  bool need_post);
 
+/* ast_2400.c */
+struct drm_device *ast_2400_device_create(struct pci_dev *pdev,
+					  const struct drm_driver *drv,
+					  enum ast_chip chip,
+					  enum ast_config_mode config_mode,
+					  void __iomem *regs,
+					  void __iomem *ioregs,
+					  bool need_post);
+
 /* ast_2500.c */
 void ast_2500_patch_ahb(void __iomem *regs);
 int ast_2500_post(struct ast_device *ast);
