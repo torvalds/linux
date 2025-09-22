@@ -404,6 +404,8 @@ struct nxp_fspi {
 #define FSPI_NEED_INIT		BIT(0)
 #define FSPI_DTR_MODE		BIT(1)
 	int flags;
+	/* save the previous operation clock rate */
+	unsigned long pre_op_rate;
 };
 
 static inline int needs_ip_only(struct nxp_fspi *f)
@@ -780,11 +782,17 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	uint64_t size_kb;
 
 	/*
-	 * Return, if previously selected target device is same as current
-	 * requested target device. Also the DTR or STR mode do not change.
+	 * Return when following condition all meet,
+	 * 1, if previously selected target device is same as current
+	 *    requested target device.
+	 * 2, the DTR or STR mode do not change.
+	 * 3, previous operation max rate equals current one.
+	 *
+	 * For other case, need to re-config.
 	 */
 	if ((f->selected == spi_get_chipselect(spi, 0)) &&
-	    (!!(f->flags & FSPI_DTR_MODE) == op_is_dtr))
+	    (!!(f->flags & FSPI_DTR_MODE) == op_is_dtr) &&
+	    (f->pre_op_rate == op->max_freq))
 		return;
 
 	/* Reset FLSHxxCR0 registers */
@@ -831,6 +839,8 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 		nxp_fspi_dll_calibration(f);
 	else
 		nxp_fspi_dll_override(f);
+
+	f->pre_op_rate = op->max_freq;
 
 	f->selected = spi_get_chipselect(spi, 0);
 }
