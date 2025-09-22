@@ -447,6 +447,15 @@ struct drm_device *ast_2100_device_create(struct pci_dev *pdev,
 					  void __iomem *ioregs,
 					  bool need_post);
 
+/* ast_2200.c */
+struct drm_device *ast_2200_device_create(struct pci_dev *pdev,
+					  const struct drm_driver *drv,
+					  enum ast_chip chip,
+					  enum ast_config_mode config_mode,
+					  void __iomem *regs,
+					  void __iomem *ioregs,
+					  bool need_post);
+
 /* ast_2300.c */
 int ast_2300_post(struct ast_device *ast);
 void ast_2300_detect_tx_chip(struct ast_device *ast);

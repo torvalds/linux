@@ -6,6 +6,7 @@
 ast-y := \
 	ast_2000.o \
 	ast_2100.o \
+	ast_2200.o \
 	ast_2300.o \
 	ast_2500.o \
 	ast_2600.o \
