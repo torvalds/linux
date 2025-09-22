@@ -13,10 +13,10 @@
  *        closed or the buffer has the payload.
  */
 struct papr_hvpipe_hdr {
-	u8 version;
-	u8 reserved[3];
-	u32 flags;
-	u8 reserved2[40];
+	__u8 version;
+	__u8 reserved[3];
+	__u32 flags;
+	__u8 reserved2[40];
 };
 
 /*
