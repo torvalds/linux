@@ -374,11 +374,11 @@ Obtain buffered data:
         00001740  01 1a 00 00 ff ff fe 31  00 00 46 aa 00 03 37 f7  |.......1..F...7.|
         ...
 
-See ``Documentation/iio/iio_devbuf.rst`` for more information about how buffered
+See Documentation/iio/iio_devbuf.rst for more information about how buffered
 data is structured.
 
 4. IIO Interfacing Tools
 ========================
 
-See ``Documentation/iio/iio_tools.rst`` for the description of the available IIO
+See Documentation/iio/iio_tools.rst for the description of the available IIO
 interfacing tools.
