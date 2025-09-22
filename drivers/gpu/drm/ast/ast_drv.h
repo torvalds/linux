@@ -421,6 +421,8 @@ extern const struct ast_vbios_dclk_info ast_2000_dclk_table[];
 
 /* ast_2100.c */
 int ast_2100_post(struct ast_device *ast);
+bool __ast_2100_detect_wsxga_p(struct ast_device *ast);
+bool __ast_2100_detect_wuxga(struct ast_device *ast);
 
 /* ast_2300.c */
 int ast_2300_post(struct ast_device *ast);

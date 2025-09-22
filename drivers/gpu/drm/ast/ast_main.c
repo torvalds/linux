@@ -36,33 +36,6 @@
 
 #include "ast_drv.h"
 
-/* Try to detect WSXGA+ on Gen2+ */
-static bool __ast_2100_detect_wsxga_p(struct ast_device *ast)
-{
-	u8 vgacrd0 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd0);
-
-	if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_BY_BMC))
-		return true;
-	if (vgacrd0 & AST_IO_VGACRD0_IKVM_WIDESCREEN)
-		return true;
-
-	return false;
-}
-
-/* Try to detect WUXGA on Gen2+ */
-static bool __ast_2100_detect_wuxga(struct ast_device *ast)
-{
-	u8 vgacrd1;
-
-	if (ast->support_fullhd) {
-		vgacrd1 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd1);
-		if (!(vgacrd1 & AST_IO_VGACRD1_SUPPORTS_WUXGA))
-			return true;
-	}
-
-	return false;
-}
-
 static void ast_detect_widescreen(struct ast_device *ast)
 {
 	ast->support_wsxga_p = false;
