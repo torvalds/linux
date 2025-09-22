@@ -2,6 +2,8 @@
 #ifndef _LINUX_UNWIND_USER_DEFERRED_TYPES_H
 #define _LINUX_UNWIND_USER_DEFERRED_TYPES_H
 
+#include <linux/types.h>
+
 struct unwind_cache {
 	unsigned long		unwind_completed;
 	unsigned int		nr_entries;
