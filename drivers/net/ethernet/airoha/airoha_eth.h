@@ -471,7 +471,6 @@ struct airoha_flow_table_entry {
 		};
 	};
 
-	struct airoha_foe_entry data;
 	struct hlist_node l2_subflow_node; /* PPE L2 subflow entry */
 	u32 hash;
 
@@ -480,6 +479,9 @@ struct airoha_flow_table_entry {
 
 	struct rhash_head node;
 	unsigned long cookie;
+
+	/* Must be last --ends in a flexible-array member. */
+	struct airoha_foe_entry data;
 };
 
 struct airoha_wdma_info {
