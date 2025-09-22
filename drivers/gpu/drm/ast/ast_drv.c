@@ -37,6 +37,7 @@
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_module.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "ast_drv.h"
@@ -45,6 +46,20 @@ static int ast_modeset = -1;
 
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, ast_modeset, int, 0400);
+
+void __ast_device_set_tx_chip(struct ast_device *ast, enum ast_tx_chip tx_chip)
+{
+	static const char * const info_str[] = {
+		"analog VGA",
+		"Sil164 TMDS transmitter",
+		"DP501 DisplayPort transmitter",
+		"ASPEED DisplayPort transmitter",
+	};
+
+	drm_info(&ast->base, "Using %s\n", info_str[tx_chip]);
+
+	ast->tx_chip = tx_chip;
+}
 
 /*
  * DRM driver

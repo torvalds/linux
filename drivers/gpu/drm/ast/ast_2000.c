@@ -181,3 +181,29 @@ const struct ast_vbios_dclk_info ast_2000_dclk_table[] = {
 	{0x6a, 0x6d, 0x80},			/* 19: VCLK97_75	*/
 	{0x3b, 0x2c, 0x81},			/* 1a: VCLK118_25	*/
 };
+
+/*
+ * Device initialization
+ */
+
+void ast_2000_detect_tx_chip(struct ast_device *ast, bool need_post)
+{
+	enum ast_tx_chip tx_chip = AST_TX_NONE;
+	u8 vgacra3;
+
+	/*
+	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
+	 * enabled, in that case, assume we have a SIL164 TMDS transmitter
+	 *
+	 * Don't make that assumption if we the chip wasn't enabled and
+	 * is at power-on reset, otherwise we'll incorrectly "detect" a
+	 * SIL164 when there is none.
+	 */
+	if (!need_post) {
+		vgacra3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
+		if (vgacra3 & AST_IO_VGACRA3_DVO_ENABLED)
+			tx_chip = AST_TX_SIL164;
+	}
+
+	__ast_device_set_tx_chip(ast, tx_chip);
+}

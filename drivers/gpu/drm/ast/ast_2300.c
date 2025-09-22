@@ -27,6 +27,10 @@
  */
 
 #include <linux/delay.h>
+#include <linux/sizes.h>
+
+#include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "ast_drv.h"
 #include "ast_post.h"
@@ -1325,4 +1329,68 @@ int ast_2300_post(struct ast_device *ast)
 	}
 
 	return 0;
+}
+
+/*
+ * Device initialization
+ */
+
+void ast_2300_detect_tx_chip(struct ast_device *ast)
+{
+	enum ast_tx_chip tx_chip = AST_TX_NONE;
+	struct drm_device *dev = &ast->base;
+	u8 vgacrd1;
+
+	/*
+	 * On AST GEN4+, look at the configuration set by the SoC in
+	 * the SOC scratch register #1 bits 11:8 (interestingly marked
+	 * as "reserved" in the spec)
+	 */
+	vgacrd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
+					 AST_IO_VGACRD1_TX_TYPE_MASK);
+	switch (vgacrd1) {
+	/*
+	 * GEN4 to GEN6
+	 */
+	case AST_IO_VGACRD1_TX_SIL164_VBIOS:
+		tx_chip = AST_TX_SIL164;
+		break;
+	case AST_IO_VGACRD1_TX_DP501_VBIOS:
+		ast->dp501_fw_addr = drmm_kzalloc(dev, SZ_32K, GFP_KERNEL);
+		if (ast->dp501_fw_addr) {
+			/* backup firmware */
+			if (ast_backup_fw(ast, ast->dp501_fw_addr, SZ_32K)) {
+				drmm_kfree(dev, ast->dp501_fw_addr);
+				ast->dp501_fw_addr = NULL;
+			}
+		}
+		fallthrough;
+	case AST_IO_VGACRD1_TX_FW_EMBEDDED_FW:
+		tx_chip = AST_TX_DP501;
+		break;
+	/*
+	 * GEN7+
+	 */
+	case AST_IO_VGACRD1_TX_ASTDP:
+		tx_chip = AST_TX_ASTDP;
+		break;
+	/*
+	 * Several of the listed TX chips are not explicitly supported
+	 * by the ast driver. If these exist in real-world devices, they
+	 * are most likely reported as VGA or SIL164 outputs. We warn here
+	 * to get bug reports for these devices. If none come in for some
+	 * time, we can begin to fail device probing on these values.
+	 */
+	case AST_IO_VGACRD1_TX_ITE66121_VBIOS:
+		drm_warn(dev, "ITE IT66121 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
+		break;
+	case AST_IO_VGACRD1_TX_CH7003_VBIOS:
+		drm_warn(dev, "Chrontel CH7003 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
+		break;
+	case AST_IO_VGACRD1_TX_ANX9807_VBIOS:
+		drm_warn(dev, "Analogix ANX9807 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
+		break;
+	}
+
+	__ast_device_set_tx_chip(ast, tx_chip);
 }

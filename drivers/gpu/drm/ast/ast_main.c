@@ -95,94 +95,6 @@ static void ast_detect_widescreen(struct ast_device *ast)
 	}
 }
 
-static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
-{
-	static const char * const info_str[] = {
-		"analog VGA",
-		"Sil164 TMDS transmitter",
-		"DP501 DisplayPort transmitter",
-		"ASPEED DisplayPort transmitter",
-	};
-
-	struct drm_device *dev = &ast->base;
-	u8 vgacra3, vgacrd1;
-
-	/* Check 3rd Tx option (digital output afaik) */
-	ast->tx_chip = AST_TX_NONE;
-
-	if (AST_GEN(ast) <= 3) {
-		/*
-		 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
-		 * enabled, in that case, assume we have a SIL164 TMDS transmitter
-		 *
-		 * Don't make that assumption if we the chip wasn't enabled and
-		 * is at power-on reset, otherwise we'll incorrectly "detect" a
-		 * SIL164 when there is none.
-		 */
-		if (!need_post) {
-			vgacra3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
-			if (vgacra3 & AST_IO_VGACRA3_DVO_ENABLED)
-				ast->tx_chip = AST_TX_SIL164;
-		}
-	} else {
-		/*
-		 * On AST GEN4+, look at the configuration set by the SoC in
-		 * the SOC scratch register #1 bits 11:8 (interestingly marked
-		 * as "reserved" in the spec)
-		 */
-		vgacrd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
-						 AST_IO_VGACRD1_TX_TYPE_MASK);
-		switch (vgacrd1) {
-		/*
-		 * GEN4 to GEN6
-		 */
-		case AST_IO_VGACRD1_TX_SIL164_VBIOS:
-			ast->tx_chip = AST_TX_SIL164;
-			break;
-		case AST_IO_VGACRD1_TX_DP501_VBIOS:
-			ast->dp501_fw_addr = drmm_kzalloc(dev, 32*1024, GFP_KERNEL);
-			if (ast->dp501_fw_addr) {
-				/* backup firmware */
-				if (ast_backup_fw(ast, ast->dp501_fw_addr, 32*1024)) {
-					drmm_kfree(dev, ast->dp501_fw_addr);
-					ast->dp501_fw_addr = NULL;
-				}
-			}
-			fallthrough;
-		case AST_IO_VGACRD1_TX_FW_EMBEDDED_FW:
-			ast->tx_chip = AST_TX_DP501;
-			break;
-		/*
-		 * GEN7+
-		 */
-		case AST_IO_VGACRD1_TX_ASTDP:
-			ast->tx_chip = AST_TX_ASTDP;
-			break;
-		/*
-		 * Several of the listed TX chips are not explicitly supported
-		 * by the ast driver. If these exist in real-world devices, they
-		 * are most likely reported as VGA or SIL164 outputs. We warn here
-		 * to get bug reports for these devices. If none come in for some
-		 * time, we can begin to fail device probing on these values.
-		 */
-		case AST_IO_VGACRD1_TX_ITE66121_VBIOS:
-			drm_warn(dev, "ITE IT66121 detected, 0x%x, Gen%lu\n",
-				 vgacrd1, AST_GEN(ast));
-			break;
-		case AST_IO_VGACRD1_TX_CH7003_VBIOS:
-			drm_warn(dev, "Chrontel CH7003 detected, 0x%x, Gen%lu\n",
-				 vgacrd1, AST_GEN(ast));
-			break;
-		case AST_IO_VGACRD1_TX_ANX9807_VBIOS:
-			drm_warn(dev, "Analogix ANX9807 detected, 0x%x, Gen%lu\n",
-				 vgacrd1, AST_GEN(ast));
-			break;
-		}
-	}
-
-	drm_info(dev, "Using %s\n", info_str[ast->tx_chip]);
-}
-
 struct drm_device *ast_device_create(struct pci_dev *pdev,
 				     const struct drm_driver *drv,
 				     enum ast_chip chip,
@@ -205,7 +117,11 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 	ast->regs = regs;
 	ast->ioregs = ioregs;
 
-	ast_detect_tx_chip(ast, need_post);
+	if (AST_GEN(ast) >= 4)
+		ast_2300_detect_tx_chip(ast);
+	else
+		ast_2000_detect_tx_chip(ast, need_post);
+
 	switch (ast->tx_chip) {
 	case AST_TX_ASTDP:
 		ret = ast_post_gpu(ast);
