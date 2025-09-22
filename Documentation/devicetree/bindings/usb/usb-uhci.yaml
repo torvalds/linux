@@ -28,6 +28,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
   '#ports':
     $ref: /schemas/types.yaml#/definitions/uint32
 
