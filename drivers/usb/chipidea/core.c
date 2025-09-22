@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -914,6 +915,8 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 	ret = platform_device_add(pdev);
 	if (ret)
 		goto err;
+
+	dev_pm_domain_detach(&pdev->dev, false);
 
 	return pdev;
 
