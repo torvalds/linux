@@ -622,7 +622,8 @@ class SphinxBuilder:
         shutil.rmtree(self.builddir, ignore_errors=True)
 
     def build(self, target, sphinxdirs=None,
-              theme=None, css=None, paper=None, deny_vf=None, rustdoc=False):
+              theme=None, css=None, paper=None, deny_vf=None, rustdoc=False,
+              skip_sphinx=False):
         """
         Build documentation using Sphinx. This is the core function of this
         module. It prepares all arguments required by sphinx-build.
@@ -644,9 +645,10 @@ class SphinxBuilder:
         #
         # Other targets require sphinx-build, so check if it exists
         #
-        sphinxbuild = shutil.which(self.sphinxbuild, path=self.env["PATH"])
-        if not sphinxbuild and target != "mandocs":
-            sys.exit(f"Error: {self.sphinxbuild} not found in PATH.\n")
+        if not skip_sphinx:
+            sphinxbuild = shutil.which(self.sphinxbuild, path=self.env["PATH"])
+            if not sphinxbuild and target != "mandocs":
+                sys.exit(f"Error: {self.sphinxbuild} not found in PATH.\n")
 
         if builder == "latex":
             if not self.pdflatex_cmd and not self.latexmk_cmd:
@@ -732,7 +734,7 @@ class SphinxBuilder:
 
             if target == "mandocs":
                 self.handle_man(kerneldoc, docs_dir, src_dir, output_dir)
-            else:
+            elif not skip_sphinx:
                 try:
                     result = self.run_sphinx(sphinxbuild, build_args,
                                              env=self.env)
@@ -814,6 +816,9 @@ def main():
     parser.add_argument('-i', '--interactive', action='store_true',
                         help="Change latex default to run in interactive mode")
 
+    parser.add_argument('-s', '--skip-sphinx-build', action='store_true',
+                        help="Skip sphinx-build step")
+
     parser.add_argument("-V", "--venv", nargs='?', const=f'{VENV_DEFAULT}',
                         default=None,
                         help=f'If used, run Sphinx from a venv dir (default dir: {VENV_DEFAULT})')
@@ -829,7 +834,8 @@ def main():
 
     builder.build(args.target, sphinxdirs=args.sphinxdirs,
                   theme=args.theme, css=args.css, paper=args.paper,
-                  rustdoc=args.rustdoc, deny_vf=args.deny_vf)
+                  rustdoc=args.rustdoc, deny_vf=args.deny_vf,
+                  skip_sphinx=args.skip_sphinx_build)
 
 if __name__ == "__main__":
     main()
