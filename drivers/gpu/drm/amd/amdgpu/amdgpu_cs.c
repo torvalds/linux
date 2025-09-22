@@ -364,6 +364,12 @@ static int amdgpu_cs_p2_ib(struct amdgpu_cs_parser *p,
 	if (p->uf_bo && ring->funcs->no_user_fence)
 		return -EINVAL;
 
+	if (!p->adev->debug_enable_ce_cs &&
+	    chunk_ib->flags & AMDGPU_IB_FLAG_CE) {
+		dev_err_ratelimited(p->adev->dev, "CE CS is blocked, use debug=0x400 to override\n");
+		return -EINVAL;
+	}
+
 	if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX &&
 	    chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
 		if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
