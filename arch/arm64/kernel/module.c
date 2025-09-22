@@ -495,10 +495,18 @@ int module_finalize(const Elf_Ehdr *hdr,
 	if (scs_is_dynamic()) {
 		s = find_section(hdr, sechdrs, ".init.eh_frame");
 		if (s) {
-			ret = __pi_scs_patch((void *)s->sh_addr, s->sh_size);
-			if (ret)
+			/*
+			 * Because we can reject modules that are malformed
+			 * so SCS patching fails, skip dry run and try to patch
+			 * it in place. If patching fails, the module would not
+			 * be loaded anyway.
+			 */
+			ret = __pi_scs_patch((void *)s->sh_addr, s->sh_size, true);
+			if (ret) {
 				pr_err("module %s: error occurred during dynamic SCS patching (%d)\n",
 				       me->name, ret);
+				return -ENOEXEC;
+			}
 		}
 	}
 
