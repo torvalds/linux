@@ -427,6 +427,13 @@ void __ast_device_set_tx_chip(struct ast_device *ast, enum ast_tx_chip tx_chip);
 int ast_2000_post(struct ast_device *ast);
 extern const struct ast_vbios_dclk_info ast_2000_dclk_table[];
 void ast_2000_detect_tx_chip(struct ast_device *ast, bool need_post);
+struct drm_device *ast_2000_device_create(struct pci_dev *pdev,
+					  const struct drm_driver *drv,
+					  enum ast_chip chip,
+					  enum ast_config_mode config_mode,
+					  void __iomem *regs,
+					  void __iomem *ioregs,
+					  bool need_post);
 
 /* ast_2100.c */
 int ast_2100_post(struct ast_device *ast);
