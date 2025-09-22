@@ -13,24 +13,19 @@ how the process works is required in order to be an effective part of it.
 The big picture
 ---------------
 
-The kernel developers use a loosely time-based release process, with a new
-major kernel release happening every two or three months.  The recent
-release history looks like this:
+The Linux kernel uses a loosely time-based, rolling release development
+model.  A new major kernel release (which we will call, as an example, 9.x)
+[1]_ happens every two or three months, which comes with new features,
+internal API changes, and more. A typical release can contain about 13,000
+changesets with changes to several hundred thousand lines of code. Recent
+releases, along with their dates, can be found at `Wikipedia
+<https://en.wikipedia.org/wiki/Linux_kernel_version_history>`_.
 
-	======  =================
-	5.0	March 3, 2019
-	5.1	May 5, 2019
-	5.2	July 7, 2019
-	5.3	September 15, 2019
-	5.4	November 24, 2019
-	5.5	January 6, 2020
-	======  =================
-
-Every 5.x release is a major kernel release with new features, internal
-API changes, and more.  A typical release can contain about 13,000
-changesets with changes to several hundred thousand lines of code.  5.x is
-the leading edge of Linux kernel development; the kernel uses a
-rolling development model which is continually integrating major changes.
+.. [1] Strictly speaking, the Linux kernel does not use semantic versioning
+       number scheme, but rather the 9.x pair identifies major release
+       version as a whole number. For each release, x is incremented,
+       but 9 is incremented only if x is deemed large enough (e.g.
+       Linux 5.0 is released following Linux 4.20).
 
 A relatively straightforward discipline is followed with regard to the
 merging of patches for each release.  At the beginning of each development
@@ -48,9 +43,9 @@ detail later on).
 
 The merge window lasts for approximately two weeks.  At the end of this
 time, Linus Torvalds will declare that the window is closed and release the
-first of the "rc" kernels.  For the kernel which is destined to be 5.6,
+first of the "rc" kernels.  For the kernel which is destined to be 9.x,
 for example, the release which happens at the end of the merge window will
-be called 5.6-rc1.  The -rc1 release is the signal that the time to
+be called 9.x-rc1.  The -rc1 release is the signal that the time to
 merge new features has passed, and that the time to stabilize the next
 kernel has begun.
 
@@ -99,13 +94,13 @@ release is made.  In the real world, this kind of perfection is hard to
 achieve; there are just too many variables in a project of this size.
 There comes a point where delaying the final release just makes the problem
 worse; the pile of changes waiting for the next merge window will grow
-larger, creating even more regressions the next time around.  So most 5.x
-kernels go out with a handful of known regressions though, hopefully, none
-of them are serious.
+larger, creating even more regressions the next time around.  So most kernels
+go out with a handful of known regressions, though, hopefully, none of them
+are serious.
 
 Once a stable release is made, its ongoing maintenance is passed off to the
 "stable team," currently Greg Kroah-Hartman. The stable team will release
-occasional updates to the stable release using the 5.x.y numbering scheme.
+occasional updates to the stable release using the 9.x.y numbering scheme.
 To be considered for an update release, a patch must (1) fix a significant
 bug, and (2) already be merged into the mainline for the next development
 kernel. Kernels will typically receive stable updates for a little more
